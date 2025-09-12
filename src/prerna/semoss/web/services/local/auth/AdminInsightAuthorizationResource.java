@@ -46,9 +46,10 @@ import prerna.web.services.util.WebUtility;
 public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 
 	private static final Logger classLogger = LogManager.getLogger(AdminInsightAuthorizationResource.class);
-	
+
 	/**
 	 * Get the insights of user
+	 * 
 	 * @param request
 	 * @param form
 	 * @return
@@ -70,13 +71,11 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
 		)
 	})
-	public Response getInsights(@Context HttpServletRequest request,
-			@QueryParam("projectId") String projectId, 
-			@QueryParam("searchTerm") String searchTerm, 
-			@QueryParam("limit") long limit,
+	public Response getInsights(@Context HttpServletRequest request, @QueryParam("projectId") String projectId,
+			@QueryParam("searchTerm") String searchTerm, @QueryParam("limit") long limit,
 			@QueryParam("offset") long offset) {
-	    projectId = WebUtility.inputSQLSanitizer(projectId);
-	    searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
+		projectId = WebUtility.inputSQLSanitizer(projectId);
+		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
 
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -84,25 +83,26 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to see all the insights when not an admin"));
+			classLogger.warn("User is trying to see all the insights when not an admin");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		List<String> projectFilter = null;
-		if(projectId != null && !(projectId=projectId.trim()).isEmpty()) {
+		if (projectId != null && !(projectId = projectId.trim()).isEmpty()) {
 			projectFilter = new ArrayList<>();
 			projectFilter.add(projectId);
 		}
-		
+
 		List<Map<String, Object>> ret = adminUtils.getAllUserInsights(user, projectFilter, searchTerm, limit, offset);
 		return WebUtility.getResponse(ret, 200);
 	}
 
 	/**
 	 * Get the insights for the project
+	 * 
 	 * @param request
 	 * @param form
 	 * @return
@@ -124,30 +124,31 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
 		)
 	})
-	public Response getProjectInsights(@Context HttpServletRequest request, 
-			@QueryParam("projectId") String projectId, @QueryParam("searchTerm") String searchTerm) {
-	    projectId = WebUtility.inputSQLSanitizer(projectId);
-	    searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
-	    
+	public Response getProjectInsights(@Context HttpServletRequest request, @QueryParam("projectId") String projectId,
+			@QueryParam("searchTerm") String searchTerm) {
+		projectId = WebUtility.inputSQLSanitizer(projectId);
+		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
+
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to see all the insight for project " + projectId + " when not an admin"));
+			classLogger.warn("User is trying to see all the insight for project " + projectId + " when not an admin");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		List<Map<String, Object>> ret = adminUtils.getProjectInsights(projectId);
 		return WebUtility.getResponse(ret, 200);
 	}
-	
+
 	/**
 	 * Get the project users and their permissions
+	 * 
 	 * @param request
 	 * @param form
 	 * @return
@@ -170,17 +171,19 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
 		)
 	})
-	public Response getAllProjectInsightUsers(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	public Response getAllProjectInsightUsers(@Context HttpServletRequest request,
+			MultivaluedMap<String, String> form) {
 		String projectId = WebUtility.inputSQLSanitizer(form.getFirst("projectId"));
 		String userId = WebUtility.inputSQLSanitizer(form.getFirst("userId"));
-		
+
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to see all the user insight access for project " + projectId + " when not an admin"));
+			classLogger.warn("User is trying to see all the user insight access for project " + projectId
+					+ " when not an admin");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -189,10 +192,10 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 
 		return WebUtility.getResponse(adminUtils.getAllUserInsightAccess(projectId, userId), 200);
 	}
-	
-	
+
 	/**
 	 * Get the user insight permissions for a given insight
+	 * 
 	 * @param request
 	 * @param form
 	 * @return
@@ -218,7 +221,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	public Response deleteProjectInsights(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		
+
 		String projectId = WebUtility.inputSQLSanitizer(form.getFirst("projectId"));
 	Gson gson = new Gson();
 	Type insightIdsType = new TypeToken<List<String>>(){}.getType();
@@ -229,13 +232,13 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to delete insight from projectId " + projectId + " when not an admin"));
+			classLogger.warn("User is trying to delete insight from projectId " + projectId + " when not an admin");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		try {
 			adminUtils.deleteProjectInsights(projectId, insightIds);
 		} catch (Exception e) {
@@ -244,14 +247,15 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
-	
+
 	/**
 	 * Get the user insight permissions for a given insight
+	 * 
 	 * @param request
 	 * @param projectId
 	 * @param insightId
@@ -276,43 +280,42 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
 		)
 	})
-	public Response getInsightUsers(@Context HttpServletRequest request, 
-			@QueryParam("projectId") String projectId, 
-			@QueryParam("insightId") String insightId, 
-			@QueryParam("userId") String userId, 
-			@QueryParam("permission") String permission, 
-			@QueryParam("limit") long limit, 
+	public Response getInsightUsers(@Context HttpServletRequest request, @QueryParam("projectId") String projectId,
+			@QueryParam("insightId") String insightId, @QueryParam("userId") String userId,
+			@QueryParam("permission") String permission, @QueryParam("limit") long limit,
 			@QueryParam("offset") long offset) {
-	    projectId = WebUtility.inputSQLSanitizer(projectId);
-	    userId = WebUtility.inputSQLSanitizer(userId);
-	    insightId = WebUtility.inputSQLSanitizer(insightId);
-	    permission = WebUtility.inputSQLSanitizer(permission);
-		
+		projectId = WebUtility.inputSQLSanitizer(projectId);
+		userId = WebUtility.inputSQLSanitizer(userId);
+		insightId = WebUtility.inputSQLSanitizer(insightId);
+		permission = WebUtility.inputSQLSanitizer(permission);
+
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to get all users who have access to insight " + insightId + " in project " + projectId + " when not an admin"));
+			classLogger.warn("User is trying to get all users who have access to insight " + insightId + " in project "
+					+ projectId + " when not an admin");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		Map<String, Object> ret = new HashMap<String, Object>();
-		List<Map<String, Object>> members = adminUtils.getInsightUsers(projectId, insightId, userId, permission, limit, offset);
+		List<Map<String, Object>> members = adminUtils.getInsightUsers(projectId, insightId, userId, permission, limit,
+				offset);
 		long totalMembers = SecurityAdminUtils.getInsightUsersCount(projectId, insightId, userId, permission);
 		ret.put("totalMembers", totalMembers);
 		ret.put("members", members);
-		
+
 		return WebUtility.getResponse(ret, 200);
 	}
-	
-	
+
 	/**
 	 * Add a user to an insight
+	 * 
 	 * @param request
 	 * @param form
 	 * @return
@@ -338,24 +341,25 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	public Response addInsightUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		
+
 		String newUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
 		String projectId = WebUtility.inputSQLSanitizer(form.getFirst("projectId"));
 		String insightId = WebUtility.inputSQLSanitizer(form.getFirst("insightId"));
 		String permission = WebUtility.inputSQLSanitizer(form.getFirst("permission"));
 		String endDate = null; // form.getFirst("endDate");
-		
+
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add user " + newUserId + " to insight " + insightId + " in project " + projectId + " when not an admin"));
+			classLogger.warn("User is trying to add user " + newUserId + " to insight " + insightId + " in project "
+					+ projectId + " when not an admin");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		try {
 			adminUtils.addInsightUser(newUserId, projectId, insightId, permission, user, endDate);
 		} catch (Exception e) {
@@ -364,17 +368,19 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
-		
+
 		// log the operation
-		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has added user " + newUserId + " to insight " + insightId + " in project " + projectId + " with permission " + permission));
-		
+		classLogger.info("User has added user " + newUserId + " to insight " + insightId + " in project " + projectId
+				+ " with permission " + permission);
+
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
-	
+
 	/**
 	 * Give permission to user for all insights in a project
+	 * 
 	 * @param request
 	 * @param form
 	 * @return
@@ -407,7 +413,8 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to pull the projects that user " + userId + " has access to when not an admin"));
+			classLogger.warn(
+					"User is trying to pull the projects that user " + userId + " has access to when not an admin");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -424,16 +431,16 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		}
 
 		// log the operation
-		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user),
-				"has granted all projects to " + userId + "with permission " + permission));
-		
+		classLogger.info("User has granted all projects to " + userId + "with permission " + permission);
+
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
-	
+
 	/**
 	 * Give permission to user for all insights in an project
+	 * 
 	 * @param request
 	 * @param form
 	 * @return
@@ -456,7 +463,8 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
 		)
 	})
-	public Response grantNewUsersInsightAccess(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	public Response grantNewUsersInsightAccess(@Context HttpServletRequest request,
+			MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		String projectId = WebUtility.inputSQLSanitizer(form.getFirst("projectId"));
@@ -467,7 +475,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to grant new users insight access when not an admin"));
+			classLogger.warn("User is trying to grant new users insight access when not an admin");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -484,16 +492,16 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		}
 
 		// log the operation
-		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user),
-				"has granted new users with permission " + permission));
-		
+		classLogger.info("User has granted new users with permission " + permission);
+
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
-	
+
 	/**
 	 * Add all users to an insight
+	 * 
 	 * @param request
 	 * @param form
 	 * @return
@@ -523,18 +531,19 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		String insightId = WebUtility.inputSQLSanitizer(form.getFirst("insightId"));
 		String permission = WebUtility.inputSQLSanitizer(form.getFirst("permission"));
 		String endDate = null; // form.getFirst("endDate");
-		
+
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add all users to insight " + insightId + " in project " + projectId + " when not an admin"));
+			classLogger.warn("User is trying to add all users to insight " + insightId + " in project " + projectId
+					+ " when not an admin");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		try {
 			adminUtils.addAllInsightUsers(projectId, insightId, permission, user, endDate);
 		} catch (Exception e) {
@@ -545,16 +554,16 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		}
 
 		// log the operation
-		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has added all users to project " + projectId + " with permission " + permission));
-		
+		classLogger.info("User has added all users to project " + projectId + " with permission " + permission);
+
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
-	
-	
+
 	/**
 	 * Edit user permission for an insight
+	 * 
 	 * @param request
 	 * @param form
 	 * @return
@@ -577,27 +586,29 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
 		)
 	})
-	public Response editInsightUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	public Response editInsightUserPermission(@Context HttpServletRequest request,
+			MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		
+
 		String existingUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
 		String projectId = WebUtility.inputSQLSanitizer(form.getFirst("projectId"));
 		String insightId = WebUtility.inputSQLSanitizer(form.getFirst("insightId"));
 		String newPermission = WebUtility.inputSQLSanitizer(form.getFirst("permission"));
 		String endDate = null; // form.getFirst("endDate");
-		
+
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user " + existingUserId + " permissions for insight " + insightId + " in project " + projectId + " when not an admin"));
+			classLogger.warn("User is trying to edit user " + existingUserId + " permissions for insight " + insightId
+					+ " in project " + projectId + " when not an admin");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		try {
 			adminUtils.editInsightUserPermission(existingUserId, projectId, insightId, newPermission, user, endDate);
 		} catch (Exception e) {
@@ -606,17 +617,19 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
-		
+
 		// log the operation
-		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has edited user " + existingUserId + " permission to insight " + insightId + " in project " + projectId + " with level " + newPermission));
-		
+		classLogger.info("User has edited user " + existingUserId + " permission to insight " + insightId
+				+ " in project " + projectId + " with level " + newPermission);
+
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
-	
+
 	/**
 	 * Edit user permission for insight
+	 * 
 	 * @param request
 	 * @param form
 	 * @return
@@ -639,7 +652,8 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
 		)
 	})
-	public Response editInsightUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	public Response editInsightUserPermissions(@Context HttpServletRequest request,
+			MultivaluedMap<String, String> form) {
 		User user = null;
 		String projectId = WebUtility.inputSQLSanitizer(form.getFirst("projectId"));
 		String insightId = WebUtility.inputSQLSanitizer(form.getFirst("insightId"));
@@ -649,14 +663,14 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			classLogger.error(Constants.STACKTRACE, e);
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user access permissions for insight " + insightId + " when not an admin"));
+			classLogger.warn(
+					"User is trying to edit user access permissions for insight " + insightId + " when not an admin");
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
-	Type requestsType = new TypeToken<List<Map<String, String>>>(){}.getType();
-	List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("userpermissions"), requestsType);
+
+		List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
 			SecurityAdminUtils.editInsightUserPermissions(projectId, insightId, requests, user, endDate);
 		} catch (Exception e) {
@@ -665,17 +679,18 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
-		
+
 		// log the operation
-		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has edited user access permissions to insight " + insightId));
-		
+		classLogger.info("User has edited user access permissions to insight " + insightId);
+
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
-	
+
 	/**
 	 * update all user's permission level to new permission level for an insight
+	 * 
 	 * @param request
 	 * @param form
 	 * @return
@@ -710,12 +725,12 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			classLogger.error(Constants.STACKTRACE, e);
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user permissions for project " + projectId + " when not an admin"));
+			classLogger.warn("User is trying to edit user permissions for project " + projectId + " when not an admin");
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		try {
 			adminUtils.updateInsightUserPermissions(projectId, insightId, newPermission, user, endDate);
 		} catch (Exception e) {
@@ -724,17 +739,18 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
-		
+
 		// log the operation
-		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has added all users to insight " + insightId + " with level " + newPermission));
-		
+		classLogger.info("User has added all users to insight " + insightId + " with level " + newPermission);
+
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
-	
+
 	/**
 	 * Remove user permission for an insight
+	 * 
 	 * @param request
 	 * @param form
 	 * @return
@@ -757,25 +773,27 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
 		)
 	})
-	public Response removeInsightUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	public Response removeInsightUserPermission(@Context HttpServletRequest request,
+			MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 
 		String existingUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
 		String projectId = WebUtility.inputSQLSanitizer(form.getFirst("projectId"));
 		String insightId = WebUtility.inputSQLSanitizer(form.getFirst("insightId"));
-		
+
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove user " + existingUserId + " from having access to insight " + insightId + " in project " + projectId + " when not an admin"));
+			classLogger.warn("User is trying to remove user " + existingUserId + " from having access to insight "
+					+ insightId + " in project " + projectId + " when not an admin");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		try {
 			adminUtils.removeInsightUser(existingUserId, projectId, insightId);
 		} catch (Exception e) {
@@ -784,17 +802,19 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
-		
+
 		// log the operation
-		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has removed user " + existingUserId + " from having access to insight " + insightId + " in project " + projectId));
-		
+		classLogger.info("User has removed user " + existingUserId + " from having access to insight " + insightId
+				+ " in project " + projectId);
+
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
-	
+
 	/**
 	 * Remove user permission for an insight
+	 * 
 	 * @param request
 	 * @param form
 	 * @return
@@ -825,18 +845,19 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		String insightId = WebUtility.inputSQLSanitizer(form.getFirst("insightId"));
 		boolean isGlobal = Boolean.parseBoolean(form.getFirst("isPublic"));
 		String logPublic = isGlobal ? " public " : " private";
-		
+
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the insight " + insightId + " in project " + projectId + logPublic + " when not an admin"));
+			classLogger.warn("User is trying to set the insight " + insightId + " in project " + projectId + logPublic
+					+ " when not an admin");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		try {
 			adminUtils.setInsightGlobalWithinProject(projectId, insightId, isGlobal);
 			IProject project = Utility.getProject(projectId);
@@ -848,17 +869,18 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
-		
+
 		// log the operation
-		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has set the insight " + insightId + " in project " + projectId + logPublic));
+		classLogger.info("User has set the insight " + insightId + " in project " + projectId + logPublic);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
-	
+
 	/**
 	 * Get the users with no access to a given insight
+	 * 
 	 * @param request
 	 * @param form
 	 * @return
@@ -880,34 +902,35 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
 		)
 	})
-	public Response getInsightUsersNoCredentials(@Context HttpServletRequest request, 
-			@QueryParam("projectId") String projectId, 
-			@QueryParam("insightId") String insightId,
-			@QueryParam("searchTerm") String searchTerm,
-			@QueryParam("limit") long limit,
+	public Response getInsightUsersNoCredentials(@Context HttpServletRequest request,
+			@QueryParam("projectId") String projectId, @QueryParam("insightId") String insightId,
+			@QueryParam("searchTerm") String searchTerm, @QueryParam("limit") long limit,
 			@QueryParam("offset") long offset) {
-	    projectId = WebUtility.inputSQLSanitizer(projectId);
-	    insightId = WebUtility.inputSQLSanitizer(insightId);
-	    searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
-	    
+		projectId = WebUtility.inputSQLSanitizer(projectId);
+		insightId = WebUtility.inputSQLSanitizer(insightId);
+		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
+
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to get all users who have access to insight " + insightId + " in project " + projectId + " when not an admin"));
+			classLogger.warn("User is trying to get all users who have access to insight " + insightId + " in project "
+					+ projectId + " when not an admin");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		List<Map<String, Object>> ret = adminUtils.getInsightUsersNoCredentials(projectId, insightId, searchTerm, limit, offset);
+		List<Map<String, Object>> ret = adminUtils.getInsightUsersNoCredentials(projectId, insightId, searchTerm, limit,
+				offset);
 		return WebUtility.getResponse(ret, 200);
 	}
-	
+
 	/**
 	 * Add user permissions in bulk to an insight
+	 * 
 	 * @param request
 	 * @param form
 	 * @return
@@ -930,7 +953,8 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
 		)
 	})
-	public Response addInsightUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	public Response addInsightUserPermissions(@Context HttpServletRequest request,
+			MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		String projectId = WebUtility.inputSQLSanitizer(form.getFirst("projectId"));
@@ -940,7 +964,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add user permission to insight " + insightId + " when not an admin"));
+			classLogger.warn("User is trying to add user permission to insight " + insightId + " when not an admin");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -959,15 +983,16 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		}
 
 		// log the operation
-		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has added user permissions to insight " + insightId));
-		
+		classLogger.info("User has added user permissions to insight " + insightId);
+
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
-	
+
 	/**
 	 * Remove user permissions for an insight, in bulk
+	 * 
 	 * @param request
 	 * @param form
 	 * @return
@@ -990,7 +1015,8 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
 		)
 	})
-	public Response removeInsightUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	public Response removeInsightUserPermissions(@Context HttpServletRequest request,
+			MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		String projectId = WebUtility.inputSQLSanitizer(form.getFirst("projectId"));
@@ -999,7 +1025,8 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove usersfrom having access to insight " + insightId + " when not an admin"));
+			classLogger.warn(
+					"User is trying to remove usersfrom having access to insight " + insightId + " when not an admin");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -1016,17 +1043,18 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
-		
+
 		// log the operation
-		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has removed users from having access to insight " + insightId));
-		
+		classLogger.info("User has removed users from having access to insight " + insightId);
+
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
-	
+
 	/**
 	 * Admin approval of user access requests
+	 * 
 	 * @param request
 	 * @param form
 	 * @return
@@ -1049,7 +1077,8 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
 		)
 	})
-	public Response approveInsightUserAccessRequest(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	public Response approveInsightUserAccessRequest(@Context HttpServletRequest request,
+			MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		String projectId = WebUtility.inputSQLSanitizer(form.getFirst("projectId"));
@@ -1059,13 +1088,14 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to approve user request for permission to insight " + insightId + " when not an admin"));
+			classLogger.warn("User is trying to approve user request for permission to insight " + insightId
+					+ " when not an admin");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		// adding user permissions and updating user access requests in bulk
 	Type approveRequestsType = new TypeToken<List<Map<String, Object>>>(){}.getType();
 	List<Map<String, Object>> requests = new Gson().fromJson(form.getFirst("requests"), approveRequestsType);
@@ -1082,15 +1112,17 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		}
 
 		// log the operation
-		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has approved user access requests and added user permissions to project " + projectId));
-		
+		classLogger.info("User has approved user access requests and added user permissions to project " + projectId
+				+ " insigth " + insightId);
+
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
-	
+
 	/**
 	 * Admin deny of user access requests
+	 * 
 	 * @param request
 	 * @param form
 	 * @return
@@ -1113,7 +1145,8 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
 		)
 	})
-	public Response denyInsightUserAccessRequest(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	public Response denyInsightUserAccessRequest(@Context HttpServletRequest request,
+			MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 
 		User user = null;
@@ -1123,13 +1156,14 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to deny user request for permission to insight " + insightId + " when not an admin"));
+			classLogger.warn("User is trying to deny user request for permission to insight " + insightId
+					+ " when not an admin");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		// updating user access requests in bulk
 	Type requestIdsType = new TypeToken<List<String>>(){}.getType();
 	List<String> requestids = new Gson().fromJson(form.getFirst("requestids"), requestIdsType);
@@ -1146,11 +1180,11 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		}
 
 		// log the operation
-		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has denied user access requests to insight " + insightId));
-		
+		classLogger.info("User has denied user access requests to insight " + insightId);
+
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
-	
+
 }

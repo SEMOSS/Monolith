@@ -50,9 +50,10 @@ public class DatabaseAuthorizationResource {
 
 	@Context
 	protected ServletContext context;
-	
+
 	/**
 	 * Get the apps the user has access to
+	 * 
 	 * @param request
 	 * @return
 	 */
@@ -70,72 +71,66 @@ public class DatabaseAuthorizationResource {
 			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
 		)
 	})
-	public Response getApps(@Context HttpServletRequest request, 
-			@QueryParam("databaseId") List<String> databaseFilter,
-			@QueryParam("filterWord") String searchTerm, 
-			@QueryParam("limit") Integer limit,
-			@QueryParam("offset") Integer offset,
-			@QueryParam("onlyFavorites") Boolean favoritesOnly,
+	public Response getApps(@Context HttpServletRequest request, @QueryParam("databaseId") List<String> databaseFilter,
+			@QueryParam("filterWord") String searchTerm, @QueryParam("limit") Integer limit,
+			@QueryParam("offset") Integer offset, @QueryParam("onlyFavorites") Boolean favoritesOnly,
 			@QueryParam("metaKeys") List<String> metaKeys,
 //			@QueryParam("metaFilters") Map<String, Object> metaFilters,
-			@QueryParam("noMeta") Boolean noMeta
-			) {
-		databaseFilter=WebUtility.inputSanitizer(databaseFilter);
-		metaKeys=WebUtility.inputSanitizer(metaKeys);
-		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngines WITH PARAM engineTypes");
-		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngines WITH PARAM engineTypes");
-		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngines WITH PARAM engineTypes");
-		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngines WITH PARAM engineTypes");
+			@QueryParam("noMeta") Boolean noMeta) {
+		databaseFilter = WebUtility.inputSanitizer(databaseFilter);
+		metaKeys = WebUtility.inputSanitizer(metaKeys);
+		classLogger.warn(
+				"CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngines WITH PARAM engineTypes");
 
-		searchTerm=WebUtility.inputSanitizer(searchTerm);
-	    
+		searchTerm = WebUtility.inputSanitizer(searchTerm);
+
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
+			classLogger.warn("User invalid user session trying to access authorization resources");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		MyDatabasesReactor reactor = new MyDatabasesReactor();
 		reactor.In();
 		Insight temp = new Insight();
 		temp.setUser(user);
 		reactor.setInsight(temp);
-		
-		if(searchTerm != null) {
+
+		if (searchTerm != null) {
 			GenRowStruct struct = new GenRowStruct();
 			struct.add(new NounMetadata(searchTerm, PixelDataType.CONST_STRING));
 			reactor.getNounStore().addNoun(ReactorKeysEnum.FILTER_WORD.getKey(), struct);
 		}
-		if(limit != null) {
+		if (limit != null) {
 			GenRowStruct struct = new GenRowStruct();
 			struct.add(new NounMetadata(limit, PixelDataType.CONST_INT));
 			reactor.getNounStore().addNoun(ReactorKeysEnum.LIMIT.getKey(), struct);
 		}
-		if(offset != null) {
+		if (offset != null) {
 			GenRowStruct struct = new GenRowStruct();
 			struct.add(new NounMetadata(offset, PixelDataType.CONST_INT));
 			reactor.getNounStore().addNoun(ReactorKeysEnum.OFFSET.getKey(), struct);
 		}
-		if(favoritesOnly != null) {
+		if (favoritesOnly != null) {
 			GenRowStruct struct = new GenRowStruct();
 			struct.add(new NounMetadata(favoritesOnly, PixelDataType.BOOLEAN));
 			reactor.getNounStore().addNoun(ReactorKeysEnum.ONLY_FAVORITES.getKey(), struct);
 		}
-		if(databaseFilter != null && !databaseFilter.isEmpty()) {
+		if (databaseFilter != null && !databaseFilter.isEmpty()) {
 			GenRowStruct struct = new GenRowStruct();
-			for(String db : databaseFilter) {
+			for (String db : databaseFilter) {
 				struct.add(new NounMetadata(db, PixelDataType.CONST_STRING));
 			}
 			reactor.getNounStore().addNoun(ReactorKeysEnum.DATABASE.getKey(), struct);
 		}
-		if(metaKeys != null && !metaKeys.isEmpty()) {
+		if (metaKeys != null && !metaKeys.isEmpty()) {
 			GenRowStruct struct = new GenRowStruct();
-			for(String metaK : metaKeys) {
+			for (String metaK : metaKeys) {
 				struct.add(new NounMetadata(metaK, PixelDataType.CONST_STRING));
 			}
 			reactor.getNounStore().addNoun(ReactorKeysEnum.META_KEYS.getKey(), struct);
@@ -145,18 +140,19 @@ public class DatabaseAuthorizationResource {
 //			struct.add(new NounMetadata(metaFilters, PixelDataType.MAP));
 //			reactor.getNounStore().addNoun(ReactorKeysEnum.META_FILTERS.getKey(), struct);
 //		}
-		if(noMeta != null) {
+		if (noMeta != null) {
 			GenRowStruct struct = new GenRowStruct();
 			struct.add(new NounMetadata(noMeta, PixelDataType.BOOLEAN));
 			reactor.getNounStore().addNoun(ReactorKeysEnum.NO_META.getKey(), struct);
 		}
-		
+
 		NounMetadata outputNoun = reactor.execute();
 		return WebUtility.getResponse(outputNoun.getValue(), 200);
 	}
-	
+
 	/**
 	 * Get the user app permission level
+	 * 
 	 * @param request
 	 * @param form
 	 * @return
@@ -174,38 +170,39 @@ public class DatabaseAuthorizationResource {
 		)
 	})
 	public Response getUserAppPermission(@Context HttpServletRequest request, @QueryParam("appId") String appId) {
-		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getUserEnginePermission with PARAM engineId");
-		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getUserEnginePermission with PARAM engineId");
-		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getUserEnginePermission with PARAM engineId");
-		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getUserEnginePermission with PARAM engineId");
+		classLogger.warn(
+				"CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getUserEnginePermission with PARAM engineId");
 
-		appId=WebUtility.inputSanitizer( appId);
-		
+		appId = WebUtility.inputSanitizer(appId);
+
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
+			classLogger.warn("User invalid user session trying to access authorization resources");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		String permission = SecurityEngineUtils.getActualUserEnginePermission(user, appId);
-		if(permission == null) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to pull permission details for database " + appId + " without having proper access"));
+		if (permission == null) {
+			classLogger.warn("User is trying to pull permission details for database " + appId
+					+ " without having proper access");
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User does not have access to this database");
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		Map<String, String> ret = new HashMap<String, String>();
 		ret.put("permission", permission);
 		return WebUtility.getResponse(ret, 200);
 	}
+
 	/**
 	 * Get the database users and their permissions
+	 * 
 	 * @param request
 	 * @param form
 	 * @return
@@ -225,40 +222,39 @@ public class DatabaseAuthorizationResource {
 		)
 	})
 	public Response getAppUsers(@Context HttpServletRequest request, @QueryParam("appId") String appId) {
-		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngineUsers with PARAM engineId");
-		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngineUsers with PARAM engineId");
-		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngineUsers with PARAM engineId");
-		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngineUsers with PARAM engineId");
-		
-		appId=WebUtility.inputSanitizer(appId);
+		classLogger.warn(
+				"CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngineUsers with PARAM engineId");
+
+		appId = WebUtility.inputSanitizer(appId);
 
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
+			classLogger.warn("User invalid user session trying to access authorization resources");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		List<Map<String, Object>> ret = null;
 		try {
 			ret = SecurityEngineUtils.getEngineUsers(user, appId, null, null, -1, -1);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to pull users for database " + appId + " without having proper access"));
+			classLogger.warn("User is trying to pull users for database " + appId + " without having proper access");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		return WebUtility.getResponse(ret, 200);
 	}
-	
+
 	/**
 	 * Add a user to an database
+	 * 
 	 * @param request
 	 * @param form
 	 * @return
@@ -281,49 +277,49 @@ public class DatabaseAuthorizationResource {
 	public Response addAppUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		Map<String, Object> ret = new HashMap<String, Object>();
 
-		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/addEngineUserPermission with PARAM engineId");
-		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/addEngineUserPermission with PARAM engineId");
-		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/addEngineUserPermission with PARAM engineId");
-		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/addEngineUserPermission with PARAM engineId");
-		
+		classLogger.warn(
+				"CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/addEngineUserPermission with PARAM engineId");
+
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
+			classLogger.warn("User invalid user session trying to access authorization resources");
 			classLogger.error(Constants.STACKTRACE, e);
 			ret.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(ret, 401);
 		}
-		
+
 		String newUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
 		String appId = WebUtility.inputSanitizer(form.getFirst("appId"));
 		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess(appId) && !SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add users for database " + appId + " but is not an admin"));
+			classLogger.warn("User is trying to add users for database " + appId + " but is not an admin");
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		try {
 			SecurityEngineUtils.addEngineUser(user, newUserId, appId, permission, null, null, null, 0, 0.0);
 		} catch (Exception e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add users for database " + appId + " without having proper access"));
+			classLogger.warn("User is trying to add users for database " + appId + " without having proper access");
 			classLogger.error(Constants.STACKTRACE, e);
 			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(ret, 400);
 		}
-		
+
 		// log the operation
-		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has added user " + newUserId + " to database " + appId + " with permission " + permission));
+		classLogger
+				.info("User has added user " + newUserId + " to database " + appId + " with permission " + permission);
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
-	
+
 	/**
 	 * Edit user permission for an database
+	 * 
 	 * @param request
 	 * @param form
 	 * @return
@@ -346,35 +342,36 @@ public class DatabaseAuthorizationResource {
 	public Response editAppUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		Map<String, Object> ret = new HashMap<String, Object>();
 
-		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/editEngineUserPermission with PARAM engineId");
-		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/editEngineUserPermission with PARAM engineId");
-		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/editEngineUserPermission with PARAM engineId");
-		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/editEngineUserPermission with PARAM engineId");
-		
+		classLogger.warn(
+				"CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/editEngineUserPermission with PARAM engineId");
+
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
+			classLogger.warn("User invalid user session trying to access authorization resources");
 			classLogger.error(Constants.STACKTRACE, e);
 			ret.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(ret, 401);
 		}
-		
+
 		String existingUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
 		String appId = WebUtility.inputSanitizer(form.getFirst("appId"));
 		String newPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess(appId) && !SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user " + existingUserId + " permissions for database " + appId + " but is not an admin"));
+			classLogger.warn("User is trying to edit user " + existingUserId + " permissions for database " + appId
+					+ " but is not an admin");
 			ret.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
 			return WebUtility.getResponse(ret, 401);
 		}
-		
+
 		try {
-			SecurityEngineUtils.editEngineUserPermission(user, existingUserId, appId, newPermission, null, null, null, 0, 0.0);
-		} catch(IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user " + existingUserId + " permissions for database " + appId + " without having proper access"));
+			SecurityEngineUtils.editEngineUserPermission(user, existingUserId, appId, newPermission, null, null, null,
+					0, 0.0);
+		} catch (IllegalAccessException e) {
+			classLogger.warn("User is trying to edit user " + existingUserId + " permissions for database " + appId
+					+ " without having proper access");
 			classLogger.error(Constants.STACKTRACE, e);
 			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(ret, 400);
@@ -383,15 +380,17 @@ public class DatabaseAuthorizationResource {
 			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(ret, 400);
 		}
-		
+
 		// log the operation
-		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has edited user " + existingUserId + " permission to database " + appId + " with level " + newPermission));
+		classLogger.info("User has edited user " + existingUserId + " permission to database " + appId + " with level "
+				+ newPermission);
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
-	
+
 	/**
 	 * Remove user permission for an database
+	 * 
 	 * @param request
 	 * @param form
 	 * @return
@@ -412,36 +411,36 @@ public class DatabaseAuthorizationResource {
 		)
 	})
 	public Response removeAppUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/removeEngineUserPermission with PARAM engineId");
-		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/removeEngineUserPermission with PARAM engineId");
-		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/removeEngineUserPermission with PARAM engineId");
-		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/removeEngineUserPermission with PARAM engineId");
-		
+		classLogger.warn(
+				"CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/removeEngineUserPermission with PARAM engineId");
+
 		System.out.println("database auth resource... ");
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
+			classLogger.warn("User invalid user session trying to access authorization resources");
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		String existingUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
 		String appId = WebUtility.inputSanitizer(form.getFirst("appId"));
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess(appId) && !SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove user " + existingUserId + " from having access to database " + appId + " but is not an admin"));
+			classLogger.warn("User is trying to remove user " + existingUserId + " from having access to database "
+					+ appId + " but is not an admin");
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		try {
 			SecurityEngineUtils.removeEngineUser(user, existingUserId, appId);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove user " + existingUserId + " from having access to database " + appId + " without having proper access"));
+			classLogger.warn("User is trying to remove user " + existingUserId + " from having access to database "
+					+ appId + " without having proper access");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -452,17 +451,18 @@ public class DatabaseAuthorizationResource {
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
-		
+
 		// log the operation
-		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has removed user " + existingUserId + " from having access to database " + appId));
-		
+		classLogger.info("User has removed user " + existingUserId + " from having access to database " + appId);
+
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
-	
+
 	/**
 	 * Set the database as being global (read only) for the entire semoss instance
+	 * 
 	 * @param request
 	 * @param form
 	 * @return
@@ -486,58 +486,58 @@ public class DatabaseAuthorizationResource {
 		)
 	})
 	public Response setAppGlobal(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/setEngineGlobal with PARAM engineId");
-		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/setEngineGlobal with PARAM engineId");
-		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/setEngineGlobal with PARAM engineId");
-		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/setEngineGlobal with PARAM engineId");
-		
+		classLogger.warn(
+				"CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/setEngineGlobal with PARAM engineId");
+
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
+			classLogger.warn("User invalid user session trying to access authorization resources");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		String appId = WebUtility.inputSanitizer(form.getFirst("appId"));
 		boolean isPublic = Boolean.parseBoolean(form.getFirst("public"));
 		String logPublic = isPublic ? " public " : " private";
 
 		if (AbstractSecurityUtils.adminOnlyEngineSetPublic(appId) && !SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the database " + appId + logPublic + " but is not an admin"));
+			classLogger.warn("User is trying to set the database " + appId + logPublic + " but is not an admin");
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		try {
 			SecurityEngineUtils.setEngineGlobal(user, appId, isPublic);
-		} catch(IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the database " + appId + logPublic + " without having proper access"));
-    		classLogger.error(Constants.STACKTRACE, e);
+		} catch (IllegalAccessException e) {
+			classLogger
+					.warn("User is trying to set the database " + appId + logPublic + " without having proper access");
+			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
-		} catch (Exception e){
-    		classLogger.error(Constants.STACKTRACE, e);
+		} catch (Exception e) {
+			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
-		
+
 		// log the operation
-		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has set the database " + appId + logPublic));
-		
+		classLogger.info("User has set the database " + appId + logPublic);
+
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
-	
+
 	/**
 	 * Set the database as being discoverable for the entire semoss instance
+	 * 
 	 * @param request
 	 * @param form
 	 * @return
@@ -561,58 +561,58 @@ public class DatabaseAuthorizationResource {
 		)
 	})
 	public Response setAppDiscoverable(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/setEngineDiscoverable with PARAM engineId");
-		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/setEngineDiscoverable with PARAM engineId");
-		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/setEngineDiscoverable with PARAM engineId");
-		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/setEngineDiscoverable with PARAM engineId");
-		
+		classLogger.warn(
+				"CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/setEngineDiscoverable with PARAM engineId");
+
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
+			classLogger.warn("User invalid user session trying to access authorization resources");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		String appId = WebUtility.inputSanitizer(form.getFirst("appId"));
 		boolean isDiscoverable = Boolean.parseBoolean(form.getFirst("discoverable"));
 		String logDiscoverable = isDiscoverable ? " discoverable " : " not discoverable";
 
 		if (AbstractSecurityUtils.adminOnlyEngineSetPublic(appId) && !SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the database " + appId + logDiscoverable + " but is not an admin"));
+			classLogger.warn("User is trying to set the database " + appId + logDiscoverable + " but is not an admin");
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		try {
 			SecurityEngineUtils.setEngineDiscoverable(user, appId, isDiscoverable);
-		} catch(IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the database " + appId + logDiscoverable + " without having proper access"));
-    		classLogger.error(Constants.STACKTRACE, e);
+		} catch (IllegalAccessException e) {
+			classLogger.warn(
+					"User is trying to set the database " + appId + logDiscoverable + " without having proper access");
+			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
-		} catch (Exception e){
-    		classLogger.error(Constants.STACKTRACE, e);
+		} catch (Exception e) {
+			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
-		
+
 		// log the operation
-		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has set the database " + appId + logDiscoverable));
-		
+		classLogger.info("User has set the database " + appId + logDiscoverable);
+
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
-	
+
 	/**
 	 * Set the database visibility for the user to be seen
+	 * 
 	 * @param request
 	 * @param form
 	 * @return
@@ -636,49 +636,49 @@ public class DatabaseAuthorizationResource {
 		)
 	})
 	public Response setAppVisibility(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/setEngineVisibility with PARAM engineId");
-		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/setEngineVisibility with PARAM engineId");
-		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/setEngineVisibility with PARAM engineId");
-		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/setEngineVisibility with PARAM engineId");
-		
+		classLogger.warn(
+				"CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/setEngineVisibility with PARAM engineId");
+
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
+			classLogger.warn("User invalid user session trying to access authorization resources");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		String appId = WebUtility.inputSanitizer(form.getFirst("appId"));
 		boolean visible = Boolean.parseBoolean(form.getFirst("visibility"));
 		String logVisible = visible ? " visible " : " not visible";
 
 		try {
 			SecurityEngineUtils.setEngineVisibility(user, appId, visible);
-		} catch(IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the database " + appId + logVisible + " without having proper access"));
-    		classLogger.error(Constants.STACKTRACE, e);
+		} catch (IllegalAccessException e) {
+			classLogger
+					.warn("User is trying to set the database " + appId + logVisible + " without having proper access");
+			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
-		} catch (Exception e){
-    		classLogger.error(Constants.STACKTRACE, e);
+		} catch (Exception e) {
+			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
-		
+
 		// log the operation
-		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has set the database " + appId + logVisible));
-		
+		classLogger.info("User has set the database " + appId + logVisible);
+
 		return WebUtility.getResponse(true, 200);
 	}
-	
+
 	/**
 	 * Set the database as favorited by the user
+	 * 
 	 * @param request
 	 * @param form
 	 * @return
@@ -702,49 +702,49 @@ public class DatabaseAuthorizationResource {
 		)
 	})
 	public Response setAppFavorite(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/setEngineFavorite with PARAM engineId");
-		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/setEngineFavorite with PARAM engineId");
-		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/setEngineFavorite with PARAM engineId");
-		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/setEngineFavorite with PARAM engineId");
-		
+		classLogger.warn(
+				"CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/setEngineFavorite with PARAM engineId");
+
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
+			classLogger.warn("User invalid user session trying to access authorization resources");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		String appId = WebUtility.inputSanitizer(form.getFirst("appId"));
 		boolean isFavorite = Boolean.parseBoolean(form.getFirst("isFavorite"));
 		String logFavorited = isFavorite ? " favorited " : " not favorited";
 
 		try {
 			SecurityEngineUtils.setEngineFavorite(user, appId, isFavorite);
-		} catch(IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the database " + appId + logFavorited + " without having proper access"));
-    		classLogger.error(Constants.STACKTRACE, e);
+		} catch (IllegalAccessException e) {
+			classLogger.warn(
+					"User is trying to set the database " + appId + logFavorited + " without having proper access");
+			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
-		} catch (Exception e){
-    		classLogger.error(Constants.STACKTRACE, e);
+		} catch (Exception e) {
+			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
-		
+
 		// log the operation
-		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has set the database " + appId + logFavorited));
-		
+		classLogger.info("User has set the database " + appId + logFavorited);
+
 		return WebUtility.getResponse(true, 200);
 	}
-	
+
 	/**
 	 * Get users with no access to a given database
+	 * 
 	 * @param request
 	 * @param form
 	 * @return
@@ -763,42 +763,39 @@ public class DatabaseAuthorizationResource {
 			content = @Content(mediaType = "application/json", schema = @Schema(type = "object"))
 		)
 	})
-	public Response getAppUsersNoCredentials(@Context HttpServletRequest request, 
-			@QueryParam("appId") String appId,
-			@QueryParam("searchTerm") String searchTerm,
-			@QueryParam("limit") long limit, 
+	public Response getAppUsersNoCredentials(@Context HttpServletRequest request, @QueryParam("appId") String appId,
+			@QueryParam("searchTerm") String searchTerm, @QueryParam("limit") long limit,
 			@QueryParam("offset") long offset) {
-		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngineUsersNoCredentials with PARAM engineId");
-		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngineUsersNoCredentials with PARAM engineId");
-		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngineUsersNoCredentials with PARAM engineId");
-		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngineUsersNoCredentials with PARAM engineId");
-		
+		classLogger.warn(
+				"CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngineUsersNoCredentials with PARAM engineId");
+
 		appId = WebUtility.inputSanitizer(appId);
-	    searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
+		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
 
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), " invalid user session trying to access authorization resources"));
+			classLogger.warn("User invalid user session trying to access authorization resources");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		List<Map<String, Object>> ret = null;
 		try {
 			ret = SecurityEngineUtils.getEngineUsersNoCredentials(user, appId, searchTerm, limit, offset);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), " is trying to pull users for " + appId + " that do not have credentials without having proper access"));
+			classLogger.warn("User is trying to pull users for " + appId
+					+ " that do not have credentials without having proper access");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		return WebUtility.getResponse(ret, 200);
 	}
-		
+
 }

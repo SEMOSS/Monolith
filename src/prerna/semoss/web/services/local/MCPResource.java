@@ -44,6 +44,7 @@ import javax.ws.rs.sse.SseEventSink;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.ThreadContext;
 
 import prerna.auth.User;
 import prerna.mcp.MCPReaper;
@@ -229,15 +230,13 @@ public class MCPResource {
 	 * @return
 	 */
 	private Insight initSession(HttpSession session) {
-		if(session != null)
-		{
+		if (session != null) {
 			User user = (User) session.getAttribute(Constants.SESSION_USER);
 			String insightId = (String) session.getAttribute(Constants.INSIGHT);
-			String sessionId = session.getId();		
+			String sessionId = session.getId();
 			Insight insight = null;
 			// insight id could be null
-			if (insightId == null)
-			{
+			if (insightId == null) {
 				Set<String> sessionInsights = InsightStore.getInstance().getInsightIDsForSession(sessionId);
 				if (sessionInsights == null || sessionInsights.isEmpty()) {
 					// need to make a new insight here
@@ -249,19 +248,18 @@ public class MCPResource {
 					// pull the insight id from the session set
 					insightId = sessionInsights.iterator().next();
 					insight = InsightStore.getInstance().get(insightId);
-				}			
+				}
 				// get the zone id
-				ZoneId zoneId = ZoneId.of(Utility.getApplicationZoneId());;
+				ZoneId zoneId = ZoneId.of(Utility.getApplicationZoneId());
+				;
 				user.setZoneId(zoneId);
 				session.setAttribute(Constants.INSIGHT, insightId);
-			}
-			else
-			{
-				insight = InsightStore.getInstance().get(insightId);				
+			} else {
+				insight = InsightStore.getInstance().get(insightId);
 			}
 
 			// set the user
-			insight.setUser(user);		
+			insight.setUser(user);
 			return insight;
 		}
 		return null;

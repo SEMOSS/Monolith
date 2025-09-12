@@ -39,13 +39,14 @@ import prerna.web.services.util.WebUtility;
 @PermitAll
 @Tag(name = "auth", description = "Endpoints for managing authentication and authorization of users and applications, including user permissions, access control, and administrative actions.")
 public class UserAuthorizationResource extends AbstractAdminResource {
-	
+
 	private static final Logger classLogger = LogManager.getLogger(UserAuthorizationResource.class);
-	
+
 	private static final String RESET_PASSWORD = "/resetPassword/";
 
 	/**
-	 * Edit user properties 
+	 * Edit user properties
+	 * 
 	 * @param request
 	 * @param form
 	 * @return true if the edition was performed
@@ -91,9 +92,10 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 
 		return null;
 	}
-	
+
 	/**
 	 * Create your user access/secret key
+	 * 
 	 * @param request
 	 * @return
 	 */
@@ -109,29 +111,30 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 		}
 		AccessToken token = user.getPrimaryLoginToken();
 		boolean accessKeysAllowed = SocialPropertiesUtil.getInstance().accessKeysAllowed(token.getProvider());
-		if(!accessKeysAllowed) {
+		if (!accessKeysAllowed) {
 			Map<String, String> ret = new Hashtable<>();
-			ret.put(Constants.ERROR_MESSAGE, "Creating access keys is not allowed. Please reach out to an administrator if you require this functionality");
+			ret.put(Constants.ERROR_MESSAGE,
+					"Creating access keys is not allowed. Please reach out to an administrator if you require this functionality");
 			return WebUtility.getResponse(ret, 401);
 		}
-		
+
 		String tokenName = WebUtility.inputSanitizer(request.getParameter("tokenName"));
-		if(tokenName != null) {
-			if(tokenName.length() > 255) {
+		if (tokenName != null) {
+			if (tokenName.length() > 255) {
 				Map<String, String> ret = new Hashtable<>();
 				ret.put(Constants.ERROR_MESSAGE, "Token name must be less than 255 characters long");
 				return WebUtility.getResponse(ret, 400);
 			}
 		}
 		String tokenDescription = WebUtility.inputSanitizer(request.getParameter("tokenDescription"));
-		if(tokenDescription != null) {
-			if(tokenDescription.length() > 500) {
+		if (tokenDescription != null) {
+			if (tokenDescription.length() > 500) {
 				Map<String, String> ret = new Hashtable<>();
 				ret.put(Constants.ERROR_MESSAGE, "Token description must be less than 500 characters long");
 				return WebUtility.getResponse(ret, 400);
 			}
 		}
-		
+
 		Map<String, String> oneTimeDetails;
 		try {
 			oneTimeDetails = SecurityUserAccessKeyUtils.createUserAccessToken(token, tokenName, tokenDescription);
@@ -142,7 +145,7 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(ret, 400);
 		}
 	}
-	
+
 	/**
 	 * 
 	 * @param request
@@ -161,32 +164,33 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		Map<String, Object> retMap = new HashMap<>();
-		
+
 		AccessToken token = user.getPrimaryLoginToken();
 		String accessKey = WebUtility.inputSQLSanitizer(request.getParameter("accessKey"));
-		if(accessKey == null || accessKey.isEmpty()) {
+		if (accessKey == null || accessKey.isEmpty()) {
 			retMap.put(Constants.ERROR_MESSAGE, "accessKey parameter is not defined");
 			return WebUtility.getResponse(retMap, 400);
 		}
 		try {
 			boolean success = SecurityUserAccessKeyUtils.deleteUserAccessToken(token, accessKey);
 			retMap.put("success", success);
-			if(success) {
+			if (success) {
 				return WebUtility.getResponse(retMap, 200);
 			} else {
 				return WebUtility.getResponse(retMap, 400);
 			}
-		} catch(Exception e) {
+		} catch (Exception e) {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 	}
-	
+
 	/**
 	 * Get the user access keys
+	 * 
 	 * @param request
 	 * @return
 	 */
@@ -204,10 +208,11 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		List<Map<String, Object>> results = SecurityUserAccessKeyUtils.getUserAccessKeyInfo(user.getPrimaryLoginToken());
+		List<Map<String, Object>> results = SecurityUserAccessKeyUtils
+				.getUserAccessKeyInfo(user.getPrimaryLoginToken());
 		return WebUtility.getResponse(results, 200);
 	}
-	
+
 	/**
 	 * 
 	 * @param context
@@ -220,7 +225,7 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 	public Response setupResetPassword(@Context ServletContext context, @Context HttpServletRequest request) {
 		// do we allow users to change their password?
 		try {
-			if(!PasswordRequirements.getInstance().isAllowUserChangePassword()) {
+			if (!PasswordRequirements.getInstance().isAllowUserChangePassword()) {
 				Map<String, String> errorMap = new HashMap<String, String>();
 				errorMap.put(Constants.ERROR_MESSAGE, "Only the administrator is allowed to change the user password");
 				return WebUtility.getResponse(errorMap, 401);
@@ -231,12 +236,12 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		String email = WebUtility.inputSQLSanitizer(request.getParameter("email"));
 		String type = WebUtility.inputSQLSanitizer(request.getParameter("type"));
 		String resetEmailUrl = WebUtility.inputSQLSanitizer(request.getParameter("url"));
 		String sender = WebUtility.inputSQLSanitizer(request.getParameter("sender"));
-		
+
 		String uniqueToken = null;
 		try {
 			uniqueToken = SecurityPasswordResetUtils.allowUserResetPassword(email, type);
@@ -246,41 +251,39 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
-		if(resetEmailUrl == null || (resetEmailUrl=resetEmailUrl.trim()).isEmpty() ) {
-			String fullUrl = WebUtility.cleanHttpResponse(((HttpServletRequest) request).getRequestURL().toString());
-			String contextPath = ((HttpServletRequest) request).getContextPath();
-			resetEmailUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length()) 
-					+ RESET_PASSWORD + "index.html?token=" + uniqueToken;
+
+		if (resetEmailUrl == null || (resetEmailUrl = resetEmailUrl.trim()).isEmpty()) {
+			String fullUrl = WebUtility.cleanHttpResponse(request.getRequestURL().toString());
+			String contextPath = request.getContextPath();
+			resetEmailUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length()) + RESET_PASSWORD
+					+ "index.html?token=" + uniqueToken;
 		} else {
 			resetEmailUrl += "?token=" + uniqueToken;
 		}
-		
-		if(!UserRegistrationEmailService.getInstance().sendPasswordResetRequestEmail(email, resetEmailUrl, sender)) {
+
+		if (!UserRegistrationEmailService.getInstance().sendPasswordResetRequestEmail(email, resetEmailUrl, sender)) {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Error occurred sending email to " + email);
 			SecurityPasswordResetUtils.deleteToken(uniqueToken);
 			return WebUtility.getResponse(errorMap, 500);
 		}
-		
+
 		// log the operation
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
-			classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user),
-					"has requested a password reset for email = " + email));
+			classLogger.info("User has requested a password reset for email = " + email);
 		} catch (IllegalAccessException e) {
-			//ignore
-			classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), "No user in session",
-					"has requested a password reset for email = " + email));
+			// ignore
+			classLogger.info("User has requested a password reset for email = " + email);
 		}
-		
+
 		Map<String, Object> retMap = new HashMap<>();
 		retMap.put("success", true);
 		retMap.put("message", "Email has been sent to: " + email);
 		return WebUtility.getResponse(retMap, 200);
 	}
-	
+
 	/**
 	 * 
 	 * @param context
@@ -293,7 +296,7 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 	public Response resetPassword(@Context ServletContext context, @Context HttpServletRequest request) {
 		// do we allow users to change their password?
 		try {
-			if(!PasswordRequirements.getInstance().isAllowUserChangePassword()) {
+			if (!PasswordRequirements.getInstance().isAllowUserChangePassword()) {
 				Map<String, String> errorMap = new HashMap<String, String>();
 				errorMap.put(Constants.ERROR_MESSAGE, "Only the administrator is allowed to change the user password");
 				return WebUtility.getResponse(errorMap, 401);
@@ -304,7 +307,7 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		String token = WebUtility.inputSQLSanitizer(request.getParameter("token"));
 		String password = WebUtility.inputSQLSanitizer(request.getParameter("password"));
 		String sender = WebUtility.inputSQLSanitizer(request.getParameter("sender"));
@@ -318,25 +321,25 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		String userId = (String) resetDetails.get("userId");
 		String email = (String) resetDetails.get("email");
 		SemossDate dateAdded = (SemossDate) resetDetails.get("dateAdded");
-		
+
 		// log the operation
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
-			classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user),
-					"has changed password for user id = " + userId + " for reset request on " + dateAdded + " with email " + email));
+			classLogger.info("User has changed password for user id = " + userId + " for reset request on " + dateAdded
+					+ " with email " + email);
 		} catch (IllegalAccessException e) {
-			//ignore
-			classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), "No user in session",
-					"has changed password for user id = " + userId + " for reset request on " + dateAdded + " with email " + email));
+			// ignore
+			classLogger.info("User has changed password for user id = " + userId + " for reset request on " + dateAdded
+					+ " with email " + email);
 		}
-		
+
 		UserRegistrationEmailService.getInstance().sendPasswordResetSuccessEmail(email, sender);
-		
+
 		Map<String, Object> retMap = new HashMap<>();
 		retMap.put("success", true);
 		retMap.put("userId", userId);

@@ -13,7 +13,6 @@ import javax.ws.rs.core.Context;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.util.Constants;
-import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 @SecurityRequirement(name = "basicAuth")
@@ -24,7 +23,7 @@ public class ResourceUtility {
 		allowAccessWithoutUsers.add("config");
 		allowAccessWithoutUsers.add("config/fetchCsrf");
 	}
-	
+
 	public static List<String> allowAccessWithoutLogin = new ArrayList<>();
 	static {
 		// allow these for successful dropping of
@@ -55,43 +54,43 @@ public class ResourceUtility {
 		allowAccessWithoutLogin.add("auth/userinfo/ms");
 		allowAccessWithoutLogin.add("auth/login/ms");
 	}
-	
-	
-	
+
 	/**
 	 * Get the user
+	 * 
 	 * @param request
 	 * @return
 	 * @throws IOException
 	 */
 	public static User getUser(@Context HttpServletRequest request) throws IllegalAccessException {
 		HttpSession session = request.getSession(false);
-		if(session == null){
+		if (session == null) {
 			throw new IllegalAccessException("User session is invalid");
 		}
-		
+
 		User user = (User) session.getAttribute(Constants.SESSION_USER);
-		if(user == null) {
+		if (user == null) {
 			throw new IllegalAccessException("User session is invalid");
 		}
-		
+
 		return user;
 	}
-	
-	public static String getClientIp(@Context HttpServletRequest request) {
-        String remoteAddr = "";
-        if (request != null) {
-            remoteAddr = WebUtility.inputSanitizer(request.getHeader("X-FORWARDED-FOR"));
-            if (remoteAddr == null || "".equals(remoteAddr)) {
-                remoteAddr =  request.getRemoteAddr();
-            }
-        }
 
-        return WebUtility.inputSanitizer(remoteAddr);
-    }
-	
+	public static String getClientIp(@Context HttpServletRequest request) {
+		String remoteAddr = "";
+		if (request != null) {
+			remoteAddr = WebUtility.inputSanitizer(request.getHeader("X-FORWARDED-FOR"));
+			if (remoteAddr == null || "".equals(remoteAddr)) {
+				remoteAddr = request.getRemoteAddr();
+			}
+		}
+
+		return WebUtility.inputSanitizer(remoteAddr);
+	}
+
 	/**
 	 * Need to ignore some URLs
+	 * 
 	 * @param fullUrl
 	 * @return
 	 */
@@ -103,9 +102,10 @@ public class ResourceUtility {
 		}
 		return false;
 	}
-	
+
 	/**
 	 * Need to ignore some URLs
+	 * 
 	 * @param fullUrl
 	 * @return
 	 */
@@ -117,9 +117,10 @@ public class ResourceUtility {
 		}
 		return false;
 	}
-	
+
 	/**
 	 * Need to ignore some URLs
+	 * 
 	 * @param fullUrl
 	 * @return
 	 */
@@ -131,24 +132,4 @@ public class ResourceUtility {
 		}
 		return false;
 	}
-
-	/**
-	 * Standardized format for the message
-	 * @param request
-	 * @param session
-	 * @param userId
-	 * @param message
-	 * @return
-	 */
-	public static String getLogMessage(HttpServletRequest request, HttpSession session, String userId, String message) {
-		String sessionId = "NO SESSION";
-		if(session != null) {
-			sessionId = session.getId();
-		}
-		if(userId == null || userId.isEmpty()) {
-			return "IP = " + Utility.cleanLogString(ResourceUtility.getClientIp(request) + " : Session = " + sessionId + " : USERID = INVALID " + message);
-		}
-		return "IP = " + Utility.cleanLogString(ResourceUtility.getClientIp(request) + " : Session = " + sessionId + " : USERID = " + userId + " " + message);
-	}
-	
 }

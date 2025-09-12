@@ -40,9 +40,10 @@ public class GroupInsightAuthorizationResource {
 
 	@Context
 	protected ServletContext context;
-	
+
 	/**
 	 * Get the group insight permission level
+	 * 
 	 * @param request
 	 * @param form
 	 * @return
@@ -61,59 +62,62 @@ public class GroupInsightAuthorizationResource {
 		@ApiResponse(responseCode = "500", description = "Server error",
 			content = @Content(schema = @Schema(implementation = Object.class)))
 	})
-	public Response getGroupInsightPermission(@Context HttpServletRequest request, @QueryParam("groupId") String groupId, 
-			@QueryParam("type") String type, @QueryParam("projectId") String projectId, @QueryParam("insightId") String insightId) {
-		
-	    projectId=WebUtility.inputSanitizer(projectId);
-	    type=WebUtility.inputSanitizer(type);
-	    insightId=WebUtility.inputSanitizer(insightId);
-	    groupId=WebUtility.inputSanitizer(groupId);
-	    
-		
+	public Response getGroupInsightPermission(@Context HttpServletRequest request,
+			@QueryParam("groupId") String groupId, @QueryParam("type") String type,
+			@QueryParam("projectId") String projectId, @QueryParam("insightId") String insightId) {
+
+		projectId = WebUtility.inputSanitizer(projectId);
+		type = WebUtility.inputSanitizer(type);
+		insightId = WebUtility.inputSanitizer(insightId);
+		groupId = WebUtility.inputSanitizer(groupId);
+
 		Map<String, String> errorMap = new HashMap<String, String>();
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
+			classLogger.warn("Invalid user session trying to access authorization resources");
 			classLogger.error(Constants.STACKTRACE, e);
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		try {
-			if(groupId == null || (groupId = groupId.trim()).isEmpty()) {
+			if (groupId == null || (groupId = groupId.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The group id cannot be null or empty");
 			}
-			if(type == null || (type = type.trim()).isEmpty()) {
+			if (type == null || (type = type.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The group type cannot be null or empty");
 			}
-			if(projectId == null || (projectId = projectId.trim()).isEmpty()) {
+			if (projectId == null || (projectId = projectId.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The projectId cannot be null or empty");
 			}
-			if(insightId == null || (insightId = insightId.trim()).isEmpty()) {
+			if (insightId == null || (insightId = insightId.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The insightId cannot be null or empty");
 			}
-			
-			Integer permissionCode = SecurityGroupInsightsUtils.getGroupInsightPermission(groupId, type, projectId, insightId);
-			String permission = permissionCode == null ? null : AccessPermissionEnum.getPermissionValueById(permissionCode);
-			
+
+			Integer permissionCode = SecurityGroupInsightsUtils.getGroupInsightPermission(groupId, type, projectId,
+					insightId);
+			String permission = permissionCode == null ? null
+					: AccessPermissionEnum.getPermissionValueById(permissionCode);
+
 			Map<String, String> ret = new HashMap<String, String>();
 			ret.put("permission", permission);
 			return WebUtility.getResponse(ret, 200);
-		} catch (IllegalArgumentException e){
+		} catch (IllegalArgumentException e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
-		} catch (Exception e){
+		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			errorMap.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorMap, 500);
 		}
 	}
-	
+
 	/**
 	 * Add a group to an insight
+	 * 
 	 * @param request
 	 * @param form
 	 * @return
@@ -130,45 +134,48 @@ public class GroupInsightAuthorizationResource {
 		@ApiResponse(responseCode = "401", description = "Unauthorized or invalid session",
 			content = @Content(schema = @Schema(implementation = Object.class)))
 	})
-	public Response addGroupInsightPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	public Response addGroupInsightPermission(@Context HttpServletRequest request,
+			MultivaluedMap<String, String> form) {
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
+			classLogger.warn("Invalid user session trying to access authorization resources");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		String groupId = WebUtility.inputSQLSanitizer(form.getFirst("groupId"));
 		String type = WebUtility.inputSanitizer(form.getFirst("type"));
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
 		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
-		
+
 		try {
-			if(groupId == null || (groupId = groupId.trim()).isEmpty()) {
+			if (groupId == null || (groupId = groupId.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The group id cannot be null or empty");
 			}
-			if(type == null || (type = type.trim()).isEmpty()) {
+			if (type == null || (type = type.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The group type cannot be null or empty");
 			}
-			if(projectId == null || (projectId = projectId.trim()).isEmpty()) {
+			if (projectId == null || (projectId = projectId.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The projectId cannot be null or empty");
 			}
-			if(insightId == null || (insightId = insightId.trim()).isEmpty()) {
+			if (insightId == null || (insightId = insightId.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The insightId cannot be null or empty");
 			}
-			if(permission == null || (permission = permission.trim()).isEmpty()) {
+			if (permission == null || (permission = permission.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The permission cannot be null or empty");
 			}
 
-			SecurityGroupInsightsUtils.addInsightGroupPermission(user, groupId, type, projectId, insightId, permission, endDate);
+			SecurityGroupInsightsUtils.addInsightGroupPermission(user, groupId, type, projectId, insightId, permission,
+					endDate);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add groups to insight " + insightId + " under project " + projectId + " without having proper access"));
+			classLogger.warn("User is trying to add groups to insight " + insightId + " under project " + projectId
+					+ " without having proper access");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -179,17 +186,19 @@ public class GroupInsightAuthorizationResource {
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
-		
+
 		// log the operation
-		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has added group " + groupId + " and type " + type + " to insight " + insightId + " under project " + projectId + " with permission " + permission));
-		
+		classLogger.info("User has added group " + groupId + " and type " + type + " to insight " + insightId
+				+ " under project " + projectId + " with permission " + permission);
+
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
-	
+
 	/**
 	 * Edit group permission for an insight
+	 * 
 	 * @param request
 	 * @param form
 	 * @return
@@ -206,43 +215,47 @@ public class GroupInsightAuthorizationResource {
 		@ApiResponse(responseCode = "401", description = "Unauthorized or invalid session",
 			content = @Content(schema = @Schema(implementation = Object.class)))
 	})
-	public Response editGroupInsightPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	public Response editGroupInsightPermission(@Context HttpServletRequest request,
+			MultivaluedMap<String, String> form) {
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
+			classLogger.warn("Invalid user session trying to access authorization resources");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		String groupId = WebUtility.inputSQLSanitizer(form.getFirst("groupId"));
 		String type = WebUtility.inputSanitizer(form.getFirst("type"));
-		String projectId =WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
 		String newPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
 		try {
-			if(groupId == null || (groupId = groupId.trim()).isEmpty()) {
+			if (groupId == null || (groupId = groupId.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The group id cannot be null or empty");
 			}
-			if(type == null || (type = type.trim()).isEmpty()) {
+			if (type == null || (type = type.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The group type cannot be null or empty");
 			}
-			if(projectId == null || (projectId = projectId.trim()).isEmpty()) {
+			if (projectId == null || (projectId = projectId.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The projectId cannot be null or empty");
 			}
-			if(insightId == null || (insightId = insightId.trim()).isEmpty()) {
+			if (insightId == null || (insightId = insightId.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The insightId cannot be null or empty");
 			}
-			if(newPermission == null || (newPermission = newPermission.trim()).isEmpty()) {
+			if (newPermission == null || (newPermission = newPermission.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The permission cannot be null or empty");
 			}
-			SecurityGroupInsightsUtils.editInsightGroupPermission(user, groupId, type, projectId, insightId, newPermission, endDate);
-		} catch(IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit group " + groupId + " and type " + type + " permissions to insight " + insightId + " under project " + projectId + " without having proper access"));
+			SecurityGroupInsightsUtils.editInsightGroupPermission(user, groupId, type, projectId, insightId,
+					newPermission, endDate);
+		} catch (IllegalAccessException e) {
+			classLogger
+					.warn("User is trying to edit group " + groupId + " and type " + type + " permissions to insight "
+							+ insightId + " under project " + projectId + " without having proper access");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -253,17 +266,19 @@ public class GroupInsightAuthorizationResource {
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
-		
+
 		// log the operation
-		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has edited group " + groupId + " and type " + type + " permission to insight " + insightId + " under project " + projectId + " with level " + newPermission));
-		
+		classLogger.info("User has edited group " + groupId + " and type " + type + " permission to insight "
+				+ insightId + " under project " + projectId + " with level " + newPermission);
+
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
-	
+
 	/**
-	 * Remove group permission for an insight 
+	 * Remove group permission for an insight
+	 * 
 	 * @param request
 	 * @param form
 	 * @return
@@ -280,38 +295,41 @@ public class GroupInsightAuthorizationResource {
 		@ApiResponse(responseCode = "401", description = "Unauthorized or invalid session",
 			content = @Content(schema = @Schema(implementation = Object.class)))
 	})
-	public Response removeGroupInsightPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	public Response removeGroupInsightPermission(@Context HttpServletRequest request,
+			MultivaluedMap<String, String> form) {
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "invalid user session trying to access authorization resources"));
+			classLogger.warn("Invalid user session trying to access authorization resources");
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		String groupId = WebUtility.inputSQLSanitizer(form.getFirst("groupId"));
 		String type = WebUtility.inputSanitizer(form.getFirst("type"));
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
 		try {
-			if(groupId == null || (groupId = groupId.trim()).isEmpty()) {
+			if (groupId == null || (groupId = groupId.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The group id cannot be null or empty");
 			}
-			if(type == null || (type = type.trim()).isEmpty()) {
+			if (type == null || (type = type.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The group type cannot be null or empty");
 			}
-			if(projectId == null || (projectId = projectId.trim()).isEmpty()) {
+			if (projectId == null || (projectId = projectId.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The projectId cannot be null or empty");
 			}
-			if(insightId == null || (insightId = insightId.trim()).isEmpty()) {
+			if (insightId == null || (insightId = insightId.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The insightId cannot be null or empty");
 			}
-			
+
 			SecurityGroupInsightsUtils.removeInsightGroupPermission(user, groupId, type, projectId, insightId);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove group " + groupId + " and type " + type + " from having access to insight " + insightId + " under project " + projectId + " without having proper access"));
+			classLogger.warn("User is trying to remove group " + groupId + " and type " + type
+					+ " from having access to insight " + insightId + " under project " + projectId
+					+ " without having proper access");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -322,13 +340,14 @@ public class GroupInsightAuthorizationResource {
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
-		
+
 		// log the operation
-		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has removed group " + groupId + " and type " + type + " from having access to insight " + insightId + " under project " + projectId));
-		
+		classLogger.info("User has removed group " + groupId + " and type " + type + " from having access to insight "
+				+ insightId + " under project " + projectId);
+
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
-	
+
 }

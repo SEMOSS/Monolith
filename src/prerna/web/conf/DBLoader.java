@@ -31,6 +31,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.StringTokenizer;
 
@@ -42,12 +43,17 @@ import javax.servlet.SessionCookieConfig;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.ThreadContext;
+
+import com.github.f4b6a3.uuid.alt.GUID;
+
 import prerna.cluster.util.ClusterUtil;
 import prerna.engine.api.IDatabaseEngine;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.IEngine.CATALOG_TYPE;
 import prerna.engine.impl.r.RserveUtil;
 import prerna.forms.AbstractFormBuilder;
+import prerna.logging.SemossLogUtils;
 import prerna.masterdatabase.utility.MasterDatabaseUtility;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
@@ -63,9 +69,18 @@ import prerna.util.insight.InsightUtility;
 
 public class DBLoader implements ServletContextListener {
 
+	static {
+		// Set headless mode explicitly
+		// otherwise TextToGraphic breaks in a container
+		System.setProperty("java.awt.headless", "true");
+
+		// Set this for log4j async loggers
+		System.setProperty("log4j2.isThreadContextMapInheritable", "true");
+	}
+
 	private final Level STARTUP = Level.forName("STARTUP", 0);
 	private final Level SHUTDOWN = Level.forName("SHUTDOWN", 0);
-	
+
 	private static final Logger classLogger = LogManager.getLogger(DBLoader.class);
 	private static final String RDFMAP = "RDF-MAP";
 	private static String SESSION_ID_KEY = "JSESSIONID";
@@ -77,19 +92,24 @@ public class DBLoader implements ServletContextListener {
 
 	@Override
 	public void contextInitialized(ServletContextEvent arg0) {
+		ThreadContext.put(SemossLogUtils.REQUEST_ID, GUID.v7().toUUID().toString());
+		ThreadContext.put(SemossLogUtils.USER_ID, "STARTUP");
+		ThreadContext.put(SemossLogUtils.SESSION_ID, "STARTUP");
+		ThreadContext.put(SemossLogUtils.CLIENT_IP, "STARTUP");
+
 		ServletContext context = arg0.getServletContext();
 		String contextPath = context.getContextPath();
 		{
-			//TODO: now putting this in RDFMap.prop
-			//TODO: now putting this in RDFMap.prop
-			// remove below and update code to pull there 
+			// TODO: now putting this in RDFMap.prop
+			// TODO: now putting this in RDFMap.prop
+			// remove below and update code to pull there
 			// using Constants.CONTEXT_PATH_KEY
-			
+
 			// need to set the path
 			// important for taking the image with security
 			ChromeDriverUtility.setContextPath(contextPath);
 		}
-		
+
 		String rdfPropFile = context.getInitParameter(RDFMAP);
 
 		// see if admin can determine who can publish
@@ -98,7 +118,7 @@ public class DBLoader implements ServletContextListener {
 			adminSetPublisher = "false";
 		}
 		context.setInitParameter(Constants.ADMIN_SET_PUBLISHER, adminSetPublisher);
-		
+
 		// see if admin can determine who can export
 		String adminSetExporter = context.getInitParameter(Constants.ADMIN_SET_EXPORTER);
 		if (adminSetExporter == null) {
@@ -134,7 +154,7 @@ public class DBLoader implements ServletContextListener {
 			context.setInitParameter(Constants.CUSTOM_LOGOUT_URL, trimmedUrl);
 			DBLoader.customLogoutUrl = trimmedUrl;
 		}
-		
+
 		// get the session id key
 		if (context.getSessionCookieConfig() != null) {
 			SessionCookieConfig cookieConfig = context.getSessionCookieConfig();
@@ -154,7 +174,7 @@ public class DBLoader implements ServletContextListener {
 		classLogger.log(STARTUP, "Loading RDF_Map.prop: " + Utility.cleanLogString(rdfPropFile));
 		DIHelper.getInstance().loadCoreProp(rdfPropFile);
 
-		if(RserveUtil.R_KILL_ON_STARTUP) {
+		if (RserveUtil.R_KILL_ON_STARTUP) {
 			classLogger.log(STARTUP, "Killing existing RServes running on the machine");
 			try {
 				RserveUtil.endR();
@@ -162,7 +182,7 @@ public class DBLoader implements ServletContextListener {
 				classLogger.log(STARTUP, "Unable to kill existing RServes running on the machine");
 			}
 		}
-		
+
 		// set security enabled within DIHelper first
 		// this is because security database, on init, will
 		// load it as a boolean instead of us searching within DIHelper
@@ -182,68 +202,84 @@ public class DBLoader implements ServletContextListener {
 		String projects = "";
 		DIHelper.getInstance().setProjectProperty(Constants.PROJECTS, projects);
 		loadSmss(Constants.PROJECT_WATCHER);
-		
+
 		// if there was an issue starting up the server
 		// we should do it here so that we can redirect the user
 		{
-			IDatabaseEngine localmaster = (IDatabaseEngine) DIHelper.getInstance().getEngineProperty(Constants.LOCAL_MASTER_DB);
-			IDatabaseEngine security = (IDatabaseEngine) DIHelper.getInstance().getEngineProperty(Constants.SECURITY_DB);
-			IDatabaseEngine scheduler = (IDatabaseEngine) DIHelper.getInstance().getEngineProperty(Constants.SCHEDULER_DB);
-			IDatabaseEngine userTracking = (IDatabaseEngine) DIHelper.getInstance().getEngineProperty(Constants.USER_TRACKING_DB);
+			IDatabaseEngine localmaster = (IDatabaseEngine) DIHelper.getInstance()
+					.getEngineProperty(Constants.LOCAL_MASTER_DB);
+			IDatabaseEngine security = (IDatabaseEngine) DIHelper.getInstance()
+					.getEngineProperty(Constants.SECURITY_DB);
+			IDatabaseEngine auditDb = (IDatabaseEngine) DIHelper.getInstance()
+					.getEngineProperty(Constants.AUDIT_LOGS_DB);
+			IDatabaseEngine scheduler = (IDatabaseEngine) DIHelper.getInstance()
+					.getEngineProperty(Constants.SCHEDULER_DB);
+			IDatabaseEngine userTracking = (IDatabaseEngine) DIHelper.getInstance()
+					.getEngineProperty(Constants.USER_TRACKING_DB);
 			if (localmaster == null || security == null || !localmaster.isConnected() || !security.isConnected()
 					|| (!Utility.schedulerForceDisable() && scheduler != null && !scheduler.isConnected())
-					|| (Utility.isUserTrackingEnabled() && (userTracking == null || !userTracking.isConnected() ))
-					) {
+					|| (Utility.isUserTrackingEnabled() && (userTracking == null || !userTracking.isConnected()))
+					|| (Utility.isAuditLogsDatabaseEnabled() && (auditDb == null || !auditDb.isConnected()))) {
 				// you have messed up!!!
 				StartUpSuccessFilter.setStartUpSuccess(false);
 			}
-			
+
 			// Load and run triggerOnLoad jobs
-			if(!Utility.schedulerForceDisable() && scheduler != null) {
+			if (!Utility.schedulerForceDisable() && scheduler != null) {
 				try {
 					SchedulerDatabaseUtility.executeAllTriggerOnLoads();
-				} catch(Exception e) {
+				} catch (Exception e) {
 					// ignore
 				}
 			}
 		}
-		
+
 		// this will likely need to be broken out into another service in the future
 		// but for now
 		// start one time thread to pull all the images for the engines
 		CATALOG_TYPE[] types = IEngine.CATALOG_TYPE.values();
-		for(CATALOG_TYPE eType : types) {
-		    new Thread() {
-		        public void run() {
-		            ClusterUtil.pullEngineAndProjectImageFolder(eType);
-		        }
-		    }.start();
-	    }
+		for (CATALOG_TYPE eType : types) {
+			new Thread() {
+				@Override
+				public void run() {
+					ClusterUtil.pullEngineAndProjectImageFolder(eType);
+				}
+			}.start();
+		}
 	}
 
 	private void loadSmss(String pathKey) {
+		Map<String, String> parentMDC = ThreadContext.getImmutableContext();
+
 		String pathValue = DIHelper.getInstance().getProperty(pathKey);
-		if(pathValue == null || pathValue.trim().isEmpty()) {
-			throw new NullPointerException("Error occurred - could not find " + pathKey + " in RDF_Map.prop which is required for starting the application");
+		if (pathValue == null || pathValue.trim().isEmpty()) {
+			throw new NullPointerException("Error occurred - could not find " + pathKey
+					+ " in RDF_Map.prop which is required for starting the application");
 		}
-		
+
 		StringTokenizer watchers = new StringTokenizer(pathValue, ";");
 		try {
 			while (watchers.hasMoreElements()) {
 				String watcher = watchers.nextToken();
-				if(watcher != null && !(watcher=watcher.trim()).isEmpty()) {
+				if (watcher != null && !(watcher = watcher.trim()).isEmpty()) {
 					String watcherClass = DIHelper.getInstance().getProperty(watcher);
 					String folder = DIHelper.getInstance().getProperty(watcher + "_DIR");
 					String ext = DIHelper.getInstance().getProperty(watcher + "_EXT");
 					String engineType = DIHelper.getInstance().getProperty(watcher + "_ETYPE");
-					AbstractFileWatcher watcherInstance = (AbstractFileWatcher) Class.forName(watcherClass).getConstructor(null).newInstance(null);
+					AbstractFileWatcher watcherInstance = (AbstractFileWatcher) Class.forName(watcherClass)
+							.getConstructor().newInstance();
 					watcherInstance.setFolderToWatch(folder);
 					watcherInstance.setExtension(ext);
-					if( engineType != null && !(engineType=engineType.trim()).isEmpty() ) {
+					if (engineType != null && !(engineType = engineType.trim()).isEmpty()) {
 						watcherInstance.setEngineType(IEngine.CATALOG_TYPE.valueOf(engineType));
 					}
 					watcherInstance.init();
-					Thread thread = new Thread(watcherInstance);
+					// start the watcher thread with MDC
+					Thread thread = new Thread(() -> {
+						try (var ctx = org.apache.logging.log4j.CloseableThreadContext.putAll(parentMDC)) {
+							watcherInstance.run();
+						}
+					});
 					thread.start();
 					watcherList.add(watcherInstance);
 				}
@@ -255,6 +291,11 @@ public class DBLoader implements ServletContextListener {
 
 	@Override
 	public void contextDestroyed(ServletContextEvent arg0) {
+		ThreadContext.put(SemossLogUtils.REQUEST_ID, GUID.v7().toUUID().toString());
+		ThreadContext.put(SemossLogUtils.USER_ID, "SHUTDOWN");
+		ThreadContext.put(SemossLogUtils.SESSION_ID, "SHUTDOWN");
+		ThreadContext.put(SemossLogUtils.CLIENT_IP, "SHUTDOWN");
+
 		classLogger.log(SHUTDOWN, "Start shutdown");
 
 		Set<String> insights = new HashSet<>(InsightStore.getInstance().getAllInsights());
@@ -285,14 +326,10 @@ public class DBLoader implements ServletContextListener {
 			}
 		}
 
-		String[] autoLoadedDbs = new String[] {
-				AbstractFormBuilder.FORM_BUILDER_ENGINE_NAME,
-				Constants.SECURITY_DB,
-				Constants.USER_TRACKING_DB,
-				Constants.LOCAL_MASTER_DB,
-		};
-		
-		for(String db : autoLoadedDbs) {
+		String[] autoLoadedDbs = new String[] { AbstractFormBuilder.FORM_BUILDER_ENGINE_NAME, Constants.SECURITY_DB,
+				Constants.USER_TRACKING_DB, Constants.LOCAL_MASTER_DB, };
+
+		for (String db : autoLoadedDbs) {
 			IDatabaseEngine engine = Utility.getDatabase(db, false);
 			if (engine != null) {
 				classLogger.log(SHUTDOWN, "Closing database " + db);
@@ -306,7 +343,7 @@ public class DBLoader implements ServletContextListener {
 			}
 		}
 
-		if(SchedulerFactorySingleton.isInit()) {
+		if (SchedulerFactorySingleton.isInit()) {
 			classLogger.log(SHUTDOWN, "Closing scheduler");
 			SchedulerFactorySingleton.getInstance().shutdownScheduler(true);
 			IDatabaseEngine engine = Utility.getDatabase(Constants.SCHEDULER_DB, false);
@@ -321,7 +358,7 @@ public class DBLoader implements ServletContextListener {
 				classLogger.log(SHUTDOWN, "Couldn't find database " + Constants.SCHEDULER_DB);
 			}
 		}
-		
+
 		// close r
 		try {
 			RJavaTranslatorFactory.stopRConnection();
