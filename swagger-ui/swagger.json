@@ -11556,6 +11556,23 @@
         } ]
       }
     },
+    "/engine/runReactorMCP" : {
+      "post" : {
+        "tags" : [ "Engine Execution" ],
+        "operationId" : "runReactorMCP",
+        "responses" : {
+          "default" : {
+            "description" : "default response",
+            "content" : {
+              "application/json;charset=utf-8" : { }
+            }
+          }
+        },
+        "security" : [ {
+          "basicAuth" : [ ]
+        } ]
+      }
+    },
     "/engine/status" : {
       "post" : {
         "tags" : [ "Engine Execution" ],

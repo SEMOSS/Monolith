@@ -7800,6 +7800,18 @@ paths:
                 error: User session is invalid
       security:
       - basicAuth: []
+  /engine/runReactorMCP:
+    post:
+      tags:
+      - Engine Execution
+      operationId: runReactorMCP
+      responses:
+        default:
+          description: default response
+          content:
+            application/json;charset=utf-8: {}
+      security:
+      - basicAuth: []
   /engine/status:
     post:
       tags:
