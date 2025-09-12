@@ -19,7 +19,6 @@ import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityUserAccessKeyUtils;
-import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
 import prerna.util.SocialPropertiesUtil;
 import prerna.web.services.util.WebUtility;
@@ -73,8 +72,8 @@ public class OpenAIFilter implements Filter {
 						classLogger.error(Constants.STACKTRACE, e);
 					}
 					if (user == null) {
-						classLogger.error(ResourceUtility.getLogMessage(request, request.getSession(false), null,
-								"could not login using user access key '" + accessKey + "' with invalid secret key"));
+						classLogger.error("User could not login using user access key '" + accessKey
+								+ "' with invalid secret key");
 					}
 
 					AccessToken token = null;
@@ -86,10 +85,9 @@ public class OpenAIFilter implements Filter {
 							AuthProvider provider = token.getProvider();
 							boolean accessKeysAllowed = SocialPropertiesUtil.getInstance().accessKeysAllowed(provider);
 							if (!accessKeysAllowed) {
-								classLogger.error(ResourceUtility.getLogMessage(request, request.getSession(false),
-										User.getSingleLogginName(user),
-										"is trying to login using access/secret key but administrator has disabeled for provider "
-												+ provider.name()));
+								classLogger.error(
+										"User is trying to login using access/secret key but administrator has disabeled for provider "
+												+ provider.name());
 								user = null;
 								token = null;
 							}
@@ -103,8 +101,8 @@ public class OpenAIFilter implements Filter {
 						session.setAttribute(Constants.SESSION_USER_ID_LOG, token.getId());
 						WebUtility.loggingContextLoginEvent(session);
 
-						classLogger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(user),
-								"is logging in with provider " + token.getProvider() + " with user access key"));
+						classLogger.info(
+								"User is logging in with provider " + token.getProvider() + " with user access key");
 					}
 				}
 			}
