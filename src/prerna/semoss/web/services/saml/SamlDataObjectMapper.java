@@ -100,9 +100,9 @@ public class SamlDataObjectMapper {
 				continue;
 			}
 			if(attributesWithMultiplicity.get(attributeKey)) {
-				result.put(attributeKeyNormalized, generateInputSet(attributeKeyNormalized));
+				result.put(attributeKey, generateInputSet(attributeKeyNormalized));
 			} else {
-				result.put(attributeKeyNormalized, Lists.newArrayList(generateInput(attributeKeyNormalized)));
+				result.put(attributeKey, Lists.newArrayList(generateInput(attributeKeyNormalized)));
 			}
 		}
 		return result;
