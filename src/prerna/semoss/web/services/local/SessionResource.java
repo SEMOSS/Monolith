@@ -38,17 +38,18 @@ import prerna.web.services.util.WebUtility;
 @Path("/session")
 @PermitAll
 public class SessionResource {
-	
+
 	private static final Logger logger = LogManager.getLogger(SessionResource.class);
 	private static final String CANCEL_INVALIDATION = "cancelInvalidation";
 	private Object lock = new Object();
-	
+
 	/**
-	 * Returns the number of active servers related to a given manager. 
+	 * Returns the number of active servers related to a given manager.
+	 * 
 	 * @param request
 	 * @return
 	 */
-	
+
 	@GET
 	@Path("/active")
 	@Produces("application/json;charset=utf-8")
@@ -57,15 +58,15 @@ public class SessionResource {
 		HttpSession session = request.getSession(true);
 		try {
 			User user = null;
-			if(session != null) {
+			if (session != null) {
 				user = (User) session.getAttribute(Constants.SESSION_USER);
 			}
-			logger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(user), "is pulling the # of active sessions"));
-		
+			logger.info("User is pulling the # of active sessions");
+
 			StandardManager manager = getManager(session);
-			if(manager != null) {
+			if (manager != null) {
 				int sessions = manager.getActiveSessions();
-				if(session.isNew()) {
+				if (session.isNew()) {
 					sessions -= 1;
 				}
 				ret.put("activeSessions", sessions);
@@ -73,15 +74,16 @@ public class SessionResource {
 				ret.put("activeSessions", "Error in getting manager context");
 			}
 		} finally {
-			if(session.isNew()) {
+			if (session.isNew()) {
 				session.invalidate();
 			}
 		}
 		return WebUtility.getResponse(ret, 200);
 	}
-	
+
 	/**
 	 * Getting the manager
+	 * 
 	 * @param request
 	 */
 	public static StandardManager getManager(HttpSession session) {
@@ -90,15 +92,15 @@ public class SessionResource {
 			Field applicationContextField = applicationContextFacade.getClass().getDeclaredField("context");
 			applicationContextField.setAccessible(true);
 			ApplicationContext appContext = (ApplicationContext) applicationContextField.get(applicationContextFacade);
-			
+
 			Field standardContextField = appContext.getClass().getDeclaredField("context");
 			standardContextField.setAccessible(true);
 			StandardContext standardContext = (StandardContext) standardContextField.get(appContext);
-			return (StandardManager) standardContext.getManager();			
+			return (StandardManager) standardContext.getManager();
 		} catch (IllegalAccessException | IllegalArgumentException | NoSuchFieldException | SecurityException e) {
 			logger.error(Constants.STACKTRACE, e);
 		}
-		
+
 		return null;
 	}
 
@@ -213,16 +215,16 @@ public class SessionResource {
 			throws IOException {
 		String redirectUrl = request.getHeader("referer");
 		response.setStatus(302);
-		
+
 		HttpSession session = request.getSession(false);
 		User thisUser = null;
-		if(session != null) {
+		if (session != null) {
 			thisUser = (User) session.getAttribute(Constants.SESSION_USER);
 		}
-		
+
 		// log the user logout
-		logger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(thisUser), "is being forcibly invalidated"));
-		
+		logger.info("User is being forcibly invalidated");
+
 		// redirect to login/logout page
 		if (DBLoader.useLogoutPage()) {
 			logger.info("Session ended. Redirect to logout page");
@@ -232,10 +234,9 @@ public class SessionResource {
 				response.setHeader("redirect", customUrl);
 				response.sendError(302, "Need to redirect to " + customUrl);
 			} else {
-				String scheme =  WebUtility.inputSQLSanitizer(request.getScheme()); // http
+				String scheme = WebUtility.inputSQLSanitizer(request.getScheme()); // http
 
-				if (!scheme.trim().equalsIgnoreCase("https") &&
-					!scheme.trim().equalsIgnoreCase("http")) {
+				if (!scheme.trim().equalsIgnoreCase("https") && !scheme.trim().equalsIgnoreCase("http")) {
 					throw new IllegalArgumentException("scheme is invalid, please input proper scheme");
 				}
 
