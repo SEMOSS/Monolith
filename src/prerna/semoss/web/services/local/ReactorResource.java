@@ -41,31 +41,22 @@ public class ReactorResource {
 	 *   usage: String?
 	 * }
 	 */
+
+	 
+
 	@GET
+	@Path("all")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response listReactors() {
 		List<Map<String, Object>> reactorList = new ArrayList<>();
 		try {
 			// Attempt to retrieve all reactor names from the factory if method exists.
 			// Since we do not have the code for ReactorFactory here, use reflection defensively.
-			List<String> reactorNames = new ArrayList<>();
-			try {
-				// Expecting a static method like ReactorFactory.getAllReactorNames()
-				java.lang.reflect.Method m = ReactorFactory.class.getMethod("getAllReactorNames");
-				Object ret = m.invoke(null);
-				if(ret instanceof List<?>) {
-					for(Object o : (List<?>)ret) {
-						if(o != null) reactorNames.add(o.toString());
-					}
-				}
-			} catch (NoSuchMethodException nsme) {
-				log.warn("ReactorFactory.getAllReactorNames() not found; returning empty list");
-			} catch (Exception e) {
-				log.error("Error invoking ReactorFactory.getAllReactorNames", e);
-			}
+		
 
-			for(String reactorName : reactorNames) {
+			for(String reactorName : ReactorFactory.reactorHash.keySet()) {
 				Map<String, Object> info = new HashMap<>();
+				log.info("Processing reactor: " + reactorName);
 				info.put("name", reactorName);
 				try {
 					// We only need metadata; pass nulls / dummies as appropriate
@@ -128,6 +119,39 @@ public class ReactorResource {
 
 		Map<String, Object> wrapper = new HashMap<>();
 		wrapper.put("reactors", reactorList);
-		return WebUtility.getResponse(wrapper, 200);
+		log.info("Found " + reactorList.size() + " reactors");
+		//return WebUtility.getResponse(wrapper, 200);
+		return Response.ok(wrapper, MediaType.APPLICATION_JSON).build();
 	}
+
+	//Sample output to test endpoint
+	/*
+	{
+	  "reactors": [
+	    {
+	      "name": "GetDSEGraphProperties",
+	      "description": "Retrieves properties of a DSE Graph database.",
+	      "requiredKeys": ["databaseId"],
+	      "optionalKeys": [],
+	      "usage": "Example usage: {\"databaseId\": \"my-dse-graph-db\"}"
+	    },
+	    {
+	      "name": "GetJanusGraphMetaModel",
+	      "description": "Fetches the meta model of a Janus Graph database.",
+	      "requiredKeys": ["databaseId"],
+	      "optionalKeys": ["includeIndexes"],
+	      "usage": "Example usage: {\"databaseId\": \"my-janus-graph-db\", \"includeIndexes\": true}"
+	    }
+	  ]
+	}
+	*/
+	@GET
+	@Path("test")
+	@Produces(MediaType.APPLICATION_JSON) 
+	public Response testEndpoint() {
+		Map<String, Object> sample = new HashMap<>();
+		sample.put("message", "This is a test endpoint for ReactorResource.");
+		return WebUtility.getResponse(sample, 200);
+	}
+
 }
