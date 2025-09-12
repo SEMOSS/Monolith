@@ -19,39 +19,37 @@ import prerna.auth.utils.SecurityAdminUtils;
 import prerna.util.Constants;
 
 public class SetAdminSessionTimeoutFilter implements Filter {
-	
-	private static final Logger logger = LogManager.getLogger(SetAdminSessionTimeoutFilter.class); 
+
+	private static final Logger logger = LogManager.getLogger(SetAdminSessionTimeoutFilter.class);
 
 	private static FilterConfig filterConfig = null;
-	
+
 	// filter init params
 	private static final String TIMEOUT = "timeout";
 	private static Integer sessionTimeout = null;
 
 	private static final String SESSIOIN_ATTRIBUTE_CHECK = "adminSessionTimeout";
 
-	
 	@Override
-	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
-		setInitParams(arg0);
-
-		HttpSession session = ((HttpServletRequest)arg0).getSession(false);
-		if(sessionTimeout != null && session != null) {
+	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2)
+			throws IOException, ServletException {
+		HttpSession session = ((HttpServletRequest) arg0).getSession(false);
+		if (sessionTimeout != null && session != null) {
 			User user = (User) session.getAttribute(Constants.SESSION_USER);
 
-			if (user != null && session.getAttribute(SESSIOIN_ATTRIBUTE_CHECK) == null ) {
+			if (user != null && session.getAttribute(SESSIOIN_ATTRIBUTE_CHECK) == null) {
 				// we have a user to compare
-				if(SecurityAdminUtils.userIsAdmin(user)) {
+				if (SecurityAdminUtils.userIsAdmin(user)) {
 					// need to update the session for the admin user
 					// the input is in minutes, so we need to turn that to seconds
 					int interval = sessionTimeout * 60;
 					session.setMaxInactiveInterval(interval);
-					
+
 					// store in session so we do not redo the check
 					session.setAttribute(SESSIOIN_ATTRIBUTE_CHECK, true);
 					logger.info("Setting the admin timeout to " + interval + " seconds");
 				} else {
-					
+
 					// also still store in the session so we do not redo the check
 					session.setAttribute(SESSIOIN_ATTRIBUTE_CHECK, false);
 				}
@@ -69,18 +67,19 @@ public class SetAdminSessionTimeoutFilter implements Filter {
 	@Override
 	public void init(FilterConfig arg0) throws ServletException {
 		SetAdminSessionTimeoutFilter.filterConfig = arg0;
+		setInitParams();
 	}
-	
-	private void setInitParams(ServletRequest arg0) {
-		if(SetAdminSessionTimeoutFilter.sessionTimeout == null) {
+
+	private void setInitParams() {
+		if (SetAdminSessionTimeoutFilter.sessionTimeout == null) {
 			String timeoutStr = SetAdminSessionTimeoutFilter.filterConfig.getInitParameter(TIMEOUT);
 			try {
 				int timeoutValue = Integer.parseInt(timeoutStr);
 				SetAdminSessionTimeoutFilter.sessionTimeout = timeoutValue;
-			} catch(Exception e) {
+			} catch (Exception e) {
 				logger.error(Constants.STACKTRACE, e);
 			}
 		}
 	}
-	
+
 }
