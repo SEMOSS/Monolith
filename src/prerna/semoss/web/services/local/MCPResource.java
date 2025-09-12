@@ -219,7 +219,8 @@ public class MCPResource {
             insight = mcpThread.get(authorization);
             user = insight.getUser();
         }
-        MCPReaper reaper = new MCPReaper(user, insight, sessionId, reader, eventSink, sse, toolbox_id);
+		MCPReaper reaper = new MCPReaper(user, insight, sessionId, reader, eventSink, sse, toolbox_id,
+				ThreadContext.getImmutableContext());        
         Thread t = new Thread(reaper);
         t.start();
     }
