@@ -32,6 +32,7 @@ import javax.ws.rs.sse.SseEventSink;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.ThreadContext;
 
 import prerna.auth.User;
 import prerna.mcp.MCPReaper;
@@ -54,21 +55,19 @@ public class MCPResource {
 	@Path("/it")
 	@Consumes(MediaType.APPLICATION_JSON) // Assume JSON input
 	@Produces(MediaType.TEXT_PLAIN)
-	public Response getInsightData(InputStream is)
-	{
+	public Response getInsightData(InputStream is) {
 		classLogger.debug("Came into the MCP");
 		StreamingOutput stream = output -> {
 			try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(output, StandardCharsets.UTF_8))) {
 				// Simulate processing input and generating streamed response
 				for (int i = 0; i < 10; i++) {
-					BufferedReader reader = new BufferedReader(new InputStreamReader(is));                	
+					BufferedReader reader = new BufferedReader(new InputStreamReader(is));
 					String outputLine = "Processed: " + reader.readLine() + " - Item: " + i;
 					writer.write(outputLine + "\n");
-					writer.flush();  // Flush after each write to ensure streaming
+					writer.flush(); // Flush after each write to ensure streaming
 					Thread.sleep(500); // Simulate some processing time
 				}
-			}
-			catch (IOException | InterruptedException e) {
+			} catch (IOException | InterruptedException e) {
 				throw new WebApplicationException(e); // Handle exception appropriately
 			}
 		};
@@ -78,13 +77,8 @@ public class MCPResource {
 	@POST
 	@Path("/comms")
 	@Produces(MediaType.SERVER_SENT_EVENTS)
-	public void comms(@PathParam("toolbox_id") String toolbox_id, 
-			@QueryParam("access_key") String access,
-			@Context SseEventSink eventSink, 
-			@Context Sse sse, 
-			InputStream is,
-			@Context HttpServletRequest request) 
-	{
+	public void comms(@PathParam("toolbox_id") String toolbox_id, @QueryParam("access_key") String access,
+			@Context SseEventSink eventSink, @Context Sse sse, InputStream is, @Context HttpServletRequest request) {
 		classLogger.debug("Runing tool.. " + toolbox_id);
 		// initialize session
 		String authorization = request.getHeader("Authorization");
@@ -94,19 +88,17 @@ public class MCPResource {
 		User user = null;
 		BufferedReader reader = new BufferedReader(new InputStreamReader(is));
 
-		if(!mcpThread.containsKey(authorization))
-		{
+		if (!mcpThread.containsKey(authorization)) {
 			insight = initSession(session);
 			user = insight.getUser();
-			mcpThread.put(authorization, insight);			
-		}
-		else
-		{
+			mcpThread.put(authorization, insight);
+		} else {
 			insight = mcpThread.get(authorization);
 			user = insight.getUser();
 
 		}
-		MCPReaper reaper = new MCPReaper(user, insight, sessionId, reader, eventSink, sse, toolbox_id);			
+		MCPReaper reaper = new MCPReaper(user, insight, sessionId, reader, eventSink, sse, toolbox_id,
+				ThreadContext.getImmutableContext());
 		Thread t = new Thread(reaper);
 		t.start();
 	}
@@ -117,15 +109,13 @@ public class MCPResource {
 	 * @return
 	 */
 	private Insight initSession(HttpSession session) {
-		if(session != null)
-		{
+		if (session != null) {
 			User user = (User) session.getAttribute(Constants.SESSION_USER);
 			String insightId = (String) session.getAttribute(Constants.INSIGHT);
-			String sessionId = session.getId();		
+			String sessionId = session.getId();
 			Insight insight = null;
 			// insight id could be null
-			if (insightId == null)
-			{
+			if (insightId == null) {
 				Set<String> sessionInsights = InsightStore.getInstance().getInsightIDsForSession(sessionId);
 				if (sessionInsights == null || sessionInsights.isEmpty()) {
 					// need to make a new insight here
@@ -137,19 +127,18 @@ public class MCPResource {
 					// pull the insight id from the session set
 					insightId = sessionInsights.iterator().next();
 					insight = InsightStore.getInstance().get(insightId);
-				}			
+				}
 				// get the zone id
-				ZoneId zoneId = ZoneId.of(Utility.getApplicationZoneId());;
+				ZoneId zoneId = ZoneId.of(Utility.getApplicationZoneId());
+				;
 				user.setZoneId(zoneId);
 				session.setAttribute(Constants.INSIGHT, insightId);
-			}
-			else
-			{
-				insight = InsightStore.getInstance().get(insightId);				
+			} else {
+				insight = InsightStore.getInstance().get(insightId);
 			}
 
 			// set the user
-			insight.setUser(user);		
+			insight.setUser(user);
 			return insight;
 		}
 		return null;
