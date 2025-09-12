@@ -164,8 +164,7 @@ public class UserResource {
 		}
 
 		// log the user logout
-		classLogger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(thisUser),
-				"is logging out of provider " + provider));
+		classLogger.info("User is logging out of provider " + provider);
 		provider = WebUtility.inputSanitizer(provider);
 		if (provider.equalsIgnoreCase("ALL")) {
 			removed = true;
@@ -202,8 +201,7 @@ public class UserResource {
 			// when we call session.invalidate() the UserSessionLoader will properly log is
 			// user logout or tomcat ending
 			session.setAttribute(UserSessionLoader.IS_USER_LOGOUT, true);
-			classLogger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(thisUser),
-					"has logged out from all providers in the session"));
+			classLogger.info("User has logged out from all providers in the session");
 			// well, you have logged out and we always require a login
 			// so i will redirect you by default unless you specifically say not to
 			if (!disableRedirect) {
@@ -294,8 +292,7 @@ public class UserResource {
 		UserResource.userTrackingLogin(request, semossUser, token.getProvider());
 
 		// log the user login
-		classLogger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(semossUser),
-				"is logging in with provider " + token.getProvider()));
+		classLogger.info("User is logging in with provider " + token.getProvider());
 
 		// only for first login
 		// lets see if there is an external auth
@@ -2630,8 +2627,8 @@ public class UserResource {
 			Boolean disableRedirect = Boolean.parseBoolean(request.getParameter("disableRedirect") + "");
 
 			if (username == null || password == null || username.isEmpty() || password.isEmpty()) {
-				classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), null,
-						"is trying to login using username='" + username + "' but user name or password are empty"));
+				classLogger.warn("User is trying to login using username='" + username
+						+ "' but user name or password are empty");
 				ret.put(Constants.ERROR_MESSAGE, "The user name or password are empty");
 				return WebUtility.getResponse(ret, 401);
 			}
@@ -2670,9 +2667,8 @@ public class UserResource {
 						session.invalidate();
 					}
 				}
-				classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false),
-						User.getSingleLogginName(user),
-						"is trying to login using username='" + username + "' but user name or password are empty"));
+				classLogger.warn("User is trying to login using username='" + username
+						+ "' but user name or password are empty");
 				ret.put(Constants.ERROR_MESSAGE, "The user name or password are invalid.");
 				return WebUtility.getResponse(ret, 401);
 			}
