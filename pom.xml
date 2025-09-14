@@ -49,6 +49,26 @@
 		</repository>
 	</distributionManagement>
 	-->
+	<reporting>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-project-info-reports-plugin</artifactId>
+				<version>3.4.5</version>
+				<reportSets>
+					<reportSet>
+						<reports>
+							<report>index</report>
+                			<report>summary</report>
+                			<report>dependency-info</report>
+							<report>dependencies</report>
+							<report>dependency-convergence</report>
+						</reports>
+					</reportSet>
+				</reportSets>
+			</plugin>
+		</plugins>
+	</reporting>
 	<build>
 		<sourceDirectory>src</sourceDirectory>
 		<plugins>
@@ -396,12 +416,6 @@
 			<groupId>org.jboss.resteasy</groupId>
 			<artifactId>resteasy-jaxb-provider</artifactId>
 			<version>4.7.10.Final</version>
-		</dependency>
-		<!-- https://mvnrepository.com/artifact/org.opensaml/opensaml-saml-impl -->
-		<dependency>
-		    <groupId>org.opensaml</groupId>
-		    <artifactId>opensaml-saml-impl</artifactId>
-		    <version>4.0.1</version>
 		</dependency>
 		<!-- SAML ONE JAR -->
 		<!-- https://mvnrepository.com/artifact/org.openidentityplatform.openam/openam-federation-library -->
