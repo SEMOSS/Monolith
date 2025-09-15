@@ -29,7 +29,9 @@ package prerna.semoss.web.services.local;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
 import java.net.URLEncoder;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.security.Principal;
 import java.util.ArrayList;
@@ -71,7 +73,6 @@ import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
-import jodd.util.URLDecoder;
 import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.SyncUserAppsThread;
@@ -118,6 +119,8 @@ public class UserResource {
 	static {
 		socialData = SocialPropertiesUtil.getInstance();
 	}
+
+	private static final Charset UTF8 = Charset.forName("UTF-8");
 
 	@GET
 	@Path("/logins")
@@ -825,8 +828,7 @@ public class UserResource {
 		String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 
 		String redirectUrl = "https://login.salesforce.com/services/oauth2/authorize?" + "client_id=" + clientId
-				+ "&response_type=code" + "&redirect_uri=" + redirectUri + "&scope="
-				+ URLEncoder.encode("api", "UTF-8");
+				+ "&response_type=code" + "&redirect_uri=" + redirectUri + "&scope=" + URLEncoder.encode("api", UTF8);
 
 		if (classLogger.isDebugEnabled()) {
 			classLogger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
@@ -1055,7 +1057,7 @@ public class UserResource {
 
 		String redirectUrl = "https://github.com/login/oauth/authorize?" + "client_id=" + clientId + "&redirect_uri="
 				+ redirectUri + "&state=" + UUID.randomUUID().toString() + "&allow_signup=true" + "&scope="
-				+ URLEncoder.encode(scope, "UTF-8");
+				+ URLEncoder.encode(scope, UTF8);
 
 		if (classLogger.isDebugEnabled()) {
 			classLogger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
@@ -1203,7 +1205,7 @@ public class UserResource {
 		String state = UUID.randomUUID().toString();
 
 		String redirectUrl = auth_url + "?" + "client_id=" + clientId + "&response_type=code" + "&redirect_uri="
-				+ URLEncoder.encode(redirectUri, "UTF-8") + "&scope=" + scope + "&state=" + state;
+				+ URLEncoder.encode(redirectUri, UTF8) + "&scope=" + scope + "&state=" + state;
 
 		classLogger.info("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 
@@ -1342,8 +1344,8 @@ public class UserResource {
 			auth_url = "https://login.microsoftonline.com/" + tenant + "/oauth2/v2.0/authorize";
 		}
 		String redirectUrl = auth_url + "?" + "client_id=" + clientId + "&response_type=code" + "&redirect_uri="
-				+ URLEncoder.encode(redirectUri, "UTF-8") + "&response_mode=query" + "&scope="
-				+ URLEncoder.encode(scope) + "&state=" + state;
+				+ URLEncoder.encode(redirectUri, UTF8) + "&response_mode=query" + "&scope="
+				+ URLEncoder.encode(scope, UTF8) + "&state=" + state;
 
 		if (classLogger.isDebugEnabled()) {
 			classLogger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
@@ -1483,8 +1485,8 @@ public class UserResource {
 			throw new IllegalArgumentException("A URL can not be null or empty");
 		}
 		String redirectUrl = auth_url + "?" + "client_id=" + clientId + "&response_type=code" + "&redirect_uri="
-				+ URLEncoder.encode(redirectUri, "UTF-8") + "&response_mode=query" + "&scope="
-				+ URLEncoder.encode(scope) + "&state=" + state;
+				+ URLEncoder.encode(redirectUri, UTF8) + "&response_mode=query" + "&scope="
+				+ URLEncoder.encode(scope, UTF8) + "&state=" + state;
 
 		if (classLogger.isDebugEnabled()) {
 			classLogger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
@@ -1601,8 +1603,8 @@ public class UserResource {
 		String state = UUID.randomUUID().toString();
 
 		String redirectUrl = auth_url + "?" + "client_id=" + clientId + "&response_type=code" + "&redirect_uri="
-				+ URLEncoder.encode(redirectUri, "UTF-8") + "&response_mode=query" + "&scope="
-				+ URLEncoder.encode(scope, "UTF-8") + "&state=" + state;
+				+ URLEncoder.encode(redirectUri, UTF8) + "&response_mode=query" + "&scope="
+				+ URLEncoder.encode(scope, UTF8) + "&state=" + state;
 
 		if (classLogger.isDebugEnabled()) {
 			classLogger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
@@ -1721,8 +1723,8 @@ public class UserResource {
 		}
 
 		String redirectUrl = auth_url + "?" + "client_id=" + clientId + "&response_type=code" + "&redirect_uri="
-				+ URLEncoder.encode(redirectUri, "UTF-8") + "&response_mode=query" + "&scope="
-				+ URLEncoder.encode(scope, "UTF-8") + "&state=" + state;
+				+ URLEncoder.encode(redirectUri, UTF8) + "&response_mode=query" + "&scope="
+				+ URLEncoder.encode(scope, UTF8) + "&state=" + state;
 
 		if (classLogger.isDebugEnabled()) {
 			classLogger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
@@ -1828,7 +1830,7 @@ public class UserResource {
 		String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 		String role = socialData.getProperty(prefix + "role"); // need to set this up and reuse
 		String redirectUrl = "https://www.dropbox.com/oauth2/authorize?" + "client_id=" + clientId
-				+ "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8") + "&require_role="
+				+ "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, UTF8) + "&require_role="
 				+ role + "&disable_signup=false";
 
 		if (classLogger.isDebugEnabled()) {
@@ -1947,8 +1949,8 @@ public class UserResource {
 		String state = UUID.randomUUID().toString();
 
 		String redirectUrl = "https://accounts.google.com/o/oauth2/v2/auth?" + "client_id=" + clientId
-				+ "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8") + "&access_type="
-				+ accessType + "&scope=" + URLEncoder.encode(scope, "UTF-8") + "&state=" + state;
+				+ "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, UTF8) + "&access_type="
+				+ accessType + "&scope=" + URLEncoder.encode(scope, UTF8) + "&state=" + state;
 
 		if (classLogger.isDebugEnabled()) {
 			classLogger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
@@ -2109,8 +2111,8 @@ public class UserResource {
 		String scope = socialData.getProperty(prefix + "scope");
 
 		String redirectUrl = "https://api.producthunt.com/v1/oauth/authorize?" + "client_id=" + clientId
-				+ "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8") + "&scope="
-				+ URLEncoder.encode(scope, "UTF-8");
+				+ "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, UTF8) + "&scope="
+				+ URLEncoder.encode(scope, UTF8);
 
 		if (classLogger.isDebugEnabled()) {
 			classLogger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
@@ -2216,7 +2218,7 @@ public class UserResource {
 
 		String redirectUrl = "https://www.linkedin.com/oauth/v2/authorization?" + "client_id=" + clientId
 				+ "&redirect_uri=" + redirectUri + "&state=" + UUID.randomUUID().toString() + "&response_type=code"
-				+ "&scope=" + URLEncoder.encode(scope, "UTF-8");
+				+ "&scope=" + URLEncoder.encode(scope, UTF8);
 
 		if (classLogger.isDebugEnabled()) {
 			classLogger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
@@ -2336,10 +2338,10 @@ public class UserResource {
 		String timestamp = System.currentTimeMillis() + "";
 
 		StringBuffer signatureString = new StringBuffer("GET").append("&");
-		signatureString.append(URLEncoder.encode("https://api.twitter.com/oauth/authorize", "UTF-8")).append("&");
+		signatureString.append(URLEncoder.encode("https://api.twitter.com/oauth/authorize", UTF8)).append("&");
 
 		StringBuffer parameterString = new StringBuffer("");
-		parameterString.append("oauth_callback=").append(URLEncoder.encode(redirectUri, "UTF-8")).append("&");
+		parameterString.append("oauth_callback=").append(URLEncoder.encode(redirectUri, UTF8)).append("&");
 		parameterString.append("oauth_consumer_key=").append(clientId).append("&");
 		parameterString.append("oauth_nonce=").append(nonce).append("&");
 		parameterString.append("oauth_timestamp=").append(timestamp);
@@ -2350,7 +2352,7 @@ public class UserResource {
 
 		String redirectUrl = "https://github.com/login/oauth/authorize?" + "oauth_consumer_key=" + clientId
 				+ "&oauth_callback=" + redirectUri + "&oauth_nonce=" + nonce + "&oauth_timestamp=" + timestamp
-				+ "&scope=" + URLEncoder.encode(scope, "UTF-8");
+				+ "&scope=" + URLEncoder.encode(scope, UTF8);
 
 		if (classLogger.isDebugEnabled()) {
 			classLogger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
@@ -2566,12 +2568,12 @@ public class UserResource {
 		// are you already adding custom props? if so I will skip adding the ?
 		if (auth_url.contains("?")) {
 			redirectUrl = auth_url + "&client_id=" + clientId + "&response_type=code" + "&redirect_uri="
-					+ URLEncoder.encode(redirectUri, "UTF-8") + "&response_mode=query" + "&scope="
-					+ URLEncoder.encode(scope) + "&state=" + state;
+					+ URLEncoder.encode(redirectUri, UTF8) + "&response_mode=query" + "&scope="
+					+ URLEncoder.encode(scope, UTF8) + "&state=" + state;
 		} else {
 			redirectUrl = auth_url + "?" + "client_id=" + clientId + "&response_type=code" + "&redirect_uri="
-					+ URLEncoder.encode(redirectUri, "UTF-8") + "&response_mode=query" + "&scope="
-					+ URLEncoder.encode(scope) + "&state=" + state;
+					+ URLEncoder.encode(redirectUri, UTF8) + "&response_mode=query" + "&scope="
+					+ URLEncoder.encode(scope, UTF8) + "&state=" + state;
 		}
 
 		if (classLogger.isDebugEnabled()) {
