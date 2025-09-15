@@ -49,8 +49,91 @@
 		</repository>
 	</distributionManagement>
 	-->
+	<reporting>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-project-info-reports-plugin</artifactId>
+				<version>3.4.5</version>
+				<reportSets>
+					<reportSet>
+						<reports>
+							<report>index</report>
+                			<report>summary</report>
+                			<report>dependency-info</report>
+							<report>dependencies</report>
+							<report>dependency-convergence</report>
+						</reports>
+					</reportSet>
+				</reportSets>
+			</plugin>
+		</plugins>
+	</reporting>
 	<build>
 		<sourceDirectory>src</sourceDirectory>
+		<plugins>
+			<plugin>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>3.14.0</version>
+				<configuration>
+    				<source>21</source>
+    				<target>21</target>
+					<encoding>cp1252</encoding>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-enforcer-plugin</artifactId>
+				<version>3.6.1</version>
+				<executions>
+					<execution>
+						<id>no-duplicate-declared-dependencies</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<rules>
+								<banDuplicatePomDependencyVersions/>
+								<!-- <dependencyConvergence/> -->
+							</rules>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-dependency-plugin</artifactId>
+				<version>3.6.0</version>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-antrun-plugin</artifactId>
+				<version>3.1.0</version>
+				<executions>
+					<execution>
+						<phase>process-resources</phase>
+						<goals>
+							<goal>run</goal>
+						</goals>
+						<configuration>
+							<target>
+								<mkdir dir="${project.build.outputDirectory}/META-INF/maven/${project.groupId}/${project.artifactId}"/>
+								<tstamp>
+									<format property="build.timestamp.utc" pattern="yyyy-MM-dd HH:mm:ss z" timezone="UTC" />
+								</tstamp>
+								<propertyfile file="${project.build.outputDirectory}/META-INF/maven/${project.groupId}/${project.artifactId}/pom.properties">
+									<entry key="groupId" value="${project.groupId}" />
+									<entry key="artifactId" value="${project.artifactId}" />
+									<entry key="version" value="${project.version}" />
+									<entry key="ci.version" value="${project.version}" />
+									<entry key="build.date" value="${build.timestamp.utc}" />
+								</propertyfile>
+							</target>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
 	</build>
 	<profiles>
 		<profile>
@@ -60,43 +143,6 @@
 			</activation>
 			<build>
 				<plugins>
-					<plugin>
-						<artifactId>maven-compiler-plugin</artifactId>
-						<version>3.14.0</version>
-						<configuration>
-	        				<source>21</source>
-	        				<target>21</target>
-							<encoding>cp1252</encoding>
-						</configuration>
-					</plugin>
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-antrun-plugin</artifactId>
-						<version>3.1.0</version>
-						<executions>
-							<execution>
-								<phase>process-resources</phase>
-								<goals>
-									<goal>run</goal>
-								</goals>
-								<configuration>
-									<target>
-										<mkdir dir="${project.build.outputDirectory}/META-INF/maven/${project.groupId}/${project.artifactId}"/>
-										<tstamp>
-											<format property="build.timestamp.utc" pattern="yyyy-MM-dd HH:mm:ss z" timezone="UTC" />
-										</tstamp>
-										<propertyfile file="${project.build.outputDirectory}/META-INF/maven/${project.groupId}/${project.artifactId}/pom.properties">
-											<entry key="groupId" value="${project.groupId}" />
-											<entry key="artifactId" value="${project.artifactId}" />
-											<entry key="version" value="${project.version}" />
-											<entry key="ci.version" value="${project.version}" />
-											<entry key="build.date" value="${build.timestamp.utc}" />
-										</propertyfile>
-									</target>
-								</configuration>
-							</execution>
-						</executions>
-					</plugin>
 					<!-- https://mvnrepository.com/artifact/org.apache.maven.plugins/maven-war-plugin -->
 					<plugin>
 					    <groupId>org.apache.maven.plugins</groupId>
@@ -123,10 +169,6 @@
 							</warSourceIncludes>
 						</configuration>
 					</plugin>
-					<plugin>
-						<artifactId>maven-dependency-plugin</artifactId>
-						<version>2.10</version>
-					</plugin>
 				</plugins>
 			</build>
 		</profile>
@@ -147,46 +189,9 @@
 			<build>
 				<plugins>
 					<plugin>
-						<artifactId>maven-compiler-plugin</artifactId>
-						<version>3.14.0</version>
-						<configuration>
-	        				<source>21</source>
-	        				<target>21</target>
-							<encoding>cp1252</encoding>
-						</configuration>
-					</plugin>
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-antrun-plugin</artifactId>
-						<version>3.1.0</version>
-						<executions>
-							<execution>
-								<phase>process-resources</phase>
-								<goals>
-									<goal>run</goal>
-								</goals>
-								<configuration>
-									<target>
-										<mkdir dir="${project.build.outputDirectory}/META-INF/maven/${project.groupId}/${project.artifactId}"/>
-										<tstamp>
-											<format property="build.timestamp.utc" pattern="yyyy-MM-dd HH:mm:ss z" timezone="UTC" />
-										</tstamp>
-										<propertyfile file="${project.build.outputDirectory}/META-INF/maven/${project.groupId}/${project.artifactId}/pom.properties">
-											<entry key="groupId" value="${project.groupId}" />
-											<entry key="artifactId" value="${project.artifactId}" />
-											<entry key="version" value="${project.version}" />
-											<entry key="ci.version" value="${project.version}" />
-											<entry key="build.date" value="${build.timestamp.utc}" />
-										</propertyfile>
-									</target>
-								</configuration>
-							</execution>
-						</executions>
-					</plugin>
-					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-war-plugin</artifactId>
-						<version>3.3.2</version>
+					    <version>3.4.0</version>
 						<configuration>
 							<webXml>WebContent/WEB-INF/web.xml</webXml>
 							<failOnMissingWebXml>true</failOnMissingWebXml>
@@ -376,11 +381,35 @@
 			<version>1.1</version>
 			<scope>provided</scope>
 		</dependency>
+		<!-- https://mvnrepository.com/artifact/jakarta.activation/jakarta.activation-api -->
+		<dependency>
+		    <groupId>jakarta.activation</groupId>
+		    <artifactId>jakarta.activation-api</artifactId>
+		    <version>1.2.2</version>
+		</dependency>
 		<!-- https://mvnrepository.com/artifact/org.jboss.resteasy/resteasy-core -->
 		<dependency>
 			<groupId>org.jboss.resteasy</groupId>
 			<artifactId>resteasy-core</artifactId>
 			<version>4.7.10.Final</version>
+			<exclusions>
+				<exclusion>
+			    	<groupId>org.reactivestreams</groupId>
+		    		<artifactId>reactive-streams</artifactId>
+			    </exclusion>
+			    <exclusion>
+			    	<groupId>org.ow2.asm</groupId>
+		    		<artifactId>asm</artifactId>
+			    </exclusion>
+			    <exclusion>
+					<groupId>jakarta.activation</groupId>
+					<artifactId>jakarta.activation-api</artifactId>
+			    </exclusion>
+				<exclusion>
+					<groupId>org.jboss.logging</groupId>
+					<artifactId>jboss-logging</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/org.jboss.resteasy/resteasy-jaxb-provider -->
 		<dependency>
@@ -393,27 +422,63 @@
 		<dependency>
 			<groupId>org.openidentityplatform.openam</groupId>
 			<artifactId>openam-federation-library</artifactId>
-			<version>14.8.4</version>
+			<version>15.2.2</version>
 			<exclusions>
 				<exclusion>
-					<groupId>javax.mail</groupId>
-					<artifactId>*</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.sun.mail</groupId>
-					<artifactId>*</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.owasp.esapi</groupId>
-					<artifactId>*</artifactId>
-				</exclusion>
+		    		<groupId>com.google.guava</groupId>
+		    		<artifactId>guava</artifactId>
+		    	</exclusion>
+		    	<exclusion>
+		    		<groupId>org.json</groupId>
+		    		<artifactId>json</artifactId>
+		    	</exclusion>
+		    	<exclusion>
+					<groupId>jakarta.activation</groupId>
+					<artifactId>jakarta.activation-api</artifactId>
+			    </exclusion>
 				<exclusion>
 					<groupId>com.fasterxml.woodstox</groupId>
 					<artifactId>woodstox-core</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>org.openjdk.nashorn</groupId>
-					<artifactId>nashorn-core</artifactId>
+		    		<artifactId>commons-logging</artifactId>
+		    		<groupId>commons-logging</groupId>
+		    	</exclusion>
+		    	<exclusion>
+		    		<groupId>org.glassfish</groupId>
+		    		<artifactId>jakarta.json</artifactId>
+		    	</exclusion>
+		    	<exclusion>
+		    		<groupId>joda-time</groupId>
+		    		<artifactId>joda-time</artifactId>
+		    	</exclusion>
+		    	<exclusion>
+					<groupId>com.sun.xml.rpc</groupId>
+					<artifactId>jaxrpc-impl</artifactId>
+		    	</exclusion>
+		    	<exclusion>
+		    		<groupId>org.javassist</groupId>
+		    		<artifactId>javassist</artifactId>
+		    	</exclusion>
+		    	<exclusion>
+		    		<groupId>org.codehaus.woodstox</groupId>
+		    		<artifactId>stax2-api</artifactId>
+		    	</exclusion>
+		    	<exclusion>
+					<groupId>org.ow2.asm</groupId>
+					<artifactId>*</artifactId>
+		    	</exclusion>
+		    	<exclusion>
+		    		<groupId>com.sun.mail</groupId>
+		    		<artifactId>jakarta.mail</artifactId>
+		    	</exclusion>
+				<exclusion>
+					<groupId>org.owasp.esapi</groupId>
+					<artifactId>*</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.fasterxml.jackson.core</groupId>
+					<artifactId>*</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
@@ -431,11 +496,61 @@
 			<artifactId>activation</artifactId>
 			<version>1.1.1</version>
 		</dependency>
+		<!-- https://mvnrepository.com/artifact/com.sun.xml.rpc/jaxrpc-impl -->
+		<dependency>
+		    <groupId>com.sun.xml.rpc</groupId>
+		    <artifactId>jaxrpc-impl</artifactId>
+		    <version>1.1.6</version>
+		    <exclusions>
+		    	<exclusion>
+		    		<groupId>com.sun.mail</groupId>
+		    		<artifactId>jakarta.mail</artifactId>
+		    	</exclusion>
+		    	<exclusion>
+					<groupId>com.sun.xml.fastinfoset</groupId>
+					<artifactId>FastInfoset</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>jakarta.xml.rpc</groupId>
+					<artifactId>jakarta.xml.rpc-api</artifactId>
+				</exclusion>
+		    </exclusions>
+		</dependency>
+		<!-- https://mvnrepository.com/artifact/com.sun.xml.fastinfoset/FastInfoset -->
+		<dependency>
+		    <groupId>com.sun.xml.fastinfoset</groupId>
+		    <artifactId>FastInfoset</artifactId>
+		    <version>1.2.18</version>
+		</dependency>
+		<!-- https://mvnrepository.com/artifact/jakarta.xml.rpc/jakarta.xml.rpc-api -->
+		<dependency>
+		    <groupId>jakarta.xml.rpc</groupId>
+		    <artifactId>jakarta.xml.rpc-api</artifactId>
+		    <version>1.1.4</version>
+		    <exclusions>
+		    	<exclusion>
+					<groupId>jakarta.servlet</groupId>
+					<artifactId>jakarta.servlet-api</artifactId>
+				</exclusion>
+		    </exclusions>
+		</dependency>
 		<!-- https://mvnrepository.com/artifact/org.bouncycastle/bcpkix-jdk18on -->
 		<dependency>
 			<groupId>org.bouncycastle</groupId>
 			<artifactId>bcpkix-jdk18on</artifactId>
 			<version>1.78.1</version>
+		</dependency>
+		<!-- https://mvnrepository.com/artifact/joda-time/joda-time -->
+		<dependency>
+		    <groupId>joda-time</groupId>
+		    <artifactId>joda-time</artifactId>
+		    <version>2.14.0</version>
+		    <exclusions>
+		    	<exclusion>
+		    		<groupId>org.joda</groupId>
+		    		<artifactId>joda-convert</artifactId>
+		    	</exclusion>
+		    </exclusions>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/com.mikesamuel/json-sanitizer -->
 		<dependency>
