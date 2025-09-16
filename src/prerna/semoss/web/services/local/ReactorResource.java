@@ -33,7 +33,7 @@ public class ReactorResource {
 
 	private static final Logger log = LogManager.getLogger(ReactorResource.class);
 
-		@GET
+	@GET
 	@Path("usageOnly")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response listReactorsWithUsageOnly() {
@@ -46,13 +46,11 @@ public class ReactorResource {
 		return WebUtility.getResponse(reactorList, 200);
 	}
 
-
-
 	@GET
 	@Path("all")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response listReactors() {
-	
+
 		List<ReactorDTO> reactorList = getAllReactorNames().stream().map(r -> {
 			return getReactorByName(r);
 		}).filter(Objects::nonNull)
@@ -121,7 +119,6 @@ public class ReactorResource {
 				.setUsage(usage)
 				.build();
 	}
-
 
 	// DTO class to hold reactor metadata
 	static class ReactorDTO {
