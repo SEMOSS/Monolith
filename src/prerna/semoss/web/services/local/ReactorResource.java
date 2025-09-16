@@ -37,7 +37,6 @@ public class ReactorResource {
 
 	private static final Logger log = LogManager.getLogger(ReactorResource.class);
 
-
 	private static IReactor getReactorByName(String name) {
 		try {
 			return ReactorFactory.getReactor(null, name, null, null);
@@ -51,64 +50,67 @@ public class ReactorResource {
 		return ReactorFactory.reactorHash.keySet();
 	}
 
+	private static ReactorDTO mapReactor(IReactor reactor) {
+		// ReactorDTO dto = new
+		String reactorName = reactor.getName();
+		String description = null;
+		List<String> requiredKeys = new ArrayList<>();
+		Set<String> allKeys = new HashSet<>();
+		String usage = reactor.getUsage();
+		try {
+
+			JSONObject tool = reactor.asMcpTool();
+			if (tool != null) {
+				description = tool.optString("description", null);
+				if (tool.has("inputSchema")) {
+					JSONObject inputSchema = tool.getJSONObject("inputSchema");
+					if (inputSchema.has("required")) {
+						for (Object o : inputSchema.getJSONArray("required")) {
+							requiredKeys.add(String.valueOf(o));
+						}
+					}
+					if (inputSchema.has("properties")) {
+						JSONObject props = inputSchema.getJSONObject("properties");
+						for (String key : props.keySet()) {
+							allKeys.add(key);
+						}
+					}
+				}
+				String reactorUsage = reactor.getUsage();
+				if (reactorUsage != null && !reactorUsage.isBlank()) {
+					usage = reactorUsage;
+				}
+			} else {
+				log.debug("Null tool metadata for reactor {}", reactorName);
+			}
+		} catch (Exception ee) {
+			log.debug("Could not derive MCP metadata for reactor {}", reactorName, ee);
+		}
+		return new ReactorDTO.Builder()
+				.setName(reactorName)
+				.setDescription(description)
+				.setRequiredKeys(requiredKeys)
+				.setOptionalKeys(allKeys.stream()
+						.filter(Objects::nonNull)
+						.map(String::trim)
+						.filter(k -> !k.isBlank() && !requiredKeys.contains(k))
+						.collect(Collectors.toList()))
+				.setUsage(usage)
+				.build();
+	}
+
 	@GET
 	@Path("usageOnly")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response listReactorsWithUsageOnly() {
 
 		List<ReactorDTO> reactorList = getAllReactorNames().stream().map(r -> {
-				return getReactorByName(r);
+			return getReactorByName(r);
 		}).filter(Objects::nonNull)
 				.filter(reactor -> reactor.getUsage() != null && !reactor.getUsage().isBlank())
-				.map(reactor -> {
-					String reactorName = reactor.getName();
-					String description = null;
-					List<String> requiredKeys = new ArrayList<>();
-					Set<String> allKeys = new HashSet<>();
-					String usage = reactor.getUsage();
-					List<String> optionalKeys = new ArrayList<>();
-					try {
-
-						JSONObject tool = reactor.asMcpTool();
-						if (tool != null) {
-							description = tool.optString("description", null);
-							if (tool.has("inputSchema")) {
-								JSONObject inputSchema = tool.getJSONObject("inputSchema");
-								if (inputSchema.has("required")) {
-									for (Object o : inputSchema.getJSONArray("required")) {
-										requiredKeys.add(String.valueOf(o));
-									}
-								}
-								if (inputSchema.has("properties")) {
-									JSONObject props = inputSchema.getJSONObject("properties");
-									for (String key : props.keySet()) {
-										allKeys.add(key);
-									}
-								}
-							}
-							 usage = reactor.getUsage();
-						} else {
-							log.debug("Null tool metadata for reactor {}", reactorName);
-						}
-					} catch (Exception ee) {
-						log.debug("Could not derive MCP metadata for reactor {}", reactorName, ee);
-					}
-					optionalKeys = allKeys.stream()
-							.filter(Objects::nonNull)
-							.map(String::trim)
-							.filter(k -> !k.isBlank() && !requiredKeys.contains(k))
-							.collect(Collectors.toCollection(ArrayList::new));
-
-							return new ReactorDTO(reactorName, description, requiredKeys, optionalKeys, usage);
-
-				}).toList();
-		//return WebUtility.getResponse(Map.of("reactors", reactorList), 200);
-		return WebUtility.getResponse( reactorList, 200);
+				.map(ReactorResource::mapReactor).toList();
+		return WebUtility.getResponse(reactorList, 200);
 	}
-
-
-
-
 
 	/**
 	 * GET /engine/reactors
@@ -125,69 +127,16 @@ public class ReactorResource {
 	@GET
 	@Path("all")
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response listReactors(@QueryParam("usageOnly") @DefaultValue("false") boolean usageOnly) {
-		List<ReactorDTO> reactorList = new ArrayList<>();
-		Map<String, Object> result = new HashMap<>();
-		try {
-			for (String reactorName : ReactorFactory.reactorHash.keySet()) {
-				String description = null;
-				List<String> requiredKeys = new ArrayList<>();
-				Set<String> allKeys = new HashSet<>();
-				String usage = null;
-				try {
-					IReactor reactor = ReactorFactory.getReactor(null, reactorName, null, null);
-					if (reactor != null) {
-						try {
-							JSONObject tool = reactor.asMcpTool();
-							if (tool != null) {
-								description = tool.optString("description", null);
-								if (tool.has("inputSchema")) {
-									JSONObject inputSchema = tool.getJSONObject("inputSchema");
-									if (inputSchema.has("required")) {
-										for (Object o : inputSchema.getJSONArray("required")) {
-											requiredKeys.add(String.valueOf(o));
-										}
-									}
-									if (inputSchema.has("properties")) {
-										JSONObject props = inputSchema.getJSONObject("properties");
-										for (String key : props.keySet()) {
-											allKeys.add(key);
-										}
-									}
-								}
-								String reactorUsage = reactor.getUsage();
-								if (reactorUsage != null && !reactorUsage.isBlank()) {
-									usage = reactorUsage;
-								}
-							} else {
-								log.debug("Null tool metadata for reactor {}", reactorName);
-							}
-						} catch (Exception ee) {
-							log.debug("Could not derive MCP metadata for reactor {}", reactorName, ee);
-						}
-					}
-				} catch (Exception inner) {
-					log.warn("Failed to load metadata for reactor: {}", reactorName, inner);
-				}
-				List<String> optionalKeys = new ArrayList<>();
-				for (String k : allKeys) {
-					if (!requiredKeys.contains(k)) {
-						optionalKeys.add(k);
-					}
-				}
-				reactorList.add(new ReactorDTO(reactorName, description, requiredKeys, optionalKeys, usage));
-			}
-		} catch (Exception e) {
-			log.error("Unexpected error building reactor list", e);
-			result.put("error", "Failed to build reactor list: " + e.getMessage());
-		}
-		result.put("reactors", reactorList);
-		log.info("Found {} reactors", reactorList.size());
-
-		return WebUtility.getResponse(result, 200);
+	public Response listReactors() {
+	
+		List<ReactorDTO> reactorList = getAllReactorNames().stream().map(r -> {
+			return getReactorByName(r);
+		}).filter(Objects::nonNull)
+				.map(ReactorResource::mapReactor).toList();
+		return WebUtility.getResponse(reactorList, 200);
 	}
 
-	class ReactorDTO {
+	static class ReactorDTO {
 		public String name;
 		public String description;
 		public List<String> requiredKeys;
@@ -202,10 +151,44 @@ public class ReactorResource {
 			this.optionalKeys = optionalKeys;
 			this.usage = usage;
 		}
+
+		// Generate builder pattern
+		public static class Builder {
+			private String name;
+			private String description;
+			private List<String> requiredKeys = new ArrayList<>();
+			private List<String> optionalKeys = new ArrayList<>();
+			private String usage;
+
+			public Builder setName(String name) {
+				this.name = name;
+				return this;
+			}
+
+			public Builder setDescription(String description) {
+				this.description = description;
+				return this;
+			}
+
+			public Builder setRequiredKeys(List<String> requiredKeys) {
+				this.requiredKeys = requiredKeys;
+				return this;
+			}
+
+			public Builder setOptionalKeys(List<String> optionalKeys) {
+				this.optionalKeys = optionalKeys;
+				return this;
+			}
+
+			public Builder setUsage(String usage) {
+				this.usage = usage;
+				return this;
+			}
+
+			public ReactorDTO build() {
+				return new ReactorDTO(name, description, requiredKeys, optionalKeys, usage);
+			}
+		}
 	}
-
-
-		
-	
 
 }
