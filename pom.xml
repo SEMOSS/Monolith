@@ -197,7 +197,7 @@
     				    </server>
     				  </servers>
     				  <info>
-    				    <title>AI-Core</title>
+    				    <title>AI Core</title>
     				    <version>${project.version}</version>
     				  </info>
     				</swaggerConfig>
