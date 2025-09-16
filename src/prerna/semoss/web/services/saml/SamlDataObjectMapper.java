@@ -92,13 +92,17 @@ public class SamlDataObjectMapper {
 	public Map<String, Collection<String>> getValuesForAttributes(Map<String, Boolean> attributesWithMultiplicity) {
 		Map<String, Collection<String>> result = new HashMap<>();
 		for(String attributeKey : attributesWithMultiplicity.keySet()) {
-			if(!attributeMapper.containsKey(attributeKey)) {
+			if (attributeKey == null) {
+				continue;
+			}
+			String attributeKeyNormalized = attributeKey.toLowerCase();
+			if(!attributeMapper.containsKey(attributeKeyNormalized)) {
 				continue;
 			}
 			if(attributesWithMultiplicity.get(attributeKey)) {
-				result.put(attributeKey, generateInputSet(attributeKey));
+				result.put(attributeKey, generateInputSet(attributeKeyNormalized));
 			} else {
-				result.put(attributeKey, Lists.newArrayList(generateInput(attributeKey)));
+				result.put(attributeKey, Lists.newArrayList(generateInput(attributeKeyNormalized)));
 			}
 		}
 		return result;
