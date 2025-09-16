@@ -1,20 +1,16 @@
 package prerna.semoss.web.services.local;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map; // still used in test endpoint
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import javax.annotation.security.PermitAll;
-import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
@@ -36,6 +32,33 @@ import prerna.web.services.util.WebUtility;
 public class ReactorResource {
 
 	private static final Logger log = LogManager.getLogger(ReactorResource.class);
+
+		@GET
+	@Path("usageOnly")
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response listReactorsWithUsageOnly() {
+
+		List<ReactorDTO> reactorList = getAllReactorNames().stream().map(r -> {
+			return getReactorByName(r);
+		}).filter(Objects::nonNull)
+				.filter(reactor -> reactor.getUsage() != null && !reactor.getUsage().isBlank())
+				.map(ReactorResource::mapReactor).toList();
+		return WebUtility.getResponse(reactorList, 200);
+	}
+
+
+
+	@GET
+	@Path("all")
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response listReactors() {
+	
+		List<ReactorDTO> reactorList = getAllReactorNames().stream().map(r -> {
+			return getReactorByName(r);
+		}).filter(Objects::nonNull)
+				.map(ReactorResource::mapReactor).toList();
+		return WebUtility.getResponse(reactorList, 200);
+	}
 
 	private static IReactor getReactorByName(String name) {
 		try {
@@ -93,49 +116,14 @@ public class ReactorResource {
 				.setOptionalKeys(allKeys.stream()
 						.filter(Objects::nonNull)
 						.map(String::trim)
-						.filter(k -> !k.isBlank() && !requiredKeys.contains(k))
+						.filter(key -> !key.isBlank() && !requiredKeys.contains(key))
 						.collect(Collectors.toList()))
 				.setUsage(usage)
 				.build();
 	}
 
-	@GET
-	@Path("usageOnly")
-	@Produces(MediaType.APPLICATION_JSON)
-	public Response listReactorsWithUsageOnly() {
 
-		List<ReactorDTO> reactorList = getAllReactorNames().stream().map(r -> {
-			return getReactorByName(r);
-		}).filter(Objects::nonNull)
-				.filter(reactor -> reactor.getUsage() != null && !reactor.getUsage().isBlank())
-				.map(ReactorResource::mapReactor).toList();
-		return WebUtility.getResponse(reactorList, 200);
-	}
-
-	/**
-	 * GET /engine/reactors
-	 * Returns JSON array (field "reactors") of reactor metadata.
-	 * Each reactor object: {
-	 * name: String,
-	 * description: String?,
-	 * requiredKeys: [String],
-	 * optionalKeys: [String],
-	 * usage: String?
-	 * }
-	 */
-
-	@GET
-	@Path("all")
-	@Produces(MediaType.APPLICATION_JSON)
-	public Response listReactors() {
-	
-		List<ReactorDTO> reactorList = getAllReactorNames().stream().map(r -> {
-			return getReactorByName(r);
-		}).filter(Objects::nonNull)
-				.map(ReactorResource::mapReactor).toList();
-		return WebUtility.getResponse(reactorList, 200);
-	}
-
+	// DTO class to hold reactor metadata
 	static class ReactorDTO {
 		public String name;
 		public String description;
