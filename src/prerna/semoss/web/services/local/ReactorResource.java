@@ -21,6 +21,9 @@ import org.json.JSONObject;
 import prerna.reactor.IReactor;
 import prerna.reactor.ReactorFactory;
 import prerna.web.services.util.WebUtility;
+import prerna.algorithm.api.ITableDataFrame;
+import prerna.om.Insight;
+
 
 /**
  * REST resource to expose metadata about available Reactors.
@@ -42,7 +45,7 @@ public class ReactorResource {
 			return getReactorByName(r);
 		}).filter(Objects::nonNull)
 				.filter(reactor -> reactor.getUsage() != null && !reactor.getUsage().isBlank())
-				.map(ReactorResource::mapReactor).toList();
+				.map(ReactorResource::mapReactor).collect(Collectors.toList());
 		return WebUtility.getResponse(reactorList, 200);
 	}
 
@@ -54,13 +57,16 @@ public class ReactorResource {
 		List<ReactorDTO> reactorList = getAllReactorNames().stream().map(r -> {
 			return getReactorByName(r);
 		}).filter(Objects::nonNull)
-				.map(ReactorResource::mapReactor).toList();
+				.map(ReactorResource::mapReactor).collect(Collectors.toList());
 		return WebUtility.getResponse(reactorList, 200);
 	}
 
 	private static IReactor getReactorByName(String name) {
+		Insight i = null;
+		IReactor pr = null;
+		ITableDataFrame tdb = null;
 		try {
-			return ReactorFactory.getReactor(null, name, null, null);
+			return ReactorFactory.getReactor(i, name, pr, tdb);
 		} catch (Exception e) {
 			log.warn("Failed to load reactor: {}", name, e);
 			return null;
@@ -87,7 +93,10 @@ public class ReactorResource {
 					JSONObject inputSchema = tool.getJSONObject("inputSchema");
 					if (inputSchema.has("required")) {
 						for (Object o : inputSchema.getJSONArray("required")) {
-							requiredKeys.add(String.valueOf(o));
+							String key = String.valueOf(o).trim();
+							if (!key.isBlank() && !requiredKeys.contains(key)) {
+								requiredKeys.add(key);
+							}
 						}
 					}
 					if (inputSchema.has("properties")) {
