@@ -1,6 +1,6 @@
 openapi: 3.0.1
 info:
-  title: SEMOSS
+  title: AI-Core
   version: 0.0.1-SNAPSHOT
 servers:
 - url: https://workshop.cfg.deloitte.com/cfg-ai-demo/Monolith/api
