@@ -34,6 +34,7 @@ import org.apache.logging.log4j.Logger;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityEngineUtils;
+import prerna.auth.utils.SecurityNotificationUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.cluster.util.ClusterUtil;
 import prerna.engine.api.IEngine;
@@ -178,6 +179,10 @@ public class EngineRouteResource {
 		
 		// push to cloud
 		ClusterUtil.pushEngineSmss(engineId, engine.getCatalogType());
+		
+		// Adding Notification
+		String engineType = String.valueOf(SecurityEngineUtils.getEngineType(engineId)).toLowerCase();
+		SecurityNotificationUtils.addNotification(user, null, engineId, "SMSS_UPDATE", engineType, "MEDIUM", null, null);
 		
 		Map<String, Object> success = new HashMap<>();
 		success.put("success", true);
