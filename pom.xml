@@ -131,6 +131,23 @@
 							</target>
 						</configuration>
 					</execution>
+					<!-- this is so log4j can pick up the plugins working in eclipse -->
+			        <execution>
+			            <id>copy-semoss-resources</id>
+			            <phase>process-resources</phase>
+			            <goals>
+			                <goal>run</goal>
+			            </goals>
+			            <configuration>
+			                <target>
+			                    <mkdir dir="${project.build.outputDirectory}/META-INF/org/apache/logging/log4j/core/config/plugins"/>
+			                    <copy file="../Semoss/src/main/resources/META-INF/org/apache/logging/log4j/core/config/plugins/Log4j2Plugins.dat"
+			                          todir="${project.build.outputDirectory}/META-INF/org/apache/logging/log4j/core/config/plugins"
+			                          overwrite="true"
+			                          failonerror="false"/>
+			                </target>
+			            </configuration>
+			        </execution>
 				</executions>
 			</plugin>
 		</plugins>
