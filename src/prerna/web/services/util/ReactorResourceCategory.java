@@ -37,6 +37,12 @@ public enum ReactorResourceCategory {
     WEB_SCRAPE("webScrape"),
     BITLY("bitly"),
     DATE("date"),
+    LLM_AI("llmAi"),
+    ADMIN("admin"),
+    PROJECT("project"),
+    ENGINE("engine"),
+    VECTOR_DATABASE("vectorDatabase"),
+    MCP("mcp"),
     ALL("all");
     
     private final String value;
