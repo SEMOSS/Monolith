@@ -29,7 +29,9 @@ package prerna.semoss.web.services.local;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
 import java.net.URLEncoder;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.security.Principal;
 import java.util.ArrayList;
@@ -71,7 +73,6 @@ import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
-import jodd.util.URLDecoder;
 import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.SyncUserAppsThread;
@@ -119,6 +120,8 @@ public class UserResource {
 		socialData = SocialPropertiesUtil.getInstance();
 	}
 
+	private static final Charset UTF8 = Charset.forName("UTF-8");
+
 	@GET
 	@Path("/logins")
 	public Response getAllLogins(@Context HttpServletRequest request) {
@@ -146,17 +149,17 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/logout/{provider}")
-	public Response logout(@PathParam("provider") String provider, @QueryParam("disableRedirect") boolean disableRedirect,
-			@Context HttpServletRequest request,
+	public Response logout(@PathParam("provider") String provider,
+			@QueryParam("disableRedirect") boolean disableRedirect, @Context HttpServletRequest request,
 			@Context HttpServletResponse response) throws IOException {
 		boolean noUser = false;
 		boolean removed = false;
-	    
-		provider=WebUtility.inputSanitizer(provider);
+
+		provider = WebUtility.inputSanitizer(provider);
 
 		HttpSession session = request.getSession();
 		User thisUser = (User) session.getAttribute(Constants.SESSION_USER);
-		if(thisUser == null) {
+		if (thisUser == null) {
 			Map<String, Object> ret = new HashMap<>();
 			ret.put("success", false);
 			ret.put(Constants.ERROR_MESSAGE, "No user is currently logged in the session");
@@ -164,7 +167,7 @@ public class UserResource {
 		}
 
 		// log the user logout
-		classLogger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(thisUser), "is logging out of provider " +  provider));
+		classLogger.info("User is logging out of provider " + provider);
 		provider = WebUtility.inputSanitizer(provider);
 		if (provider.equalsIgnoreCase("ALL")) {
 			removed = true;
@@ -197,13 +200,14 @@ public class UserResource {
 		}
 
 		List<NewCookie> nullCookies = null;
-		if(noUser) {
-			// when we call session.invalidate() the UserSessionLoader will properly log is user logout or tomcat ending
+		if (noUser) {
+			// when we call session.invalidate() the UserSessionLoader will properly log is
+			// user logout or tomcat ending
 			session.setAttribute(UserSessionLoader.IS_USER_LOGOUT, true);
-			classLogger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(thisUser), "has logged out from all providers in the session"));
+			classLogger.info("User has logged out from all providers in the session");
 			// well, you have logged out and we always require a login
 			// so i will redirect you by default unless you specifically say not to
-			if(!disableRedirect) {
+			if (!disableRedirect) {
 				response.setStatus(302);
 
 				String customUrl = DBLoader.getCustomLogoutUrl();
@@ -214,8 +218,7 @@ public class UserResource {
 					String redirectUrl = WebUtility.inputSanitizer(request.getHeader("referer"));
 					if (DBLoader.useLogoutPage()) {
 						String scheme = WebUtility.inputSanitizer(request.getScheme());
-						if (!scheme.trim().equalsIgnoreCase("https") &&
-								!scheme.trim().equalsIgnoreCase("http")) {
+						if (!scheme.trim().equalsIgnoreCase("https") && !scheme.trim().equalsIgnoreCase("http")) {
 							throw new IllegalArgumentException("scheme is invalid, please input proper scheme");
 						}
 						String serverName = WebUtility.inputSanitizer(request.getServerName()); // hostname.com
@@ -250,7 +253,7 @@ public class UserResource {
 
 		Map<String, Boolean> ret = new HashMap<>();
 		ret.put("success", removed);
-		if(nullCookies == null) {
+		if (nullCookies == null) {
 			return WebUtility.getResponse(ret, 200);
 		}
 
@@ -273,11 +276,11 @@ public class UserResource {
 			session.setAttribute(Constants.SESSION_USER_ID_LOG, token.getId());
 		}
 		// add new users into the database
-		if(autoAdd) {
+		if (autoAdd) {
 			SecurityUpdateUtils.addOAuthUser(token);
 		}
-		// validate the user's login 
-		// that they are not locked 
+		// validate the user's login
+		// that they are not locked
 		// and to update the last login date
 		try {
 			SecurityUpdateUtils.validateUserLogin(token);
@@ -287,16 +290,18 @@ public class UserResource {
 		semossUser.setAccessToken(token);
 		semossUser.setAnonymous(false);
 		session.setAttribute(Constants.SESSION_USER, semossUser);
+		WebUtility.loggingContextLoginEvent(session);
 
 		UserResource.userTrackingLogin(request, semossUser, token.getProvider());
 
 		// log the user login
-		classLogger.info(ResourceUtility.getLogMessage(request, session, User.getSingleLogginName(semossUser), "is logging in with provider " +  token.getProvider()));
+		classLogger.info("User is logging in with provider " + token.getProvider());
 
 		// only for first login
 		// lets see if there is an external auth
 		// that we should be loading
-		if(firstLogin && Boolean.parseBoolean(Utility.getDIHelperProperty(Constants.EXTERNAL_PERMISSION_MANAGEMENT_ENABLED)+"")) {
+		if (firstLogin && Boolean
+				.parseBoolean(Utility.getDIHelperProperty(Constants.EXTERNAL_PERMISSION_MANAGEMENT_ENABLED) + "")) {
 			try {
 				ExternalAuthorizationHelper.updateEnginePermissionsBasedOnApiCall(semossUser);
 			} catch (Exception e) {
@@ -467,7 +472,7 @@ public class UserResource {
 			return WebUtility.getResponseNoCache(ret, 200, newCookies.toArray(new NewCookie[] {}));
 		}
 
-		String prefix="adfs_";
+		String prefix = "adfs_";
 		String beanProps = socialData.getProperty(prefix + "beanProps");
 		String jsonPattern = socialData.getProperty(prefix + "jsonPattern");
 
@@ -478,7 +483,7 @@ public class UserResource {
 			AccessToken adfsToken = semossUser.getAccessToken(AuthProvider.ADFS);
 			accessString = adfsToken.getAccess_token();
 			String json = decodeTokenPayload(adfsToken.getAccess_token());
-			adfsToken = (AccessToken)BeanFiller.fillFromJson(json, jsonPattern, beanPropsArr, adfsToken);
+			adfsToken = (AccessToken) BeanFiller.fillFromJson(json, jsonPattern, beanPropsArr, adfsToken);
 			String name = adfsToken.getName();
 			ret.put("name", name);
 
@@ -588,7 +593,6 @@ public class UserResource {
 
 		String url = "https://api.github.com/user";
 
-
 		String output = HttpHelperUtility.makeGetCall(url, accessString, null, true);
 		AccessToken accessToken2 = (AccessToken) BeanFiller.fillFromJson(output, jsonPattern, beanProps,
 				new AccessToken());
@@ -599,7 +603,7 @@ public class UserResource {
 		}
 		return WebUtility.getResponse(ret, 200);
 	}
-	
+
 	@GET
 	@Produces("application/json")
 	@Path("/userinfo/okta")
@@ -627,7 +631,7 @@ public class UserResource {
 			return WebUtility.getResponseNoCache(ret, 200, newCookies.toArray(new NewCookie[] {}));
 		}
 
-		String[] beanPropsArr = {"id","name","email","phone"};
+		String[] beanPropsArr = { "id", "name", "email", "phone" };
 		String jsonPattern = "[sub,name,email,phone_number]";
 
 		String accessString = null;
@@ -636,17 +640,20 @@ public class UserResource {
 			accessString = accessToken.getAccess_token();
 			String userInfoURL = socialData.getProperty(prefix + "userinfo_url");
 			String socialBeanProps = socialData.getProperty(prefix + "beanProps");
-			
-			if(socialBeanProps != null && !socialBeanProps.trim().isEmpty())
+
+			if (socialBeanProps != null && !socialBeanProps.trim().isEmpty()) {
 				beanPropsArr = socialBeanProps.split(",", -1);
-			
+			}
+
 			String socialJsonPattern = socialData.getProperty(prefix + "jsonPattern");
-			
-			if(socialJsonPattern != null && !socialJsonPattern.trim().isEmpty())
+
+			if (socialJsonPattern != null && !socialJsonPattern.trim().isEmpty()) {
 				jsonPattern = socialJsonPattern;
-			
+			}
+
 			String output = HttpHelperUtility.makeGetCall(userInfoURL, accessString, null, true);
-			AccessToken accessToken2 = (AccessToken) BeanFiller.fillFromJson(output, jsonPattern, beanPropsArr, new AccessToken());
+			AccessToken accessToken2 = (AccessToken) BeanFiller.fillFromJson(output, jsonPattern, beanPropsArr,
+					new AccessToken());
 			String name = accessToken2.getName();
 			ret.put("name", name);
 			return WebUtility.getResponse(ret, 200);
@@ -663,12 +670,12 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("/userinfo/{provider}")
 	public Response userinfoGeneric(@PathParam("provider") String provider, @Context HttpServletRequest request) {
-		provider=WebUtility.inputSanitizer(provider);
+		provider = WebUtility.inputSanitizer(provider);
 
 		AuthProvider providerEnum = AuthProvider.getProviderFromString(provider.toUpperCase());
 		Map<String, String> ret = new HashMap<>();
 		HttpSession session = request.getSession(false);
-		
+
 		User semossUser = null;
 		if (session != null) {
 			semossUser = (User) session.getAttribute(Constants.SESSION_USER);
@@ -688,9 +695,9 @@ public class UserResource {
 			return WebUtility.getResponseNoCache(ret, 200, newCookies.toArray(new NewCookie[] {}));
 		}
 
-		String prefix = provider+"_";
+		String prefix = provider + "_";
 		String userInfoURL = socialData.getProperty(prefix + "userinfo_url");
-		//"name","id","email"
+		// "name","id","email"
 		String beanProps = socialData.getProperty(prefix + "beanProps");
 		String jsonPattern = socialData.getProperty(prefix + "jsonPattern");
 
@@ -700,7 +707,7 @@ public class UserResource {
 		try {
 			AccessToken genericToken = semossUser.getAccessToken(providerEnum);
 			accessString = genericToken.getAccess_token();
-			//String url = "https://graph.microsoft.com/v1.0/me/";
+			// String url = "https://graph.microsoft.com/v1.0/me/";
 			String output = HttpHelperUtility.makeGetCall(userInfoURL, accessString, null, true);
 			AccessToken accessToken2 = (AccessToken) BeanFiller.fillFromJson(output, jsonPattern, beanPropsArr,
 					new AccessToken());
@@ -731,26 +738,26 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/salesforce")
-	public Response loginSalesforce(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
-		if(socialData.getLoginsAllowed().get("salesforce") == null || !socialData.getLoginsAllowed().get("salesforce")) {
+	public Response loginSalesforce(@Context HttpServletRequest request, @Context HttpServletResponse response)
+			throws IOException {
+		if (socialData.getLoginsAllowed().get("salesforce") == null
+				|| !socialData.getLoginsAllowed().get("salesforce")) {
 			Map<String, Object> ret = new HashMap<>();
 			ret.put(Constants.ERROR_MESSAGE, "Salesforce login is not allowed");
 			return WebUtility.getResponse(ret, 400);
 		}
 		/*
-		 * Try to log in the user
-		 * If they are not logged in
-		 * Redirect the FE
+		 * Try to log in the user If they are not logged in Redirect the FE
 		 */
 
 		HttpSession session = request.getSession(false);
 		User userObj = null;
-		if(session != null) {
+		if (session != null) {
 			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		}
 		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
-		if(customRedirect != null && !customRedirect.isEmpty()) {
-			if(session == null) {
+		if (customRedirect != null && !customRedirect.isEmpty()) {
+			if (session == null) {
 				session = request.getSession();
 			}
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
@@ -759,30 +766,30 @@ public class UserResource {
 		if (queryString != null && queryString.contains("code")) {
 			if (userObj == null || userObj.getAccessToken(AuthProvider.SALESFORCE) == null) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
-				
+
 				// oauth code should match [ -~]+ (1 or more ascii)
 				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
 				String code = URLDecoder.decode(outputs[0]);
-				if(code.matches("[ -~]+")) {
+				if (code.matches("[ -~]+")) {
 					String prefix = "salesforce_";
 					String clientId = socialData.getProperty(prefix + "client_id");
 					String clientSecret = socialData.getProperty(prefix + "secret_key");
 					String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
-					
-					if(classLogger.isDebugEnabled()) {
+
+					if (classLogger.isDebugEnabled()) {
 						classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 					}
-					
+
 					Map<String, String> params = new HashMap<>();
 					params.put("client_id", clientId);
 					params.put("grant_type", "authorization_code");
 					params.put("redirect_uri", redirectUri);
 					params.put("code", code);
 					params.put("client_secret", clientSecret);
-					
+
 					String url = "https://login.salesforce.com/services/oauth2/token";
-					
+
 					AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, true, true);
 					if (accessToken == null) {
 						// not authenticated
@@ -792,8 +799,8 @@ public class UserResource {
 					}
 					accessToken.setProvider(AuthProvider.SALESFORCE);
 					addAccessToken(accessToken, request, autoAdd);
-					
-					if(classLogger.isDebugEnabled()) {
+
+					if (classLogger.isDebugEnabled()) {
 						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
 					}
 				}
@@ -801,7 +808,7 @@ public class UserResource {
 		}
 
 		// grab the user again
-		if(session != null || (session=request.getSession(false)) != null) {
+		if (session != null || (session = request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
 		if (userObj == null || userObj.getAccessToken(AuthProvider.SALESFORCE) == null) {
@@ -821,10 +828,9 @@ public class UserResource {
 		String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 
 		String redirectUrl = "https://login.salesforce.com/services/oauth2/authorize?" + "client_id=" + clientId
-				+ "&response_type=code" + "&redirect_uri=" + redirectUri + "&scope="
-				+ URLEncoder.encode("api", "UTF-8");
+				+ "&response_type=code" + "&redirect_uri=" + redirectUri + "&scope=" + URLEncoder.encode("api", UTF8);
 
-		if(classLogger.isDebugEnabled()) {
+		if (classLogger.isDebugEnabled()) {
 			classLogger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 		}
 		return redirectUrl;
@@ -836,31 +842,31 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/surveymonkey")
-	public Response loginSurveyMonkey(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
-		if(socialData.getLoginsAllowed().get("surveymonkey") == null || !socialData.getLoginsAllowed().get("surveymonkey")) {
+	public Response loginSurveyMonkey(@Context HttpServletRequest request, @Context HttpServletResponse response)
+			throws IOException {
+		if (socialData.getLoginsAllowed().get("surveymonkey") == null
+				|| !socialData.getLoginsAllowed().get("surveymonkey")) {
 			Map<String, Object> ret = new HashMap<>();
 			ret.put(Constants.ERROR_MESSAGE, "Surveymonkey login is not allowed");
 			return WebUtility.getResponse(ret, 400);
 		}
 		/*
-		 * Try to log in the user
-		 * If they are not logged in
-		 * Redirect the FE
+		 * Try to log in the user If they are not logged in Redirect the FE
 		 */
 
 		HttpSession session = request.getSession(false);
 		User userObj = null;
-		if(session != null) {
+		if (session != null) {
 			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		}
 		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
-		if(customRedirect != null && !customRedirect.isEmpty()) {
-			if(session == null) {
+		if (customRedirect != null && !customRedirect.isEmpty()) {
+			if (session == null) {
 				session = request.getSession();
 			}
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
 		}
-		String queryString =  WebUtility.encodeHTTPUri(request.getQueryString());
+		String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
 		if (queryString != null && queryString.contains("code")) {
 			if (userObj == null || userObj.getAccessToken(AuthProvider.SURVEYMONKEY) == null) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
@@ -868,26 +874,26 @@ public class UserResource {
 				// oauth code should match [ -~]+ (1 or more ascii)
 				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
 				String code = URLDecoder.decode(outputs[0]);
-				if(code.matches("[ -~]+")) {
+				if (code.matches("[ -~]+")) {
 					String prefix = "surveymonkey_";
 					String clientId = socialData.getProperty(prefix + "client_id");
 					String clientSecret = socialData.getProperty(prefix + "secret_key");
 					String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
-	
-					if(classLogger.isDebugEnabled()) {
+
+					if (classLogger.isDebugEnabled()) {
 						classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 					}
-	
+
 					Map<String, String> params = new HashMap<>();
 					params.put("client_id", clientId);
 					params.put("grant_type", "authorization_code");
 					params.put("redirect_uri", redirectUri);
 					params.put("code", code);
 					params.put("client_secret", clientSecret);
-	
+
 					String url = "https://api.surveymonkey.com/oauth/token";
-	
+
 					AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, true, true);
 					if (accessToken == null) {
 						// not authenticated
@@ -898,8 +904,8 @@ public class UserResource {
 					accessToken.setProvider(AuthProvider.SURVEYMONKEY);
 					MonkeyProfile.fillAccessToken(accessToken, null);
 					addAccessToken(accessToken, request, autoAdd);
-	
-					if(classLogger.isDebugEnabled()) {
+
+					if (classLogger.isDebugEnabled()) {
 						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
 					}
 				}
@@ -907,7 +913,7 @@ public class UserResource {
 		}
 
 		// grab the user again
-		if(session != null || (session=request.getSession(false)) != null) {
+		if (session != null || (session = request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
 		if (userObj == null || userObj.getAccessToken(AuthProvider.SURVEYMONKEY) == null) {
@@ -929,7 +935,7 @@ public class UserResource {
 		String redirectUrl = "https://api.surveymonkey.com/oauth/authorize?" + "client_id=" + clientId
 				+ "&response_type=code" + "&redirect_uri=" + redirectUri;
 
-		if(classLogger.isDebugEnabled()) {
+		if (classLogger.isDebugEnabled()) {
 			classLogger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 		}
 		return redirectUrl;
@@ -942,26 +948,25 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/github")
-	public Response loginGithub(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
-		if(socialData.getLoginsAllowed().get("github") == null || !socialData.getLoginsAllowed().get("github")) {
+	public Response loginGithub(@Context HttpServletRequest request, @Context HttpServletResponse response)
+			throws IOException {
+		if (socialData.getLoginsAllowed().get("github") == null || !socialData.getLoginsAllowed().get("github")) {
 			Map<String, Object> ret = new HashMap<>();
 			ret.put(Constants.ERROR_MESSAGE, "GitHub login is not allowed");
 			return WebUtility.getResponse(ret, 400);
 		}
 		/*
-		 * Try to log in the user
-		 * If they are not logged in
-		 * Redirect the FE
+		 * Try to log in the user If they are not logged in Redirect the FE
 		 */
 
 		HttpSession session = request.getSession(false);
 		User userObj = null;
-		if(session != null) {
+		if (session != null) {
 			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		}
 		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
-		if(customRedirect != null && !customRedirect.isEmpty()) {
-			if(session == null) {
+		if (customRedirect != null && !customRedirect.isEmpty()) {
+			if (session == null) {
 				session = request.getSession();
 			}
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
@@ -977,26 +982,26 @@ public class UserResource {
 				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
 				String code = URLDecoder.decode(outputs[0]);
 				String state = URLDecoder.decode(outputs[1]);
-				if(code.matches("[ -~]+") && state.matches("[ -~]+")) {
+				if (code.matches("[ -~]+") && state.matches("[ -~]+")) {
 					String prefix = "github_";
 					String clientId = socialData.getProperty(prefix + "client_id");
 					String clientSecret = socialData.getProperty(prefix + "secret_key");
 					String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
-	
-					if(classLogger.isDebugEnabled()) {
+
+					if (classLogger.isDebugEnabled()) {
 						classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 					}
-	
+
 					Map<String, String> params = new HashMap<>();
 					params.put("client_id", clientId);
 					params.put("redirect_uri", redirectUri);
 					params.put("code", code);
 					params.put("state", state);
 					params.put("client_secret", clientSecret);
-	
+
 					String url = "https://github.com/login/oauth/access_token";
-	
+
 					AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, false, true);
 					if (accessToken == null) {
 						// not authenticated
@@ -1005,19 +1010,19 @@ public class UserResource {
 						return null;
 					}
 					accessToken.setProvider(AuthProvider.GITHUB);
-	
+
 					try {
 						GitRepoUtils.addCertForDomain(url);
-					} catch(Exception e) {
+					} catch (Exception e) {
 						classLogger.error(Constants.STACKTRACE, e);
 					}
 					// add specific Git values
 					GithubTokenFiller profiler = new GithubTokenFiller();
 					profiler.fillAccessToken(accessToken, null, null, null, null);
-					
+
 					addAccessToken(accessToken, request, autoAdd);
-					
-					if(classLogger.isDebugEnabled()) {
+
+					if (classLogger.isDebugEnabled()) {
 						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
 					}
 				}
@@ -1025,14 +1030,14 @@ public class UserResource {
 		}
 
 		// grab the user again
-		if(session != null || (session=request.getSession(false)) != null) {
+		if (session != null || (session = request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
 		if (userObj == null || userObj.getAccessToken(AuthProvider.GITHUB) == null) {
 			// not authenticated
 			try {
 				GitRepoUtils.addCertForDomain("https://github.com");
-			} catch(Exception e) {
+			} catch (Exception e) {
 				classLogger.error(Constants.STACKTRACE, e);
 			}
 			response.setStatus(302);
@@ -1052,14 +1057,13 @@ public class UserResource {
 
 		String redirectUrl = "https://github.com/login/oauth/authorize?" + "client_id=" + clientId + "&redirect_uri="
 				+ redirectUri + "&state=" + UUID.randomUUID().toString() + "&allow_signup=true" + "&scope="
-				+ URLEncoder.encode(scope, "UTF-8");
+				+ URLEncoder.encode(scope, UTF8);
 
-		if(classLogger.isDebugEnabled()) {
+		if (classLogger.isDebugEnabled()) {
 			classLogger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 		}
 		return redirectUrl;
 	}
-
 
 	/**
 	 * Logs user in through gitlab
@@ -1069,26 +1073,25 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/gitlab")
-	public Response loginGitlab(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
-		if(socialData.getLoginsAllowed().get("gitlab") == null || !socialData.getLoginsAllowed().get("gitlab")) {
+	public Response loginGitlab(@Context HttpServletRequest request, @Context HttpServletResponse response)
+			throws IOException {
+		if (socialData.getLoginsAllowed().get("gitlab") == null || !socialData.getLoginsAllowed().get("gitlab")) {
 			Map<String, Object> ret = new HashMap<>();
 			ret.put(Constants.ERROR_MESSAGE, "GitLab login is not allowed");
 			return WebUtility.getResponse(ret, 400);
 		}
 		/*
-		 * Try to log in the user
-		 * If they are not logged in
-		 * Redirect the FE
+		 * Try to log in the user If they are not logged in Redirect the FE
 		 */
 
 		HttpSession session = request.getSession(false);
 		User userObj = null;
-		if(session != null) {
+		if (session != null) {
 			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		}
 		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
-		if(customRedirect != null && !customRedirect.isEmpty()) {
-			if(session == null) {
+		if (customRedirect != null && !customRedirect.isEmpty()) {
+			if (session == null) {
 				session = request.getSession();
 			}
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
@@ -1100,23 +1103,23 @@ public class UserResource {
 		if (queryString != null && queryString.contains("code")) {
 			if (userObj == null || userObj.getAccessToken(AuthProvider.GITLAB) == null) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
-				
+
 				// oauth code and state should match [ -~]+ (1 or more ascii)
 				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.5
 				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
 				String code = URLDecoder.decode(outputs[0]);
 				String state = URLDecoder.decode(outputs[1]);
-				if(code.matches("[ -~]+") && state.matches("[ -~]+")) {
+				if (code.matches("[ -~]+") && state.matches("[ -~]+")) {
 					String clientId = socialData.getProperty(prefix + "client_id");
 					String clientSecret = socialData.getProperty(prefix + "secret_key");
 					String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 					String token_url = socialData.getProperty(prefix + "token_url");
 					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
-	
-					if(classLogger.isDebugEnabled()) {
+
+					if (classLogger.isDebugEnabled()) {
 						classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 					}
-	
+
 					Map<String, String> params = new HashMap<>();
 					params.put("client_id", clientId);
 					params.put("redirect_uri", redirectUri);
@@ -1124,7 +1127,7 @@ public class UserResource {
 					params.put("state", state);
 					params.put("client_secret", clientSecret);
 					params.put("grant_type", "authorization_code");
-	
+
 					AccessToken accessToken = HttpHelperUtility.getAccessToken(token_url, params, true, true);
 					if (accessToken == null) {
 						// not authenticated
@@ -1133,18 +1136,19 @@ public class UserResource {
 						return null;
 					}
 					accessToken.setProvider(AuthProvider.GITLAB);
-	
+
 					String beanProps = socialData.getProperty(prefix + "beanProps");
 					String jsonPattern = socialData.getProperty(prefix + "jsonPattern");
 					String userinfo_url = socialData.getProperty(prefix + "userinfo_url");
 					String[] beanPropsArr = beanProps.split(",", -1);
-	
-					String output = HttpHelperUtility.makeGetCall(userinfo_url, accessToken.getAccess_token(), null, true);
-					accessToken = (AccessToken)BeanFiller.fillFromJson(output, jsonPattern, beanPropsArr, accessToken);
-	
+
+					String output = HttpHelperUtility.makeGetCall(userinfo_url, accessToken.getAccess_token(), null,
+							true);
+					accessToken = (AccessToken) BeanFiller.fillFromJson(output, jsonPattern, beanPropsArr, accessToken);
+
 					addAccessToken(accessToken, request, autoAdd);
-	
-					if(classLogger.isDebugEnabled()) {
+
+					if (classLogger.isDebugEnabled()) {
 						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
 					}
 				}
@@ -1152,7 +1156,7 @@ public class UserResource {
 		}
 
 		// grab the user again
-		if(session != null || (session=request.getSession(false)) != null) {
+		if (session != null || (session = request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
 		if (userObj == null || userObj.getAccessToken(AuthProvider.GITLAB) == null) {
@@ -1162,22 +1166,22 @@ public class UserResource {
 			return null;
 		}
 
-		if(Boolean.parseBoolean(socialData.getProperty(prefix + "groups"))){
-			//get groups
+		if (Boolean.parseBoolean(socialData.getProperty(prefix + "groups"))) {
+			// get groups
 			String group_url = socialData.getProperty(prefix + "group_url");
-			String groupsJson = HttpHelperUtility.makeGetCall(group_url,  userObj.getAccessToken(AuthProvider.GITLAB).getAccess_token());
+			String groupsJson = HttpHelperUtility.makeGetCall(group_url,
+					userObj.getAccessToken(AuthProvider.GITLAB).getAccess_token());
 			System.out.println(groupsJson);
 			String groupJsonPattern = socialData.getProperty(prefix + "groupJsonPattern");
-			//String beanProps = socialData.getProperty(prefix + "groupBeanProps");
-			//String[] beanPropsArr = beanProps.split(",", -1);
+			// String beanProps = socialData.getProperty(prefix + "groupBeanProps");
+			// String[] beanPropsArr = beanProps.split(",", -1);
 			Set<String> userGroups = new HashSet<String>();
 
-
 			JsonNode result = BeanFiller.getJmesResult(groupsJson, groupJsonPattern);
-			if((result instanceof ArrayNode) && result.get(0) instanceof ObjectNode) {
+			if ((result instanceof ArrayNode) && result.get(0) instanceof ObjectNode) {
 				throw new SemossPixelException("Group result must return flat array. Please check groupJsonPatter");
 			}
-			for(int inputIndex = 0;result != null && inputIndex < result.size();inputIndex++) {
+			for (int inputIndex = 0; result != null && inputIndex < result.size(); inputIndex++) {
 				String thisInput = result.get(inputIndex).asText();
 				userGroups.add(thisInput);
 			}
@@ -1200,13 +1204,12 @@ public class UserResource {
 		scope = scope.replaceAll(" ", "+");
 		String state = UUID.randomUUID().toString();
 
-		String redirectUrl = auth_url + "?" + "client_id="
-				+ clientId + "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8")
-				+ "&scope=" + scope + "&state=" + state;
+		String redirectUrl = auth_url + "?" + "client_id=" + clientId + "&response_type=code" + "&redirect_uri="
+				+ URLEncoder.encode(redirectUri, UTF8) + "&scope=" + scope + "&state=" + state;
 
 		classLogger.info("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 
-		if(classLogger.isDebugEnabled()) {
+		if (classLogger.isDebugEnabled()) {
 			classLogger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 		}
 		return redirectUrl;
@@ -1219,46 +1222,46 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("/login/ms")
 	@Deprecated
-	public Response loginMS(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
+	public Response loginMS(@Context HttpServletRequest request, @Context HttpServletResponse response)
+			throws IOException {
 		return loginMicrosoft(request, response);
 	}
 
 	@GET
 	@Produces("application/json")
 	@Path("/login/microsoft")
-	public Response loginMicrosoft(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
-		if(socialData.getLoginsAllowed().get("ms") == null || !socialData.getLoginsAllowed().get("ms")) {
+	public Response loginMicrosoft(@Context HttpServletRequest request, @Context HttpServletResponse response)
+			throws IOException {
+		if (socialData.getLoginsAllowed().get("ms") == null || !socialData.getLoginsAllowed().get("ms")) {
 			Map<String, Object> ret = new HashMap<>();
 			ret.put(Constants.ERROR_MESSAGE, "Microsoft login is not allowed");
 			return WebUtility.getResponse(ret, 400);
 		}
 		/*
-		 * Try to log in the user
-		 * If they are not logged in
-		 * Redirect the FE
+		 * Try to log in the user If they are not logged in Redirect the FE
 		 */
 
 		HttpSession session = request.getSession(false);
 		User userObj = null;
-		if(session != null) {
+		if (session != null) {
 			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		}
 		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
-		if(customRedirect != null && !customRedirect.isEmpty()) {
-			if(session == null) {
+		if (customRedirect != null && !customRedirect.isEmpty()) {
+			if (session == null) {
 				session = request.getSession();
 			}
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
 		}
 		String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
 		if (queryString != null && queryString.contains("code")) {
-			if (userObj == null || ((User) userObj).getAccessToken(AuthProvider.MICROSOFT) == null) {
+			if (userObj == null || userObj.getAccessToken(AuthProvider.MICROSOFT) == null) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				// oauth code should match [ -~]+ (1 or more ascii)
 				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
 				String code = URLDecoder.decode(outputs[0]);
-				if(code.matches("[ -~]+")) {
+				if (code.matches("[ -~]+")) {
 					String prefix = "ms_";
 					String clientId = socialData.getProperty(prefix + "client_id");
 					String clientSecret = socialData.getProperty(prefix + "secret_key");
@@ -1267,12 +1270,13 @@ public class UserResource {
 					String scope = socialData.getProperty(prefix + "scope");
 					String token_url = socialData.getProperty(prefix + "token_url");
 					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
-					boolean login_external_allowed = Boolean.parseBoolean(socialData.getProperty(prefix + "login_external"));
-	
-					if(classLogger.isDebugEnabled()) {
+					boolean login_external_allowed = Boolean
+							.parseBoolean(socialData.getProperty(prefix + "login_external"));
+
+					if (classLogger.isDebugEnabled()) {
 						classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 					}
-	
+
 					Map<String, String> params = new HashMap<>();
 					params.put("client_id", clientId);
 					params.put("scope", scope);
@@ -1280,11 +1284,11 @@ public class UserResource {
 					params.put("code", code);
 					params.put("grant_type", "authorization_code");
 					params.put("client_secret", clientSecret);
-	
-					if(Strings.isNullOrEmpty(token_url)){
+
+					if (Strings.isNullOrEmpty(token_url)) {
 						token_url = "https://login.microsoftonline.com/" + tenant + "/oauth2/v2.0/token";
 					}
-	
+
 					AccessToken accessToken = HttpHelperUtility.getAccessToken(token_url, params, true, true);
 					if (accessToken == null) {
 						// not authenticated
@@ -1292,19 +1296,19 @@ public class UserResource {
 						response.sendRedirect(getMicrosoftRedirect(request));
 						return null;
 					}
-					
+
 					accessToken.setProvider(AuthProvider.MICROSOFT);
 					MicrosoftTokenFiller profiler = new MicrosoftTokenFiller();
 					profiler.fillAccessToken(accessToken, null, null, null, null);
-					if(!login_external_allowed) {
-						if(accessToken.getName().contains("External")) {
+					if (!login_external_allowed) {
+						if (accessToken.getName().contains("External")) {
 							accessToken = null;
 							throw new IllegalArgumentException("External users are not allowed");
 						}
 					}
 					addAccessToken(accessToken, request, autoAdd);
-	
-					if(classLogger.isDebugEnabled()) {
+
+					if (classLogger.isDebugEnabled()) {
 						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
 					}
 				}
@@ -1312,7 +1316,7 @@ public class UserResource {
 		}
 
 		// grab the user again
-		if(session != null || (session=request.getSession(false)) != null) {
+		if (session != null || (session = request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
 		if (userObj == null || userObj.getAccessToken(AuthProvider.MICROSOFT) == null) {
@@ -1325,7 +1329,7 @@ public class UserResource {
 		setMainPageRedirect(request, response);
 		return null;
 	}
-	
+
 	private String getMicrosoftRedirect(HttpServletRequest request) throws UnsupportedEncodingException {
 		String prefix = "ms_";
 		String clientId = socialData.getProperty(prefix + "client_id");
@@ -1336,20 +1340,19 @@ public class UserResource {
 
 		String state = UUID.randomUUID().toString();
 
-		if(Strings.isNullOrEmpty(auth_url)){
+		if (Strings.isNullOrEmpty(auth_url)) {
 			auth_url = "https://login.microsoftonline.com/" + tenant + "/oauth2/v2.0/authorize";
 		}
-		String redirectUrl = auth_url + "?" + "client_id="
-				+ clientId + "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8")
-				+ "&response_mode=query" + "&scope=" + URLEncoder.encode(scope) + "&state=" + state;
+		String redirectUrl = auth_url + "?" + "client_id=" + clientId + "&response_type=code" + "&redirect_uri="
+				+ URLEncoder.encode(redirectUri, UTF8) + "&response_mode=query" + "&scope="
+				+ URLEncoder.encode(scope, UTF8) + "&state=" + state;
 
-		if(classLogger.isDebugEnabled()) {
+		if (classLogger.isDebugEnabled()) {
 			classLogger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 		}
 
 		return redirectUrl;
 	}
-
 
 	/**
 	 * Logs user in through adfs
@@ -1357,26 +1360,25 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/adfs")
-	public Response loginADFS(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
-		if(socialData.getLoginsAllowed().get("adfs") == null || !socialData.getLoginsAllowed().get("adfs")) {
+	public Response loginADFS(@Context HttpServletRequest request, @Context HttpServletResponse response)
+			throws IOException {
+		if (socialData.getLoginsAllowed().get("adfs") == null || !socialData.getLoginsAllowed().get("adfs")) {
 			Map<String, Object> ret = new HashMap<>();
 			ret.put(Constants.ERROR_MESSAGE, "ADFS login is not allowed");
 			return WebUtility.getResponse(ret, 400);
 		}
 		/*
-		 * Try to log in the user
-		 * If they are not logged in
-		 * Redirect the FE
+		 * Try to log in the user If they are not logged in Redirect the FE
 		 */
 
 		HttpSession session = request.getSession(false);
 		User userObj = null;
-		if(session != null) {
+		if (session != null) {
 			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		}
 		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
-		if(customRedirect != null && !customRedirect.isEmpty()) {
-			if(session == null) {
+		if (customRedirect != null && !customRedirect.isEmpty()) {
+			if (session == null) {
 				session = request.getSession();
 			}
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
@@ -1384,13 +1386,13 @@ public class UserResource {
 
 		String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
 		if (queryString != null && queryString.contains("code")) {
-			if (userObj == null || ((User) userObj).getAccessToken(AuthProvider.ADFS) == null) {
+			if (userObj == null || userObj.getAccessToken(AuthProvider.ADFS) == null) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				// oauth code should match [ -~]+ (1 or more ascii)
 				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
 				String code = URLDecoder.decode(outputs[0]);
-				if(code.matches("[ -~]+")) {
+				if (code.matches("[ -~]+")) {
 					String prefix = "adfs_";
 					String clientId = socialData.getProperty(prefix + "client_id");
 					String clientSecret = socialData.getProperty(prefix + "secret_key");
@@ -1398,11 +1400,11 @@ public class UserResource {
 					String scope = socialData.getProperty(prefix + "scope");
 					String token_url = socialData.getProperty(prefix + "token_url");
 					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
-					
-					if(classLogger.isDebugEnabled()) {
+
+					if (classLogger.isDebugEnabled()) {
 						classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 					}
-					
+
 					Map<String, String> params = new HashMap<>();
 					params.put("client_id", clientId);
 					params.put("scope", scope);
@@ -1410,11 +1412,11 @@ public class UserResource {
 					params.put("code", code);
 					params.put("grant_type", "authorization_code");
 					params.put("client_secret", clientSecret);
-					
-					if(Strings.isNullOrEmpty(token_url)){
+
+					if (Strings.isNullOrEmpty(token_url)) {
 						throw new IllegalArgumentException("Token URL can not be null or empty");
 					}
-					
+
 					AccessToken accessToken = HttpHelperUtility.getIdToken(token_url, params, true, true);
 					if (accessToken == null) {
 						// not authenticated
@@ -1423,16 +1425,16 @@ public class UserResource {
 						return null;
 					}
 					String json = decodeTokenPayload(accessToken.getAccess_token());
-					
+
 					accessToken.setProvider(AuthProvider.ADFS);
 					String beanProps = socialData.getProperty(prefix + "beanProps");
 					String jsonPattern = socialData.getProperty(prefix + "jsonPattern");
 					String[] beanPropsArr = beanProps.split(",", -1);
-					accessToken = (AccessToken)BeanFiller.fillFromJson(json, jsonPattern, beanPropsArr, accessToken);
-					
+					accessToken = (AccessToken) BeanFiller.fillFromJson(json, jsonPattern, beanPropsArr, accessToken);
+
 					addAccessToken(accessToken, request, autoAdd);
-					
-					if(classLogger.isDebugEnabled()) {
+
+					if (classLogger.isDebugEnabled()) {
 						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
 					}
 				}
@@ -1440,7 +1442,7 @@ public class UserResource {
 		}
 
 		// grab the user again
-		if(session != null || (session=request.getSession(false)) != null) {
+		if (session != null || (session = request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
 		if (userObj == null || userObj.getAccessToken(AuthProvider.ADFS) == null) {
@@ -1454,16 +1456,15 @@ public class UserResource {
 		return null;
 	}
 
-	public String  decodeTokenPayload(String token)
-	{
+	public String decodeTokenPayload(String token) {
 		String[] parts = token.split("\\.", 0);
 
-		//	    for (String part : parts) {
-		//	        byte[] bytes = Base64.getUrlDecoder().decode(part);
-		//	        String decodedString = new String(bytes, StandardCharsets.UTF_8);
+		// for (String part : parts) {
+		// byte[] bytes = Base64.getUrlDecoder().decode(part);
+		// String decodedString = new String(bytes, StandardCharsets.UTF_8);
 		//
-		//	        System.out.println("Decoded: " + decodedString);
-		//	    }
+		// System.out.println("Decoded: " + decodedString);
+		// }
 		byte[] bytes = Base64.getUrlDecoder().decode(parts[1]);
 
 		String payload = new String(bytes, StandardCharsets.UTF_8);
@@ -1480,60 +1481,58 @@ public class UserResource {
 
 		String state = UUID.randomUUID().toString();
 
-		if(Strings.isNullOrEmpty(auth_url)){
+		if (Strings.isNullOrEmpty(auth_url)) {
 			throw new IllegalArgumentException("A URL can not be null or empty");
 		}
-		String redirectUrl = auth_url + "?" + "client_id="
-				+ clientId + "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8")
-				+ "&response_mode=query" + "&scope=" + URLEncoder.encode(scope) + "&state=" + state;
+		String redirectUrl = auth_url + "?" + "client_id=" + clientId + "&response_type=code" + "&redirect_uri="
+				+ URLEncoder.encode(redirectUri, UTF8) + "&response_mode=query" + "&scope="
+				+ URLEncoder.encode(scope, UTF8) + "&state=" + state;
 
-		if(classLogger.isDebugEnabled()) {
+		if (classLogger.isDebugEnabled()) {
 			classLogger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 		}
 
 		return redirectUrl;
 	}
-	
-	
+
 	/**
 	 * Logs user in through ms
 	 */
 	@GET
 	@Produces("application/json")
 	@Path("/login/okta")
-	public Response loginOkta(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
-		if(socialData.getLoginsAllowed().get("okta") == null || !socialData.getLoginsAllowed().get("okta")) {
+	public Response loginOkta(@Context HttpServletRequest request, @Context HttpServletResponse response)
+			throws IOException {
+		if (socialData.getLoginsAllowed().get("okta") == null || !socialData.getLoginsAllowed().get("okta")) {
 			Map<String, Object> ret = new HashMap<>();
 			ret.put(Constants.ERROR_MESSAGE, "Okta login is not allowed");
 			return WebUtility.getResponse(ret, 400);
 		}
 		/*
-		 * Try to log in the user
-		 * If they are not logged in
-		 * Redirect the FE
+		 * Try to log in the user If they are not logged in Redirect the FE
 		 */
 
 		HttpSession session = request.getSession(false);
 		User userObj = null;
-		if(session != null) {
+		if (session != null) {
 			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		}
 		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
-		if(customRedirect != null && !customRedirect.isEmpty()) {
-			if(session == null) {
+		if (customRedirect != null && !customRedirect.isEmpty()) {
+			if (session == null) {
 				session = request.getSession();
 			}
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
 		}
 		String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
 		if (queryString != null && queryString.contains("code")) {
-			if (userObj == null || ((User) userObj).getAccessToken(AuthProvider.MICROSOFT) == null) {
+			if (userObj == null || userObj.getAccessToken(AuthProvider.MICROSOFT) == null) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				// oauth code should match [ -~]+ (1 or more ascii)
 				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
 				String code = URLDecoder.decode(outputs[0]);
-				if(code.matches("[ -~]+")) {
+				if (code.matches("[ -~]+")) {
 					String prefix = "okta_";
 					String clientId = socialData.getProperty(prefix + "client_id");
 					String clientSecret = socialData.getProperty(prefix + "secret_key");
@@ -1541,11 +1540,11 @@ public class UserResource {
 					String scope = socialData.getProperty(prefix + "scope");
 					String token_url = socialData.getProperty(prefix + "token_url");
 					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
-	
-					if(classLogger.isDebugEnabled()) {
+
+					if (classLogger.isDebugEnabled()) {
 						classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 					}
-	
+
 					Map<String, String> params = new HashMap<>();
 					params.put("client_id", clientId);
 					params.put("scope", scope);
@@ -1553,7 +1552,7 @@ public class UserResource {
 					params.put("code", code);
 					params.put("grant_type", "authorization_code");
 					params.put("client_secret", clientSecret);
-	
+
 					AccessToken accessToken = HttpHelperUtility.getAccessToken(token_url, params, true, true);
 					if (accessToken == null) {
 						// not authenticated
@@ -1561,19 +1560,19 @@ public class UserResource {
 						response.sendRedirect(getOktaRedirect(request));
 						return null;
 					}
-	
+
 					accessToken.setProvider(AuthProvider.OKTA);
-					
+
 					// sub is the unique id for a user in okta
 					String userinfo_url = socialData.getProperty(prefix + "userinfo_url");
 					String beanProps = socialData.getProperty(prefix + "beanProps");
 					String[] beanPropsArr = beanProps.split(",", -1);
 					String jsonPattern = socialData.getProperty(prefix + "jsonPattern");
-					
+
 					OktaTokenFiller profiler = new OktaTokenFiller();
 					profiler.fillAccessToken(accessToken, userinfo_url, jsonPattern, beanPropsArr, null);
 					addAccessToken(accessToken, request, autoAdd);
-					if(classLogger.isDebugEnabled()) {
+					if (classLogger.isDebugEnabled()) {
 						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
 					}
 				}
@@ -1581,7 +1580,7 @@ public class UserResource {
 		}
 
 		// grab the user again
-		if(session != null || (session=request.getSession(false)) != null) {
+		if (session != null || (session = request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
 		if (userObj == null || userObj.getAccessToken(AuthProvider.OKTA) == null) {
@@ -1603,44 +1602,43 @@ public class UserResource {
 		String auth_url = socialData.getProperty(prefix + "auth_url");
 		String state = UUID.randomUUID().toString();
 
-		String redirectUrl = auth_url + "?" + "client_id="
-				+ clientId + "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8")
-				+ "&response_mode=query" + "&scope=" + URLEncoder.encode(scope, "UTF-8") + "&state=" + state;
+		String redirectUrl = auth_url + "?" + "client_id=" + clientId + "&response_type=code" + "&redirect_uri="
+				+ URLEncoder.encode(redirectUri, UTF8) + "&response_mode=query" + "&scope="
+				+ URLEncoder.encode(scope, UTF8) + "&state=" + state;
 
-		if(classLogger.isDebugEnabled()) {
+		if (classLogger.isDebugEnabled()) {
 			classLogger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 		}
 
 		return redirectUrl;
 	}
-	
-	
+
 	/**
 	 * Logs user in through siteminder
 	 */
 	@GET
 	@Produces("application/json")
 	@Path("/login/siteminder")
-	public Response loginSiteminder(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
-		if(socialData.getLoginsAllowed().get("siteminder") == null || !socialData.getLoginsAllowed().get("siteminder")) {
+	public Response loginSiteminder(@Context HttpServletRequest request, @Context HttpServletResponse response)
+			throws IOException {
+		if (socialData.getLoginsAllowed().get("siteminder") == null
+				|| !socialData.getLoginsAllowed().get("siteminder")) {
 			Map<String, Object> ret = new HashMap<>();
 			ret.put(Constants.ERROR_MESSAGE, "Siteminder login is not allowed");
 			return WebUtility.getResponse(ret, 400);
 		}
 		/*
-		 * Try to log in the user
-		 * If they are not logged in
-		 * Redirect the FE
+		 * Try to log in the user If they are not logged in Redirect the FE
 		 */
 
 		HttpSession session = request.getSession(false);
 		User userObj = null;
-		if(session != null) {
+		if (session != null) {
 			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		}
 		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
-		if(customRedirect != null && !customRedirect.isEmpty()) {
-			if(session == null) {
+		if (customRedirect != null && !customRedirect.isEmpty()) {
+			if (session == null) {
 				session = request.getSession();
 			}
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
@@ -1648,13 +1646,13 @@ public class UserResource {
 
 		String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
 		if (queryString != null && queryString.contains("code")) {
-			if (userObj == null || ((User) userObj).getAccessToken(AuthProvider.SITEMINDER) == null) {
+			if (userObj == null || userObj.getAccessToken(AuthProvider.SITEMINDER) == null) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				// oauth code should match [ -~]+ (1 or more ascii)
 				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
 				String code = URLDecoder.decode(outputs[0]);
-				if(code.matches("[ -~]+")) {
+				if (code.matches("[ -~]+")) {
 					String prefix = "siteminder_";
 					String clientId = socialData.getProperty(prefix + "client_id");
 					String clientSecret = socialData.getProperty(prefix + "secret_key");
@@ -1663,11 +1661,11 @@ public class UserResource {
 					String scope = socialData.getProperty(prefix + "scope");
 					String token_url = socialData.getProperty(prefix + "token_url");
 					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
-	
-					if(classLogger.isDebugEnabled()) {
+
+					if (classLogger.isDebugEnabled()) {
 						classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 					}
-	
+
 					Map<String, String> params = new HashMap<>();
 					params.put("client_id", clientId);
 					params.put("scope", scope);
@@ -1675,8 +1673,8 @@ public class UserResource {
 					params.put("code", code);
 					params.put("grant_type", "authorization_code");
 					params.put("client_secret", clientSecret);
-	
-					if(Strings.isNullOrEmpty(token_url)){
+
+					if (Strings.isNullOrEmpty(token_url)) {
 						token_url = "https://login.microsoftonline.com/" + tenant + "/oauth2/v2.0/token";
 					}
 					AccessToken accessToken = HttpHelperUtility.getAccessToken(token_url, params, true, true);
@@ -1686,10 +1684,10 @@ public class UserResource {
 						response.sendRedirect(getSiteminderRedirect(request));
 						return null;
 					}
-	
+
 					accessToken.setProvider(AuthProvider.SITEMINDER);
 					addAccessToken(accessToken, request, autoAdd);
-					if(classLogger.isDebugEnabled()) {
+					if (classLogger.isDebugEnabled()) {
 						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
 					}
 				}
@@ -1697,7 +1695,7 @@ public class UserResource {
 		}
 
 		// grab the user again
-		if(session != null || (session=request.getSession(false)) != null) {
+		if (session != null || (session = request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
 		if (userObj == null || userObj.getAccessToken(AuthProvider.SITEMINDER) == null) {
@@ -1720,15 +1718,15 @@ public class UserResource {
 		String auth_url = socialData.getProperty(prefix + "auth_url");
 		String state = UUID.randomUUID().toString();
 
-		if(Strings.isNullOrEmpty(auth_url)){
+		if (Strings.isNullOrEmpty(auth_url)) {
 			auth_url = "https://login.microsoftonline.com/" + tenant + "/oauth2/v2.0/authorize";
 		}
 
-		String redirectUrl = auth_url + "?" + "client_id="
-				+ clientId + "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8")
-				+ "&response_mode=query" + "&scope=" + URLEncoder.encode(scope, "UTF-8") + "&state=" + state;
+		String redirectUrl = auth_url + "?" + "client_id=" + clientId + "&response_type=code" + "&redirect_uri="
+				+ URLEncoder.encode(redirectUri, UTF8) + "&response_mode=query" + "&scope="
+				+ URLEncoder.encode(scope, UTF8) + "&state=" + state;
 
-		if(classLogger.isDebugEnabled()) {
+		if (classLogger.isDebugEnabled()) {
 			classLogger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 		}
 
@@ -1741,26 +1739,25 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/dropbox")
-	public Response loginDropBox(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
-		if(socialData.getLoginsAllowed().get("dropbox") == null || !socialData.getLoginsAllowed().get("dropbox")) {
+	public Response loginDropBox(@Context HttpServletRequest request, @Context HttpServletResponse response)
+			throws IOException {
+		if (socialData.getLoginsAllowed().get("dropbox") == null || !socialData.getLoginsAllowed().get("dropbox")) {
 			Map<String, Object> ret = new HashMap<>();
 			ret.put(Constants.ERROR_MESSAGE, "Dropbox login is not allowed");
 			return WebUtility.getResponse(ret, 400);
 		}
 		/*
-		 * Try to log in the user
-		 * If they are not logged in
-		 * Redirect the FE
+		 * Try to log in the user If they are not logged in Redirect the FE
 		 */
 
 		HttpSession session = request.getSession(false);
 		User userObj = null;
-		if(session != null) {
+		if (session != null) {
 			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		}
 		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
-		if(customRedirect != null && !customRedirect.isEmpty()) {
-			if(session == null) {
+		if (customRedirect != null && !customRedirect.isEmpty()) {
+			if (session == null) {
 				session = request.getSession();
 			}
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
@@ -1774,26 +1771,26 @@ public class UserResource {
 				// oauth code should match [ -~]+ (1 or more ascii)
 				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
 				String code = URLDecoder.decode(outputs[0]);
-				if(code.matches("[ -~]+")) {
+				if (code.matches("[ -~]+")) {
 					String prefix = "dropbox_";
 					String clientId = socialData.getProperty(prefix + "client_id");
 					String clientSecret = socialData.getProperty(prefix + "secret_key");
 					String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
-	
-					if(classLogger.isDebugEnabled()) {
+
+					if (classLogger.isDebugEnabled()) {
 						classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 					}
-	
+
 					Map<String, String> params = new HashMap<>();
 					params.put("client_id", clientId);
 					params.put("redirect_uri", redirectUri);
 					params.put("code", code);
 					params.put("grant_type", "authorization_code");
 					params.put("client_secret", clientSecret);
-	
+
 					String url = "https://www.dropbox.com/oauth2/token";
-	
+
 					AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, true, true);
 					if (accessToken == null) {
 						// not authenticated
@@ -1803,8 +1800,8 @@ public class UserResource {
 					}
 					accessToken.setProvider(AuthProvider.DROPBOX);
 					addAccessToken(accessToken, request, autoAdd);
-	
-					if(classLogger.isDebugEnabled()) {
+
+					if (classLogger.isDebugEnabled()) {
 						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
 					}
 				}
@@ -1812,7 +1809,7 @@ public class UserResource {
 		}
 
 		// grab the user again
-		if(session != null || (session=request.getSession(false)) != null) {
+		if (session != null || (session = request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
 		if (userObj == null || userObj.getAccessToken(AuthProvider.DROPBOX) == null) {
@@ -1833,10 +1830,10 @@ public class UserResource {
 		String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 		String role = socialData.getProperty(prefix + "role"); // need to set this up and reuse
 		String redirectUrl = "https://www.dropbox.com/oauth2/authorize?" + "client_id=" + clientId
-				+ "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8") + "&require_role="
+				+ "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, UTF8) + "&require_role="
 				+ role + "&disable_signup=false";
 
-		if(classLogger.isDebugEnabled()) {
+		if (classLogger.isDebugEnabled()) {
 			classLogger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 		}
 
@@ -1850,26 +1847,25 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/google")
-	public Response loginGoogle(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
-		if(socialData.getLoginsAllowed().get("google") == null || !socialData.getLoginsAllowed().get("google")) {
+	public Response loginGoogle(@Context HttpServletRequest request, @Context HttpServletResponse response)
+			throws IOException {
+		if (socialData.getLoginsAllowed().get("google") == null || !socialData.getLoginsAllowed().get("google")) {
 			Map<String, Object> ret = new HashMap<>();
 			ret.put(Constants.ERROR_MESSAGE, "Google login is not allowed");
 			return WebUtility.getResponse(ret, 400);
 		}
 		/*
-		 * Try to log in the user
-		 * If they are not logged in
-		 * Redirect the FE
+		 * Try to log in the user If they are not logged in Redirect the FE
 		 */
 
 		HttpSession session = request.getSession(false);
 		User userObj = null;
-		if(session != null) {
+		if (session != null) {
 			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		}
 		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
-		if(customRedirect != null && !customRedirect.isEmpty()) {
-			if(session == null) {
+		if (customRedirect != null && !customRedirect.isEmpty()) {
+			if (session == null) {
 				session = request.getSession();
 			}
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
@@ -1883,17 +1879,17 @@ public class UserResource {
 				// oauth code should match [ -~]+ (1 or more ascii)
 				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
 				String code = URLDecoder.decode(outputs[0]);
-				if(code.matches("[ -~]+")) {
+				if (code.matches("[ -~]+")) {
 					String prefix = "google_";
 					String clientId = socialData.getProperty(prefix + "client_id");
 					String clientSecret = socialData.getProperty(prefix + "secret_key");
 					String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
-	
-					if(classLogger.isDebugEnabled()) {
+
+					if (classLogger.isDebugEnabled()) {
 						classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 					}
-	
+
 					// I need to decode the return code from google since the default param's are
 					// encoded on the post of getAccessToken
 					Map<String, String> params = new HashMap<>();
@@ -1902,9 +1898,9 @@ public class UserResource {
 					params.put("code", code);
 					params.put("grant_type", "authorization_code");
 					params.put("client_secret", clientSecret);
-	
+
 					String url = "https://www.googleapis.com/oauth2/v4/token";
-	
+
 					// https://developers.google.com/api-client-library/java/google-api-java-client/oauth2
 					AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, true, true);
 					if (accessToken == null) {
@@ -1914,14 +1910,15 @@ public class UserResource {
 						return null;
 					}
 					accessToken.setProvider(AuthProvider.GOOGLE);
-	
-					// fill the access token with the other properties so we can properly create the user
+
+					// fill the access token with the other properties so we can properly create the
+					// user
 					GoogleTokenFiller profiler = new GoogleTokenFiller();
 					profiler.fillAccessToken(accessToken, null, null, null, null);
 					addAccessToken(accessToken, request, autoAdd);
-	
+
 					// Shows how to make a google credential from an access token
-					if(classLogger.isDebugEnabled()) {
+					if (classLogger.isDebugEnabled()) {
 						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
 					}
 				}
@@ -1929,7 +1926,7 @@ public class UserResource {
 		}
 
 		// grab the user again
-		if(session != null || (session=request.getSession(false)) != null) {
+		if (session != null || (session = request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
 		if (userObj == null || userObj.getAccessToken(AuthProvider.GOOGLE) == null) {
@@ -1952,10 +1949,10 @@ public class UserResource {
 		String state = UUID.randomUUID().toString();
 
 		String redirectUrl = "https://accounts.google.com/o/oauth2/v2/auth?" + "client_id=" + clientId
-				+ "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8") + "&access_type="
-				+ accessType + "&scope=" + URLEncoder.encode(scope, "UTF-8") + "&state=" + state;
+				+ "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, UTF8) + "&access_type="
+				+ accessType + "&scope=" + URLEncoder.encode(scope, UTF8) + "&state=" + state;
 
-		if(classLogger.isDebugEnabled()) {
+		if (classLogger.isDebugEnabled()) {
 			classLogger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 		}
 		return redirectUrl;
@@ -2022,26 +2019,26 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/producthunt")
-	public Response loginProducthunt(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
-		if(socialData.getLoginsAllowed().get("producthunt") == null || !socialData.getLoginsAllowed().get("producthunt")) {
+	public Response loginProducthunt(@Context HttpServletRequest request, @Context HttpServletResponse response)
+			throws IOException {
+		if (socialData.getLoginsAllowed().get("producthunt") == null
+				|| !socialData.getLoginsAllowed().get("producthunt")) {
 			Map<String, Object> ret = new HashMap<>();
 			ret.put(Constants.ERROR_MESSAGE, "Producthunt login is not allowed");
 			return WebUtility.getResponse(ret, 400);
 		}
 		/*
-		 * Try to log in the user
-		 * If they are not logged in
-		 * Redirect the FE
+		 * Try to log in the user If they are not logged in Redirect the FE
 		 */
 
 		HttpSession session = request.getSession(false);
 		User userObj = null;
-		if(session != null) {
+		if (session != null) {
 			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		}
 		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
-		if(customRedirect != null && !customRedirect.isEmpty()) {
-			if(session == null) {
+		if (customRedirect != null && !customRedirect.isEmpty()) {
+			if (session == null) {
 				session = request.getSession();
 			}
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
@@ -2055,26 +2052,26 @@ public class UserResource {
 				// oauth code should match [ -~]+ (1 or more ascii)
 				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
 				String code = URLDecoder.decode(outputs[0]);
-				if(code.matches("[ -~]+")) {
+				if (code.matches("[ -~]+")) {
 					String prefix = "producthunt_";
 					String clientId = socialData.getProperty(prefix + "client_id");
 					String clientSecret = socialData.getProperty(prefix + "secret_key");
 					String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
-	
-					if(classLogger.isDebugEnabled()) {
+
+					if (classLogger.isDebugEnabled()) {
 						classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 					}
-	
+
 					Map<String, String> params = new HashMap<>();
 					params.put("client_id", clientId);
 					params.put("redirect_uri", redirectUri);
 					params.put("code", code);
 					params.put("grant_type", "authorization_code");
 					params.put("client_secret", clientSecret);
-	
+
 					String url = "https://api.producthunt.com/v1/oauth/token";
-	
+
 					AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, true, true);
 					if (accessToken == null) {
 						// not authenticated
@@ -2084,8 +2081,8 @@ public class UserResource {
 					}
 					accessToken.setProvider(AuthProvider.PRODUCT_HUNT);
 					addAccessToken(accessToken, request, autoAdd);
-	
-					if(classLogger.isDebugEnabled()) {
+
+					if (classLogger.isDebugEnabled()) {
 						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
 					}
 				}
@@ -2093,7 +2090,7 @@ public class UserResource {
 		}
 
 		// grab the user again
-		if(session != null || (session=request.getSession(false)) != null) {
+		if (session != null || (session = request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
 		if (userObj == null || userObj.getAccessToken(AuthProvider.PRODUCT_HUNT) == null) {
@@ -2114,10 +2111,10 @@ public class UserResource {
 		String scope = socialData.getProperty(prefix + "scope");
 
 		String redirectUrl = "https://api.producthunt.com/v1/oauth/authorize?" + "client_id=" + clientId
-				+ "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8") + "&scope="
-				+ URLEncoder.encode(scope, "UTF-8");
+				+ "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, UTF8) + "&scope="
+				+ URLEncoder.encode(scope, UTF8);
 
-		if(classLogger.isDebugEnabled()) {
+		if (classLogger.isDebugEnabled()) {
 			classLogger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 		}
 
@@ -2130,26 +2127,25 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/linkedin")
-	public Response loginLinkedin(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
-		if(socialData.getLoginsAllowed().get("linkedin") == null || !socialData.getLoginsAllowed().get("linkedin")) {
+	public Response loginLinkedin(@Context HttpServletRequest request, @Context HttpServletResponse response)
+			throws IOException {
+		if (socialData.getLoginsAllowed().get("linkedin") == null || !socialData.getLoginsAllowed().get("linkedin")) {
 			Map<String, Object> ret = new HashMap<>();
 			ret.put(Constants.ERROR_MESSAGE, "LinkedIn login is not allowed");
 			return WebUtility.getResponse(ret, 400);
 		}
 		/*
-		 * Try to log in the user
-		 * If they are not logged in
-		 * Redirect the FE
+		 * Try to log in the user If they are not logged in Redirect the FE
 		 */
 
 		HttpSession session = request.getSession(false);
 		User userObj = null;
-		if(session != null) {
+		if (session != null) {
 			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		}
 		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
-		if(customRedirect != null && !customRedirect.isEmpty()) {
-			if(session == null) {
+		if (customRedirect != null && !customRedirect.isEmpty()) {
+			if (session == null) {
 				session = request.getSession();
 			}
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
@@ -2163,26 +2159,26 @@ public class UserResource {
 				// oauth code should match [ -~]+ (1 or more ascii)
 				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
 				String code = URLDecoder.decode(outputs[0]);
-				if(code.matches("[ -~]+")) {
+				if (code.matches("[ -~]+")) {
 					String prefix = "linkedin_";
 					String clientId = socialData.getProperty(prefix + "client_id");
 					String clientSecret = socialData.getProperty(prefix + "secret_key");
 					String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
-	
-					if(classLogger.isDebugEnabled()) {
+
+					if (classLogger.isDebugEnabled()) {
 						classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 					}
-	
+
 					Map<String, String> params = new HashMap<>();
 					params.put("client_id", clientId);
 					params.put("redirect_uri", redirectUri);
 					params.put("code", code);
 					params.put("grant_type", "authorization_code");
 					params.put("client_secret", clientSecret);
-	
+
 					String url = "https://www.linkedin.com/oauth/v2/accessToken";
-	
+
 					AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, true, true);
 					if (accessToken == null) {
 						// not authenticated
@@ -2192,8 +2188,8 @@ public class UserResource {
 					}
 					accessToken.setProvider(AuthProvider.LINKEDIN);
 					addAccessToken(accessToken, request, autoAdd);
-	
-					if(classLogger.isDebugEnabled()) {
+
+					if (classLogger.isDebugEnabled()) {
 						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
 					}
 				}
@@ -2201,7 +2197,7 @@ public class UserResource {
 		}
 
 		// grab the user again
-		if(session != null || (session=request.getSession(false)) != null) {
+		if (session != null || (session = request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
 		if (userObj == null || userObj.getAccessToken(AuthProvider.LINKEDIN) == null) {
@@ -2222,9 +2218,9 @@ public class UserResource {
 
 		String redirectUrl = "https://www.linkedin.com/oauth/v2/authorization?" + "client_id=" + clientId
 				+ "&redirect_uri=" + redirectUri + "&state=" + UUID.randomUUID().toString() + "&response_type=code"
-				+ "&scope=" + URLEncoder.encode(scope, "UTF-8");
+				+ "&scope=" + URLEncoder.encode(scope, UTF8);
 
-		if(classLogger.isDebugEnabled()) {
+		if (classLogger.isDebugEnabled()) {
 			classLogger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 		}
 
@@ -2242,8 +2238,9 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/twitter")
-	public Response loginTwitter(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
-		if(socialData.getLoginsAllowed().get("twitter") == null || !socialData.getLoginsAllowed().get("twitter")) {
+	public Response loginTwitter(@Context HttpServletRequest request, @Context HttpServletResponse response)
+			throws IOException {
+		if (socialData.getLoginsAllowed().get("twitter") == null || !socialData.getLoginsAllowed().get("twitter")) {
 			Map<String, Object> ret = new HashMap<>();
 			ret.put(Constants.ERROR_MESSAGE, "Twitter login is not allowed");
 			return WebUtility.getResponse(ret, 400);
@@ -2256,12 +2253,12 @@ public class UserResource {
 
 		HttpSession session = request.getSession(false);
 		User userObj = null;
-		if(session != null) {
+		if (session != null) {
 			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		}
 		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
-		if(customRedirect != null && !customRedirect.isEmpty()) {
-			if(session == null) {
+		if (customRedirect != null && !customRedirect.isEmpty()) {
+			if (session == null) {
 				session = request.getSession();
 			}
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
@@ -2277,26 +2274,26 @@ public class UserResource {
 				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
 				String code = URLDecoder.decode(outputs[0]);
 				String state = URLDecoder.decode(outputs[1]);
-				if(code.matches("[ -~]+") && state.matches("[ -~]+")) {
+				if (code.matches("[ -~]+") && state.matches("[ -~]+")) {
 					String prefix = "twitter_";
 					String clientId = socialData.getProperty(prefix + "client_id");
 					String clientSecret = socialData.getProperty(prefix + "secret_key");
 					String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
-	
-					if(classLogger.isDebugEnabled()) {
+
+					if (classLogger.isDebugEnabled()) {
 						classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 					}
-	
+
 					Map<String, String> params = new HashMap<>();
 					params.put("client_id", clientId);
 					params.put("redirect_uri", redirectUri);
 					params.put("code", code);
 					params.put("state", state);
 					params.put("client_secret", clientSecret);
-	
+
 					String url = "https://api.twitter.com/oauth/access_token";
-	
+
 					AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, false, true);
 					if (accessToken == null) {
 						// not authenticated
@@ -2304,11 +2301,11 @@ public class UserResource {
 						response.sendRedirect(getTwitterRedirect(request));
 						return null;
 					}
-	
+
 					accessToken.setProvider(AuthProvider.TWITTER);
 					addAccessToken(accessToken, request, autoAdd);
-	
-					if(classLogger.isDebugEnabled()) {
+
+					if (classLogger.isDebugEnabled()) {
 						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
 					}
 				}
@@ -2316,7 +2313,7 @@ public class UserResource {
 		}
 
 		// grab the user again
-		if(session != null || (session=request.getSession(false)) != null) {
+		if (session != null || (session = request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
 		if (userObj == null || userObj.getAccessToken(AuthProvider.TWITTER) == null) {
@@ -2334,37 +2331,35 @@ public class UserResource {
 		String prefix = "twitter_";
 
 		String clientId = socialData.getProperty(prefix + "client_id");
-		//String clientSecret = socialData.getProperty(prefix + "secret_key");
+		// String clientSecret = socialData.getProperty(prefix + "secret_key");
 		String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 		String scope = socialData.getProperty(prefix + "scope");
 		String nonce = UUID.randomUUID().toString();
 		String timestamp = System.currentTimeMillis() + "";
 
 		StringBuffer signatureString = new StringBuffer("GET").append("&");
-		signatureString.append(URLEncoder.encode("https://api.twitter.com/oauth/authorize", "UTF-8")).append("&");
+		signatureString.append(URLEncoder.encode("https://api.twitter.com/oauth/authorize", UTF8)).append("&");
 
 		StringBuffer parameterString = new StringBuffer("");
-		parameterString.append("oauth_callback=").append(URLEncoder.encode(redirectUri, "UTF-8")).append("&");
+		parameterString.append("oauth_callback=").append(URLEncoder.encode(redirectUri, UTF8)).append("&");
 		parameterString.append("oauth_consumer_key=").append(clientId).append("&");
 		parameterString.append("oauth_nonce=").append(nonce).append("&");
 		parameterString.append("oauth_timestamp=").append(timestamp);
 
-		//String finalString = signatureString.toString() + parameterString.toString();
+		// String finalString = signatureString.toString() + parameterString.toString();
 
 		// String signature =
 
 		String redirectUrl = "https://github.com/login/oauth/authorize?" + "oauth_consumer_key=" + clientId
 				+ "&oauth_callback=" + redirectUri + "&oauth_nonce=" + nonce + "&oauth_timestamp=" + timestamp
-				+ "&scope=" + URLEncoder.encode(scope, "UTF-8");
+				+ "&scope=" + URLEncoder.encode(scope, UTF8);
 
-		if(classLogger.isDebugEnabled()) {
+		if (classLogger.isDebugEnabled()) {
 			classLogger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 		}
 
 		return redirectUrl;
 	}
-
-
 
 	/**
 	 * Logs user in through generic provider
@@ -2372,30 +2367,29 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/{provider}")
-	public Response loginGeneric(@PathParam("provider") String provider, @Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
+	public Response loginGeneric(@PathParam("provider") String provider, @Context HttpServletRequest request,
+			@Context HttpServletResponse response) throws IOException {
 		/*
-		 * Try to log in the user
-		 * If they are not logged in
-		 * Redirect the FE
+		 * Try to log in the user If they are not logged in Redirect the FE
 		 */
 
-		provider=WebUtility.inputSanitizer(provider);
-		if(socialData.getLoginsAllowed().get(provider) == null || !socialData.getLoginsAllowed().get(provider)) {
+		provider = WebUtility.inputSanitizer(provider);
+		if (socialData.getLoginsAllowed().get(provider) == null || !socialData.getLoginsAllowed().get(provider)) {
 			Map<String, Object> ret = new HashMap<>();
 			ret.put(Constants.ERROR_MESSAGE, provider + " login is not allowed");
 			return WebUtility.getResponse(ret, 400);
 		}
-		
+
 		AuthProvider providerEnum = AuthProvider.getProviderFromString(provider.toUpperCase());
 
 		HttpSession session = request.getSession(false);
 		User userObj = null;
-		if(session != null) {
+		if (session != null) {
 			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		}
 		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
-		if(customRedirect != null && !customRedirect.isEmpty()) {
-			if(session == null) {
+		if (customRedirect != null && !customRedirect.isEmpty()) {
+			if (session == null) {
 				session = request.getSession();
 			}
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
@@ -2403,40 +2397,40 @@ public class UserResource {
 
 		String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
 		if (queryString != null && queryString.contains("code")) {
-			if (userObj == null || ((User) userObj).getAccessToken(providerEnum) == null) {
+			if (userObj == null || userObj.getAccessToken(providerEnum) == null) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				// oauth code should match [ -~]+ (1 or more ascii)
 				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
 				String code = URLDecoder.decode(outputs[0]);
-				if(code.matches("[ -~]+")) {
-					String prefix = provider+"_";
+				if (code.matches("[ -~]+")) {
+					String prefix = provider + "_";
 					String clientId = socialData.getProperty(prefix + "client_id");
 					String clientSecret = socialData.getProperty(prefix + "secret_key");
 					String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
-					//String tenant = socialData.getProperty(prefix + "tenant");
-	
-					//removing scope for now as it isn't needed in token call usually
-					//String scope = socialData.getProperty(prefix + "scope");
+					// String tenant = socialData.getProperty(prefix + "tenant");
+
+					// removing scope for now as it isn't needed in token call usually
+					// String scope = socialData.getProperty(prefix + "scope");
 					String token_url = socialData.getProperty(prefix + "token_url");
-	
-					if(classLogger.isDebugEnabled()) {
+
+					if (classLogger.isDebugEnabled()) {
 						classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 					}
-	
+
 					Map<String, String> params = new HashMap<>();
 					params.put("client_id", clientId);
-					//	params.put("scope", scope);
+					// params.put("scope", scope);
 					params.put("redirect_uri", redirectUri);
 					params.put("code", code);
 					params.put("grant_type", "authorization_code");
 					params.put("client_secret", clientSecret);
-	
-					if(Strings.isNullOrEmpty(token_url)){
+
+					if (Strings.isNullOrEmpty(token_url)) {
 						throw new IllegalArgumentException("Token URL can not be null or empty");
 					}
-	
+
 					AccessToken accessToken = HttpHelperUtility.getAccessToken(token_url, params, true, true);
 					if (accessToken == null) {
 						// not authenticated
@@ -2444,46 +2438,55 @@ public class UserResource {
 						response.sendRedirect(getGenericRedirect(provider, request));
 						return null;
 					}
-	
+
 					String userInfoURL = socialData.getProperty(prefix + "userinfo_url");
-					//"name","id","email"
+					// "name","id","email"
 					String beanProps = socialData.getProperty(prefix + "beanProps");
 					String[] beanPropsArr = beanProps.split(",", -1);
 					String jsonPattern = socialData.getProperty(prefix + "jsonPattern");
-	
+
 					accessToken.setProvider(providerEnum);
-					
-					// this is a check for sanitizing a response back from an IAM provider - not common and should be false
-					// examples would be unescaped special chars in the response that then can't be parsed into a json. 
+
+					// this is a check for sanitizing a response back from an IAM provider - not
+					// common and should be false
+					// examples would be unescaped special chars in the response that then can't be
+					// parsed into a json.
 					// this is not very common.
-					boolean sanitizeResponse = Boolean.parseBoolean(socialData.getProperty(prefix + "sanitizeUserResponse"));
-					
+					boolean sanitizeResponse = Boolean
+							.parseBoolean(socialData.getProperty(prefix + "sanitizeUserResponse"));
+
 					GenericTokenFiller profiler = new GenericTokenFiller();
-					profiler.fillAccessToken(accessToken, userInfoURL, jsonPattern, beanPropsArr, null, sanitizeResponse);
-					
-					if(Boolean.parseBoolean(socialData.getProperty(prefix + "groups"))){
-						//get groups
+					profiler.fillAccessToken(accessToken, userInfoURL, jsonPattern, beanPropsArr, null,
+							sanitizeResponse);
+
+					if (Boolean.parseBoolean(socialData.getProperty(prefix + "groups"))) {
+						// get groups
 						String group_url = socialData.getProperty(prefix + "group_url");
 						// make the call to get the groups
-						String groupsJson = HttpHelperUtility.makeGetCall(group_url,  accessToken.getAccess_token());
-						// this is a check for sanitizing a response back from an IAM provider - not common and should be false
-						// examples would be unescaped special chars in the response that then can't be parsed into a json. 
-						boolean sanitizeGroupResponse = Boolean.parseBoolean(socialData.getProperty(prefix + "sanitizeGroupResponse"));
-						if(sanitizeGroupResponse) {
+						String groupsJson = HttpHelperUtility.makeGetCall(group_url, accessToken.getAccess_token());
+						// this is a check for sanitizing a response back from an IAM provider - not
+						// common and should be false
+						// examples would be unescaped special chars in the response that then can't be
+						// parsed into a json.
+						boolean sanitizeGroupResponse = Boolean
+								.parseBoolean(socialData.getProperty(prefix + "sanitizeGroupResponse"));
+						if (sanitizeGroupResponse) {
 							groupsJson = groupsJson.replace("\\", "\\\\");
 							// add more replacements as need be in the future
 						}
-						
+
 						Set<String> userGroups = new HashSet<String>();
-						// are groups returned as a single string or an array in a json. Usually it is an array in a json.
-						boolean groupStringResponse = Boolean.parseBoolean(socialData.getProperty(prefix + "group_string_return"));
-						if(groupStringResponse) {
-							//this json pattern should return a single string with groups concat
+						// are groups returned as a single string or an array in a json. Usually it is
+						// an array in a json.
+						boolean groupStringResponse = Boolean
+								.parseBoolean(socialData.getProperty(prefix + "group_string_return"));
+						if (groupStringResponse) {
+							// this json pattern should return a single string with groups concat
 							// ""fakeGroups":"CN=group1, CN=group2, CN=group3"
 							String groupJsonPattern = socialData.getProperty(prefix + "groupJsonPattern");
 							JsonNode result = BeanFiller.getJmesResult(groupsJson, groupJsonPattern);
 							try {
-								//get the single string and the regex pattern. validate the pattern
+								// get the single string and the regex pattern. validate the pattern
 								String groupText = result.asText();
 								String regexPattern = socialData.getProperty(prefix + "group_string_regex");
 								try {
@@ -2504,25 +2507,26 @@ public class UserResource {
 							}
 
 						} else {
-							//this json pattern should return an array
+							// this json pattern should return an array
 							String groupJsonPattern = socialData.getProperty(prefix + "groupJsonPattern");
 							JsonNode result = BeanFiller.getJmesResult(groupsJson, groupJsonPattern);
-							if((result instanceof ArrayNode) && result.get(0) instanceof ObjectNode) {
-								throw new SemossPixelException("Group result must return flat array. Please check groupJsonPatter");
+							if ((result instanceof ArrayNode) && result.get(0) instanceof ObjectNode) {
+								throw new SemossPixelException(
+										"Group result must return flat array. Please check groupJsonPatter");
 							}
-							for(int inputIndex = 0;result != null && inputIndex < result.size();inputIndex++) {
+							for (int inputIndex = 0; result != null && inputIndex < result.size(); inputIndex++) {
 								String thisInput = result.get(inputIndex).asText();
 								userGroups.add(thisInput);
-							}	
+							}
 						}
 
 						accessToken.setUserGroups(userGroups);
-						accessToken.setUserGroupType(providerEnum.toString());			
+						accessToken.setUserGroupType(providerEnum.toString());
 					}
-					
+
 					addAccessToken(accessToken, request, autoAdd);
-	
-					if(classLogger.isDebugEnabled()) {
+
+					if (classLogger.isDebugEnabled()) {
 						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
 					}
 				}
@@ -2530,7 +2534,7 @@ public class UserResource {
 		}
 
 		// grab the user again
-		if(session != null || (session=request.getSession(false)) != null) {
+		if (session != null || (session = request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
 		if (userObj == null || userObj.getAccessToken(providerEnum) == null) {
@@ -2539,60 +2543,60 @@ public class UserResource {
 			response.sendRedirect(getGenericRedirect(provider, request));
 			return null;
 		}
-		
+
 		setMainPageRedirect(request, response);
 		return null;
 	}
 
 	private String getGenericRedirect(String provider, HttpServletRequest request) throws UnsupportedEncodingException {
-		provider=WebUtility.inputSanitizer(provider);
-		String prefix = provider+"_";
+		provider = WebUtility.inputSanitizer(provider);
+		String prefix = provider + "_";
 		String clientId = socialData.getProperty(prefix + "client_id");
 		String redirectUri = socialData.getProperty(prefix + "redirect_uri");
-		//String tenant = socialData.getProperty(prefix + "tenant");
+		// String tenant = socialData.getProperty(prefix + "tenant");
 		String scope = socialData.getProperty(prefix + "scope"); // need to set this up and reuse
 		String auth_url = socialData.getProperty(prefix + "auth_url");
 
 		String state = UUID.randomUUID().toString();
 
-		if(Strings.isNullOrEmpty(auth_url)){
+		if (Strings.isNullOrEmpty(auth_url)) {
 			throw new IllegalArgumentException("Authorize URL can not be null or empty");
 		}
 
-		String redirectUrl; 
+		String redirectUrl;
 
-		//are you already adding custom props? if so I will skip adding the ?
-		if(auth_url.contains("?")) {
-			redirectUrl = auth_url + "&client_id="
-					+ clientId + "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8")
-					+ "&response_mode=query" + "&scope=" + URLEncoder.encode(scope) + "&state=" + state;
-		} else{
-			redirectUrl = auth_url + "?" + "client_id="
-					+ clientId + "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8")
-					+ "&response_mode=query" + "&scope=" + URLEncoder.encode(scope) + "&state=" + state;
+		// are you already adding custom props? if so I will skip adding the ?
+		if (auth_url.contains("?")) {
+			redirectUrl = auth_url + "&client_id=" + clientId + "&response_type=code" + "&redirect_uri="
+					+ URLEncoder.encode(redirectUri, UTF8) + "&response_mode=query" + "&scope="
+					+ URLEncoder.encode(scope, UTF8) + "&state=" + state;
+		} else {
+			redirectUrl = auth_url + "?" + "client_id=" + clientId + "&response_type=code" + "&redirect_uri="
+					+ URLEncoder.encode(redirectUri, UTF8) + "&response_mode=query" + "&scope="
+					+ URLEncoder.encode(scope, UTF8) + "&state=" + state;
 		}
 
-
-		if(classLogger.isDebugEnabled()) {
+		if (classLogger.isDebugEnabled()) {
 			classLogger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 		}
 
 		return redirectUrl;
 	}
-	//	public static String calculateRFC2104HMAC(String data, String key) throws SignatureException, NoSuchAlgorithmException, InvalidKeyException {
-	//		SecretKeySpec signingKey = new SecretKeySpec(key.getBytes(), "HmacSHA1");
-	//		Mac mac = Mac.getInstance("HmacSHA1");
-	//		mac.init(signingKey);
-	//		return toHexString(mac.doFinal(data.getBytes()));
-	//	}
+	// public static String calculateRFC2104HMAC(String data, String key) throws
+	// SignatureException, NoSuchAlgorithmException, InvalidKeyException {
+	// SecretKeySpec signingKey = new SecretKeySpec(key.getBytes(), "HmacSHA1");
+	// Mac mac = Mac.getInstance("HmacSHA1");
+	// mac.init(signingKey);
+	// return toHexString(mac.doFinal(data.getBytes()));
+	// }
 	//
-	//	private static String toHexString(byte[] bytes) {
-	//		Formatter formatter = new Formatter();
-	//		for (byte b : bytes) {
-	//			formatter.format("%02x", b);
-	//		}
-	//		return formatter.toString();
-	//	}
+	// private static String toHexString(byte[] bytes) {
+	// Formatter formatter = new Formatter();
+	// for (byte b : bytes) {
+	// formatter.format("%02x", b);
+	// }
+	// return formatter.toString();
+	// }
 
 	/////////////////////////////////////////////////////////////////
 
@@ -2612,7 +2616,7 @@ public class UserResource {
 	public Response loginNative(@Context HttpServletRequest request, @Context HttpServletResponse response) {
 		Map<String, String> ret = new HashMap<>();
 
-		if(socialData.getLoginsAllowed().get("native") == null || !socialData.getLoginsAllowed().get("native")) {
+		if (socialData.getLoginsAllowed().get("native") == null || !socialData.getLoginsAllowed().get("native")) {
 			ret.put(Constants.ERROR_MESSAGE, "Native login is not allowed");
 			return WebUtility.getResponse(ret, 400);
 		}
@@ -2624,8 +2628,9 @@ public class UserResource {
 			// so that the default is to redirect
 			Boolean disableRedirect = Boolean.parseBoolean(request.getParameter("disableRedirect") + "");
 
-			if(username == null || password == null || username.isEmpty() || password.isEmpty()) {
-				classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), null, "is trying to login using username='"+username+"' but user name or password are empty"));
+			if (username == null || password == null || username.isEmpty() || password.isEmpty()) {
+				classLogger.warn("User is trying to login using username='" + username
+						+ "' but user name or password are empty");
 				ret.put(Constants.ERROR_MESSAGE, "The user name or password are empty");
 				return WebUtility.getResponse(ret, 401);
 			}
@@ -2634,7 +2639,7 @@ public class UserResource {
 			if (canLogin) {
 				String name = SecurityNativeUserUtils.getNameUser(username);
 				String email = SecurityNativeUserUtils.getUserEmail(username);
-				
+
 				String id = SecurityNativeUserUtils.getUserId(username);
 				AccessToken authToken = new AccessToken();
 				authToken.setProvider(AuthProvider.NATIVE);
@@ -2645,12 +2650,12 @@ public class UserResource {
 				// no need to auto-add since to login native you must already exist
 				addAccessToken(authToken, request, false);
 
-				// add these to the return 
+				// add these to the return
 				ret.put("success", "true");
 				ret.put("username", username);
 				ret.put("name", name);
 				ret.put("email", email);
-				
+
 				// log the log in
 				if (!disableRedirect) {
 					setMainPageRedirect(request, response, redirect);
@@ -2658,21 +2663,22 @@ public class UserResource {
 			} else {
 				HttpSession session = request.getSession(false);
 				User user = null;
-				if(session != null) {
+				if (session != null) {
 					user = (User) session.getAttribute(Constants.SESSION_USER);
-					if(!AbstractSecurityUtils.anonymousUsersEnabled() && user != null && user.getLogins().isEmpty()) {
+					if (!AbstractSecurityUtils.anonymousUsersEnabled() && user != null && user.getLogins().isEmpty()) {
 						session.invalidate();
 					}
 				}
-				classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to login using username='"+username+"' but user name or password are empty"));
+				classLogger.warn("User is trying to login using username='" + username
+						+ "' but user name or password are empty");
 				ret.put(Constants.ERROR_MESSAGE, "The user name or password are invalid.");
 				return WebUtility.getResponse(ret, 401);
 			}
 		} catch (Exception e) {
 			HttpSession session = request.getSession(false);
-			if(session != null) {
+			if (session != null) {
 				User user = (User) session.getAttribute(Constants.SESSION_USER);
-				if(!AbstractSecurityUtils.anonymousUsersEnabled() && user != null && user.getLogins().isEmpty()) {
+				if (!AbstractSecurityUtils.anonymousUsersEnabled() && user != null && user.getLogins().isEmpty()) {
 					session.invalidate();
 				}
 			}
@@ -2686,6 +2692,7 @@ public class UserResource {
 
 	/**
 	 * Authenticates a user that's trying to log in through AD
+	 * 
 	 * @param request
 	 * @return true if the information provided to log in is valid otherwise error.
 	 */
@@ -2694,7 +2701,7 @@ public class UserResource {
 	@Path("/loginLDAP")
 	public Response loginLDAP(@Context HttpServletRequest request, @Context HttpServletResponse response) {
 		Map<String, Object> ret = new HashMap<>();
-		if(socialData.getLoginsAllowed().get("ldap")==null || !socialData.getLoginsAllowed().get("ldap")) {
+		if (socialData.getLoginsAllowed().get("ldap") == null || !socialData.getLoginsAllowed().get("ldap")) {
 			ret.put(Constants.ERROR_MESSAGE, "LDAP login is not allowed");
 			return WebUtility.getResponse(ret, 400);
 		}
@@ -2702,21 +2709,22 @@ public class UserResource {
 		ILdapAuthenticator authenticator = null;
 		try {
 			String username = WebUtility.inputSQLSanitizer(request.getParameter("username"));
-			String password =WebUtility.inputSQLSanitizer(request.getParameter("password"));
+			String password = WebUtility.inputSQLSanitizer(request.getParameter("password"));
 			// so that the default is to redirect
 			Boolean disableRedirect = Boolean.parseBoolean(request.getParameter("disableRedirect") + "");
 
-			if(username == null || password == null || username.isEmpty() || password.isEmpty()) {
+			if (username == null || password == null || username.isEmpty() || password.isEmpty()) {
 				ret.put(Constants.ERROR_MESSAGE, "The user name or password are empty");
 				return WebUtility.getResponse(ret, 401);
 			}
 
 			authenticator = socialData.getLdapAuthenticator();
 			AccessToken authToken = authenticator.authenticate(username, password);
-			if(authToken == null) {
+			if (authToken == null) {
 				throw new IllegalArgumentException("Unable to parse any user attributes");
 			}
-			boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(ILdapAuthenticator.LDAP + "auto_add", "true"));
+			boolean autoAdd = Boolean
+					.parseBoolean(socialData.getProperty(ILdapAuthenticator.LDAP + "auto_add", "true"));
 			addAccessToken(authToken, request, autoAdd);
 			ret.put("success", "true");
 			ret.put("username", username);
@@ -2724,11 +2732,11 @@ public class UserResource {
 			if (!disableRedirect) {
 				setMainPageRedirect(request, response);
 			}
-		} catch(LDAPPasswordChangeRequiredException e) {
+		} catch (LDAPPasswordChangeRequiredException e) {
 			HttpSession session = request.getSession(false);
-			if(session != null) {
+			if (session != null) {
 				User user = (User) session.getAttribute(Constants.SESSION_USER);
-				if(!AbstractSecurityUtils.anonymousUsersEnabled() && user != null && user.getLogins().isEmpty()) {
+				if (!AbstractSecurityUtils.anonymousUsersEnabled() && user != null && user.getLogins().isEmpty()) {
 					session.invalidate();
 				}
 			}
@@ -2738,9 +2746,9 @@ public class UserResource {
 			return WebUtility.getResponse(ret, 401);
 		} catch (Exception e) {
 			HttpSession session = request.getSession(false);
-			if(session != null) {
+			if (session != null) {
 				User user = (User) session.getAttribute(Constants.SESSION_USER);
-				if(!AbstractSecurityUtils.anonymousUsersEnabled() && user != null && user.getLogins().isEmpty()) {
+				if (!AbstractSecurityUtils.anonymousUsersEnabled() && user != null && user.getLogins().isEmpty()) {
 					session.invalidate();
 				}
 			}
@@ -2748,7 +2756,7 @@ public class UserResource {
 			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(ret, 500);
 		} finally {
-			if(authenticator != null) {
+			if (authenticator != null) {
 				try {
 					authenticator.close();
 				} catch (IOException e) {
@@ -2762,6 +2770,7 @@ public class UserResource {
 
 	/**
 	 * Authenticates a user that's trying to log in through AD
+	 * 
 	 * @param request
 	 * @return true if the information provided to log in is valid otherwise error.
 	 */
@@ -2770,9 +2779,8 @@ public class UserResource {
 	@Path("/changeADPassword")
 	public Response changeADPassword(@Context HttpServletRequest request, @Context HttpServletResponse response) {
 		Map<String, String> ret = new HashMap<>();
-		if( (socialData.getLoginsAllowed().get("ldap")==null || !socialData.getLoginsAllowed().get("ldap"))
-				&& !Boolean.parseBoolean(socialData.getProperty("linotp_check_ad", "false"))
-				){
+		if ((socialData.getLoginsAllowed().get("ldap") == null || !socialData.getLoginsAllowed().get("ldap"))
+				&& !Boolean.parseBoolean(socialData.getProperty("linotp_check_ad", "false"))) {
 			ret.put(Constants.ERROR_MESSAGE, "LDAP change password is not allowed/configured");
 			return WebUtility.getResponse(ret, 400);
 		}
@@ -2783,8 +2791,8 @@ public class UserResource {
 			String curPassword = WebUtility.inputSQLSanitizer(request.getParameter("curPassword"));
 			String newPassword = WebUtility.inputSQLSanitizer(request.getParameter("newPassword"));
 
-			if(username == null || curPassword == null || newPassword == null
-					|| username.isEmpty() || curPassword.isEmpty() || newPassword.isEmpty()) {
+			if (username == null || curPassword == null || newPassword == null || username.isEmpty()
+					|| curPassword.isEmpty() || newPassword.isEmpty()) {
 				ret.put(Constants.ERROR_MESSAGE, "The user name, current password, or new password are empty");
 				return WebUtility.getResponse(ret, 401);
 			}
@@ -2796,9 +2804,9 @@ public class UserResource {
 			return WebUtility.getResponse(ret, 200);
 		} catch (Exception e) {
 			HttpSession session = request.getSession(false);
-			if(session != null) {
+			if (session != null) {
 				User user = (User) session.getAttribute(Constants.SESSION_USER);
-				if(!AbstractSecurityUtils.anonymousUsersEnabled() && user != null && user.getLogins().isEmpty()) {
+				if (!AbstractSecurityUtils.anonymousUsersEnabled() && user != null && user.getLogins().isEmpty()) {
 					session.invalidate();
 				}
 			}
@@ -2806,7 +2814,7 @@ public class UserResource {
 			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(ret, 500);
 		} finally {
-			if(authenticator != null) {
+			if (authenticator != null) {
 				try {
 					authenticator.close();
 				} catch (IOException e) {
@@ -2816,21 +2824,21 @@ public class UserResource {
 		}
 	}
 
-
 	/**
 	 * One Time Passcode using LinOTP
 	 * 
 	 * @param request
 	 * @return true if the information provided to log in is valid otherwise error.
-	 * @throws IOException 
-	 * @throws ClientProtocolException 
+	 * @throws IOException
+	 * @throws ClientProtocolException
 	 */
 	@POST
 	@Produces("application/json")
 	@Path("/loginLinOTP")
-	public Response loginLinOTP(@Context HttpServletRequest request, @Context HttpServletResponse response) throws ClientProtocolException, IOException {
+	public Response loginLinOTP(@Context HttpServletRequest request, @Context HttpServletResponse response)
+			throws ClientProtocolException, IOException {
 		Map<String, Object> returnMap = new HashMap<>();
-		if(socialData.getLoginsAllowed().get("linotp")==null || !socialData.getLoginsAllowed().get("linotp")) {
+		if (socialData.getLoginsAllowed().get("linotp") == null || !socialData.getLoginsAllowed().get("linotp")) {
 			returnMap.put(Constants.ERROR_MESSAGE, "LinOTP login is not allowed");
 			return WebUtility.getResponse(returnMap, 400);
 		}
@@ -2843,13 +2851,13 @@ public class UserResource {
 		LinOTPResponse linotpResponse = LinOTPUtil.login(request);
 		returnMap = linotpResponse.getReturnMap();
 		int responseCode = linotpResponse.getResponseCode();
-		if(responseCode != 200) {
+		if (responseCode != 200) {
 			// we just throw the error
 			return WebUtility.getResponse(returnMap, responseCode);
 		} else {
 			// are we logged in?
 			AccessToken token = linotpResponse.getToken();
-			if(token == null) {
+			if (token == null) {
 				// it is a 200 but we are not logged in
 				// you likely need to enter otp in 2nd response
 				return WebUtility.getResponse(returnMap, responseCode);
@@ -2867,29 +2875,30 @@ public class UserResource {
 
 	}
 
-
 	/**
 	 * Reset the fail counter for a user
 	 * 
 	 * @param request
 	 * @return true if the information provided to log in is valid otherwise error.
-	 * @throws IOException 
-	 * @throws ClientProtocolException 
+	 * @throws IOException
+	 * @throws ClientProtocolException
 	 */
 	@POST
 	@Produces("application/json")
 	@Path("/resetLinOTPFailCounter")
-	public Response resetLinOTPFailCounter(@Context HttpServletRequest request, @Context HttpServletResponse response) throws ClientProtocolException, IOException {
+	public Response resetLinOTPFailCounter(@Context HttpServletRequest request, @Context HttpServletResponse response)
+			throws ClientProtocolException, IOException {
 		try {
 			LinOTPResponse linotpResponse = LinOTPUtil.resetCounter(request);
 			Map<String, Object> returnMap = linotpResponse.getReturnMap();
 			int responseCode = linotpResponse.getResponseCode();
 			// this is simple, take response code and message and return
 			return WebUtility.getResponse(returnMap, responseCode);
-		} catch(Exception e) {
+		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, Object> errorMessage = new HashMap<>();
-			errorMessage.put(Constants.ERROR_MESSAGE, "Error occurred resetting the pin. Error message = " + e.getMessage());
+			errorMessage.put(Constants.ERROR_MESSAGE,
+					"Error occurred resetting the pin. Error message = " + e.getMessage());
 			return WebUtility.getResponse(errorMessage, 500);
 		}
 	}
@@ -2907,17 +2916,18 @@ public class UserResource {
 	public Response createNativeUser(@Context HttpServletRequest request) {
 		Map<String, String> ret = new HashMap<>();
 
-		if(socialData.getLoginsAllowed().get("native")==null || !socialData.getLoginsAllowed().get("native")) {
+		if (socialData.getLoginsAllowed().get("native") == null || !socialData.getLoginsAllowed().get("native")) {
 			ret.put(Constants.ERROR_MESSAGE, "Native login is not allowed");
 			return WebUtility.getResponse(ret, 400);
 		}
 
-		if(socialData.getLoginsAllowed().get("registration")==null || !socialData.getLoginsAllowed().get("registration")) {
+		if (socialData.getLoginsAllowed().get("registration") == null
+				|| !socialData.getLoginsAllowed().get("registration")) {
 			ret.put(Constants.ERROR_MESSAGE, "Native registration is not allowed");
 			return WebUtility.getResponse(ret, 400);
 		}
-		
-	    //get the connection to RDF_MAP.prop file to get the user default set values
+
+		// get the connection to RDF_MAP.prop file to get the user default set values
 		try {
 			// Note - for native users
 			// the id and the username are always the same
@@ -2928,22 +2938,22 @@ public class UserResource {
 			String phone = WebUtility.inputSanitizer(request.getParameter("phone"));
 			String phoneExtension = WebUtility.inputSanitizer(request.getParameter("phoneextension"));
 			String countryCode = WebUtility.inputSanitizer(request.getParameter("countrycode"));
-			
+
 			String modelUsageRestriction = WebUtility.inputSanitizer(request.getParameter("modelUsageRestriction"));
-			if(modelUsageRestriction != null) {
-				modelUsageRestriction=modelUsageRestriction.trim();
+			if (modelUsageRestriction != null) {
+				modelUsageRestriction = modelUsageRestriction.trim();
 			}
 			String modelUsageFrequency = WebUtility.inputSanitizer(request.getParameter("modelUsageFrequency"));
-			if(modelUsageFrequency != null) {
-				modelUsageFrequency=modelUsageFrequency.trim();
+			if (modelUsageFrequency != null) {
+				modelUsageFrequency = modelUsageFrequency.trim();
 			}
 			int modelMaxTokens = 0;
 			String modelMaxTokensStr = WebUtility.inputSanitizer(request.getParameter("modelMaxTokens"));
-			if(modelMaxTokensStr != null && !(modelMaxTokensStr=modelMaxTokensStr.trim()).isEmpty()) {
+			if (modelMaxTokensStr != null && !(modelMaxTokensStr = modelMaxTokensStr.trim()).isEmpty()) {
 				// must be a valid integer
 				try {
 					modelMaxTokens = Integer.parseInt(modelMaxTokensStr);
-				} catch(NumberFormatException e) {
+				} catch (NumberFormatException e) {
 					classLogger.error(Constants.STACKTRACE, e);
 					ret.put(Constants.ERROR_MESSAGE, "modelMaxTokens must be a valid integer value");
 					return WebUtility.getResponse(ret, 400);
@@ -2951,18 +2961,19 @@ public class UserResource {
 			}
 			double modelMaxResponseTime = 0.0;
 			String modelMaxResponseTimeStr = WebUtility.inputSanitizer(request.getParameter("modelMaxResponseTime"));
-			if(modelMaxResponseTimeStr != null && !(modelMaxResponseTimeStr=modelMaxResponseTimeStr.trim()).isEmpty()) {
+			if (modelMaxResponseTimeStr != null
+					&& !(modelMaxResponseTimeStr = modelMaxResponseTimeStr.trim()).isEmpty()) {
 				// must be a valid double
 				try {
 					modelMaxResponseTime = Double.parseDouble(modelMaxResponseTimeStr);
-				} catch(NumberFormatException e) {
+				} catch (NumberFormatException e) {
 					classLogger.error(Constants.STACKTRACE, e);
 					ret.put(Constants.ERROR_MESSAGE, "modelMaxResponseTime must be a valid double value");
 					return WebUtility.getResponse(ret, 400);
 				}
 			}
 			AccessToken newUser = new AccessToken();
-			
+
 			newUser.setProvider(AuthProvider.NATIVE);
 			newUser.setId(username);
 			newUser.setUsername(username);
@@ -2972,11 +2983,11 @@ public class UserResource {
 			newUser.setPhoneExtension(phoneExtension);
 			newUser.setCountryCode(countryCode);
 			// model restriction values
-		    newUser.setModelUsageRestriction(modelUsageRestriction);
-		    newUser.setModelUsageFrequency(modelUsageFrequency);
+			newUser.setModelUsageRestriction(modelUsageRestriction);
+			newUser.setModelUsageFrequency(modelUsageFrequency);
 			newUser.setModelMaxTokens(modelMaxTokens);
 			newUser.setModelMaxResponseTime(modelMaxResponseTime);
-		   
+
 			boolean userCreated = SecurityNativeUserUtils.addNativeUser(newUser, password);
 			if (userCreated) {
 				ret.put("success", "true");
@@ -2997,10 +3008,9 @@ public class UserResource {
 		}
 	}
 
-
 	/**
-	 * Create an user according to the information provided 
-	 * (user name, password, email)
+	 * Create an user according to the information provided (user name, password,
+	 * email)
 	 * 
 	 * @param request
 	 * @return true if the user is created otherwise error.
@@ -3009,13 +3019,13 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("createAPIUser")
 	public Response createAPIUser(@Context HttpServletRequest request) {
-		if(socialData.getLoginsAllowed().get("api_user") == null || !socialData.getLoginsAllowed().get("api_user")) {
+		if (socialData.getLoginsAllowed().get("api_user") == null || !socialData.getLoginsAllowed().get("api_user")) {
 			Map<String, String> ret = new HashMap<>();
 			ret.put(Constants.ERROR_MESSAGE, "API User is not allowed for login");
 			return WebUtility.getResponse(ret, 400);
 		}
 
-		if(Utility.getApplicationAdminOnlyCreateAPIUser()) {
+		if (Utility.getApplicationAdminOnlyCreateAPIUser()) {
 			User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 			if (user == null) {
 				Map<String, String> ret = new HashMap<>();
@@ -3024,7 +3034,8 @@ public class UserResource {
 			}
 			if (!SecurityAdminUtils.userIsAdmin(user)) {
 				Map<String, String> ret = new HashMap<>();
-				ret.put(Constants.ERROR_MESSAGE, "User is not an admin and does not have access. Please login as an admin");
+				ret.put(Constants.ERROR_MESSAGE,
+						"User is not an admin and does not have access. Please login as an admin");
 				return WebUtility.getResponse(ret, 401);
 			}
 		}
@@ -3098,25 +3109,27 @@ public class UserResource {
 	@Path("/modifyLoginProperties/{provider}")
 	public synchronized Response modifyLoginProperties(@PathParam("provider") String provider,
 			MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
-		
-		provider=WebUtility.inputSanitizer(provider);
-		
+
+		provider = WebUtility.inputSanitizer(provider);
+
 		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		if (user == null) {
 			return WebUtility.getResponse("No user defined to access properties. Please login as an admin", 400);
 		}
 		if (!SecurityAdminUtils.userIsAdmin(user)) {
-			return WebUtility.getResponse("User is not an admin and does not have access. Please login as an admin", 400);
+			return WebUtility.getResponse("User is not an admin and does not have access. Please login as an admin",
+					400);
 		}
 
 		Gson gson = new Gson();
-		Map<String, String> mods = gson.fromJson(form.getFirst("modifications"), new TypeToken<Map<String, String>>() {}.getType());
+		Map<String, String> mods = gson.fromJson(form.getFirst("modifications"), new TypeToken<Map<String, String>>() {
+		}.getType());
 		Map<String, String> sanitizedMods = new HashMap<>();
 
-		for(String key : mods.keySet()) {
+		for (String key : mods.keySet()) {
 			sanitizedMods.put(WebUtility.inputSanitizer(key), WebUtility.inputSanitizer(mods.get(key)));
 		}
-		
+
 		try {
 			socialData.updateSocialProperties(provider, sanitizedMods);
 		} catch (Exception e) {
@@ -3138,7 +3151,8 @@ public class UserResource {
 			return WebUtility.getResponse("No user defined to access properties. Please login as an admin", 400);
 		}
 		if (!SecurityAdminUtils.userIsAdmin(user)) {
-			return WebUtility.getResponse("User is not an admin and does not have access. Please login as an admin", 400);
+			return WebUtility.getResponse("User is not an admin and does not have access. Please login as an admin",
+					400);
 		}
 
 		String newSocialProperties = request.getParameter("socialProperties");
@@ -3163,7 +3177,8 @@ public class UserResource {
 			return WebUtility.getResponse("No user defined to access properties. Please login as an admin", 400);
 		}
 		if (!SecurityAdminUtils.userIsAdmin(user)) {
-			return WebUtility.getResponse("User is not an admin and does not have access. Please login as an admin", 400);
+			return WebUtility.getResponse("User is not an admin and does not have access. Please login as an admin",
+					400);
 		}
 
 		try {
@@ -3186,7 +3201,7 @@ public class UserResource {
 	 */
 	private void setMainPageRedirect(@Context HttpServletRequest request, @Context HttpServletResponse response) {
 		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
-		if(customRedirect == null || customRedirect.isEmpty()) {
+		if (customRedirect == null || customRedirect.isEmpty()) {
 			customRedirect = (String) request.getSession().getAttribute(CUSTOM_REDIRECT_SESSION_KEY);
 			// also remove the attribute so additional logins dont do the redirect as well
 			request.getSession().removeAttribute(CUSTOM_REDIRECT_SESSION_KEY);
@@ -3199,7 +3214,8 @@ public class UserResource {
 	 * 
 	 * @param response
 	 */
-	private void setMainPageRedirect(@Context HttpServletRequest request, @Context HttpServletResponse response, String customRedirect) {
+	private void setMainPageRedirect(@Context HttpServletRequest request, @Context HttpServletResponse response,
+			String customRedirect) {
 		// see if we have a location to redirect the user
 		// if so, we will send them back to that URL
 		// otherwise, we send them back to the FE
@@ -3212,11 +3228,11 @@ public class UserResource {
 		try {
 			// add the cookie to the header directly
 			// to allow for cross site login when embedded as iframe
-			String setCookieString = DBLoader.getSessionIdKey() + "=" + session.getId() 
-			+ "; Path=" + contextPath 
-			+ "; HttpOnly"
-			+ ( (ClusterUtil.IS_CLUSTER || request.isSecure()) ? ("; Secure; SameSite="+Utility.getSameSiteCookieValue()) : "")
-			;
+			String setCookieString = DBLoader.getSessionIdKey() + "=" + session.getId() + "; Path=" + contextPath
+					+ "; HttpOnly"
+					+ ((ClusterUtil.IS_CLUSTER || request.isSecure())
+							? ("; Secure; SameSite=" + Utility.getSameSiteCookieValue())
+							: "");
 			response.addHeader("Set-Cookie", setCookieString);
 			if (useCustom) {
 				response.addHeader("redirect", customRedirect);
@@ -3250,7 +3266,7 @@ public class UserResource {
 	public Response show(@Context HttpServletRequest request, @Context HttpServletResponse response) {
 		Principal principal = request.getUserPrincipal();
 		Map<String, Object> output = new HashMap<>();
-		if(principal != null) {
+		if (principal != null) {
 			output.put("name", principal.getName());
 			if (principal instanceof WindowsPrincipal) {
 				WindowsPrincipal windowsPrincipal = (WindowsPrincipal) principal;
@@ -3267,15 +3283,15 @@ public class UserResource {
 			}
 		} else {
 			HttpSession session = request.getSession(false);
-			if(session != null) {
+			if (session != null) {
 				User user = (User) session.getAttribute(Constants.SESSION_USER);
-				if(user != null) {
+				if (user != null) {
 					AccessToken token = user.getAccessToken(user.getPrimaryLogin());
 					output.put("name", token.getId());
 					output.put("warning", "null principal - grab from user");
 				}
 			}
-			if(output.isEmpty()) {
+			if (output.isEmpty()) {
 				output.put(Constants.ERROR_MESSAGE, "null principal");
 			}
 		}
