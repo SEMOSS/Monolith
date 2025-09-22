@@ -51,6 +51,31 @@ public class ReactorResource {
 								.map(ReactorResource::mapReactor).collect(Collectors.toList())
 				));
 
+		// Get all reactor names from the keySet
+		Set<String> allReactorNames = ReactorFactory.reactorHash.keySet();
+		
+		// Get all reactor names that are already in the reactorList
+		Set<String> includedReactorNames = reactorList.values().stream()
+				.flatMap(List::stream)
+				.map(dto -> dto.name)
+				.collect(Collectors.toSet());
+		
+		// Find additional reactors that are in keySet but not in reactorList
+		List<String> additionalReactors = allReactorNames.stream()
+				.filter(name -> !includedReactorNames.contains(name))
+				.collect(Collectors.toList());
+		
+		// Log the additional reactors for debugging
+		if (!additionalReactors.isEmpty()) {
+			log.info("Found {} additional reactors not in groups: {}", additionalReactors.size(), additionalReactors);
+			List<ReactorDTO> additionalDTOs = additionalReactors.stream()
+					.map(ReactorResource::getReactorByName)
+					.filter(Objects::nonNull)
+					.map(ReactorResource::mapReactor)
+					.collect(Collectors.toList());
+			reactorList.put("Miscellaneous", additionalDTOs);
+		}
+
 		return WebUtility.getResponse(reactorList, 200);
 	}
 
