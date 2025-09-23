@@ -686,7 +686,7 @@ public final class ReactorResourceGroups {
         reactorHash.add("DAY");
         reactorHash.add("WEEK");
         reactorHash.add("MONTH");
-        reactorHash.add("YEAR");
+        //reactorHash.add("YEAR");
         reactorHash.add("Date");
         reactorHash.add("Day");
         reactorHash.add("Month");

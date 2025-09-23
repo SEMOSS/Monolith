@@ -1,7 +1,9 @@
 package prerna.semoss.web.services.local;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -45,38 +47,62 @@ public class ReactorResource {
 		Map<String, List<ReactorDTO>> reactorList = ReactorResourceGroups.getReactorHashByGroups().entrySet().stream()
 				.collect(Collectors.toMap(
 						Map.Entry::getKey,
-						entry -> entry.getValue().stream().map(r -> {
-							return getReactorByName(r);
-						}).filter(Objects::nonNull)
-								.map(ReactorResource::mapReactor).collect(Collectors.toList())
+						entry -> entry.getValue().stream()
+								.map(r -> getReactorByName(r))
+								.filter(Objects::nonNull)
+								.map(ReactorResource::mapReactor)
+								.distinct()
+								.collect(Collectors.toCollection(() -> new ArrayList<>(new LinkedHashSet<>()))) // Remove
+																												// duplicates
+																												// while
+																												// preserving
+																												// order
 				));
+
+		log.info("Initial reactor list compiled with {} groups and {} reactors", reactorList.size(), 
+				reactorList.values().stream().mapToInt(List::size).sum());
 
 		// Get all reactor names from the keySet
 		Set<String> allReactorNames = ReactorFactory.reactorHash.keySet();
-		
+
 		// Get all reactor names that are already in the reactorList
 		Set<String> includedReactorNames = reactorList.values().stream()
 				.flatMap(List::stream)
 				.map(dto -> dto.name)
 				.collect(Collectors.toSet());
-		
+
 		// Find additional reactors that are in keySet but not in reactorList
-		List<String> additionalReactors = allReactorNames.stream()
+		List<String> additionalReactorsNames = allReactorNames.stream()
 				.filter(name -> !includedReactorNames.contains(name))
 				.collect(Collectors.toList());
-		
+		log.info("Found {} additional reactors not in groups", additionalReactorsNames.size());
 		// Log the additional reactors for debugging
-		if (!additionalReactors.isEmpty()) {
-			log.info("Found {} additional reactors not in groups: {}", additionalReactors.size(), additionalReactors);
-			List<ReactorDTO> additionalDTOs = additionalReactors.stream()
+		if (!additionalReactorsNames.isEmpty()) {
+			
+			additionalReactorsNames.forEach(r -> {
+
+				log.debug("Processing additional reactor: {}", r);
+				reactorList.values().forEach(group -> group.forEach(reactor -> {
+					log.debug("Checking reactor: {}", reactor.name);
+					if (additionalReactorsNames.contains(reactor.name)) {
+						log.info("Additional reactor confirmed: {}", reactor.name);
+						additionalReactorsNames.remove(reactor.name);
+					}
+				}));
+			});
+			List<ReactorDTO> additionalDTOFilteredDuplicates = additionalReactorsNames.stream()
 					.map(ReactorResource::getReactorByName)
 					.filter(Objects::nonNull)
 					.map(ReactorResource::mapReactor)
+					.distinct() // Remove duplicates from additional reactors too
 					.collect(Collectors.toList());
-			reactorList.put("Miscellaneous", additionalDTOs);
+
+			reactorList.put("Miscellaneous", additionalDTOFilteredDuplicates);
+
 		}
 
 		return WebUtility.getResponse(reactorList, 200);
+
 	}
 
 	private static IReactor getReactorByName(String name) {
@@ -91,7 +117,6 @@ public class ReactorResource {
 		}
 	}
 
-	
 	private static ReactorDTO mapReactor(IReactor reactor) {
 		// ReactorDTO dto = new
 		String reactorName = reactor.getName();
@@ -139,8 +164,6 @@ public class ReactorResource {
 				.build();
 	}
 
-
-	
 	// DTO class to hold reactor metadata
 	static class ReactorDTO {
 		public String name;
@@ -148,12 +171,26 @@ public class ReactorResource {
 		public List<String> requiredKeys;
 		public List<String> optionalKeys;
 
-		public ReactorDTO(String name, String description, List<String> requiredKeys, List<String> optionalKeys
-				) {
+		public ReactorDTO(String name, String description, List<String> requiredKeys, List<String> optionalKeys) {
 			this.name = name;
 			this.description = description;
 			this.requiredKeys = requiredKeys;
 			this.optionalKeys = optionalKeys;
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o)
+				return true;
+			if (o == null || getClass() != o.getClass())
+				return false;
+			ReactorDTO that = (ReactorDTO) o;
+			return Objects.equals(name, that.name); // Consider duplicates based on name only
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(name);
 		}
 
 		// Generate builder pattern
@@ -182,7 +219,6 @@ public class ReactorResource {
 				this.optionalKeys = optionalKeys;
 				return this;
 			}
-
 
 			public ReactorDTO build() {
 				return new ReactorDTO(name, description, requiredKeys, optionalKeys);
