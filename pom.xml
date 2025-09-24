@@ -344,6 +344,13 @@
 			<artifactId>semoss</artifactId>
 			<version>${ci.version}</version>
 			<classifier>shaded-dependencies</classifier>
+			<exclusions>
+				<!-- even though maven properly uses the shard, eclispe m2e does not and this causes issues with log4j for local dev -->
+				<exclusion>
+					<groupId>com.amazonaws</groupId>
+					<artifactId>athena-jdbc</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/org.apache.tomcat/tomcat-catalina -->
 		<!-- this is the primary tomcat specific jar -->
