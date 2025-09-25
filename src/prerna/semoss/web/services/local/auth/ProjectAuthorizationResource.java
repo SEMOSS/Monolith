@@ -545,7 +545,7 @@ public class ProjectAuthorizationResource {
 					return WebUtility.getResponse(ret, 400);
 				}
 			}
-			Map<String, Object> responses = SecurityProjectUtils.propagateProjectPermissions(requester, projectId, newUserId, newUserType, requestedPermission, 
+			Map<String, Object> responses = SecurityProjectUtils.propagateProjectPermission(requester, projectId, newUserId, newUserType, requestedPermission, 
 				 endDate, usageRestriction, usageFrequency, maxTokens, maxResponseTime);
 			newRet.put(newUserId, responses);
 		}
