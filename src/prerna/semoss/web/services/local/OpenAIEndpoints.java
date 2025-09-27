@@ -48,6 +48,7 @@ import prerna.engine.impl.model.responses.AskModelEngineResponse;
 import prerna.engine.impl.model.responses.EmbeddingsModelEngineResponse;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
+import prerna.om.ThreadStore;
 import prerna.reactor.security.MyEnginesReactor;
 import prerna.sablecc2.PixelRunner;
 import prerna.sablecc2.comm.PixelJobManager;
@@ -91,6 +92,7 @@ public class OpenAIEndpoints {
 		}
 
 		final String SESSION_ID = session.getId();
+		final String JOB_ID = GUID.v7().toUUID().toString();
 		Insight insight = null;
 		ObjectMapper objectMapper = new ObjectMapper();
 
@@ -188,8 +190,8 @@ public class OpenAIEndpoints {
 			}
 		} else {
 			insight = InsightStore.getInstance().get(insightId);
-			InsightStore.getInstance().addToSessionHash(SESSION_ID, insightId); // maybe its an insight id from another
-																				// session?
+			// maybe its an insight id from another session
+			InsightStore.getInstance().addToSessionHash(SESSION_ID, insightId);
 		}
 
 		if (insight == null) {
@@ -198,6 +200,11 @@ public class OpenAIEndpoints {
 			errorMap.put(ERROR_TYPE, INSIGHT_NOT_FOUND);
 			return WebUtility.getResponse(errorMap, 400);
 		}
+
+		ThreadStore.setInsightId(insight.getInsightId());
+		ThreadStore.setSessionId(SESSION_ID);
+		ThreadStore.setJobId(JOB_ID);
+		ThreadStore.setUser(insight.getUser());
 
 		final Insight finalInsight = insight;
 
@@ -227,10 +234,9 @@ public class OpenAIEndpoints {
 					.header("Connection", "keep-alive").entity(new StreamingOutput() {
 						@Override
 						public void write(OutputStream output) throws IOException, WebApplicationException {
-							String messageId = "chatcmpl-" + GUID.v7().toUUID().toString();
+							String messageId = "chatcmpl-" + JOB_ID;
 							long creationTimestamp = Instant.now().getEpochSecond();
 
-							ObjectMapper mapper = new ObjectMapper();
 							String jobId = null;
 							try (Writer writer = new BufferedWriter(new OutputStreamWriter(output))) {
 								// Execute model request but get job ID so can poll for partial responses
@@ -407,16 +413,11 @@ public class OpenAIEndpoints {
 	@Produces("application/json;charset=utf-8")
 	public Response runModelCompletion(@Context HttpServletRequest request) {
 		HttpSession session = request.getSession(false);
-		String sessionId = null;
 		User user = null;
-		Insight insight = null;
-		ObjectMapper objectMapper = new ObjectMapper();
 
 		if (session != null) {
-			sessionId = session.getId();
 			user = ((User) session.getAttribute(Constants.SESSION_USER));
 		}
-
 		// how did you even get past the no user in session filter?
 		if (user == null) {
 			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
@@ -426,6 +427,11 @@ public class OpenAIEndpoints {
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
+
+		final String SESSION_ID = session.getId();
+		final String JOB_ID = GUID.v7().toUUID().toString();
+		Insight insight = null;
+		ObjectMapper objectMapper = new ObjectMapper();
 
 		// set the user timezone
 		ZoneId zoneId = null;
@@ -505,13 +511,13 @@ public class OpenAIEndpoints {
 
 		String insightId = WebUtility.inputSanitizer((String) dataMap.remove("insight_id"));
 		if (insightId == null) {
-			Set<String> sessionInsights = InsightStore.getInstance().getInsightIDsForSession(sessionId);
+			Set<String> sessionInsights = InsightStore.getInstance().getInsightIDsForSession(SESSION_ID);
 			if (sessionInsights == null || sessionInsights.isEmpty()) {
 				// need to make a new insight here
 				insight = new Insight();
 				InsightStore.getInstance().put(insight);
 				insightId = insight.getInsightId();
-				InsightStore.getInstance().addToSessionHash(sessionId, insightId);
+				InsightStore.getInstance().addToSessionHash(SESSION_ID, insightId);
 			} else {
 				// pull the insight id from the session set
 				insightId = sessionInsights.iterator().next();
@@ -519,8 +525,8 @@ public class OpenAIEndpoints {
 			}
 		} else {
 			insight = InsightStore.getInstance().get(insightId);
-			InsightStore.getInstance().addToSessionHash(sessionId, insightId); // maybe its an insight id from another
-																				// session?
+			// maybe its an insight id from another session
+			InsightStore.getInstance().addToSessionHash(SESSION_ID, insightId);
 		}
 
 		if (insight == null) {
@@ -529,6 +535,11 @@ public class OpenAIEndpoints {
 			errorMap.put(ERROR_TYPE, INSIGHT_NOT_FOUND);
 			return WebUtility.getResponse(errorMap, 400);
 		}
+
+		ThreadStore.setInsightId(insight.getInsightId());
+		ThreadStore.setSessionId(SESSION_ID);
+		ThreadStore.setJobId(JOB_ID);
+		ThreadStore.setUser(insight.getUser());
 
 		// set the user
 		insight.setUser(user);
@@ -657,16 +668,11 @@ public class OpenAIEndpoints {
 	@Produces("application/json;charset=utf-8")
 	public Response runModelEmbeddings(@Context HttpServletRequest request) {
 		HttpSession session = request.getSession(false);
-		String sessionId = null;
 		User user = null;
-		Insight insight = null;
-		ObjectMapper objectMapper = new ObjectMapper();
 
 		if (session != null) {
-			sessionId = session.getId();
 			user = ((User) session.getAttribute(Constants.SESSION_USER));
 		}
-
 		// how did you even get past the no user in session filter?
 		if (user == null) {
 			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
@@ -676,6 +682,11 @@ public class OpenAIEndpoints {
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
+
+		final String SESSION_ID = session.getId();
+		final String JOB_ID = GUID.v7().toUUID().toString();
+		Insight insight = null;
+		ObjectMapper objectMapper = new ObjectMapper();
 
 		// set the user timezone
 		ZoneId zoneId = null;
@@ -749,13 +760,13 @@ public class OpenAIEndpoints {
 
 		String insightId = WebUtility.inputSanitizer((String) dataMap.remove("insight_id"));
 		if (insightId == null) {
-			Set<String> sessionInsights = InsightStore.getInstance().getInsightIDsForSession(sessionId);
+			Set<String> sessionInsights = InsightStore.getInstance().getInsightIDsForSession(SESSION_ID);
 			if (sessionInsights == null || sessionInsights.isEmpty()) {
 				// need to make a new insight here
 				insight = new Insight();
 				InsightStore.getInstance().put(insight);
 				insightId = insight.getInsightId();
-				InsightStore.getInstance().addToSessionHash(sessionId, insightId);
+				InsightStore.getInstance().addToSessionHash(SESSION_ID, insightId);
 			} else {
 				// pull the insight id from the session set
 				insightId = sessionInsights.iterator().next();
@@ -763,8 +774,8 @@ public class OpenAIEndpoints {
 			}
 		} else {
 			insight = InsightStore.getInstance().get(insightId);
-			InsightStore.getInstance().addToSessionHash(sessionId, insightId); // maybe its an insight id from another
-																				// session?
+			// maybe its an insight id from another session
+			InsightStore.getInstance().addToSessionHash(SESSION_ID, insightId);
 		}
 
 		if (insight == null) {
@@ -773,6 +784,11 @@ public class OpenAIEndpoints {
 			errorMap.put(ERROR_TYPE, INSIGHT_NOT_FOUND);
 			return WebUtility.getResponse(errorMap, 400);
 		}
+
+		ThreadStore.setInsightId(insight.getInsightId());
+		ThreadStore.setSessionId(SESSION_ID);
+		ThreadStore.setJobId(JOB_ID);
+		ThreadStore.setUser(insight.getUser());
 
 		// set the user
 		insight.setUser(user);

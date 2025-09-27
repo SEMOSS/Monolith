@@ -10,12 +10,18 @@ import java.util.Map;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.ToNumberPolicy;
 
 import prerna.engine.impl.model.responses.AskModelEngineResponse;
 import prerna.engine.impl.model.responses.AskToolModelEngineResponse;
 import prerna.engine.impl.model.responses.AskToolModelEngineResponse.ToolResponse;
 
 public final class OpenAIChatCompletionsHelper {
+
+	private static final Gson GSON = new GsonBuilder().setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE)
+			.disableHtmlEscaping().create();
 
 	private static ObjectMapper mapper = new ObjectMapper();
 
@@ -238,7 +244,7 @@ public final class OpenAIChatCompletionsHelper {
 				thisToolMap.put("type", t.getType());
 				Map<String, Object> functionMap = new HashMap<>();
 				functionMap.put("name", t.getName());
-				functionMap.put("arguments", t.getArguments());
+				functionMap.put("arguments", GSON.toJson(t.getArguments()));
 				thisToolMap.put("function", functionMap);
 				toolCalls.add(thisToolMap);
 			}
