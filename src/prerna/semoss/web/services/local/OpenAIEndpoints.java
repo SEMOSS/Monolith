@@ -15,7 +15,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 
 import javax.annotation.security.PermitAll;
 import javax.servlet.http.HttpServletRequest;
@@ -36,6 +35,7 @@ import org.apache.logging.log4j.Logger;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.f4b6a3.uuid.alt.GUID;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
@@ -82,7 +82,7 @@ public class OpenAIEndpoints {
 		}
 		// how did you even get past the no user in session filter?
 		if (user == null) {
-			if(session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
+			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
 				session.invalidate();
 			}
 			Map<String, String> errorMap = new HashMap<>();
@@ -93,23 +93,23 @@ public class OpenAIEndpoints {
 		final String SESSION_ID = session.getId();
 		Insight insight = null;
 		ObjectMapper objectMapper = new ObjectMapper();
-		
+
 		// set the user timezone
 		ZoneId zoneId = null;
 		String strTz = WebUtility.inputSanitizer(request.getParameter("tz"));
-		if(strTz == null || (strTz=strTz.trim()).isEmpty()) {
+		if (strTz == null || (strTz = strTz.trim()).isEmpty()) {
 			zoneId = ZoneId.of(Utility.getApplicationZoneId());
 		} else {
 			try {
 				zoneId = ZoneId.of(strTz);
-			} catch(Exception e) {
+			} catch (Exception e) {
 				classLogger.warn("Error parsing out users timezone value: " + strTz);
 				classLogger.error(Constants.STACKTRACE, e);
 				zoneId = ZoneId.of(Utility.getApplicationZoneId());
 			}
 		}
 		// need null check if security is off
-		if(user != null) {
+		if (user != null) {
 			user.setZoneId(zoneId);
 		}
 
@@ -132,7 +132,8 @@ public class OpenAIEndpoints {
 		classLogger.info("Chat completion request data: " + requestData.toString());
 
 		// Convert the JSON string to a Map
-		TypeReference<Map<String, Object>> mapType = new TypeReference<Map<String, Object>>() {};
+		TypeReference<Map<String, Object>> mapType = new TypeReference<Map<String, Object>>() {
+		};
 		Map<String, Object> dataMap;
 		try {
 			dataMap = objectMapper.readValue(WebUtility.jsonSanitizer(requestData.toString()), mapType);
@@ -152,7 +153,8 @@ public class OpenAIEndpoints {
 		String engineId = WebUtility.inputSanitizer((String) dataMap.remove("model"));
 		if (engineId == null || engineId.isEmpty()) {
 			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Bad Request: The 'data' parameter is missing the required 'model' field.");
+			errorMap.put(Constants.ERROR_MESSAGE,
+					"Bad Request: The 'data' parameter is missing the required 'model' field.");
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
@@ -163,11 +165,12 @@ public class OpenAIEndpoints {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
-		if(!SecurityEngineUtils.userCanViewEngine(user, engineId)) {
+		if (!SecurityEngineUtils.userCanViewEngine(user, engineId)) {
 			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Model " + engineId + " does not exist or user does not have access to this model");
+			errorMap.put(Constants.ERROR_MESSAGE,
+					"Model " + engineId + " does not exist or user does not have access to this model");
 			return WebUtility.getResponse(errorMap, 403);
-		}  
+		}
 
 		String insightId = WebUtility.inputSanitizer((String) dataMap.remove("insight_id"));
 		if (insightId == null) {
@@ -182,10 +185,11 @@ public class OpenAIEndpoints {
 				// pull the insight id from the session set
 				insightId = sessionInsights.iterator().next();
 				insight = InsightStore.getInstance().get(insightId);
-			}		
+			}
 		} else {
 			insight = InsightStore.getInstance().get(insightId);
-			InsightStore.getInstance().addToSessionHash(SESSION_ID, insightId); // maybe its an insight id from another session?
+			InsightStore.getInstance().addToSessionHash(SESSION_ID, insightId); // maybe its an insight id from another
+																				// session?
 		}
 
 		if (insight == null) {
@@ -198,7 +202,7 @@ public class OpenAIEndpoints {
 		final Insight finalInsight = insight;
 
 		// set the user
-		insight.setUser(user);		
+		insight.setUser(user);
 
 		dataMap.put("full_prompt", fullPrompt);
 
@@ -207,162 +211,96 @@ public class OpenAIEndpoints {
 			AskModelEngineResponse llmResponse;
 			try {
 				llmResponse = engine.ask(null, null, insight, dataMap);
-			} catch (Exception e){
+			} catch (Exception e) {
 				classLogger.error(Constants.STACKTRACE, e);
 				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 				return WebUtility.getResponse(errorMap, 400);
 			}
 
-			String response = llmResponse.getStringResponse();
-			String messageId = llmResponse.getMessageId();
-			Integer promptTokens = llmResponse.getNumberOfTokensInPrompt();
-			Integer responseTokens = llmResponse.getNumberOfTokensInResponse();
-
-			Map<String, Object> llmResponseMap = new HashMap<>();
-
-			// "choices" array
-			List<Map<String, Object>> choicesList = new ArrayList<>();
-			Map<String, Object> choice = new HashMap<>();
-			choice.put("finish_reason", "stop");
-			choice.put("index", 0);
-
-			// "message" object within "choices"
-			Map<String, Object> message = new HashMap<>();
-			message.put("content", response);
-			message.put("role", "assistant");
-
-			choice.put("message", message);
-
-			choicesList.add(choice);
-
-			llmResponseMap.put("choices", choicesList);
-
-			// Get the current UTC time
-			ZonedDateTime currentDateTime = Utility.getCurrentZonedDateTimeForUser(user);
-			// Convert ZonedDateTime to Instant
-			Instant instant = currentDateTime.toInstant();
-			// Get the number of seconds since the epoch
-			long unixTimestamp = instant.getEpochSecond();
-
-			llmResponseMap.put("created", unixTimestamp);
-			llmResponseMap.put("id", messageId);
-			llmResponseMap.put("model", engineId);
-			llmResponseMap.put("object", "chat.completion");
-
-			// "usage" object
-			Map<String, Object> usage = new HashMap<>();
-
-			if (promptTokens!= null && responseTokens != null) {
-				usage.put("completion_tokens", responseTokens);
-				usage.put("prompt_tokens", promptTokens);
-				usage.put("total_tokens", promptTokens + responseTokens);
-			} else {
-				if (responseTokens != null) {
-					usage.put("completion_tokens", responseTokens);
-				} 
-
-				if (promptTokens != null) {
-					usage.put("prompt_tokens", promptTokens);
-				}
-			}
-			llmResponseMap.put("usage", usage);
-
-			return WebUtility.getResponse(llmResponseMap, 200);
+			Map<String, Object> processedResposne = OpenAIChatCompletionsHelper.processAskModelEngineResponse(engineId,
+					llmResponse);
+			return WebUtility.getResponse(processedResposne, 200);
 		} else {
-			// Streaming implementation!!
-			final String messageId = "chatcmpl-" + UUID.randomUUID().toString();
-			final long creationTimestamp = Instant.now().getEpochSecond();
-
 			classLogger.info("Starting streaming response for model: " + engineId);
-
-			return Response
-					.ok()
-					.header("Content-Type", "text/event-stream")
-					.header("Cache-Control", "no-cache")
-					.header("Connection", "keep-alive")
-					.entity(new StreamingOutput() {
+			return Response.ok().header("Content-Type", "text/event-stream").header("Cache-Control", "no-cache")
+					.header("Connection", "keep-alive").entity(new StreamingOutput() {
 						@Override
 						public void write(OutputStream output) throws IOException, WebApplicationException {
+							String messageId = "chatcmpl-" + GUID.v7().toUUID().toString();
+							long creationTimestamp = Instant.now().getEpochSecond();
+
 							ObjectMapper mapper = new ObjectMapper();
 							String jobId = null;
-							try (Writer writer = new BufferedWriter(new OutputStreamWriter(output))){
+							try (Writer writer = new BufferedWriter(new OutputStreamWriter(output))) {
 								// Execute model request but get job ID so can poll for partial responses
 								jobId = startAsyncModelRequest(engine, finalInsight, dataMap, SESSION_ID);
 
 								boolean started = false;
-								boolean completionSent = false;
 
-								// polling partial endpoint until response complete
-								while (true) {
+								// polling streaming endpoint until response complete
+								STREAM_COMPLETE_LOOP: while (true) {
 									PixelJobThread jt = PixelJobManager.getManager().getJob(jobId);
-									Map<String, String> partialResponseContent = PixelJobManager.getManager().getPartial(jobId);
-									PixelJobStatus jobStatus = jt == null ? PixelJobStatus.UNKNOWN_JOB : jt.getPixelJobStatus();
+									List<Map<String, Object>> partialResponseContent = PixelJobManager.getManager()
+											.getStreamOut(jobId);
+									PixelJobStatus jobStatus = jt == null ? PixelJobStatus.UNKNOWN_JOB
+											: jt.getPixelJobStatus();
 
+									/**
+									 * The partialResponseContent Map<String,Object> values comes from the python
+									 * code
+									 * 
+									 * smss_stream_func defined in gaas_tcp_server_handler.py determines the payload
+									 * {"stream_type": stream_type, "data": data}
+									 * 
+									 * The data portion of this payload matches the Dictionary definitions in
+									 * semoss_streaming_util.py StreamUtil class
+									 * 
+									 */
 									if (partialResponseContent != null && partialResponseContent.size() > 0) {
-										String newContent = partialResponseContent.get("new");
-
-										if (newContent != null && !newContent.isEmpty()) {
-											// formatting as OpenAI streaming chunk
-											Map<String, Object> chunk = new HashMap<>();
-											chunk.put("id", messageId);
-											chunk.put("object", "chat.completion.chunk");
-											chunk.put("created", creationTimestamp);
-											chunk.put("model", engineId);
-
-											List<Map<String, Object>> choices = new ArrayList<>();
-											Map<String, Object> choice = new HashMap<>();
-											choice.put("index", 0);
-
-											Map<String, Object> delta = new HashMap<>();
-
-											// if first chunk include role
-											if (!started) {
-												delta.put("role", "assistant");
-												started = true;
+										for (Map<String, Object> streamObj : partialResponseContent) {
+											String streamType = (String) streamObj.get("stream_type");
+											Map<String, Object> dataMap = (Map<String, Object>) streamObj.get("data");
+											if (streamType.equalsIgnoreCase("content")) {
+												if (dataMap.containsKey("finish_reason")) {
+													String finishReason = (String) dataMap.get("finish_reason");
+													// this is a map only on finish reason
+													OpenAIChatCompletionsHelper.writeFinishReason(engineId, messageId,
+															creationTimestamp, finishReason, writer);
+													break STREAM_COMPLETE_LOOP;
+												} else {
+													String newContent = (String) dataMap.get("content");
+													if (newContent != null && !newContent.isEmpty()) {
+														OpenAIChatCompletionsHelper.writeContentChunk(engineId,
+																messageId, creationTimestamp, newContent, started,
+																writer);
+														started = true;
+													}
+												}
+											} else {
+												// assuming only other type is tool at the moment
+												if (dataMap.containsKey("finish_reason")) {
+													// send the finish chunk
+													String finishReason = (String) dataMap.get("finish_reason");
+													OpenAIChatCompletionsHelper.writeFinishReason(engineId, messageId,
+															creationTimestamp, finishReason, writer);
+													break STREAM_COMPLETE_LOOP;
+												} else {
+													OpenAIChatCompletionsHelper.writeToolChunk(engineId, messageId,
+															creationTimestamp, dataMap, started, writer);
+													started = true;
+												}
 											}
-
-											delta.put("content", newContent);
-											choice.put("delta", delta);
-											choice.put("finish_reason", null);
-
-											choices.add(choice);
-											chunk.put("choices", choices);
-
-											// sending chunk as SSE event
-											writer.write("data: " + mapper.writeValueAsString(chunk) + "\n\n");
-											writer.flush();
 										}
 									}
 
-									// Check job complete to send completion
-									if (jobStatus == PixelJobStatus.PROGRESS_COMPLETE && started && !completionSent) {
-										// send final chumk with empty delta && finish_reason="stop"
-										Map<String, Object> finalChunk = new HashMap<>();
-										finalChunk.put("id", messageId);
-										finalChunk.put("object", "chat.completion.chunk");
-										finalChunk.put("created", creationTimestamp);
-										finalChunk.put("model", engineId);
-
-										List<Map<String, Object>> choices = new ArrayList<>();
-										Map<String, Object> choice = new HashMap<>();
-										choice.put("index", 0);
-
-										Map<String, Object> delta = new HashMap<>();
-
-										choice.put("delta", delta);
-										choice.put("finish_reason", "stop");
-
-										choices.add(choice);
-										finalChunk.put("choices", choices);
-
-										writer.write("data: " + mapper.writeValueAsString(finalChunk) + "\n\n");
-
-										writer.write("data: [DONE]\n\n");
-										writer.flush();
-
-										completionSent = true;
-										break;
+									// if job is complete, we should never hit this if
+									// a completion should have been sent
+									if (jobStatus == PixelJobStatus.PROGRESS_COMPLETE && started) {
+										// send final chunk with empty delta && finish_reason="stop"
+										OpenAIChatCompletionsHelper.writeFinishReason(engineId, messageId,
+												creationTimestamp, "stop", writer);
+										break STREAM_COMPLETE_LOOP;
 									} else if (jobStatus == PixelJobStatus.PROGRESS_COMPLETE && !started) {
 										// we didn't start
 										// and there is no output
@@ -373,128 +311,41 @@ public class OpenAIEndpoints {
 										Object finalObject = finalNoun.getValue();
 										String messageType = null;
 										Map<String, Object> resultOutput = null;
-										if(finalObject instanceof Map) {
+										if (finalObject instanceof Map) {
 											resultOutput = (Map<String, Object>) finalObject;
 											messageType = (String) resultOutput.get("messageType");
 										}
 
 										if ("TOOL".equals(messageType)) {
-										    // this is a function call request
-										    List<Map<String, Object>> response = (List<Map<String, Object>>) resultOutput.get("response");
-										    
-										    if (response != null && !response.isEmpty()) {
-										        Map<String, Object> toolCall = response.get(0);
-										        
-										        // first chunk - start the assistant response with tool calls
-										        Map<String, Object> chunk = new HashMap<>();
-										        chunk.put("id", messageId);
-										        chunk.put("object", "chat.completion.chunk");
-										        chunk.put("created", creationTimestamp);
-										        chunk.put("model", engineId);
-										        
-										        List<Map<String, Object>> choices = new ArrayList<>();
-										        Map<String, Object> choice = new HashMap<>();
-										        choice.put("index", 0);
-										        
-										        Map<String, Object> delta = new HashMap<>();
-										        delta.put("role", "assistant");
-										        delta.put("content", null);
-										        
-										        // add tool calls to delta
-										        List<Map<String, Object>> toolCalls = new ArrayList<>();
-										        Map<String, Object> toolCallDelta = new HashMap<>();
-										        toolCallDelta.put("index", 0);
-										        toolCallDelta.put("id", toolCall.get("id"));
-										        toolCallDelta.put("type", toolCall.get("type"));
-										        
-										        Map<String, Object> function = new HashMap<>();
-										        function.put("name", toolCall.get("name"));
-										        function.put("arguments", toolCall.get("arguments"));
-										        toolCallDelta.put("function", function);
-										        
-										        toolCalls.add(toolCallDelta);
-										        delta.put("tool_calls", toolCalls);
-										        
-										        choice.put("delta", delta);
-										        choice.put("finish_reason", null);
-										        
-										        choices.add(choice);
-										        chunk.put("choices", choices);
-										        
-										        writer.write("data: " + mapper.writeValueAsString(chunk) + "\n\n");
-										        
-										        // final chunk for function call
-										        Map<String, Object> finalChunk = new HashMap<>();
-										        finalChunk.put("id", messageId);
-										        finalChunk.put("object", "chat.completion.chunk");
-										        finalChunk.put("created", creationTimestamp);
-										        finalChunk.put("model", engineId);
-										        
-										        List<Map<String, Object>> finalChoices = new ArrayList<>();
-										        Map<String, Object> finalChoice = new HashMap<>();
-										        finalChoice.put("index", 0);
-										        finalChoice.put("delta", new HashMap<>());
-										        finalChoice.put("finish_reason", "tool_calls");
-										        
-										        finalChoices.add(finalChoice);
-										        finalChunk.put("choices", finalChoices);
-										        
-										        writer.write("data: " + mapper.writeValueAsString(finalChunk) + "\n\n");
-										        writer.write("data: [DONE]\n\n");
-										        writer.flush();
-										    }
+											// this is a function call request that was not streamed
+											// maybe the model doesn't support streaming of tools
+											List<Map<String, Object>> response = (List<Map<String, Object>>) resultOutput
+													.get("response");
+
+											if (response != null && !response.isEmpty()) {
+												OpenAIChatCompletionsHelper.writeFullToolResponseAsChunk(engineId,
+														messageId, creationTimestamp, response, writer);
+											}
+											OpenAIChatCompletionsHelper.writeFinishReason(engineId, messageId,
+													creationTimestamp, "tool_calls", writer);
 										} else {
-										    // Handle regular text response
-										    String content = null;
-										    if(resultOutput != null) {
-										    	content = (String) resultOutput.get("response"); 
-										    }
-										    
-										    if (content != null && !content.isEmpty()) {
-										        // stream content in chunks (optional - can send all at once)
-										        Map<String, Object> chunk = new HashMap<>();
-										        chunk.put("id", messageId);
-										        chunk.put("object", "chat.completion.chunk");
-										        chunk.put("created", creationTimestamp);
-										        chunk.put("model", engineId);
-										        
-										        List<Map<String, Object>> choices = new ArrayList<>();
-										        Map<String, Object> choice = new HashMap<>();
-										        choice.put("index", 0);
-										        
-										        Map<String, Object> delta = new HashMap<>();
-										        delta.put("role", "assistant");
-										        delta.put("content", content);
-										        choice.put("delta", delta);
-										        choice.put("finish_reason", null);
-										        
-										        choices.add(choice);
-										        chunk.put("choices", choices);
-										        
-										        writer.write("data: " + mapper.writeValueAsString(chunk) + "\n\n");
-										    }
-										    
-										    // final chunk for regular response
-										    Map<String, Object> finalChunk = new HashMap<>();
-										    finalChunk.put("id", messageId);
-										    finalChunk.put("object", "chat.completion.chunk");
-										    finalChunk.put("created", creationTimestamp);
-										    finalChunk.put("model", engineId);
-										    
-										    List<Map<String, Object>> finalChoices = new ArrayList<>();
-										    Map<String, Object> finalChoice = new HashMap<>();
-										    finalChoice.put("index", 0);
-										    finalChoice.put("delta", new HashMap<>());
-										    finalChoice.put("finish_reason", "stop");
-										    
-										    finalChoices.add(finalChoice);
-										    finalChunk.put("choices", finalChoices);
-										    
-										    writer.write("data: " + mapper.writeValueAsString(finalChunk) + "\n\n");
-										    writer.write("data: [DONE]\n\n");
-										    writer.flush();
+											// Handle regular text response
+											String content = null;
+											if (resultOutput != null) {
+												content = (String) resultOutput.get("response");
+												if (content != null && !content.isEmpty()) {
+													OpenAIChatCompletionsHelper.writeContentChunk(engineId, messageId,
+															creationTimestamp, content, true, writer);
+												}
+											}
+
+											// send final chunk with empty delta && finish_reason="stop"
+											OpenAIChatCompletionsHelper.writeFinishReason(engineId, messageId,
+													creationTimestamp, "stop", writer);
 										}
-										break;
+
+										// job is marked complete, always break
+										break STREAM_COMPLETE_LOOP;
 									}
 
 									// small delay
@@ -509,7 +360,7 @@ public class OpenAIEndpoints {
 								classLogger.error("Error in streaming response", e);
 								throw new WebApplicationException(e, 500);
 							} finally {
-								if(jobId != null) {
+								if (jobId != null) {
 									PixelJobManager.getManager().clearJob(jobId);
 									PixelJobManager.getManager().removeJob(jobId);
 								}
@@ -521,12 +372,14 @@ public class OpenAIEndpoints {
 
 	/**
 	 * Start an asynchronous model request and return the job ID
+	 * 
 	 * @param engine
 	 * @param insight
 	 * @param dataMap
 	 * @return
 	 */
-	private String startAsyncModelRequest(IModelEngine engine, Insight insight, Map<String, Object> dataMap, String sessionId) {
+	private String startAsyncModelRequest(IModelEngine engine, Insight insight, Map<String, Object> dataMap,
+			String sessionId) {
 		try {
 			// start async job
 			PixelJobManager manager = PixelJobManager.getManager();
@@ -534,9 +387,9 @@ public class OpenAIEndpoints {
 			String jobId = jt.getJobId();
 
 			Gson gson = new GsonBuilder().disableHtmlEscaping().create();
-			String modelPixel = "LLM(engine='"+engine.getEngineId()+"', command='<encode>ignore</encode>'"
-					// this should have the full_prompt
-					+ ",paramValues=["+gson.toJson(dataMap)+"]);";
+			String modelPixel = "LLM(engine='" + engine.getEngineId() + "', command='<encode>ignore</encode>'"
+			// this should have the full_prompt
+					+ ",paramValues=[" + gson.toJson(dataMap) + "]);";
 			jt.addPixel(modelPixel);
 			jt.start();
 			return jobId;
@@ -546,6 +399,8 @@ public class OpenAIEndpoints {
 			throw new IllegalArgumentException(e.getMessage());
 		}
 	}
+
+	// TODO: move paylaod generation logic into a new OpenAICompletionsHelper
 
 	@POST
 	@Path("/completions")
@@ -564,7 +419,7 @@ public class OpenAIEndpoints {
 
 		// how did you even get past the no user in session filter?
 		if (user == null) {
-			if(session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
+			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
 				session.invalidate();
 			}
 			Map<String, String> errorMap = new HashMap<>();
@@ -575,19 +430,19 @@ public class OpenAIEndpoints {
 		// set the user timezone
 		ZoneId zoneId = null;
 		String strTz = request.getParameter("tz");
-		if(strTz == null || (strTz=strTz.trim()).isEmpty()) {
+		if (strTz == null || (strTz = strTz.trim()).isEmpty()) {
 			zoneId = ZoneId.of(Utility.getApplicationZoneId());
 		} else {
 			try {
 				zoneId = ZoneId.of(strTz);
-			} catch(Exception e) {
+			} catch (Exception e) {
 				classLogger.warn("Error parsing out users timezone value: " + strTz);
 				classLogger.error(Constants.STACKTRACE, e);
 				zoneId = ZoneId.of(Utility.getApplicationZoneId());
 			}
 		}
 		// need null check if security is off
-		if(user != null) {
+		if (user != null) {
 			user.setZoneId(zoneId);
 		}
 
@@ -608,7 +463,8 @@ public class OpenAIEndpoints {
 		}
 
 		// Convert the JSON string to a Map
-		TypeReference<Map<String, Object>> mapType = new TypeReference<Map<String, Object>>() {};
+		TypeReference<Map<String, Object>> mapType = new TypeReference<Map<String, Object>>() {
+		};
 		Map<String, Object> dataMap;
 		try {
 			dataMap = objectMapper.readValue(WebUtility.jsonSanitizer(requestData.toString()), mapType);
@@ -622,7 +478,8 @@ public class OpenAIEndpoints {
 		String engineId = WebUtility.inputSanitizer((String) dataMap.remove("model"));
 		if (engineId == null || engineId.isEmpty()) {
 			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Bad Request: The 'data' parameter is missing the required 'model' field.");
+			errorMap.put(Constants.ERROR_MESSAGE,
+					"Bad Request: The 'data' parameter is missing the required 'model' field.");
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
@@ -638,10 +495,11 @@ public class OpenAIEndpoints {
 			isStreamingRequest = Boolean.parseBoolean(dataMap.get("stream").toString());
 			dataMap.remove("stream");
 		}
-		
-		if(!SecurityEngineUtils.userCanViewEngine(user, engineId)) {
+
+		if (!SecurityEngineUtils.userCanViewEngine(user, engineId)) {
 			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Model " + engineId + " does not exist or user does not have access to this model");
+			errorMap.put(Constants.ERROR_MESSAGE,
+					"Model " + engineId + " does not exist or user does not have access to this model");
 			return WebUtility.getResponse(errorMap, 403);
 		}
 
@@ -658,10 +516,11 @@ public class OpenAIEndpoints {
 				// pull the insight id from the session set
 				insightId = sessionInsights.iterator().next();
 				insight = InsightStore.getInstance().get(insightId);
-			}		
+			}
 		} else {
 			insight = InsightStore.getInstance().get(insightId);
-			InsightStore.getInstance().addToSessionHash(sessionId, insightId); // maybe its an insight id from another session?
+			InsightStore.getInstance().addToSessionHash(sessionId, insightId); // maybe its an insight id from another
+																				// session?
 		}
 
 		if (insight == null) {
@@ -672,15 +531,15 @@ public class OpenAIEndpoints {
 		}
 
 		// set the user
-		insight.setUser(user);		
+		insight.setUser(user);
 
 		IModelEngine engine = Utility.getModel(engineId);
-		
+
 		if (!isStreamingRequest) {
 			AskModelEngineResponse llmResponse;
 			try {
 				llmResponse = engine.ask(question, null, insight, dataMap);
-			} catch (Exception e){
+			} catch (Exception e) {
 				classLogger.error(Constants.STACKTRACE, e);
 				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -698,7 +557,7 @@ public class OpenAIEndpoints {
 			Instant instant = currentDateTime.toInstant();
 			// Get the number of seconds since the epoch
 			long unixTimestamp = instant.getEpochSecond();
-					
+
 			Map<String, Object> llmResponseMap = new HashMap<>();
 			llmResponseMap.put("id", messageId);
 			llmResponseMap.put("object", "text_completion");
@@ -719,14 +578,14 @@ public class OpenAIEndpoints {
 			// "usage" object
 			Map<String, Object> usage = new HashMap<>();
 
-			if (promptTokens!= null && responseTokens != null) {
+			if (promptTokens != null && responseTokens != null) {
 				usage.put("completion_tokens", responseTokens);
 				usage.put("prompt_tokens", promptTokens);
 				usage.put("total_tokens", promptTokens + responseTokens);
 			} else {
 				if (responseTokens != null) {
 					usage.put("completion_tokens", responseTokens);
-				} 
+				}
 
 				if (promptTokens != null) {
 					usage.put("prompt_tokens", promptTokens);
@@ -737,16 +596,16 @@ public class OpenAIEndpoints {
 			return WebUtility.getResponse(llmResponseMap, 200);
 		} else {
 			// fake streaming implementation!!
-			final String messageId = "chatcmpl-" + UUID.randomUUID().toString();
+			final String messageId = "chatcmpl-" + GUID.v7().toUUID().toString();
 			final long creationTimestamp = Instant.now().getEpochSecond();
 
-		    classLogger.info("Starting fake streaming response for model: " + engineId);
-		    
+			classLogger.info("Starting fake streaming response for model: " + engineId);
+
 			final Insight FINAL_INSIGHT = insight;
 			return Response.ok().header("Content-Type", "text/event-stream").header("Cache-Control", "no-cache")
 					.header("Connection", "keep-alive").entity((StreamingOutput) output -> {
 						ObjectMapper mapper = new ObjectMapper();
-						try (Writer writer = new BufferedWriter(new OutputStreamWriter(output))){
+						try (Writer writer = new BufferedWriter(new OutputStreamWriter(output))) {
 							// Get full completion from your model in one go
 							AskModelEngineResponse llmResponse = engine.ask(question, null, FINAL_INSIGHT, dataMap);
 							String completionText = llmResponse.getStringResponse();
@@ -770,10 +629,12 @@ public class OpenAIEndpoints {
 							chunk.put("choices", choices);
 
 							Map<String, Object> usage = new HashMap<>();
-							if (promptTokens != null)
+							if (promptTokens != null) {
 								usage.put("prompt_tokens", promptTokens);
-							if (responseTokens != null)
+							}
+							if (responseTokens != null) {
 								usage.put("completion_tokens", responseTokens);
+							}
 							if (promptTokens != null && responseTokens != null) {
 								usage.put("total_tokens", promptTokens + responseTokens);
 							}
@@ -808,7 +669,7 @@ public class OpenAIEndpoints {
 
 		// how did you even get past the no user in session filter?
 		if (user == null) {
-			if(session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
+			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
 				session.invalidate();
 			}
 			Map<String, String> errorMap = new HashMap<>();
@@ -819,19 +680,19 @@ public class OpenAIEndpoints {
 		// set the user timezone
 		ZoneId zoneId = null;
 		String strTz = request.getParameter("tz");
-		if(strTz == null || (strTz=strTz.trim()).isEmpty()) {
+		if (strTz == null || (strTz = strTz.trim()).isEmpty()) {
 			zoneId = ZoneId.of(Utility.getApplicationZoneId());
 		} else {
 			try {
 				zoneId = ZoneId.of(strTz);
-			} catch(Exception e) {
+			} catch (Exception e) {
 				classLogger.warn("Error parsing out users timezone value: " + strTz);
 				classLogger.error(Constants.STACKTRACE, e);
 				zoneId = ZoneId.of(Utility.getApplicationZoneId());
 			}
 		}
 		// need null check if security is off
-		if(user != null) {
+		if (user != null) {
 			user.setZoneId(zoneId);
 		}
 
@@ -850,7 +711,8 @@ public class OpenAIEndpoints {
 		}
 
 		// Convert the JSON string to a Map
-		TypeReference<Map<String, Object>> mapType = new TypeReference<Map<String, Object>>() {};
+		TypeReference<Map<String, Object>> mapType = new TypeReference<Map<String, Object>>() {
+		};
 		Map<String, Object> dataMap;
 		try {
 			dataMap = objectMapper.readValue(WebUtility.jsonSanitizer(requestData.toString()), mapType);
@@ -864,21 +726,24 @@ public class OpenAIEndpoints {
 		String engineId = WebUtility.inputSanitizer((String) dataMap.remove("model"));
 		if (engineId == null || engineId.isEmpty()) {
 			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Bad Request: The 'data' parameter is missing the required 'model' field.");
+			errorMap.put(Constants.ERROR_MESSAGE,
+					"Bad Request: The 'data' parameter is missing the required 'model' field.");
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		List<String> stringsToEncode = (List<String>) dataMap.remove("input");
 		if (stringsToEncode == null || stringsToEncode.isEmpty()) {
 			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Bad Request: The 'data' parameter is missing the required 'input' field.");
+			errorMap.put(Constants.ERROR_MESSAGE,
+					"Bad Request: The 'data' parameter is missing the required 'input' field.");
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// make sure the user can view the engine
-		if(!SecurityEngineUtils.userCanViewEngine(user, engineId)) {
+		if (!SecurityEngineUtils.userCanViewEngine(user, engineId)) {
 			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Model " + engineId + " does not exist or user does not have access to this model");
+			errorMap.put(Constants.ERROR_MESSAGE,
+					"Model " + engineId + " does not exist or user does not have access to this model");
 			return WebUtility.getResponse(errorMap, 403);
 		}
 
@@ -895,10 +760,11 @@ public class OpenAIEndpoints {
 				// pull the insight id from the session set
 				insightId = sessionInsights.iterator().next();
 				insight = InsightStore.getInstance().get(insightId);
-			}		
+			}
 		} else {
 			insight = InsightStore.getInstance().get(insightId);
-			InsightStore.getInstance().addToSessionHash(sessionId, insightId); // maybe its an insight id from another session?
+			InsightStore.getInstance().addToSessionHash(sessionId, insightId); // maybe its an insight id from another
+																				// session?
 		}
 
 		if (insight == null) {
@@ -909,13 +775,13 @@ public class OpenAIEndpoints {
 		}
 
 		// set the user
-		insight.setUser(user);		
+		insight.setUser(user);
 
 		IModelEngine engine = Utility.getModel(engineId);
 		EmbeddingsModelEngineResponse embeddingsResponse;
 		try {
 			embeddingsResponse = engine.embeddings(stringsToEncode, insight, dataMap);
-		} catch (Exception e){
+		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -946,7 +812,7 @@ public class OpenAIEndpoints {
 		// "usage" object
 		Map<String, Object> usage = new HashMap<>();
 
-		if (promptTokens!= null && responseTokens != null) {
+		if (promptTokens != null && responseTokens != null) {
 			usage.put("prompt_tokens", promptTokens);
 			usage.put("total_tokens", promptTokens + responseTokens);
 		} else {
@@ -956,7 +822,7 @@ public class OpenAIEndpoints {
 		embeddingsResponseMap.put("usage", usage);
 		return WebUtility.getResponse(embeddingsResponseMap, 200);
 	}
-	
+
 	@GET
 	@Path("/models")
 	@Produces("application/json;charset=utf-8")
@@ -969,14 +835,14 @@ public class OpenAIEndpoints {
 		}
 		// how did you even get past the no user in session filter?
 		if (user == null) {
-			if(session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
+			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
 				session.invalidate();
 			}
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		MyEnginesReactor reactor = new MyEnginesReactor();
 		reactor.In();
 		Insight temp = new Insight();
@@ -997,7 +863,7 @@ public class OpenAIEndpoints {
 			struct.add(new NounMetadata(false, PixelDataType.BOOLEAN));
 			reactor.getNounStore().addNoun(ReactorKeysEnum.INCLUDE_USERTRACKING_KEY.getKey(), struct);
 		}
-		
+
 		NounMetadata outputNoun = reactor.execute();
 		List<Map<String, Object>> openAiResponse = processModelList(outputNoun);
 		Map<String, Object> returnObject = new HashMap<>();
@@ -1018,14 +884,14 @@ public class OpenAIEndpoints {
 		}
 		// how did you even get past the no user in session filter?
 		if (user == null) {
-			if(session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
+			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
 				session.invalidate();
 			}
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		MyEnginesReactor reactor = new MyEnginesReactor();
 		reactor.In();
 		Insight temp = new Insight();
@@ -1051,19 +917,20 @@ public class OpenAIEndpoints {
 			struct.add(new NounMetadata(false, PixelDataType.BOOLEAN));
 			reactor.getNounStore().addNoun(ReactorKeysEnum.INCLUDE_USERTRACKING_KEY.getKey(), struct);
 		}
-		
+
 		NounMetadata outputNoun = reactor.execute();
 		List<Map<String, Object>> openAiResponse = processModelList(outputNoun);
-		if(openAiResponse == null || openAiResponse.isEmpty()) {
+		if (openAiResponse == null || openAiResponse.isEmpty()) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Could not find model = '" + modelId + "'");
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		return WebUtility.getResponse(openAiResponse.get(0), 200);
 	}
-	
+
 	/**
 	 * Process the MyEngines output format to OpenAi format
+	 * 
 	 * @param outputNoun
 	 * @return
 	 */
@@ -1071,16 +938,16 @@ public class OpenAIEndpoints {
 		List<Map<String, Object>> enginesList = (List<Map<String, Object>>) outputNoun.getValue();
 		// we will convert our object to the openai spec
 		List<Map<String, Object>> openAiResponse = new ArrayList<>(enginesList.size());
-		for(Map<String, Object> engines : enginesList) {
+		for (Map<String, Object> engines : enginesList) {
 			Map<String, Object> newMap = new HashMap<>();
 			newMap.put("object", "model");
 			newMap.put("id", engines.get("database_id"));
 			newMap.put("alias", engines.get("database_name"));
 			newMap.put("owned_by", engines.get("database_created_by"));
 			SemossDate dateCreated = (SemossDate) engines.get("database_date_created");
-			if(dateCreated != null) {
+			if (dateCreated != null) {
 				ZonedDateTime zdt = dateCreated.getZonedDateTime();
-				if(zdt != null) {
+				if (zdt != null) {
 					newMap.put("created", zdt.toEpochSecond());
 				}
 			}
@@ -1088,6 +955,5 @@ public class OpenAIEndpoints {
 		}
 		return openAiResponse;
 	}
-	
-	
+
 }
