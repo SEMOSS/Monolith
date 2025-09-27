@@ -465,7 +465,16 @@
 					<groupId>com.fasterxml.jackson.core</groupId>
 					<artifactId>*</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>org.apache.santuario</groupId>
+					<artifactId>xmlsec</artifactId>
+				</exclusion>
 			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.santuario</groupId>
+			<artifactId>xmlsec</artifactId>
+			<version>4.0.4</version>
 		</dependency>
 		<!-- adding updated jar to deal with exclusion w/ vulnerability -->
 		<!-- https://mvnrepository.com/artifact/com.fasterxml.woodstox/woodstox-core -->
