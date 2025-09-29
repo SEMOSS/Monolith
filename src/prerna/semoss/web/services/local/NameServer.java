@@ -60,13 +60,6 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
-import io.swagger.v3.oas.annotations.tags.Tag;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.media.ExampleObject;
-import io.swagger.v3.oas.annotations.parameters.RequestBody;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
@@ -90,7 +83,15 @@ import com.google.gson.JsonSyntaxException;
 import com.google.gson.ToNumberPolicy;
 import com.google.gson.internal.LinkedTreeMap;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import prerna.auth.User;
 import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityInsightUtils;
@@ -131,7 +132,7 @@ public class NameServer {
 	private static final String INSIGHT_NOT_FOUND = "INSIGHT_NOT_FOUND";
 	// base URL for the requests on this server instance
 	private static String baseURL = null;
-
+	
 	// --- OpenAPI DTOs for request/response documentation only ---
 	static class RunPixelRequest {
 		@Schema(description = "Insight identifier. Use 'new' to create a new insight or omit for temporary.", example = "bf235853-86b7-483f-a0a5-ae489bfed97b")
@@ -142,6 +143,37 @@ public class NameServer {
 		public String tz;
 		@Schema(description = "If true, drop console logging after run", example = "true")
 		public Boolean dropLogging;
+	}
+
+	static class ReactorMCPRequest {
+		@Schema(description = "JSON-RPC version", example = "2.0")
+		public String jsonrpc;
+		@Schema(description = "Request ID", example = "unique-request-id")
+		public String id;
+		@Schema(description = "Method name", example = "tools/call")
+		public String method;
+		@Schema(description = "Parameters for the reactor call")
+		public Params params;
+		@Schema(description = "Meta information")
+		public Meta _meta;
+
+		static class Params {
+			@Schema(description = "Reactor name", example = "reactorName")
+			public String name;
+			@Schema(description = "Arguments for the reactor")
+			public Map<String, Object> arguments;
+		}
+
+		static class Meta {
+			@Schema(description = "Insight ID", example = "insightId")
+			public String insightId;
+			@Schema(description = "Timezone", example = "America/New_York")
+			public String tz;
+			@Schema(description = "Drop logging", example = "true")
+			public String dropLogging;
+			@Schema(description = "Context project ID", example = "projectId")
+			public String contextProjectId;
+		}
 	}
 
 	static class InsightIdForm {
@@ -164,13 +196,12 @@ public class NameServer {
 		@Schema(description = "JSON-encoded filters including app_id and tags")
 		public String filterData;
 	}
-	
 	////////////////////////////////////////////////////////////////////////////////
 
 	@GET
 	@Path("playsheets")
 	@Produces("application/json")
-	@Operation(
+		@Operation(
 		summary = "List available PlaySheets",
 		description = "Returns a map of PlaySheet names to their implementation classes.",
 		responses = {
@@ -300,7 +331,7 @@ public class NameServer {
 				content = @Content(mediaType = "application/json",
 					examples = @ExampleObject(value = "{\n  \"error\": \"Unauthorized\"\n}")))
 		}
-	)
+	)	
 	public Response downloadFile(@QueryParam("insightId") String insightId, @QueryParam("fileKey") String fileKey) {
 		// for "security"
 		// require the person to have both the insight id
@@ -572,6 +603,37 @@ public class NameServer {
 	@Path("/runReactorMCP")
 	@Consumes({ "application/json" })
 	@Produces("application/json;charset=utf-8")
+	// Add Swagger annotations
+	@Operation(
+		summary = "Execute Reactor via MCP",
+		description = "Executes a specified reactor with given parameters using the MCP protocol.",
+		requestBody = @RequestBody(required = true, content = {
+			@Content(mediaType = "application/json", schema = @Schema(implementation = NameServer.ReactorMCPRequest.class))
+		}),
+		responses = {
+			@ApiResponse(
+				responseCode = "200",
+				description = "Reactor executed",
+				content = @Content(
+					mediaType = "application/json",
+					schema = @Schema(
+						type = "object",
+						example = "{ \"jsonrpc\": \"2.0\", \"result\": { \"content\": [ { \"type\": \"text\", \"text\": \"Reactor execution output\" } ], \"isError\": false } }"
+					),
+					examples = {
+						@io.swagger.v3.oas.annotations.media.ExampleObject(
+							name = "Sample Response",
+							value = "{ \"jsonrpc\": \"2.0\", \"result\": { \"content\": [ { \"type\": \"text\", \"text\": \"Reactor execution output\" } ], \"isError\": false } }"
+						)
+					}
+				)
+			),
+			@ApiResponse(responseCode = "400", description = "Invalid request",
+				content = @Content(mediaType = "application/json")),
+			@ApiResponse(responseCode = "401", description = "Unauthorized",
+				content = @Content(mediaType = "application/json"))
+		}
+	)
 	public Response runReactorMCP(@Context HttpServletRequest request) {
 		/*
 		 * Simpler way of running pixel reactor { "jsonrpc": "2.0", "id":
@@ -812,7 +874,7 @@ public class NameServer {
 				content = @Content(mediaType = "application/json",
 					examples = @ExampleObject(value = "{\n  \"error\": \"User session is invalid\"\n}")))
 		}
-	)
+	)	
 	public Response getPixelPipelinePlan(@Context HttpServletRequest request) {
 		HttpSession session = request.getSession(false);
 		String sessionId = null;
@@ -937,7 +999,7 @@ public class NameServer {
 				content = @Content(mediaType = "application/json",
 					examples = @ExampleObject(value = "{\n  \"error\": \"User session is invalid\"\n}")))
 		}
-	)
+	)	
 	public Response runPixelAsync(@Context HttpServletRequest request) {
 		HttpSession session = request.getSession(false);
 		String sessionId = null;
@@ -1205,7 +1267,7 @@ public class NameServer {
 				content = @Content(mediaType = "application/json",
 					examples = @ExampleObject(value = "{\n  \"status\": \"RUNNING\",\n  \"message\": [\"line 1\", \"line 2\"]\n}")))
 		}
-	)
+	)	
 	public Response console(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		String jobId = WebUtility.inputSQLSanitizer(form.getFirst("jobId"));
 		// HttpSession session = request.getSession(true);
@@ -1230,6 +1292,16 @@ public class NameServer {
 	@POST
 	@Path("/error")
 	@Produces("application/json")
+	@Operation(
+		summary = "Get async job error logs",
+		description = "Returns error logs for an asynchronous Pixel job.",
+		requestBody = @RequestBody(required = true, content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = NameServer.JobIdRequest.class))),
+		responses = {
+			@ApiResponse(responseCode = "200", description = "Error logs returned",
+				content = @Content(mediaType = "application/json",
+					examples = @ExampleObject(value = "{\n  \"status\": \"FAILED\",\n  \"message\": [\"Error: Something went wrong\"]\n}")))
+		}
+	)	
 	public Response error(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		String jobId = WebUtility.inputSQLSanitizer(form.getFirst("jobId"));
 		// HttpSession session = request.getSession(true);
@@ -1263,7 +1335,7 @@ public class NameServer {
 				content = @Content(mediaType = "application/json",
 					examples = @ExampleObject(value = "{\n  \"status\": \"RUNNING\",\n  \"message\": { \"partial\": \"value\" }\n}")))
 		}
-	)
+	)	
 	@Deprecated
 	public Response partial(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		String jobId = WebUtility.inputSQLSanitizer(form.getFirst("jobId"));
@@ -1291,8 +1363,8 @@ public class NameServer {
 				content = @Content(mediaType = "application/json",
 					examples = @ExampleObject(value = "{\n  \"status\": \"FAILED\",\n  \"message\": [\"Error: Something went wrong\"]\n}")))
 		}
-	)
-	public Response error(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+	)	
+	public Response pixelJobStreaming(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		String jobId = WebUtility.inputSQLSanitizer(form.getFirst("jobId"));
 		// HttpSession session = request.getSession(true);
 		// if(session.getAttribute(jobId) != null) {
@@ -1324,7 +1396,7 @@ public class NameServer {
 				content = @Content(mediaType = "application/json",
 					examples = @ExampleObject(value = "\"success\"")))
 		}
-	)
+	)	
 	public StreamingOutput terminate(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		String jobId = WebUtility.inputSQLSanitizer(form.getFirst("jobId"));
 		// HttpSession session = request.getSession(true);
@@ -1335,127 +1407,6 @@ public class NameServer {
 		return WebUtility.getSO("success");
 	}
 
-	// reset job
-	@POST
-	@Path("/reset")
-	@Produces("application/json")
-	@Operation(
-		summary = "Reset async job",
-		description = "Resets a previously submitted asynchronous Pixel job.",
-		requestBody = @RequestBody(required = true, content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = NameServer.JobIdRequest.class))),
-		responses = {
-			@ApiResponse(responseCode = "200", description = "Job reset",
-				content = @Content(mediaType = "application/json",
-					examples = @ExampleObject(value = "\"success\"")))
-		}
-	)
-	public StreamingOutput reset(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
-		String jobId = WebUtility.inputSQLSanitizer(form.getFirst("jobId"));
-		// HttpSession session = request.getSession(true);
-		// if(session.getAttribute(jobId) != null) {
-		PixelJobManager.getManager().resetJob(jobId);
-		// }
-		return WebUtility.getSO("success");
-	}
-
-	@GET
-	@Path("/comet")
-	@Produces("text/plain")
-	@Operation(
-		summary = "Start a comet job (legacy)",
-		description = "Starts a legacy long-running job and returns its identifier.",
-		responses = {
-			@ApiResponse(responseCode = "200", description = "Job started",
-				content = @Content(mediaType = "text/plain",
-					examples = @ExampleObject(value = "abc123-job-id")))
-		}
-	)
-	public String cometTry(@Context HttpServletRequest request) {
-		// I need to create a job id
-		// then I need to start the thread with this job id
-		// I need to keep the response in the response hash with this job id.. so when I
-		// have
-		SemossExecutorSingleton threader = SemossExecutorSingleton.getInstance();
-		SemossThread newThread = new SemossThread();
-		// newThread.setResponse(response);
-		String jId = threader.execute(newThread);
-		// ResponseHashSingleton.setResponse(jId, response);
-		ResponseHashSingleton.setThread(jId, newThread);
-		// request.getSession(true).setAttribute("JOB_ID", jId);
-		return jId; // store this in session so the user doesn't need to provide this
-	}
-
-	@GET
-	@Path("/joutput")
-	@Produces("text/plain")
-	@Operation(
-		summary = "Get comet job output (legacy)",
-		description = "Retrieves output for a legacy comet job.",
-		responses = {
-			@ApiResponse(responseCode = "200", description = "Output returned",
-				content = @Content(mediaType = "text/plain",
-					examples = @ExampleObject(value = "Comet job output...")))
-		}
-	)
-	public String getJobOutput(@QueryParam("jobId") String jobId, @Context HttpServletRequest request) {
-
-		jobId=WebUtility.inputSQLSanitizer(jobId);
-
-	    
-		String output = "Job Longer Available";
-		AsyncResponse myResponse = (AsyncResponse) ResponseHashSingleton.getResponseforJobId(jobId);
-		// if(ResponseHashSingleton.getThread(jobId) != null)
-		// {
-		// SemossThread thread = (SemossThread)ResponseHashSingleton.getThread(jobId);
-		// output = thread.getOutput() + "";
-		// }
-		if (myResponse != null) {
-			classLogger.debug("Response Done ? " + myResponse.isDone());
-			classLogger.debug("Response suspended ? " + myResponse.isSuspended());
-			classLogger.debug("Is the response done..  ? " + myResponse.isDone());
-			myResponse.resume("Hello2222");
-			myResponse.resume("Hola again");
-			classLogger.debug("MyResponse is not null");
-		}
-
-		return output;
-	}
-
-	@GET
-	@Path("/jkill")
-	@Produces("application/xml")
-	@Operation(
-		summary = "Kill comet job (legacy)",
-		description = "Terminates a legacy comet job.",
-		responses = {
-			@ApiResponse(responseCode = "200", description = "Job terminated",
-				content = @Content(mediaType = "application/xml",
-					examples = @ExampleObject(value = "<status>terminated</status>")))
-		}
-	)
-	public void killJob(@QueryParam("jobId") String jobId, @Context HttpServletRequest request) {
-		// AsyncResponse myResponse =
-		// (AsyncResponse)ResponseHashSingleton.getResponseforJobId(jobId);
-		
-		jobId=WebUtility.inputSQLSanitizer(jobId);
-
-	    
-		SemossThread thread = ResponseHashSingleton.getThread(jobId);
-		thread.setComplete(true);
-		ResponseHashSingleton.removeThread(jobId);
-
-		/*			   if(myResponse != null ) {
-				   System.out.println("Respons Done ? " + myResponse.isDone());
-				   System.out.println("Respons suspended ? " + myResponse.isSuspended());
-				   System.out.println("Is the response done..  ? " + myResponse.isDone());
-				   myResponse.resume("Hello2222");
-				   myResponse.resume("Hola again");
-				   System.out.println("MyResponse is not null");
-			   }
-		 */
-		// return thread.getOutput() + "";
-	}
-	
 	/**
 	 * Get the base url for the FE request
 	 * 
@@ -1495,15 +1446,6 @@ public class NameServer {
 	@GET
 	@Path("mediawiki/tags")
 	@Produces("application/json")
-	@Operation(
-		summary = "Search MediaWiki tags",
-		description = "Searches Wikipedia for a term and returns top results with Product Ontology links.",
-		responses = {
-			@ApiResponse(responseCode = "200", description = "Results returned",
-				content = @Content(mediaType = "application/json",
-					examples = @ExampleObject(value = "{\n  \"http://www.productontology.org/id/Apple\": \"Fruit description...\"\n}")))
-		}
-	)
 	public StreamingOutput getMediaWikiTagsForSearchTerm(@QueryParam("searchTerm") String searchTerm,
 			@QueryParam("numResults") int numResults) {
 
@@ -1623,7 +1565,7 @@ public class NameServer {
 	@GET
 	@Path("all")
 	@Produces("application/json")
-	@Operation(
+		@Operation(
 		summary = "List engines",
 		description = "Returns basic information for all engines the user can access.",
 		responses = {
@@ -1660,7 +1602,7 @@ public class NameServer {
 				content = @Content(mediaType = "application/json",
 					examples = @ExampleObject(value = "{}")))
 		}
-	)
+	)	
 	public void addEngine(@Context HttpServletRequest request, @QueryParam("api") String api,
 			@QueryParam("database") String database) {
 //		// would be cool to give this as an HTML
@@ -1687,15 +1629,6 @@ public class NameServer {
 	@GET
 	@Path("help")
 	@Produces("text/html")
-	@Operation(
-		summary = "Help routes",
-		description = "Returns a simple HTML page describing available routes.",
-		responses = {
-			@ApiResponse(responseCode = "200", description = "HTML returned",
-				content = @Content(mediaType = "text/html",
-					examples = @ExampleObject(value = "<html><body><h1>SEMOSS Engine API</h1></body></html>")))
-		}
-	)
 	public StreamingOutput printURL(@Context HttpServletRequest request, @Context HttpServletResponse response) {
 		Hashtable<String, String> helpHash = null;
 		// would be cool to give this as an HTML
@@ -1830,7 +1763,7 @@ public class NameServer {
 				content = @Content(mediaType = "application/json",
 					examples = @ExampleObject(value = "[\n  \"sales by region\",\n  \"customer churn\"\n]")))
 		}
-	)
+	)	
 	public StreamingOutput getAutoCompleteResults(@QueryParam("completeTerm") String searchString,
 			@Context HttpServletRequest request) {
 
@@ -1866,7 +1799,7 @@ public class NameServer {
 				content = @Content(mediaType = "application/json",
 					examples = @ExampleObject(value = "[\n  { \"id\": \"bf235853-86b7-483f-a0a5-ae489bfed97b\", \"title\": \"Sales by Region\", \"tags\": [\"sales\", \"region\"] }\n]")))
 		}
-	)
+	)	
 	public StreamingOutput getSearchInsightsResults(MultivaluedMap<String, String> form,
 			@Context HttpServletRequest request) {
 		Gson gson = new Gson();

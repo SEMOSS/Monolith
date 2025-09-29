@@ -10955,27 +10955,6 @@
         } ]
       }
     },
-    "/engine/comet" : {
-      "get" : {
-        "tags" : [ "Engine Execution" ],
-        "summary" : "Start a comet job (legacy)",
-        "description" : "Starts a legacy long-running job and returns its identifier.",
-        "operationId" : "cometTry",
-        "responses" : {
-          "200" : {
-            "description" : "Job started",
-            "content" : {
-              "text/plain" : {
-                "example" : "abc123-job-id"
-              }
-            }
-          }
-        },
-        "security" : [ {
-          "basicAuth" : [ ]
-        } ]
-      }
-    },
     "/engine/console" : {
       "post" : {
         "tags" : [ "Engine Execution" ],
@@ -11173,72 +11152,12 @@
     "/engine/help" : {
       "get" : {
         "tags" : [ "Engine Execution" ],
-        "summary" : "Help routes",
-        "description" : "Returns a simple HTML page describing available routes.",
         "operationId" : "printURL",
         "responses" : {
-          "200" : {
-            "description" : "HTML returned",
+          "default" : {
+            "description" : "default response",
             "content" : {
-              "text/html" : {
-                "example" : "<html><body><h1>SEMOSS Engine API</h1></body></html>"
-              }
-            }
-          }
-        },
-        "security" : [ {
-          "basicAuth" : [ ]
-        } ]
-      }
-    },
-    "/engine/jkill" : {
-      "get" : {
-        "tags" : [ "Engine Execution" ],
-        "summary" : "Kill comet job (legacy)",
-        "description" : "Terminates a legacy comet job.",
-        "operationId" : "killJob",
-        "parameters" : [ {
-          "name" : "jobId",
-          "in" : "query",
-          "schema" : {
-            "type" : "string"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "description" : "Job terminated",
-            "content" : {
-              "application/xml" : {
-                "example" : "<status>terminated</status>"
-              }
-            }
-          }
-        },
-        "security" : [ {
-          "basicAuth" : [ ]
-        } ]
-      }
-    },
-    "/engine/joutput" : {
-      "get" : {
-        "tags" : [ "Engine Execution" ],
-        "summary" : "Get comet job output (legacy)",
-        "description" : "Retrieves output for a legacy comet job.",
-        "operationId" : "getJobOutput",
-        "parameters" : [ {
-          "name" : "jobId",
-          "in" : "query",
-          "schema" : {
-            "type" : "string"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "description" : "Output returned",
-            "content" : {
-              "text/plain" : {
-                "example" : "Comet job output..."
-              }
+              "text/html" : { }
             }
           }
         },
@@ -11250,8 +11169,6 @@
     "/engine/mediawiki/tags" : {
       "get" : {
         "tags" : [ "Engine Execution" ],
-        "summary" : "Search MediaWiki tags",
-        "description" : "Searches Wikipedia for a term and returns top results with Product Ontology links.",
         "operationId" : "getMediaWikiTagsForSearchTerm",
         "parameters" : [ {
           "name" : "searchTerm",
@@ -11268,14 +11185,10 @@
           }
         } ],
         "responses" : {
-          "200" : {
-            "description" : "Results returned",
+          "default" : {
+            "description" : "default response",
             "content" : {
-              "application/json" : {
-                "example" : {
-                  "http://www.productontology.org/id/Apple" : "Fruit description..."
-                }
-              }
+              "application/json" : { }
             }
           }
         },
@@ -11315,6 +11228,41 @@
             }
           }
         },
+        "deprecated" : true,
+        "security" : [ {
+          "basicAuth" : [ ]
+        } ]
+      }
+    },
+    "/engine/pixelJobStreaming" : {
+      "post" : {
+        "tags" : [ "Engine Execution" ],
+        "summary" : "Get async job error logs",
+        "description" : "Returns error logs for an asynchronous Pixel job.",
+        "operationId" : "pixelJobStreaming",
+        "requestBody" : {
+          "content" : {
+            "application/x-www-form-urlencoded" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/JobIdRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "Error logs returned",
+            "content" : {
+              "application/json" : {
+                "example" : {
+                  "status" : "FAILED",
+                  "message" : [ "Error: Something went wrong" ]
+                }
+              }
+            }
+          }
+        },
         "security" : [ {
           "basicAuth" : [ ]
         } ]
@@ -11345,37 +11293,6 @@
                 "example" : {
                   "error" : "Unauthorized"
                 }
-              }
-            }
-          }
-        },
-        "security" : [ {
-          "basicAuth" : [ ]
-        } ]
-      }
-    },
-    "/engine/reset" : {
-      "post" : {
-        "tags" : [ "Engine Execution" ],
-        "summary" : "Reset async job",
-        "description" : "Resets a previously submitted asynchronous Pixel job.",
-        "operationId" : "reset",
-        "requestBody" : {
-          "content" : {
-            "application/x-www-form-urlencoded" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/JobIdRequest"
-              }
-            }
-          },
-          "required" : true
-        },
-        "responses" : {
-          "200" : {
-            "description" : "Job reset",
-            "content" : {
-              "application/json" : {
-                "example" : "success"
               }
             }
           }
@@ -11559,12 +11476,65 @@
     "/engine/runReactorMCP" : {
       "post" : {
         "tags" : [ "Engine Execution" ],
+        "summary" : "Execute Reactor via MCP",
+        "description" : "Executes a specified reactor with given parameters using the MCP protocol.",
         "operationId" : "runReactorMCP",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ReactorMCPRequest"
+              }
+            }
+          },
+          "required" : true
+        },
         "responses" : {
-          "default" : {
-            "description" : "default response",
+          "200" : {
+            "description" : "Reactor executed",
             "content" : {
-              "application/json;charset=utf-8" : { }
+              "application/json" : {
+                "schema" : {
+                  "type" : "object",
+                  "example" : {
+                    "jsonrpc" : "2.0",
+                    "result" : {
+                      "content" : [ {
+                        "type" : "text",
+                        "text" : "Reactor execution output"
+                      } ],
+                      "isError" : false
+                    }
+                  }
+                },
+                "examples" : {
+                  "Sample Response" : {
+                    "description" : "Sample Response",
+                    "value" : {
+                      "jsonrpc" : "2.0",
+                      "result" : {
+                        "content" : [ {
+                          "type" : "text",
+                          "text" : "Reactor execution output"
+                        } ],
+                        "isError" : false
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "Invalid request",
+            "content" : {
+              "application/json" : { }
+            }
+          },
+          "401" : {
+            "description" : "Unauthorized",
+            "content" : {
+              "application/json" : { }
             }
           }
         },
@@ -12845,6 +12815,77 @@
             "type" : "string",
             "description" : "Provider key",
             "example" : "google"
+          }
+        }
+      },
+      "Meta" : {
+        "type" : "object",
+        "properties" : {
+          "contextProjectId" : {
+            "type" : "string",
+            "description" : "Context project ID",
+            "example" : "projectId"
+          },
+          "dropLogging" : {
+            "type" : "string",
+            "description" : "Drop logging",
+            "example" : "true"
+          },
+          "insightId" : {
+            "type" : "string",
+            "description" : "Insight ID",
+            "example" : "insightId"
+          },
+          "tz" : {
+            "type" : "string",
+            "description" : "Timezone",
+            "example" : "America/New_York"
+          }
+        },
+        "description" : "Meta information"
+      },
+      "Params" : {
+        "type" : "object",
+        "properties" : {
+          "arguments" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "object",
+              "description" : "Arguments for the reactor"
+            },
+            "description" : "Arguments for the reactor"
+          },
+          "name" : {
+            "type" : "string",
+            "description" : "Reactor name",
+            "example" : "reactorName"
+          }
+        },
+        "description" : "Parameters for the reactor call"
+      },
+      "ReactorMCPRequest" : {
+        "type" : "object",
+        "properties" : {
+          "_meta" : {
+            "$ref" : "#/components/schemas/Meta"
+          },
+          "id" : {
+            "type" : "string",
+            "description" : "Request ID",
+            "example" : "unique-request-id"
+          },
+          "jsonrpc" : {
+            "type" : "string",
+            "description" : "JSON-RPC version",
+            "example" : "2.0"
+          },
+          "method" : {
+            "type" : "string",
+            "description" : "Method name",
+            "example" : "tools/call"
+          },
+          "params" : {
+            "$ref" : "#/components/schemas/Params"
           }
         }
       },
