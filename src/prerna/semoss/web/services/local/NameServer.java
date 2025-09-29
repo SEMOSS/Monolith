@@ -41,7 +41,6 @@ import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 import javax.annotation.security.PermitAll;
 import javax.servlet.http.Cookie;
@@ -56,7 +55,6 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
@@ -84,6 +82,7 @@ import org.apache.logging.log4j.Logger;
 import org.json.JSONObject;
 import org.jsoup.Jsoup;
 
+import com.github.f4b6a3.uuid.alt.GUID;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
@@ -118,9 +117,6 @@ import prerna.util.Constants;
 import prerna.util.PlaySheetRDFMapBasedEnum;
 import prerna.util.Utility;
 import prerna.util.gson.GsonUtility;
-import prerna.web.services.util.ResponseHashSingleton;
-import prerna.web.services.util.SemossExecutorSingleton;
-import prerna.web.services.util.SemossThread;
 import prerna.web.services.util.WebUtility;
 
 @Path("/engine")
@@ -201,10 +197,9 @@ public class NameServer {
 			@QueryParam("dataFrameType") String dataFrameType, @Context HttpServletRequest request) {
 		// eventually I want to pick this from session
 		// but for now let us pick it from the insight store
-		dataFrameType=WebUtility.inputSanitizer(dataFrameType);
-		insightID=WebUtility.inputSanitizer(insightID);
+		dataFrameType = WebUtility.inputSanitizer(dataFrameType);
+		insightID = WebUtility.inputSanitizer(insightID);
 
-		
 		classLogger.debug("Came into this point.. " + insightID);
 
 		Insight existingInsight = null;
@@ -311,10 +306,10 @@ public class NameServer {
 		// require the person to have both the insight id
 		// and the file id
 		// in order to download the file
-		
-		insightId=WebUtility.inputSanitizer(insightId);
-		fileKey=WebUtility.inputSQLSanitizer(fileKey);
-	    
+
+		insightId = WebUtility.inputSanitizer(insightId);
+		fileKey = WebUtility.inputSQLSanitizer(fileKey);
+
 		Insight insight = InsightStore.getInstance().get(insightId);
 		if (insight == null) {
 			Map<String, String> errorMap = new HashMap<>();
@@ -330,11 +325,11 @@ public class NameServer {
 				errorMap.put(Constants.ERROR_MESSAGE, "Could not find the file for given file id");
 				return WebUtility.getResponse(errorMap, 400);
 			}
-			
+
 			String exportName = FilenameUtils.getName(filePath);
 			return Response.status(200).entity(exportFile)
 					.header("Content-Disposition", "attachment; filename=\"" + exportName + "\"").build();
-		} catch(Exception e) {
+		} catch (Exception e) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
@@ -347,7 +342,7 @@ public class NameServer {
 
 	@POST
 	@Path("/runPixel")
-	@Consumes({"application/x-www-form-urlencoded", "application/json"})
+	@Consumes({ "application/x-www-form-urlencoded", "application/json" })
 	@Produces("application/json;charset=utf-8")
 	@Operation(
 		summary = "Execute Pixel synchronously",
@@ -388,7 +383,7 @@ public class NameServer {
 		// and then let it lose
 
 		// I need a couple of different statistics for this user and panel
-		// is user (initially I had he, but then diversity) listening for 
+		// is user (initially I had he, but then diversity) listening for
 		// stdout, stderr or both
 		// what is the level of log the user wants and the panel wants
 
@@ -404,29 +399,30 @@ public class NameServer {
 		User user = null;
 		Insight insight = null;
 		boolean dropLogging = true;
-		
+
 		if (session != null) {
 			sessionId = session.getId();
 			user = ((User) session.getAttribute(Constants.SESSION_USER));
 		}
-		
+
 		// how did you even get past the no user in session filter?
 		if (user == null) {
-			if(session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
+			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
 				session.invalidate();
 			}
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		// add the route if this is server deployment
 		String routeCookieName = Utility.getDIHelperProperty(Constants.LOAD_BALANCER_COOKIE_NAME);
 		if (routeCookieName != null && !routeCookieName.isEmpty()) {
 			Cookie[] curCookies = request.getCookies();
 			if (curCookies != null) {
 				for (Cookie c : curCookies) {
-					classLogger.debug(Utility.cleanLogString(">>>>> Request cookie " + c.getName() + " with value " + c.getValue()));
+					classLogger.debug(Utility
+							.cleanLogString(">>>>> Request cookie " + c.getName() + " with value " + c.getValue()));
 					if (c.getName().equals(routeCookieName)) {
 						routeId = WebUtility.inputSQLSanitizer(c.getValue());
 						ChromeDriverUtility.setRouteCookieValue(c.getValue());
@@ -434,13 +430,13 @@ public class NameServer {
 				}
 			}
 		}
-		
+
 		// Extract parameters based on content type
 		String insightId = null;
 		String expression = null;
 		String strTz = null;
 		String logStr = null;
-		
+
 		String contentType = request.getContentType();
 		if (contentType != null && contentType.toLowerCase().contains("application/json")) {
 			// Handle JSON content
@@ -451,24 +447,25 @@ public class NameServer {
 				while ((line = reader.readLine()) != null) {
 					jsonBuffer.append(line);
 				}
-				
+
 				String jsonString = jsonBuffer.toString();
-				Gson gson = new GsonBuilder()
-					.disableHtmlEscaping()
-					.setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE)
-					.create();
+				Gson gson = new GsonBuilder().disableHtmlEscaping()
+						.setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE).create();
 				JsonObject jsonObject = gson.fromJson(jsonString, JsonObject.class);
-				
+
 				// Extract values from JSON object
-				insightId = jsonObject.has("insightId") && !jsonObject.get("insightId").isJsonNull() 
-					? jsonObject.get("insightId").getAsString() : null;
-				expression = jsonObject.has("expression") && !jsonObject.get("expression").isJsonNull() 
-					? jsonObject.get("expression").getAsString() : null;
-				strTz = jsonObject.has("tz") && !jsonObject.get("tz").isJsonNull() 
-					? jsonObject.get("tz").getAsString() : null;
-				logStr = jsonObject.has("dropLogging") && !jsonObject.get("dropLogging").isJsonNull() 
-					? jsonObject.get("dropLogging").getAsString() : null;
-				
+				insightId = jsonObject.has("insightId") && !jsonObject.get("insightId").isJsonNull()
+						? jsonObject.get("insightId").getAsString()
+						: null;
+				expression = jsonObject.has("expression") && !jsonObject.get("expression").isJsonNull()
+						? jsonObject.get("expression").getAsString()
+						: null;
+				strTz = jsonObject.has("tz") && !jsonObject.get("tz").isJsonNull() ? jsonObject.get("tz").getAsString()
+						: null;
+				logStr = jsonObject.has("dropLogging") && !jsonObject.get("dropLogging").isJsonNull()
+						? jsonObject.get("dropLogging").getAsString()
+						: null;
+
 				// Sanitize the extracted values
 				if (insightId != null) {
 					insightId = WebUtility.inputSanitizer(insightId);
@@ -498,26 +495,26 @@ public class NameServer {
 			logStr = WebUtility.inputSQLSanitizer(request.getParameter("dropLogging"));
 		}
 
-		if(expression == null || (expression = expression.trim()).isEmpty()) {
+		if (expression == null || (expression = expression.trim()).isEmpty()) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Must pass in 'expression' key containing the pixel to execute");
 			errorMap.put(ERROR_TYPE, INSIGHT_NOT_FOUND);
 			return WebUtility.getResponse(errorMap, 400);
 		}
-		if(!expression.endsWith(";")) {
+		if (!expression.endsWith(";")) {
 			expression = expression + ";";
 		}
-		
+
 		// figure out the type of insight
 		// first is temp
 		if (insightId == null || insightId.toString().isEmpty() || insightId.equals("undefined")) {
-			insightId = "TempInsight_" + UUID.randomUUID().toString();
+			insightId = "TempInsight_" + GUID.v7().toUUID().toString();
 			insight = new Insight();
 			insight.setBaseURL(getServerURL(request));
 			insight.setInsightId(insightId);
 			insight.setTemporaryInsight(true);
 			InsightStore.getInstance().put(insight);
-		} else if (insightId.equals("new")) { 
+		} else if (insightId.equals("new")) {
 			// need to make a new insight here
 			insight = new Insight();
 			insight.setBaseURL(getServerURL(request));
@@ -539,65 +536,51 @@ public class NameServer {
 		InsightStore.getInstance().addToSessionHash(sessionId, insightId);
 		// set the user
 		insight.setUser(user);
-		
+
 		// set the user timezone
 		ZoneId zoneId = null;
-		if(strTz == null || (strTz=strTz.trim()).isEmpty()) {
+		if (strTz == null || (strTz = strTz.trim()).isEmpty()) {
 			zoneId = ZoneId.of(Utility.getApplicationTimeZoneId());
 		} else {
 			try {
 				zoneId = ZoneId.of(strTz);
-			} catch(Exception e) {
+			} catch (Exception e) {
 				classLogger.warn("Error parsing out users timezone value: " + strTz);
 				classLogger.error(Constants.STACKTRACE, e);
 				zoneId = ZoneId.of(Utility.getApplicationTimeZoneId());
 			}
 		}
 		// need null check if security is off
-		if(user != null) {
+		if (user != null) {
 			user.setZoneId(zoneId);
 		}
 		// set if we are scheduler mode
 		Boolean schedulerMode = ThreadStore.isSchedulerMode();
-		if(schedulerMode != null) {
+		if (schedulerMode != null) {
 			insight.setSchedulerMode(schedulerMode);
 		}
-		
+
 		// are we running runPixel in runPixel on the same insight?
-		if(logStr != null) {
+		if (logStr != null) {
 			dropLogging = Boolean.parseBoolean(logStr);
 		}
-	
+
 		return runPixelJob(user, insight, expression, insightId, sessionId, routeId, dropLogging);
 	}
-	
+
 	@POST
 	@Path("/runReactorMCP")
-	@Consumes({"application/json"})
+	@Consumes({ "application/json" })
 	@Produces("application/json;charset=utf-8")
 	public Response runReactorMCP(@Context HttpServletRequest request) {
 		/*
-		 * Simpler way of running pixel reactor
-		 	{
-			  "jsonrpc": "2.0",
-			  "id": "unique-request-id",
-			  "method": "tools/call",
-			  "params": {
-			    "name": "reactorName",
-			    "arguments": {
-			      "param1": "value1",
-			      "param2": "value2"
-			    }
-			  },
-			  "_meta":{
-			  	"insightId":"insightId",
-			  	"tz":"timezone",
-			  	"dropLogging":"dropLogging",
-			  	"contextProjectId":"projectId"
-			  }
-			}
+		 * Simpler way of running pixel reactor { "jsonrpc": "2.0", "id":
+		 * "unique-request-id", "method": "tools/call", "params": { "name":
+		 * "reactorName", "arguments": { "param1": "value1", "param2": "value2" } },
+		 * "_meta":{ "insightId":"insightId", "tz":"timezone",
+		 * "dropLogging":"dropLogging", "contextProjectId":"projectId" } }
 		 */
-		
+
 		JSONObject response = new JSONObject();
 		JSONObject root = null;
 
@@ -606,37 +589,38 @@ public class NameServer {
 		String routeId = null;
 		User user = null;
 		Insight insight = null;
-		
+
 		if (session != null) {
 			sessionId = session.getId();
 			user = ((User) session.getAttribute(Constants.SESSION_USER));
 		}
-		
+
 		// how did you even get past the no user in session filter?
 		if (user == null) {
-			if(session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
+			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
 				session.invalidate();
 			}
 			response.put("id", "null");
-			response.put("jsonrpc","2.0");
+			response.put("jsonrpc", "2.0");
 			JSONObject error = new JSONObject();
 			error.put("code", MCPErrorCode.RESOURCE_ACCESS_DENIED.getCode());
-		    error.put("message", "User session is invalid or expired");
+			error.put("message", "User session is invalid or expired");
 			response.put("error", error);
-			
+
 			return Response.status(401).entity(response.toString())
-					.header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0")
-					.header("Pragma", "no-cache")
-					.build();
+					.header("Cache-Control",
+							"no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0")
+					.header("Pragma", "no-cache").build();
 		}
-		
+
 		// add the route if this is server deployment
 		String routeCookieName = Utility.getDIHelperProperty(Constants.LOAD_BALANCER_COOKIE_NAME);
 		if (routeCookieName != null && !routeCookieName.isEmpty()) {
 			Cookie[] curCookies = request.getCookies();
 			if (curCookies != null) {
 				for (Cookie c : curCookies) {
-					classLogger.debug(Utility.cleanLogString(">>>>> Request cookie " + c.getName() + " with value " + c.getValue()));
+					classLogger.debug(Utility
+							.cleanLogString(">>>>> Request cookie " + c.getName() + " with value " + c.getValue()));
 					if (c.getName().equals(routeCookieName)) {
 						routeId = WebUtility.inputSQLSanitizer(c.getValue());
 						ChromeDriverUtility.setRouteCookieValue(c.getValue());
@@ -648,7 +632,7 @@ public class NameServer {
 		// Extract parameters from meta
 		String insightId = null;
 		String strTz = null;
-		
+
 		try {
 			// Handle JSON content
 			StringBuilder jsonBuffer = new StringBuilder();
@@ -657,56 +641,51 @@ public class NameServer {
 			while ((line = reader.readLine()) != null) {
 				jsonBuffer.append(line);
 			}
-			
+
 			root = new JSONObject(jsonBuffer.toString());
-		} catch(IOException | org.json.JSONException e) {
+		} catch (IOException | org.json.JSONException e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			/*
-				{
-				  "jsonrpc": "2.0",
-				  "id": null,
-				  "error": {
-				    "code": -32700,
-				    "message": "Parse error - Invalid JSON was received by the server"
-				  }
-				}
-			*/
+			 * { "jsonrpc": "2.0", "id": null, "error": { "code": -32700, "message":
+			 * "Parse error - Invalid JSON was received by the server" } }
+			 */
 			response.put("id", "null");
-			response.put("jsonrpc","2.0");
+			response.put("jsonrpc", "2.0");
 			JSONObject error = new JSONObject();
 			error.put("code", MCPErrorCode.PARSE_ERROR.getCode());
 			error.put("message", MCPErrorCode.PARSE_ERROR.getDescription());
 			response.put("error", error);
-			
+
 			return Response.status(400).entity(response.toString())
-					.header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0")
-					.header("Pragma", "no-cache")
-					.build();
+					.header("Cache-Control",
+							"no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0")
+					.header("Pragma", "no-cache").build();
 		}
-		
+
 		JSONObject meta = null;
-		if(root.has("_meta")) {
+		if (root.has("_meta")) {
 			meta = root.getJSONObject("_meta");
 		}
-		
+
 		// Sanitize the extracted values
-		if(meta != null && meta.has("insightId")) {
+		if (meta != null && meta.has("insightId")) {
 			insightId = WebUtility.inputSanitizer(meta.getString("insightId"));
 		}
-		if(meta != null && meta.has("tz")) {
+		if (meta != null && meta.has("tz")) {
 			strTz = WebUtility.inputSQLSanitizer(meta.getString("tz"));
 		}
 
+		String uuid = GUID.v7().toUUID().toString();
 		// figure out the type of insight
 		// first is temp
 		if (insightId == null || insightId.toString().isEmpty() || insightId.equals("undefined")) {
-			insightId = "TempInsight_" + UUID.randomUUID().toString();
+			insightId = "TempInsight_" + uuid;
 			insight = new Insight();
 			insight.setBaseURL(getServerURL(request));
 			insight.setInsightId(insightId);
 			insight.setTemporaryInsight(true);
 			InsightStore.getInstance().put(insight);
-		} else if (insightId.equals("new")) { 
+		} else if (insightId.equals("new")) {
 			// need to make a new insight here
 			insight = new Insight();
 			insight.setBaseURL(getServerURL(request));
@@ -728,73 +707,68 @@ public class NameServer {
 		InsightStore.getInstance().addToSessionHash(sessionId, insightId);
 		// set the user
 		insight.setUser(user);
-		
+
 		// set the user timezone
 		ZoneId zoneId = null;
-		if(strTz == null || (strTz=strTz.trim()).isEmpty()) {
+		if (strTz == null || (strTz = strTz.trim()).isEmpty()) {
 			zoneId = ZoneId.of(Utility.getApplicationTimeZoneId());
 		} else {
 			try {
 				zoneId = ZoneId.of(strTz);
-			} catch(Exception e) {
+			} catch (Exception e) {
 				classLogger.warn("Error parsing out users timezone value: " + strTz);
 				classLogger.error(Constants.STACKTRACE, e);
 				zoneId = ZoneId.of(Utility.getApplicationTimeZoneId());
 			}
 		}
 		// need null check if security is off
-		if(user != null) {
+		if (user != null) {
 			user.setZoneId(zoneId);
 		}
 		// set if we are scheduler mode
 		Boolean schedulerMode = ThreadStore.isSchedulerMode();
-		if(schedulerMode != null) {
+		if (schedulerMode != null) {
 			insight.setSchedulerMode(schedulerMode);
 		}
-		
+
 		// set in thread
 		ThreadStore.setInsightId(insight.getInsightId());
 		ThreadStore.setSessionId(sessionId);
 		ThreadStore.setRouteId(routeId);
-		ThreadStore.setJobId(UUID.randomUUID().toString());
+		ThreadStore.setJobId(uuid);
 		ThreadStore.setUser(insight.getUser());
-		
+
 		String reactorName = root.getJSONObject("params").getString("name");
 		JSONObject arguments = root.getJSONObject("params").getJSONObject("arguments");
-		
+
 		int statusCode = 200;
 		IReactor thisReactor = ReactorFactory.getReactor(insight, reactorName, null, insight.getCurFrame());
 		JSONObject reactorToolMCP = thisReactor.asMcpTool();
 		// get everything else
-		JSONObject reactorProperties = ((JSONObject)reactorToolMCP.get("inputSchema")).getJSONObject("properties");
+		JSONObject reactorProperties = ((JSONObject) reactorToolMCP.get("inputSchema")).getJSONObject("properties");
 		try {
-			String retObject = MCPUtility.runPixelTool(null, insight, reactorName, reactorProperties, arguments.toMap());
+			String retObject = MCPUtility.runPixelTool(null, insight, reactorName, reactorProperties,
+					arguments.toMap());
 			Map<String, Object> resultMap = new HashMap<>();
 			List<Map<String, Object>> contentList = new ArrayList<>();
 			Map<String, Object> contentMap = new HashMap<>();
 			contentMap.put("type", "text");
 			contentMap.put("text", retObject);
-			
+
 			contentList.add(contentMap);
 			resultMap.put("content", contentList);
 			resultMap.put("isError", false);
 			response.put("result", resultMap);
-		} catch(SemossMCPException e) {
+		} catch (SemossMCPException e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			statusCode = 400;
 			/*
-			    {
-				  "jsonrpc": "2.0",
-				  "id": 3,
-				  "error": {
-				    "code": <example code>,
-				    "message": <example message>
-				  }
-				}
+			 * { "jsonrpc": "2.0", "id": 3, "error": { "code": <example code>, "message":
+			 * <example message> } }
 			 */
 			JSONObject error = new JSONObject();
 			error.put("code", e.getError().getCode());
-			if(e.getMessage() != null) {
+			if (e.getMessage() != null) {
 				error.put("message", e.getMessage());
 			} else {
 				error.put("message", e.getError().getDescription());
@@ -805,20 +779,18 @@ public class NameServer {
 			statusCode = 400;
 			JSONObject error = new JSONObject();
 			error.put("code", MCPErrorCode.TOOL_EXECUTION_FAILED.getCode());
-			if(e.getMessage() != null) {
+			if (e.getMessage() != null) {
 				error.put("message", e.getMessage());
 			} else {
 				error.put("message", MCPErrorCode.TOOL_EXECUTION_FAILED.getDescription());
 			}
 			response.put("error", error);
 		}
-		
+
 		return Response.status(statusCode).entity(response.toString())
 				.header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0")
-				.header("Pragma", "no-cache")
-				.build();
+				.header("Pragma", "no-cache").build();
 	}
-	
 
 	@POST
 	@Path("/getPipeline")
@@ -845,7 +817,7 @@ public class NameServer {
 		HttpSession session = request.getSession(false);
 		String sessionId = null;
 		User user = null;
-		
+
 		if (session != null) {
 			sessionId = session.getId();
 			user = ((User) session.getAttribute(Constants.SESSION_USER));
@@ -857,7 +829,7 @@ public class NameServer {
 			classLogger.debug("User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		String insightId = WebUtility.inputSanitizer(request.getParameter("insightId"));
 		Insight insight = InsightStore.getInstance().get(insightId);
 		if (insight == null) {
@@ -867,17 +839,17 @@ public class NameServer {
 			classLogger.error("Insight not found for insightId " + insightId);
 			return WebUtility.getResponse(errorMap, 400);
 		}
-		
+
 		// set the user
 		insight.setUser(user);
 		// set in thread
 		ThreadStore.setInsightId(insightId);
 		ThreadStore.setSessionId(sessionId);
 		ThreadStore.setUser(user);
-					
+
 		return getInsightPipeline(insight);
 	}
-	
+
 	/**
 	 * 
 	 * @param user
@@ -889,33 +861,32 @@ public class NameServer {
 	 * @param dropLogging
 	 * @return
 	 */
-	public static Response runPixelJob(User user, Insight insight, String expression, 
-			String insightId, String sessionId, String routeId, boolean dropLogging) {
+	public static Response runPixelJob(User user, Insight insight, String expression, String insightId,
+			String sessionId, String routeId, boolean dropLogging) {
 		PixelJobManager manager = PixelJobManager.getManager();
 		PixelJobThread jt = manager.makeJob(WebUtility.inputSanitizer(insightId), insight, sessionId, routeId);
 		String jobId = jt.getJobId();
 		jt.addPixel(expression);
 		jt.run();
 		PixelRunner pixelRunner = jt.getRunner();
-		
+
 		try {
 			return Response.status(200).entity(PixelStreamUtility.collectPixelData(pixelRunner, jt))
-					.header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0")
-					.header("Pragma", "no-cache")
-					.build();
+					.header("Cache-Control",
+							"no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0")
+					.header("Pragma", "no-cache").build();
 		} finally {
 			// there are times when we spin up
-			// other runPixel requests on the same 
+			// other runPixel requests on the same
 			// insight but don't want to drop the master insight
 			// console logging
-			// example is ExportToExcel grids 
-			if(dropLogging) {
-				jt.setStatus(PixelJobStatus.COMPLETE);
+			// example is ExportToExcel grids
+			jt.setStatus(PixelJobStatus.COMPLETE);
+			if (dropLogging) {
 				manager.clearJob(jobId);
 				manager.removeJob(jobId);
-				
 				// dont do this
-				// let the clearing happen from the UserSessionLoader 
+				// let the clearing happen from the UserSessionLoader
 				// so that we also close any user processes that exist
 //				if(insight.isTemporaryInsight()) {
 //					InsightStore.getInstance().removeFromSessionHash(WebUtility.inputSQLSanitizer(sessionId), WebUtility.inputSQLSanitizer(insightId));
@@ -923,7 +894,7 @@ public class NameServer {
 			}
 		}
 	}
-	
+
 	/**
 	 * 
 	 * @param insight
@@ -934,8 +905,7 @@ public class NameServer {
 		synchronized (insight) {
 			try {
 				return Response.status(200)
-						.entity(GsonUtility.getDefaultGson().toJson(PixelUtility.generatePipeline(insight)))
-						.build();
+						.entity(GsonUtility.getDefaultGson().toJson(PixelUtility.generatePipeline(insight))).build();
 			} catch (Exception e) {
 				classLogger.error(Constants.STACKTRACE, e);
 				Map<String, String> errorMap = new HashMap<>();
@@ -944,10 +914,10 @@ public class NameServer {
 			}
 		}
 	}
-	
+
 	@POST
 	@Path("runPixelAsync")
-	@Consumes({"application/x-www-form-urlencoded", "application/json"})
+	@Consumes({ "application/x-www-form-urlencoded", "application/json" })
 	@Produces("application/json;charset=utf-8")
 	@Operation(
 		summary = "Execute Pixel asynchronously",
@@ -974,7 +944,7 @@ public class NameServer {
 		String routeId = null;
 		User user = null;
 		Insight insight = null;
-		
+
 		if (session != null) {
 			sessionId = WebUtility.inputSQLSanitizer(session.getId());
 			user = ((User) session.getAttribute(Constants.SESSION_USER));
@@ -986,14 +956,15 @@ public class NameServer {
 			classLogger.debug("User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		// add the route if this is server deployment
 		String routeCookieName = Utility.getDIHelperProperty(Constants.LOAD_BALANCER_COOKIE_NAME);
 		if (routeCookieName != null && !routeCookieName.isEmpty()) {
 			Cookie[] curCookies = request.getCookies();
 			if (curCookies != null) {
 				for (Cookie c : curCookies) {
-					classLogger.debug(Utility.cleanLogString(">>>>> Request cookie " + c.getName() + " with value " + c.getValue()));
+					classLogger.debug(Utility
+							.cleanLogString(">>>>> Request cookie " + c.getName() + " with value " + c.getValue()));
 					if (c.getName().equals(routeCookieName)) {
 						routeId = WebUtility.inputSQLSanitizer(c.getValue());
 						ChromeDriverUtility.setRouteCookieValue(c.getValue());
@@ -1001,13 +972,13 @@ public class NameServer {
 				}
 			}
 		}
-		
+
 		// Extract parameters based on content type
 		String insightId = null;
 		String expression = null;
 		String strTz = null;
 		String logStr = null;
-		
+
 		String contentType = request.getContentType();
 		if (contentType != null && contentType.toLowerCase().contains("application/json")) {
 			// Handle JSON content
@@ -1018,24 +989,25 @@ public class NameServer {
 				while ((line = reader.readLine()) != null) {
 					jsonBuffer.append(line);
 				}
-				
+
 				String jsonString = jsonBuffer.toString();
-				Gson gson = new GsonBuilder()
-					.disableHtmlEscaping()
-					.setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE)
-					.create();
+				Gson gson = new GsonBuilder().disableHtmlEscaping()
+						.setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE).create();
 				JsonObject jsonObject = gson.fromJson(jsonString, JsonObject.class);
-				
+
 				// Extract values from JSON object
-				insightId = jsonObject.has("insightId") && !jsonObject.get("insightId").isJsonNull() 
-					? jsonObject.get("insightId").getAsString() : null;
-				expression = jsonObject.has("expression") && !jsonObject.get("expression").isJsonNull() 
-					? jsonObject.get("expression").getAsString() : null;
-				strTz = jsonObject.has("tz") && !jsonObject.get("tz").isJsonNull() 
-					? jsonObject.get("tz").getAsString() : null;
-				logStr = jsonObject.has("dropLogging") && !jsonObject.get("dropLogging").isJsonNull() 
-					? jsonObject.get("dropLogging").getAsString() : null;
-				
+				insightId = jsonObject.has("insightId") && !jsonObject.get("insightId").isJsonNull()
+						? jsonObject.get("insightId").getAsString()
+						: null;
+				expression = jsonObject.has("expression") && !jsonObject.get("expression").isJsonNull()
+						? jsonObject.get("expression").getAsString()
+						: null;
+				strTz = jsonObject.has("tz") && !jsonObject.get("tz").isJsonNull() ? jsonObject.get("tz").getAsString()
+						: null;
+				logStr = jsonObject.has("dropLogging") && !jsonObject.get("dropLogging").isJsonNull()
+						? jsonObject.get("dropLogging").getAsString()
+						: null;
+
 				// Sanitize the extracted values
 				if (insightId != null) {
 					insightId = WebUtility.inputSanitizer(insightId);
@@ -1064,27 +1036,27 @@ public class NameServer {
 			strTz = WebUtility.inputSQLSanitizer(request.getParameter("tz"));
 			logStr = WebUtility.inputSQLSanitizer(request.getParameter("dropLogging"));
 		}
-		
-		if(expression == null || (expression = expression.trim()).isEmpty()) {
+
+		if (expression == null || (expression = expression.trim()).isEmpty()) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Must pass in 'expression' key containing the pixel to execute");
 			errorMap.put(ERROR_TYPE, INSIGHT_NOT_FOUND);
 			return WebUtility.getResponse(errorMap, 400);
 		}
-		if(!expression.endsWith(";")) {
+		if (!expression.endsWith(";")) {
 			expression = expression + ";";
 		}
-		
+
 		// figure out the type of insight
 		// first is temp
 		if (insightId == null || insightId.toString().isEmpty() || insightId.equals("undefined")) {
-			insightId = "TempInsight_" + UUID.randomUUID().toString();
+			insightId = "TempInsight_" + GUID.v7().toUUID().toString();
 			insight = new Insight();
 			insight.setBaseURL(getServerURL(request));
 			insight.setInsightId(insightId);
 			insight.setTemporaryInsight(true);
 			InsightStore.getInstance().put(insight);
-		} else if (insightId.equals("new")) { 
+		} else if (insightId.equals("new")) {
 			// need to make a new insight here
 			insight = new Insight();
 			insight.setBaseURL(getServerURL(request));
@@ -1107,22 +1079,22 @@ public class NameServer {
 
 		// set the user timezone
 		ZoneId zoneId = null;
-		if(strTz == null || (strTz=strTz.trim()).isEmpty()) {
+		if (strTz == null || (strTz = strTz.trim()).isEmpty()) {
 			zoneId = ZoneId.of(Utility.getApplicationTimeZoneId());
 		} else {
 			try {
 				zoneId = ZoneId.of(strTz);
-			} catch(Exception e) {
+			} catch (Exception e) {
 				classLogger.warn("Error parsing out users timezone value: " + strTz);
 				classLogger.error(Constants.STACKTRACE, e);
 				zoneId = ZoneId.of(Utility.getApplicationTimeZoneId());
 			}
 		}
 		// need null check if security is off
-		if(user != null) {
+		if (user != null) {
 			user.setZoneId(zoneId);
 		}
-		
+
 		insight.setUser(user);
 		PixelJobManager manager = PixelJobManager.getManager();
 		PixelJobThread jt = manager.makeJob(insight, sessionId, routeId);
@@ -1131,13 +1103,19 @@ public class NameServer {
 		// this is required so you can call /result only within the same session
 		session.setAttribute(jt.getJobId(), "TRUE");
 		jt.start();
-		
+
 		Map<String, String> dataReturn = new HashMap<>();
 		dataReturn.put("jobId", jt.getJobId());
 		return WebUtility.getResponse(dataReturn, 200);
 	}
 
-	// get result of the operation
+	/**
+	 * Get the final result from a async pixel execution
+	 * 
+	 * @param form
+	 * @param request
+	 * @return
+	 */
 	@POST
 	@Path("/result")
 	@Produces("application/json")
@@ -1155,14 +1133,6 @@ public class NameServer {
 		}
 	)
 	public StreamingOutput result(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
-//		Object dataReturn = "NULL";
-//		HttpSession session = request.getSession(true);
-//		String jobId = form.getFirst("jobId");
-//		if (session.getAttribute(jobId) != null) {
-//			dataReturn = JobManager.getManager().getOutput(jobId);
-//		}
-//		return WebUtility.getSO(dataReturn);
-		
 		HttpSession session = request.getSession(true);
 		String jobId = WebUtility.inputSQLSanitizer(form.getFirst("jobId"));
 		if (session.getAttribute(jobId) == null) {
@@ -1181,8 +1151,13 @@ public class NameServer {
 		}
 	}
 
-	// is the status of the operation
-	// get result of the operation
+	/**
+	 * Get the current status of a jobId
+	 * 
+	 * @param form
+	 * @param request
+	 * @return
+	 */
 	@POST
 	@Path("/status")
 	@Produces("application/json")
@@ -1202,7 +1177,7 @@ public class NameServer {
 		String jobId = WebUtility.inputSQLSanitizer(form.getFirst("jobId"));
 		if (session.getAttribute(jobId) != null) {
 			PixelJobThread jt = PixelJobManager.getManager().getJob(jobId);
-			if(jt == null) {
+			if (jt == null) {
 				dataReturn = PixelJobStatus.UNKNOWN_JOB.getValue();
 			} else {
 				dataReturn = jt.getStatus();
@@ -1211,7 +1186,13 @@ public class NameServer {
 		return WebUtility.getResponseNoCache(dataReturn, 200);
 	}
 
-	// std outputs and errors
+	/**
+	 * Get the std out responses from a job
+	 * 
+	 * @param form
+	 * @param request
+	 * @return
+	 */
 	@POST
 	@Path("/console")
 	@Produces("application/json")
@@ -1226,7 +1207,7 @@ public class NameServer {
 		}
 	)
 	public Response console(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
-		String jobId =WebUtility.inputSQLSanitizer(form.getFirst("jobId"));
+		String jobId = WebUtility.inputSQLSanitizer(form.getFirst("jobId"));
 		// HttpSession session = request.getSession(true);
 		// if(session.getAttribute(jobId) != null) {
 		// if(jobId != null)
@@ -1238,7 +1219,38 @@ public class NameServer {
 		// }
 		return WebUtility.getResponseNoCache(dataReturn, 200);
 	}
-	
+
+	/**
+	 * Get the std error responses from a job
+	 * 
+	 * @param form
+	 * @param request
+	 * @return
+	 */
+	@POST
+	@Path("/error")
+	@Produces("application/json")
+	public Response error(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+		String jobId = WebUtility.inputSQLSanitizer(form.getFirst("jobId"));
+		// HttpSession session = request.getSession(true);
+		// if(session.getAttribute(jobId) != null) {
+		PixelJobThread jt = PixelJobManager.getManager().getJob(jobId);
+		List<String> console = PixelJobManager.getManager().getError(jobId);
+		Map<String, Object> dataReturn = new HashMap<>();
+		dataReturn.put("status", jt == null ? PixelJobStatus.UNKNOWN_JOB.getValue() : jt.getStatus());
+		dataReturn.put("message", console);
+		// }
+		return WebUtility.getResponseNoCache(dataReturn, 200);
+	}
+
+	/**
+	 * @deprecated switch to
+	 *             {@link #pixelJobStreaming(MultivaluedMap, HttpServletRequest)}
+	 *             instead
+	 * @param form
+	 * @param request
+	 * @return
+	 */
 	@POST
 	@Path("/partial")
 	@Produces("application/json")
@@ -1252,6 +1264,7 @@ public class NameServer {
 					examples = @ExampleObject(value = "{\n  \"status\": \"RUNNING\",\n  \"message\": { \"partial\": \"value\" }\n}")))
 		}
 	)
+	@Deprecated
 	public Response partial(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		String jobId = WebUtility.inputSQLSanitizer(form.getFirst("jobId"));
 		// HttpSession session = request.getSession(true);
@@ -1267,7 +1280,7 @@ public class NameServer {
 	}
 
 	@POST
-	@Path("/error")
+	@Path("/pixelJobStreaming")
 	@Produces("application/json")
 	@Operation(
 		summary = "Get async job error logs",
@@ -1283,8 +1296,9 @@ public class NameServer {
 		String jobId = WebUtility.inputSQLSanitizer(form.getFirst("jobId"));
 		// HttpSession session = request.getSession(true);
 		// if(session.getAttribute(jobId) != null) {
+		// if(jobId != null)
 		PixelJobThread jt = PixelJobManager.getManager().getJob(jobId);
-		List<String> console = PixelJobManager.getManager().getError(jobId);
+		List<Map<String, Object>> console = PixelJobManager.getManager().getStreamOut(jobId);
 		Map<String, Object> dataReturn = new HashMap<>();
 		dataReturn.put("status", jt == null ? PixelJobStatus.UNKNOWN_JOB.getValue() : jt.getStatus());
 		dataReturn.put("message", console);
@@ -1292,7 +1306,12 @@ public class NameServer {
 		return WebUtility.getResponseNoCache(dataReturn, 200);
 	}
 
-	// close / terminate job
+	/**
+	 * 
+	 * @param form
+	 * @param request
+	 * @return
+	 */
 	@POST
 	@Path("/terminate")
 	@Produces("application/json")
@@ -1439,20 +1458,21 @@ public class NameServer {
 	
 	/**
 	 * Get the base url for the FE request
+	 * 
 	 * @param request
 	 * @return
 	 */
 	public String getServerURL(HttpServletRequest request) {
-		if(NameServer.baseURL == null) {
-			//http://localhost:8080/appui/
-			if(request.getHeader("referer") != null) {
+		if (NameServer.baseURL == null) {
+			// http://localhost:8080/appui/
+			if (request.getHeader("referer") != null) {
 				StringBuffer baseURL = new StringBuffer(request.getHeader("referer")).append("#!/");
 				NameServer.baseURL = baseURL.toString();
 			}
 		}
 		return baseURL;
 	}
-	
+
 	///////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////
@@ -1486,8 +1506,8 @@ public class NameServer {
 	)
 	public StreamingOutput getMediaWikiTagsForSearchTerm(@QueryParam("searchTerm") String searchTerm,
 			@QueryParam("numResults") int numResults) {
-		
-		searchTerm=WebUtility.inputSQLSanitizer(searchTerm);
+
+		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
 
 		String MEDAWIKI_ENDPOINT = "https://en.wikipedia.org/w/api.php?action=query&srlimit=" + numResults
 				+ "&list=search&format=json&utf8=1&srprop=snippet&srsearch=";
@@ -1508,7 +1528,8 @@ public class NameServer {
 						if (is != null) {
 							String resp = EntityUtils.toString(entity);
 							Gson gson = new Gson();
-							HashMap<String, LinkedTreeMap<String, List<LinkedTreeMap<String, String>>>> k = gson.fromJson(resp, HashMap.class);
+							HashMap<String, LinkedTreeMap<String, List<LinkedTreeMap<String, String>>>> k = gson
+									.fromJson(resp, HashMap.class);
 							List<LinkedTreeMap<String, String>> mapsList = k.get("query").get("search");
 
 							for (LinkedTreeMap<String, String> s : mapsList) {
@@ -1538,11 +1559,10 @@ public class NameServer {
 	@Path("e-{engine}")
 	public Object getLocalDatabase(@Context HttpServletRequest request, @PathParam("engine") String engineId,
 			@QueryParam("api") String api) throws IOException {
-		
-		api=WebUtility.inputSQLSanitizer(api);
-		engineId=WebUtility.inputSanitizer(engineId);
 
-	    
+		api = WebUtility.inputSQLSanitizer(api);
+		engineId = WebUtility.inputSanitizer(engineId);
+
 		HttpSession session = request.getSession(false);
 		if (session == null) {
 			return WebUtility.getSO("Not properly authenticated");
@@ -1569,8 +1589,8 @@ public class NameServer {
 	public Object getEngineProxy(@PathParam("engine") String db, @Context HttpServletRequest request) {
 		// this is the name server
 		// this needs to return stuff
-		db=WebUtility.inputSQLSanitizer(db);
-		
+		db = WebUtility.inputSQLSanitizer(db);
+
 		classLogger.debug(" Getting DB... " + db);
 		HttpSession session = request.getSession();
 		IDatabaseEngine engine = (IDatabaseEngine) session.getAttribute(db);
@@ -1585,10 +1605,9 @@ public class NameServer {
 			@Context HttpServletRequest request) {
 		// this is the name server
 		// this needs to return stuff
-		
-		url=WebUtility.inputSQLSanitizer(url);
 
-	   
+		url = WebUtility.inputSQLSanitizer(url);
+
 		classLogger.debug(" Going to central name server ... " + url);
 		CentralNameServer cns = new CentralNameServer();
 		cns.setCentralApi(url);
@@ -1626,7 +1645,7 @@ public class NameServer {
 		if (user == null) {
 			return WebUtility.getSO("Not properly authenticated");
 		}
-		engines = SecurityEngineUtils.getUserEngineList(user, null, null, false, null, null, null, null, null);	
+		engines = SecurityEngineUtils.getUserEngineList(user, null, null, false, null, null, null, null, null);
 		return WebUtility.getSO(engines);
 	}
 
@@ -1730,6 +1749,7 @@ public class NameServer {
 
 	private StreamingOutput getSOHTML(Hashtable<String, String> helpHash) {
 		return new StreamingOutput() {
+			@Override
 			public void write(OutputStream outputStream) throws IOException, WebApplicationException {
 				PrintStream out = new PrintStream(outputStream);
 				try {
@@ -1814,7 +1834,7 @@ public class NameServer {
 	public StreamingOutput getAutoCompleteResults(@QueryParam("completeTerm") String searchString,
 			@Context HttpServletRequest request) {
 
-		searchString=WebUtility.inputSanitizer(searchString);
+		searchString = WebUtility.inputSanitizer(searchString);
 
 		HttpSession session = request.getSession(false);
 		User user = (User) session.getAttribute(Constants.SESSION_USER);
@@ -1881,23 +1901,25 @@ public class NameServer {
 		// filter insights based on what the user has access to
 		HttpSession session = request.getSession(false);
 		User user = ((User) session.getAttribute(Constants.SESSION_USER));
-		List<Map<String, Object>> queryResults = SecurityInsightUtils.searchUserInsights(user, appIds, searchString, false, null, null, limit, offset);
+		List<Map<String, Object>> queryResults = SecurityInsightUtils.searchUserInsights(user, appIds, searchString,
+				false, null, null, limit, offset);
 
 		return WebUtility.getSO(queryResults);
 	}
 
 	private String createInsightTupleSpace(String baseFolder, String insightId) {
-		baseFolder = baseFolder.replace("\\","/");
+		baseFolder = baseFolder.replace("\\", "/");
 		String insightSpecificFolder = baseFolder + "/" + insightId;
 		String normalizedInsightSpecificFolder = WebUtility.normalizePath(insightSpecificFolder);
 		File file = new File(normalizedInsightSpecificFolder);
-		if (!file.exists()) {			
+		if (!file.exists()) {
 			Boolean success = file.mkdir();
-			if(!success) {
-				classLogger.info("Unable to created insight tuple space at: " + Utility.cleanLogString(normalizedInsightSpecificFolder));
+			if (!success) {
+				classLogger.info("Unable to created insight tuple space at: "
+						+ Utility.cleanLogString(normalizedInsightSpecificFolder));
 			}
 			String command = "addFolder@@" + normalizedInsightSpecificFolder;
-			String normalizedCmdFilePath = WebUtility.normalizePath(baseFolder + "/" + insightId +".admin");
+			String normalizedCmdFilePath = WebUtility.normalizePath(baseFolder + "/" + insightId + ".admin");
 			File cmdFile = new File(normalizedCmdFilePath);
 
 			try {
@@ -1915,7 +1937,7 @@ public class NameServer {
 	//////////////////////////////////////////////////////////////////////////////////// ////////////////////////////////////
 	////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////////////////////////////////////////////////////
-	
+
 //
 //	@POST
 //	@Path("central/context/getConnectedConcepts2")
