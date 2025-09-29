@@ -503,7 +503,7 @@ public class ProjectAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		
-		Map<String, Map<String, Object>> newRet = new HashMap<String, Map<String, Object>>();
+		Map<String, Object> userRet = new HashMap<String, Object>();
 		
 		for (Map<String, String> userRequest : requests) {
 			String newUserId = userRequest.get("userid");
@@ -547,10 +547,13 @@ public class ProjectAuthorizationResource {
 			}
 			Map<String, Object> responses = SecurityProjectUtils.propagateProjectPermission(requester, projectId, newUserId, newUserType, requestedPermission, 
 				 endDate, usageRestriction, usageFrequency, maxTokens, maxResponseTime);
-			newRet.put(newUserId, responses);
+			userRet.put(newUserId, responses);
 		}
 		
-		return WebUtility.getResponse(newRet, 200);
+		ret.put("success", true);
+		ret.put("users", userRet);
+		
+		return WebUtility.getResponse(ret, 200);
 	}
 
 	/**
