@@ -132,6 +132,8 @@ public final class OpenAIChatCompletionsHelper {
 		}
 		if (dataMap.containsKey("function")) {
 			toolCall.put("function", dataMap.get("function"));
+		} else {
+			toolCall.put("function", new HashMap<>());
 		}
 		// toolCall goes into toolCalls
 		List<Map<String, Object>> toolCalls = new ArrayList<>();
