@@ -506,7 +506,7 @@ public class ProjectAuthorizationResource {
 		Map<String, Map<String, Object>> newRet = new HashMap<String, Map<String, Object>>();
 		
 		for (Map<String, String> userRequest : requests) {
-			String newUserId = userRequest.get("id");
+			String newUserId = userRequest.get("userid");
 			String newUserType = userRequest.get("type");
 			String requestedPermission = userRequest.get("permission");
 			String usageRestriction = userRequest.containsKey("usageRestriction")
