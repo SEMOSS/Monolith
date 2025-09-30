@@ -289,7 +289,7 @@
 		</profile>
 	</profiles>
 	<repositories>
-		<repository>
+<!-- 		<repository>
 			<id>public</id>
 			<name>Sonatype's Maven repository</name>
 			<url>https://oss.sonatype.org/content/groups/public</url>
@@ -299,7 +299,7 @@
 			<snapshots>
 				<enabled>false</enabled>
 			</snapshots>
-		</repository>
+		</repository> -->
 		<repository>
 			<id>repo1</id>
 			<name>Maven Repository Switchboard</name>
@@ -465,7 +465,16 @@
 					<groupId>com.fasterxml.jackson.core</groupId>
 					<artifactId>*</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>org.apache.santuario</groupId>
+					<artifactId>xmlsec</artifactId>
+				</exclusion>
 			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.santuario</groupId>
+			<artifactId>xmlsec</artifactId>
+			<version>4.0.4</version>
 		</dependency>
 		<!-- adding updated jar to deal with exclusion w/ vulnerability -->
 		<!-- https://mvnrepository.com/artifact/com.fasterxml.woodstox/woodstox-core -->
