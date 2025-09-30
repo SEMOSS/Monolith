@@ -331,7 +331,7 @@
 		</profile>
 	</profiles>
 	<repositories>
-		<repository>
+<!-- 		<repository>
 			<id>public</id>
 			<name>Sonatype's Maven repository</name>
 			<url>https://oss.sonatype.org/content/groups/public</url>
@@ -341,7 +341,7 @@
 			<snapshots>
 				<enabled>false</enabled>
 			</snapshots>
-		</repository>
+		</repository> -->
 		<repository>
 			<id>repo1</id>
 			<name>Maven Repository Switchboard</name>
