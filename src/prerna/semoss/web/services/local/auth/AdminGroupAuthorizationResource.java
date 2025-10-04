@@ -1,7 +1,6 @@
 package prerna.semoss.web.services.local.auth;
 
 import java.util.HashMap;
-import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 
@@ -64,7 +63,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("/addGroup")
 	public Response addGroup(@Context HttpServletRequest request) {
-		Map<String, String> errorRet = new Hashtable<>();
+		Map<String, String> errorRet = new HashMap<>();
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -114,7 +113,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("/deleteGroup")
 	public Response deleteGroup(@Context HttpServletRequest request) {
-		Map<String, String> errorRet = new Hashtable<>();
+		Map<String, String> errorRet = new HashMap<>();
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -157,7 +156,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("/editGroup")
 	public Response editGroup(@Context HttpServletRequest request) {
-		Map<String, String> errorRet = new Hashtable<>();
+		Map<String, String> errorRet = new HashMap<>();
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -210,7 +209,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("/editGroupDetails")
 	public Response editGroupDetails(@Context HttpServletRequest request) {
-		Map<String, String> errorRet = new Hashtable<>();
+		Map<String, String> errorRet = new HashMap<>();
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -442,7 +441,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("/addGroupMember")
 	public Response addGroupMember(@Context HttpServletRequest request) {
-		Map<String, String> errorRet = new Hashtable<>();
+		Map<String, String> errorRet = new HashMap<>();
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -493,7 +492,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("/deleteGroupMember")
 	public Response deleteGroupMember(@Context HttpServletRequest request) {
-		Map<String, String> errorRet = new Hashtable<>();
+		Map<String, String> errorRet = new HashMap<>();
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -549,7 +548,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("/addGroupProjectPermission")
 	public Response addGroupProjectPermission(@Context HttpServletRequest request) {
-		Map<String, String> errorRet = new Hashtable<>();
+		Map<String, String> errorRet = new HashMap<>();
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -612,7 +611,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("/editGroupProjectPermission")
 	public Response editGroupProjectPermission(@Context HttpServletRequest request) {
-		Map<String, String> errorRet = new Hashtable<>();
+		Map<String, String> errorRet = new HashMap<>();
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -676,7 +675,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("/removeGroupProjectPermission")
 	public Response removeGroupProjectPermission(@Context HttpServletRequest request) {
-		Map<String, String> errorRet = new Hashtable<>();
+		Map<String, String> errorRet = new HashMap<>();
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -913,7 +912,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("/addGroupEnginePermission")
 	public Response addGroupEnginePermission(@Context HttpServletRequest request) {
-		Map<String, String> errorRet = new Hashtable<>();
+		Map<String, String> errorRet = new HashMap<>();
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -976,7 +975,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("/editGroupEnginePermission")
 	public Response editGroupEnginePermission(@Context HttpServletRequest request) {
-		Map<String, String> errorRet = new Hashtable<>();
+		Map<String, String> errorRet = new HashMap<>();
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -1040,7 +1039,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("/removeGroupEnginePermission")
 	public Response removeGroupEnginePermission(@Context HttpServletRequest request) {
-		Map<String, String> errorRet = new Hashtable<>();
+		Map<String, String> errorRet = new HashMap<>();
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
