@@ -30,7 +30,8 @@ package prerna.semoss.web.services.remote;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
-import java.util.Hashtable;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.ws.rs.FormParam;
 import javax.ws.rs.POST;
@@ -61,17 +62,16 @@ import prerna.web.services.util.WebUtility;
 // the primary class that will expose any engine through a remote interface
 
 public class EngineRemoteResource {
-	
-	private static final Logger classLogger = LogManager.getLogger(EngineRemoteResource.class); 
+
+	private static final Logger classLogger = LogManager.getLogger(EngineRemoteResource.class);
 
 	public IDatabaseEngine coreEngine = null;
 	String output = null;
 	String uriBase = null;
-	
-	public void setEngine(IDatabaseEngine coreEngine)
-	{
+
+	public void setEngine(IDatabaseEngine coreEngine) {
 		this.coreEngine = coreEngine;
-		if(uriBase == null && Utility.getDIHelperProperty(Constants.URI_BASE)!=null) {
+		if (uriBase == null && Utility.getDIHelperProperty(Constants.URI_BASE) != null) {
 			uriBase = Utility.getDIHelperProperty(Constants.URI_BASE);
 		}
 	}
@@ -79,25 +79,28 @@ public class EngineRemoteResource {
 	@POST
 	@Path("getFromNeighbors")
 	@Produces("application/json")
-	public StreamingOutput getFromNeighbors(@FormParam("nodeType") String nodeType, @FormParam("neighborHood") int neighborHood) {
-		nodeType=WebUtility.inputSanitizer(nodeType);
+	public StreamingOutput getFromNeighbors(@FormParam("nodeType") String nodeType,
+			@FormParam("neighborHood") int neighborHood) {
+		nodeType = WebUtility.inputSanitizer(nodeType);
 		return WebUtility.getSO(coreEngine.getFromNeighbors(nodeType, neighborHood));
 	}
 
 	@POST
 	@Path("getToNeighbors")
 	@Produces("application/json")
-	public StreamingOutput getToNeighbors(@FormParam("nodeType") String nodeType, @FormParam("neighborHood") int neighborHood) {
-		nodeType=WebUtility.inputSanitizer(nodeType);
+	public StreamingOutput getToNeighbors(@FormParam("nodeType") String nodeType,
+			@FormParam("neighborHood") int neighborHood) {
+		nodeType = WebUtility.inputSanitizer(nodeType);
 		return WebUtility.getSO(coreEngine.getToNeighbors(nodeType, neighborHood));
 	}
 
 	@POST
 	@Path("getNeighbors")
 	@Produces("application/json")
-	public StreamingOutput getNeighbors(@FormParam("nodeType") String nodeType, @FormParam("neighborHood") int neighborHood) {
+	public StreamingOutput getNeighbors(@FormParam("nodeType") String nodeType,
+			@FormParam("neighborHood") int neighborHood) {
 		// TODO Auto-generated method stub
-		nodeType=WebUtility.inputSanitizer(nodeType);
+		nodeType = WebUtility.inputSanitizer(nodeType);
 		return WebUtility.getSO(coreEngine.getNeighbors(nodeType, neighborHood));
 	}
 
@@ -109,66 +112,63 @@ public class EngineRemoteResource {
 		// Create a wrapper object
 		// The wrapper consists of a unique number, the actual output object
 		// sets this wrapper in the memory
-		query=WebUtility.inputSanitizer(query);
+		query = WebUtility.inputSanitizer(query);
 		classLogger.info("Executing GRAPH Query " + Utility.cleanLogString(query));
-		
+
 		IConstructWrapper sjw = null;
 		try {
 			sjw = WrapperManager.getInstance().getCWrapper(coreEngine, query);
 			/*
-			SesameJenaConstructWrapper sjw = new SesameJenaConstructWrapper();
-			sjw.setQuery(query);
-			sjw.setEngine(coreEngine);
-			sjw.execute();
-			*/
+			 * SesameJenaConstructWrapper sjw = new SesameJenaConstructWrapper();
+			 * sjw.setQuery(query); sjw.setEngine(coreEngine); sjw.execute();
+			 */
 			// need someway to get an indirection for now hardcoded
-			((IRemoteQueryable)sjw).setRemoteAPI(uriBase + coreEngine.getEngineId());
-			QueryResultHash.getInstance().addObject((SesameConstructWrapper)sjw);		
+			((IRemoteQueryable) sjw).setRemoteAPI(uriBase + coreEngine.getEngineId());
+			QueryResultHash.getInstance().addObject((SesameConstructWrapper) sjw);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE,e);
+			classLogger.error(Constants.STACKTRACE, e);
 		}
-		
+
 		return WebUtility.getSO(sjw);
 	}
-	
+
 	@POST
 	@Path("execSelectQuery")
 	@Produces("application/json")
 	public Object execSelectQuery(@FormParam("query") String query) {
-		query=WebUtility.inputSanitizer(query);
+		query = WebUtility.inputSanitizer(query);
 		classLogger.info("Executing Select Query  " + Utility.cleanLogString(query));
 		AbstractWrapper sjsw = null;
 		try {
 			sjsw = (AbstractWrapper) WrapperManager.getInstance().getSWrapper(coreEngine, query);
 			sjsw.setRemote(true);
 			// need someway to get an indirection for now hardcoded
-			((IRemoteQueryable)sjsw).setRemoteAPI(uriBase + coreEngine.getEngineId());
-			QueryResultHash.getInstance().addObject(sjsw);		
+			sjsw.setRemoteAPI(uriBase + coreEngine.getEngineId());
+			QueryResultHash.getInstance().addObject(sjsw);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE,e);
+			classLogger.error(Constants.STACKTRACE, e);
 		}
-		
+
 		return WebUtility.getSO(sjsw);
 	}
-
 
 	@POST
 	@Path("execCheaterQuery")
 	@Produces("application/json")
 	public Object execCheaterQuery(@FormParam("query") String query) {
-		query=WebUtility.inputSanitizer(query);
+		query = WebUtility.inputSanitizer(query);
 		classLogger.info("Executing Select Query  " + Utility.cleanLogString(query));
 		AbstractWrapper sjsw = null;
 		try {
 			sjsw = (AbstractWrapper) WrapperManager.getInstance().getChWrapper(coreEngine, query);
 			sjsw.setRemote(true);
 			// need someway to get an indirection for now hardcoded
-			((IRemoteQueryable)sjsw).setRemoteAPI(uriBase + coreEngine.getEngineId());
-			QueryResultHash.getInstance().addObject(sjsw);		
+			sjsw.setRemoteAPI(uriBase + coreEngine.getEngineId());
+			QueryResultHash.getInstance().addObject(sjsw);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE,e);
+			classLogger.error(Constants.STACKTRACE, e);
 		}
-	
+
 		return WebUtility.getSO(sjsw);
 	}
 
@@ -176,7 +176,7 @@ public class EngineRemoteResource {
 	@Path("getEntityOfType")
 	@Produces("application/json")
 	public StreamingOutput getEntityOfType(@FormParam("sparqlQuery") String sparqlQuery) {
-		sparqlQuery=WebUtility.inputSanitizer(sparqlQuery);
+		sparqlQuery = WebUtility.inputSanitizer(sparqlQuery);
 		return WebUtility.getSO(coreEngine.getEntityOfType(sparqlQuery));
 	}
 
@@ -185,16 +185,15 @@ public class EngineRemoteResource {
 	@Produces("application/json")
 	public StreamingOutput execAskQuery(@FormParam("query") String query) {
 		try {
-			query=WebUtility.inputSanitizer(query);
+			query = WebUtility.inputSanitizer(query);
 			return WebUtility.getSO(coreEngine.execQuery(query));
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE,e);
-			Hashtable<String, Object> ret = new Hashtable<>();
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, Object> ret = new HashMap<>();
 			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getSO(ret);
 		}
 	}
-
 
 //	@POST
 //	@Path("getParamValues")
@@ -204,7 +203,7 @@ public class EngineRemoteResource {
 //		// TODO Auto-generated method stub
 //		return WebUtility.getSO(coreEngine.getParamValues(label, type, insightId, query));
 //	}
-	
+
 //	@POST
 //	@Path("getInsightDefinition")
 //	@Produces("application/text")
@@ -219,18 +218,16 @@ public class EngineRemoteResource {
 	public String getOWLDefinition() {
 		return coreEngine.getOWLDefinition();
 	}
-	
+
 	// do the has Next
 	@POST
 	@Path("hasNext")
 	@Produces("application/json")
-	public StreamingOutput hasNext(@FormParam("id") String id)
-	{
+	public StreamingOutput hasNext(@FormParam("id") String id) {
 		boolean retValue = false;
-		id=WebUtility.inputSanitizer(id);
+		id = WebUtility.inputSanitizer(id);
 		classLogger.info("Got the id " + Utility.cleanLogString(id));
-		if(id != null)
-		{
+		if (id != null) {
 			Object wrapper = QueryResultHash.getInstance().getObject(id);
 
 			classLogger.info("Got the object as well" + wrapper);
@@ -241,25 +238,23 @@ public class EngineRemoteResource {
 //			if(wrapper instanceof SesameJenaSelectCheater)
 //				retValue = ((SesameJenaSelectCheater)wrapper).hasNext();
 
-			//TODO: this shouldnt' be commented out!!!
+			// TODO: this shouldnt' be commented out!!!
 			// retValue = ((IDatabaseWrapper) wrapper).hasNext();
 			// if(!retValue) // cleanup
 			QueryResultHash.getInstance().cleanObject(id);
 		}
-		
+
 		return WebUtility.getSO(retValue);
 	}
 
 	@POST
 	@Path("getDisplayVariables")
 	@Produces("application/json")
-	public StreamingOutput getDisplayVariables(@FormParam("id") String id)
-	{
-		String [] retValue = null;
-		id=WebUtility.inputSanitizer(id);
+	public StreamingOutput getDisplayVariables(@FormParam("id") String id) {
+		String[] retValue = null;
+		id = WebUtility.inputSanitizer(id);
 		classLogger.info("Got the id " + Utility.cleanLogString(id));
-		if(id != null)
-		{
+		if (id != null) {
 			Object wrapper = QueryResultHash.getInstance().getObject(id);
 
 			classLogger.info("Got the object as well" + wrapper);
@@ -270,105 +265,94 @@ public class EngineRemoteResource {
 //			if(wrapper instanceof SesameJenaSelectCheater)
 //				retValue = ((SesameJenaSelectCheater)wrapper).hasNext();
 
-			if(wrapper instanceof SesameSelectWrapper)
-			{
+			if (wrapper instanceof SesameSelectWrapper) {
 				classLogger.info(" Select.... ");
-				retValue = ((SesameSelectWrapper)wrapper).getDisplayVariables();
-				//return new TupleStreamingOutput(((SesameSelectWrapper)(wrapper)).tqr);
+				retValue = ((SesameSelectWrapper) wrapper).getDisplayVariables();
+				// return new TupleStreamingOutput(((SesameSelectWrapper)(wrapper)).tqr);
 			}
-		}		
+		}
 		return WebUtility.getSO(retValue);
 	}
 
-	
 	@POST
 	@Path("next")
 	@Produces("application/json")
-	public StreamingOutput next(@FormParam("id") String id)
-	{
-		id=WebUtility.inputSanitizer(id);
-		if(id != null)
-		{
+	public StreamingOutput next(@FormParam("id") String id) {
+		id = WebUtility.inputSanitizer(id);
+		if (id != null) {
 			// I can avoid the wrapper BS below by just putting through an interface
 			// good things come to people who wait
 			Object wrapper = QueryResultHash.getInstance().getObject(id);
 			QueryResultHash.getInstance().cleanObject(id);
-			if(wrapper instanceof SesameSelectCheater)
-			{
+			if (wrapper instanceof SesameSelectCheater) {
 				classLogger.info(" Cheater.... ");
-				return new TupleStreamingOutput(((SesameSelectCheater)wrapper).tqr);
-			}
-			else if(wrapper instanceof SesameConstructWrapper)
-			{
+				return new TupleStreamingOutput(((SesameSelectCheater) wrapper).tqr);
+			} else if (wrapper instanceof SesameConstructWrapper) {
 				classLogger.info(" Construct.... ");
-				return new GraphStreamingOutput(((SesameConstructWrapper)(wrapper)).gqr);				
-			}
-			else if(wrapper instanceof SesameSelectWrapper)
-			{
+				return new GraphStreamingOutput(((SesameConstructWrapper) (wrapper)).gqr);
+			} else if (wrapper instanceof SesameSelectWrapper) {
 				classLogger.info(" Select.... ");
-				return new TupleStreamingOutput(((SesameSelectWrapper)(wrapper)).tqr);
+				return new TupleStreamingOutput(((SesameSelectWrapper) (wrapper)).tqr);
 			}
 		}
 		// set the data into the statement
-		
-		
-		// not sure if I should flesh the entire select query object or just the data hash yet
+
+		// not sure if I should flesh the entire select query object or just the data
+		// hash yet
 		return null;
 	}
 
 	@POST
 	@Path("bvnext")
 	@Produces("application/json")
-	public StreamingOutput bvnext(@FormParam("id") String id)
-	{
-		id=WebUtility.inputSanitizer(id);
+	public StreamingOutput bvnext(@FormParam("id") String id) {
+		id = WebUtility.inputSanitizer(id);
 		// this is only applicable to select query
 		Object retValue = null;
-		if(id != null)
-		{
+		if (id != null) {
 			// I can avoid the wrapper BS below by just putting through an interface
 			// good things come to people who wait
 			Object wrapper = QueryResultHash.getInstance().getObject(id);
-			if(wrapper instanceof SesameJenaSelectWrapper)
-				retValue = ((SesameJenaSelectWrapper)wrapper).BVnext();
+			if (wrapper instanceof SesameJenaSelectWrapper) {
+				retValue = ((SesameJenaSelectWrapper) wrapper).BVnext();
+			}
 		}
-		// not sure if I should flesh the entire select query object or just the data hash yet
+		// not sure if I should flesh the entire select query object or just the data
+		// hash yet
 		return WebUtility.getSO(retValue);
-	}	
-	
+	}
+
 	@POST
 	@Path("getProperty")
 	@Produces("application/text")
-	public String getProperty(@FormParam("key") String key)
-	{
+	public String getProperty(@FormParam("key") String key) {
 		return coreEngine.getProperty(key);
 	}
-
 
 	@POST
 	@Path("streamTester")
 	@Produces("application/text")
-	public StreamingOutput getStreamTester()
-	{
-		   return new StreamingOutput() {
-		         public void write(OutputStream outputStream) throws IOException, WebApplicationException {
-		            ObjectOutputStream os = new ObjectOutputStream(outputStream);
-		            Integer myInt = null;
-		            for(int i = 0;i< 1000000;i++)
-		            {
-		            	myInt = new Integer(i);
-			            //ps.println("Sending " + i);
-		            	os.writeObject(myInt);
-			            if (i %1000 == 0) {
-							try {
-								Thread.sleep(200);
-							} catch (InterruptedException e) {
-								Thread.currentThread().interrupt();
-								classLogger.error(Constants.STACKTRACE,e);
-							}
-			            }
-		            }
-		         }};		
+	public StreamingOutput getStreamTester() {
+		return new StreamingOutput() {
+			@Override
+			public void write(OutputStream outputStream) throws IOException, WebApplicationException {
+				ObjectOutputStream os = new ObjectOutputStream(outputStream);
+				Integer myInt = null;
+				for (int i = 0; i < 1000000; i++) {
+					myInt = new Integer(i);
+					// ps.println("Sending " + i);
+					os.writeObject(myInt);
+					if (i % 1000 == 0) {
+						try {
+							Thread.sleep(200);
+						} catch (InterruptedException e) {
+							Thread.currentThread().interrupt();
+							classLogger.error(Constants.STACKTRACE, e);
+						}
+					}
+				}
+			}
+		};
 	}
 
 }

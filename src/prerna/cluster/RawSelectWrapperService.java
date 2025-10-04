@@ -1,7 +1,7 @@
 package prerna.cluster;
 
 import java.io.IOException;
-import java.util.Hashtable;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.TimeZone;
 import java.util.concurrent.ConcurrentHashMap;
@@ -31,17 +31,19 @@ import prerna.web.services.util.WebUtility;
 @PermitAll
 public class RawSelectWrapperService implements IRawSelectWrapper {
 
-	private static final Logger logger = LogManager.getLogger(RawSelectWrapperService.class); 
+	private static final Logger logger = LogManager.getLogger(RawSelectWrapperService.class);
 
 	public static final String APP_ID = "appId";
 	public static final String WRAPPER_ID = "wrapperId";
 	public static final String QUERY = "query";
 
 	//////////////////////////////////////////////////////////////////////////////////////////
-	////////////////////////////// Code for managing active wrappers /////////////////////////
+	////////////////////////////// Code for managing active wrappers
+	////////////////////////////////////////////////////////////////////////////////////////// /////////////////////////
 
 	/**
-	 * Make this a concurrent hash map, since it can be accessed concurrently by incoming requests.
+	 * Make this a concurrent hash map, since it can be accessed concurrently by
+	 * incoming requests.
 	 */
 	private Map<String, IRawSelectWrapper> activeWrappers = new ConcurrentHashMap<>();
 
@@ -51,28 +53,28 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 	 * @param appId
 	 * @param wrapperId
 	 * @return
-	 * @throws Exception 
+	 * @throws Exception
 	 */
 	private IRawSelectWrapper getRawSelectWrapper(String appId, String wrapperId) throws Exception {
 		return getRawSelectWrapper(appId, wrapperId, null);
 	}
 
 	/**
-	 * If the wrapper has already been activated, then return the existing
-	 * wrapper. Else create it and add it to the active wrappers map.
+	 * If the wrapper has already been activated, then return the existing wrapper.
+	 * Else create it and add it to the active wrappers map.
 	 * 
 	 * @param appId
 	 * @param wrapperId
 	 * @param query
 	 * @return
-	 * @throws Exception 
+	 * @throws Exception
 	 */
 	private IRawSelectWrapper getRawSelectWrapper(String appId, String wrapperId, String query) throws Exception {
-		
-		if(appId ==null) {
+
+		if (appId == null) {
 			throw new SemossPixelException("App is currently disabled by owner");
 		}
-		
+
 		String wrapperKey = wrapperId + "@" + appId;
 		if (activeWrappers.containsKey(wrapperKey)) {
 			return activeWrappers.get(wrapperKey);
@@ -85,8 +87,8 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 	}
 
 	/**
-	 * Removes the wrapper and returns true if it was actually removed, false if
-	 * it was not present.
+	 * Removes the wrapper and returns true if it was actually removed, false if it
+	 * was not present.
 	 * 
 	 * @param appId
 	 * @param wrapperId
@@ -103,7 +105,8 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 	}
 
 	//////////////////////////////////////////////////////////////////////////////////////////
-	/////////////////////////////////// Util methods /////////////////////////////////////////
+	/////////////////////////////////// Util methods
+	////////////////////////////////////////////////////////////////////////////////////////// /////////////////////////////////////////
 
 	private IDatabaseEngine getEngine(String appId) {
 		IDatabaseEngine engine = null;
@@ -112,7 +115,7 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 //			IDatabase parentEngine = Utility.getDatabase(parentAppId);
 //			engine = parentEngine.getInsightDatabase();
 //		} else {
-			engine = Utility.getDatabase(appId);
+		engine = Utility.getDatabase(appId);
 //		}
 		return engine;
 	}
@@ -125,15 +128,17 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 	}
 
 	//////////////////////////////////////////////////////////////////////////////////////////
-	///////////////////////// Code for mirroring wrapper functionality ///////////////////////
+	///////////////////////// Code for mirroring wrapper functionality
+	////////////////////////////////////////////////////////////////////////////////////////// ///////////////////////
 
 	@Override
 	public void execute() {
-		throw new IllegalStateException("Only overriding this method for reference.");	
+		throw new IllegalStateException("Only overriding this method for reference.");
 	}
 
 	/**
 	 * Execute requires appId, wrapperId, and query
+	 * 
 	 * @param request
 	 * @return
 	 */
@@ -147,7 +152,7 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 		String wrapperId = WebUtility.inputSanitizer(request.getParameter(WRAPPER_ID));
 		String query = WebUtility.inputSanitizer(request.getParameter(QUERY));
 
-		Hashtable<String, Object> ret = new Hashtable<>();
+		Map<String, Object> ret = new HashMap<>();
 
 		// Perform action
 		IRawSelectWrapper wrapper = null;
@@ -155,7 +160,7 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 			wrapper = getRawSelectWrapper(appId, wrapperId, query);
 			wrapper.execute();
 		} catch (Exception e) {
-			logger.error(Constants.STACKTRACE,e);
+			logger.error(Constants.STACKTRACE, e);
 			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(ret, 400);
 		}
@@ -171,16 +176,17 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 
 	@Override
 	public void setQuery(String query) {
-		throw new IllegalStateException("Only overriding this method for reference.");	
+		throw new IllegalStateException("Only overriding this method for reference.");
 	}
 
 	@Override
 	public String getQuery() {
-		throw new IllegalStateException("Only overriding this method for reference.");	
+		throw new IllegalStateException("Only overriding this method for reference.");
 	}
 
 	/**
 	 * Set query requires appId, wrapperId, and query
+	 * 
 	 * @param request
 	 * @return
 	 */
@@ -200,11 +206,11 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 			wrapper = getRawSelectWrapper(appId, wrapperId, query);
 			wrapper.setQuery(query);
 		} catch (Exception e) {
-			logger.error(Constants.STACKTRACE,e);
+			logger.error(Constants.STACKTRACE, e);
 		}
 
 		// Set return values
-		Hashtable<String, Object> ret = new Hashtable<>();
+		HashMap<String, Object> ret = new HashMap<>();
 		ret.put("success", true);
 		ret.put("appId", appId);
 		ret.put("wrapperId", wrapperId);
@@ -217,9 +223,10 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 	public void close() throws IOException {
 		throw new IllegalStateException("Only overriding this method for reference.");
 	}
-	
+
 	/**
 	 * Clean up requires appId and wrapperId
+	 * 
 	 * @param request
 	 * @return
 	 */
@@ -241,20 +248,20 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 		try {
 			wrapper = getRawSelectWrapper(appId, wrapperId);
 		} catch (Exception e) {
-			logger.error(Constants.STACKTRACE,e);
+			logger.error(Constants.STACKTRACE, e);
 		} finally {
-			if(wrapper != null) {
+			if (wrapper != null) {
 				try {
 					wrapper.close();
 				} catch (IOException e) {
-					logger.error(Constants.STACKTRACE,e);
+					logger.error(Constants.STACKTRACE, e);
 				}
 			}
 		}
 		boolean removed = removeRawSelectWrapper(appId, wrapperId); // Also remove from active list
 
 		// Set return values
-		Hashtable<String, Object> ret = new Hashtable<>();
+		Map<String, Object> ret = new HashMap<>();
 		ret.put("success", true);
 		ret.put("appId", appId);
 		ret.put("wrapperId", wrapperId);
@@ -265,16 +272,17 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 
 	@Override
 	public void setEngine(IDatabaseEngine engine) {
-		throw new IllegalStateException("Only overriding this method for reference.");			
+		throw new IllegalStateException("Only overriding this method for reference.");
 	}
 
 	@Override
 	public IDatabaseEngine getEngine() {
-		throw new IllegalStateException("Only overriding this method for reference.");			
+		throw new IllegalStateException("Only overriding this method for reference.");
 	}
 
 	/**
 	 * Set engine requires appId and wrapperId
+	 * 
 	 * @param request
 	 * @return
 	 */
@@ -294,11 +302,11 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 			IDatabaseEngine engine = getEngine(appId);
 			wrapper.setEngine(engine);
 		} catch (Exception e) {
-			logger.error(Constants.STACKTRACE,e);
+			logger.error(Constants.STACKTRACE, e);
 		}
 
 		// Set return values
-		Hashtable<String, Object> ret = new Hashtable<>();
+		Map<String, Object> ret = new HashMap<>();
 		ret.put("success", true);
 		ret.put("appId", appId);
 		ret.put("wrapperId", wrapperId);
@@ -308,11 +316,12 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 
 	@Override
 	public boolean hasNext() {
-		throw new IllegalStateException("Only overriding this method for reference.");	
+		throw new IllegalStateException("Only overriding this method for reference.");
 	}
 
 	/**
 	 * Has next requires appId and wrapperId
+	 * 
 	 * @param request
 	 * @return
 	 */
@@ -332,7 +341,7 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 			wrapper = getRawSelectWrapper(appId, wrapperId);
 			hasNext = wrapper.hasNext();
 		} catch (Exception e) {
-			logger.error(Constants.STACKTRACE,e);
+			logger.error(Constants.STACKTRACE, e);
 		}
 
 		// Set return values
@@ -341,11 +350,12 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 
 	@Override
 	public IHeadersDataRow next() {
-		throw new IllegalStateException("Only overriding this method for reference.");	
+		throw new IllegalStateException("Only overriding this method for reference.");
 	}
 
 	/**
 	 * Next requires appId and wrapperId
+	 * 
 	 * @param request
 	 * @return
 	 */
@@ -365,7 +375,7 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 			wrapper = getRawSelectWrapper(appId, wrapperId);
 			nextRow = wrapper.next();
 		} catch (Exception e) {
-			logger.error(Constants.STACKTRACE,e);
+			logger.error(Constants.STACKTRACE, e);
 		}
 
 		// Set return values
@@ -374,11 +384,12 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 
 	@Override
 	public String[] getHeaders() {
-		throw new IllegalStateException("Only overriding this method for reference.");	
+		throw new IllegalStateException("Only overriding this method for reference.");
 	}
 
 	/**
 	 * Get headers requires appId and wrapperId
+	 * 
 	 * @param request
 	 * @return
 	 */
@@ -398,7 +409,7 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 			wrapper = getRawSelectWrapper(appId, wrapperId);
 			headers = wrapper.getHeaders();
 		} catch (Exception e) {
-			logger.error(Constants.STACKTRACE,e);
+			logger.error(Constants.STACKTRACE, e);
 		}
 
 		// Set return values
@@ -407,11 +418,12 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 
 	@Override
 	public SemossDataType[] getTypes() {
-		throw new IllegalStateException("Only overriding this method for reference.");	
+		throw new IllegalStateException("Only overriding this method for reference.");
 	}
 
 	/**
 	 * Get types requires appId and wrapperId
+	 * 
 	 * @param request
 	 * @return
 	 */
@@ -431,7 +443,7 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 			wrapper = getRawSelectWrapper(appId, wrapperId);
 			types = wrapper.getTypes();
 		} catch (Exception e) {
-			logger.error(Constants.STACKTRACE,e);
+			logger.error(Constants.STACKTRACE, e);
 		}
 
 		// Set return values
@@ -440,11 +452,12 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 
 	@Override
 	public long getNumRecords() {
-		throw new IllegalStateException("Only overriding this method for reference.");	
+		throw new IllegalStateException("Only overriding this method for reference.");
 	}
 
 	/**
 	 * Get num records requires appId and wrapperId
+	 * 
 	 * @param request
 	 * @return
 	 */
@@ -464,8 +477,8 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 			wrapper = getRawSelectWrapper(appId, wrapperId);
 			numRecords = wrapper.getNumRecords();
 		} catch (Exception e) {
-			logger.error(Constants.STACKTRACE,e);
-			Hashtable<String, Object> ret = new Hashtable<>();
+			logger.error(Constants.STACKTRACE, e);
+			Map<String, Object> ret = new HashMap<>();
 			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(ret, 400);
 		}
@@ -476,11 +489,12 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 
 	@Override
 	public long getNumRows() {
-		throw new IllegalStateException("Only overriding this method for reference.");	
+		throw new IllegalStateException("Only overriding this method for reference.");
 	}
 
 	/**
 	 * Get num rows requires appId and wrapperId
+	 * 
 	 * @param request
 	 * @return
 	 */
@@ -500,7 +514,7 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 			wrapper = getRawSelectWrapper(appId, wrapperId);
 			numRecords = wrapper.getNumRows();
 		} catch (Exception e) {
-			Hashtable<String, Object> ret = new Hashtable<>();
+			Map<String, Object> ret = new HashMap<>();
 			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(ret, 400);
 		}
@@ -511,11 +525,12 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 
 	@Override
 	public void reset() {
-		throw new IllegalStateException("Only overriding this method for reference.");	
+		throw new IllegalStateException("Only overriding this method for reference.");
 	}
 
 	/**
 	 * Reset requires appId and wrapperId
+	 * 
 	 * @param request
 	 * @return
 	 */
@@ -528,7 +543,7 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 		String appId = WebUtility.inputSanitizer(request.getParameter(APP_ID));
 		String wrapperId = WebUtility.inputSanitizer(request.getParameter(WRAPPER_ID));
 
-		Hashtable<String, Object> ret = new Hashtable<>();
+		Map<String, Object> ret = new HashMap<>();
 
 		// Perform action
 		IRawSelectWrapper wrapper = null;
@@ -536,7 +551,7 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 			wrapper = getRawSelectWrapper(appId, wrapperId);
 			wrapper.reset();
 		} catch (Exception e) {
-			logger.error(Constants.STACKTRACE,e);
+			logger.error(Constants.STACKTRACE, e);
 			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(ret, 400);
 		}
@@ -561,13 +576,13 @@ public class RawSelectWrapperService implements IRawSelectWrapper {
 
 	// THESE METHODS WILL BE IMPLEMENTED IN INTERFACE SOON
 	// WILL COMMENT OUT OVERRIDE ANNOTATION UNTIL THEN
-	
+
 //	@Override
 	public void setTimeZone(TimeZone val) {
 	}
-	
+
 //	@Override
 	public TimeZone getTimeZone() {
-		return null; 
+		return null;
 	}
 }

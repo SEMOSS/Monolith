@@ -36,9 +36,8 @@ import java.io.PrintStream;
 import java.net.URLEncoder;
 import java.time.ZoneId;
 import java.util.ArrayList;
-import java.util.Enumeration;
 import java.util.HashMap;
-import java.util.Hashtable;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -128,7 +127,7 @@ public class NameServer {
 	@Path("playsheets")
 	@Produces("application/json")
 	public StreamingOutput getPlaySheets(@Context HttpServletRequest request) {
-		Hashtable<String, String> hashTable = new Hashtable<>();
+		Map<String, String> hashTable = new HashMap<>();
 		List<String> sheetNames = PlaySheetRDFMapBasedEnum.getAllSheetNames();
 		sheetNames = WebUtility.inputSanitizer(sheetNames);
 		for (int i = 0; i < sheetNames.size(); i++) {
@@ -1335,10 +1334,10 @@ public class NameServer {
 	@Path("help")
 	@Produces("text/html")
 	public StreamingOutput printURL(@Context HttpServletRequest request, @Context HttpServletResponse response) {
-		Hashtable<String, String> helpHash = null;
+		Map<String, String> helpHash = null;
 		// would be cool to give this as an HTML
 		if (helpHash == null) {
-			Hashtable<String, String> urls = new Hashtable<>();
+			Map<String, String> urls = new HashMap<>();
 			urls.put("Help - this menu (GET)", "hostname:portname/Monolith/api/engine/help");
 			urls.put("Get All the engines (GET)", "hostname:portname/Monolith/api/engine/all");
 			urls.put("Perspectives in a specific engine (GET)",
@@ -1385,7 +1384,7 @@ public class NameServer {
 		return getSOHTML(helpHash);
 	}
 
-	private StreamingOutput getSOHTML(Hashtable<String, String> helpHash) {
+	private StreamingOutput getSOHTML(Map<String, String> helpHash) {
 		return new StreamingOutput() {
 			@Override
 			public void write(OutputStream outputStream) throws IOException, WebApplicationException {
@@ -1398,9 +1397,9 @@ public class NameServer {
 					out.println("</head>");
 					out.println("<body>");
 
-					Enumeration<String> keys = helpHash.keys();
-					while (keys.hasMoreElements()) {
-						String key = keys.nextElement();
+					Iterator<String> keys = helpHash.keySet().iterator();
+					while (keys.hasNext()) {
+						String key = keys.next();
 						String value = helpHash.get(key);
 						out.println("<em>" + key + "</em>");
 						out.println("<a href='#'>" + value + "</a>");

@@ -1,11 +1,11 @@
 package prerna.web.conf;
 
 import java.io.IOException;
-import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Vector;
+import java.util.concurrent.ConcurrentHashMap;
 
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
@@ -33,7 +33,7 @@ import prerna.web.services.util.WebUtility;
 
 public class NoUserInSessionTrustedTokenFilter implements Filter {
 
-	private static final Logger logger = LogManager.getLogger(NoUserInSessionTrustedTokenFilter.class); 
+	private static final Logger logger = LogManager.getLogger(NoUserInSessionTrustedTokenFilter.class);
 
 	private static String TRUSTED_TOKEN_PREFIX = "trustedTokenPrefix";
 	private static String TRUSTED_TOKEN_DOMAIN = "trustedTokenDomain";
@@ -42,12 +42,13 @@ public class NoUserInSessionTrustedTokenFilter implements Filter {
 	private static List<String> trustedDomains = null;
 
 	// maps from the IP the user is coming in with the cookie
-	private static Map<String, String> sessionMapper = new Hashtable<>();
+	private static Map<String, String> sessionMapper = new ConcurrentHashMap<>();
 
 	private FilterConfig filterConfig;
 
 	@Override
-	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
+	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2)
+			throws IOException, ServletException {
 		setInitParams(arg0);
 
 		// this will be the full path of the request
@@ -57,32 +58,32 @@ public class NoUserInSessionTrustedTokenFilter implements Filter {
 		HttpSession session = ((HttpServletRequest) arg0).getSession(false);
 
 		User user = null;
-		if(session != null) {
+		if (session != null) {
 			user = (User) session.getAttribute(Constants.SESSION_USER);
 		}
 
 		// if we have a user, there is nothing to do
-		if(user == null) {
-			
+		if (user == null) {
+
 			// the front end comes with
 			// fullUrl?prefix_token=userId
 			// check if the ip address is allowed
 			// check if the userId actually exists
 			// if first time, add the user
 			// if not, redirect the GET/POST call
-			
+
 			HttpServletRequest req = (HttpServletRequest) arg0;
 			// grab the token id
 			// if the token exists
 			String userId = WebUtility.cleanHttpResponse(req.getParameter(tokenName));
-			if(userId != null) {
+			if (userId != null) {
 				boolean redirectToExistingSession = false;
 				String redirectSessionId = sessionMapper.get(userId);
-				if(redirectSessionId != null) {
+				if (redirectSessionId != null) {
 					// validate that the session exists within tomcats session manager
 					session = ((HttpServletRequest) arg0).getSession();
 					StandardManager manager = SessionResource.getManager(session);
-					if(manager.getSession(redirectSessionId) != null) {
+					if (manager.getSession(redirectSessionId) != null) {
 						redirectToExistingSession = true;
 						// we are going to try to redirect
 						// so invalidate this new session
@@ -94,23 +95,23 @@ public class NoUserInSessionTrustedTokenFilter implements Filter {
 						sessionMapper.remove(userId);
 					}
 				}
-				if(!redirectToExistingSession) {
+				if (!redirectToExistingSession) {
 					// grab the ip address
 					String ipAddress = req.getHeader("X-FORWARDED-FOR");
-					if (ipAddress == null) {  
-						ipAddress = req.getRemoteAddr();  
+					if (ipAddress == null) {
+						ipAddress = req.getRemoteAddr();
 					}
 					// check if the ip address is allowed
 					boolean allow = trustedDomains.contains("*");
-					if(!allow) {
-						for(String domain : trustedDomains) {
-							if(ipAddress.matches(domain)) {
+					if (!allow) {
+						for (String domain : trustedDomains) {
+							if (ipAddress.matches(domain)) {
 								allow = true;
 								break;
 							}
 						}
 					}
-					if(allow && SecurityQueryUtils.checkUserExist(userId)) {
+					if (allow && SecurityQueryUtils.checkUserExist(userId)) {
 						// you are allowed
 						// i just have to check if the token id exists
 						// and id you do, i make the user object
@@ -122,33 +123,31 @@ public class NoUserInSessionTrustedTokenFilter implements Filter {
 						user.setAccessToken(token);
 						// if the session hasn't been instantiated yet
 						// start one
-						if(session == null) {
+						if (session == null) {
 							session = ((HttpServletRequest) arg0).getSession();
 						}
 						session.setAttribute(Constants.SESSION_USER, user);
 
 						String sessionId = session.getId();
 						sessionMapper.put(userId, sessionId);
-						
+
 						// add the session id cookie
 						// use addHeader to allow for SameSite option
 						// SameSite only works if Secure tag also there
-						String setCookieString = DBLoader.getSessionIdKey() + "=" + sessionId 
-								+ "; Path=" + contextPath 
+						String setCookieString = DBLoader.getSessionIdKey() + "=" + sessionId + "; Path=" + contextPath
 								+ "; HttpOnly"
-								+ ( (ClusterUtil.IS_CLUSTER || req.isSecure()) ? "; Secure; SameSite=None" : "")
-								;
+								+ ((ClusterUtil.IS_CLUSTER || req.isSecure()) ? "; Secure; SameSite=None" : "");
 						((HttpServletResponse) arg1).addHeader("Set-Cookie", setCookieString);
 					} else {
 						// invalidate the session
-						if(((HttpServletRequest) arg0).isRequestedSessionIdValid()) {
+						if (((HttpServletRequest) arg0).isRequestedSessionIdValid()) {
 							session.invalidate();
 						}
 					}
 				} else {
 					// this is the case where you redirect
 					// we have also validated that the session id is active
-					
+
 					// add the session id cookie
 //						Cookie k = new Cookie(DBLoader.getSessionIdKey(), redirectSessionId);
 //						k.setHttpOnly(true);
@@ -161,29 +160,27 @@ public class NoUserInSessionTrustedTokenFilter implements Filter {
 						logger.info("Forcing session value !");
 						for (Cookie c : cookies) {
 							if (c.getName().equals(DBLoader.getSessionIdKey())) {
-								if(c.getName().equalsIgnoreCase(DBLoader.getSessionIdKey())) {
+								if (c.getName().equalsIgnoreCase(DBLoader.getSessionIdKey())) {
 									c.setValue(redirectSessionId);
 								}
 							}
 						}
 					}
-					
+
 					// add the session id cookie
 					// use addHeader to allow for SameSite option
 					// SameSite only works if Secure tag also there
-					String setCookieString = DBLoader.getSessionIdKey() + "=" + redirectSessionId 
-							+ "; Path=" + contextPath 
-							+ "; HttpOnly"
-							+ ( (ClusterUtil.IS_CLUSTER || req.isSecure()) ? "; Secure; SameSite=None" : "")
-							;
-					
+					String setCookieString = DBLoader.getSessionIdKey() + "=" + redirectSessionId + "; Path="
+							+ contextPath + "; HttpOnly"
+							+ ((ClusterUtil.IS_CLUSTER || req.isSecure()) ? "; Secure; SameSite=None" : "");
+
 					String method = req.getMethod();
-					if(method.equalsIgnoreCase("GET")) {
+					if (method.equalsIgnoreCase("GET")) {
 						((HttpServletResponse) arg1).addHeader("Set-Cookie", setCookieString);
 						((HttpServletResponse) arg1).setStatus(HttpServletResponse.SC_MOVED_TEMPORARILY);
 						((HttpServletResponse) arg1).sendRedirect(fullUrl + "?" + req.getQueryString());
 						return;
-					} else if(method.equalsIgnoreCase("POST")) {
+					} else if (method.equalsIgnoreCase("POST")) {
 						((HttpServletResponse) arg1).addHeader("Set-Cookie", setCookieString);
 						((HttpServletResponse) arg1).setStatus(HttpServletResponse.SC_TEMPORARY_REDIRECT);
 						((HttpServletResponse) arg1).setHeader("Location", fullUrl);
@@ -203,16 +200,17 @@ public class NoUserInSessionTrustedTokenFilter implements Filter {
 		// TODO Auto-generated method stub
 
 	}
-	
+
 	/**
 	 * Remove the session from the mapper
+	 * 
 	 * @param sessionId
 	 */
 	public static void removeSession(String sessionId) {
 		Iterator<String> iterator = NoUserInSessionTrustedTokenFilter.sessionMapper.keySet().iterator();
-		while(iterator.hasNext()) {
+		while (iterator.hasNext()) {
 			String key = iterator.next();
-			if(NoUserInSessionTrustedTokenFilter.sessionMapper.get(key).equals(sessionId)) {
+			if (NoUserInSessionTrustedTokenFilter.sessionMapper.get(key).equals(sessionId)) {
 				// remove this
 				iterator.remove();
 			}
@@ -226,15 +224,17 @@ public class NoUserInSessionTrustedTokenFilter implements Filter {
 
 	private void setInitParams(ServletRequest arg0) {
 		// the token name
-		if(NoUserInSessionTrustedTokenFilter.tokenName == null) {
-			NoUserInSessionTrustedTokenFilter.tokenName = this.filterConfig.getInitParameter(NoUserInSessionTrustedTokenFilter.TRUSTED_TOKEN_PREFIX);
+		if (NoUserInSessionTrustedTokenFilter.tokenName == null) {
+			NoUserInSessionTrustedTokenFilter.tokenName = this.filterConfig
+					.getInitParameter(NoUserInSessionTrustedTokenFilter.TRUSTED_TOKEN_PREFIX);
 		}
 
 		// the token domains
-		if(NoUserInSessionTrustedTokenFilter.trustedDomains == null) {
-			String [] trustedIPs = this.filterConfig.getInitParameter(NoUserInSessionTrustedTokenFilter.TRUSTED_TOKEN_DOMAIN).split(",");
+		if (NoUserInSessionTrustedTokenFilter.trustedDomains == null) {
+			String[] trustedIPs = this.filterConfig
+					.getInitParameter(NoUserInSessionTrustedTokenFilter.TRUSTED_TOKEN_DOMAIN).split(",");
 			NoUserInSessionTrustedTokenFilter.trustedDomains = new Vector<>();
-			for(String trustedIP : trustedIPs) {
+			for (String trustedIP : trustedIPs) {
 				NoUserInSessionTrustedTokenFilter.trustedDomains.add(trustedIP.toLowerCase());
 			}
 		}

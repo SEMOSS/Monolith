@@ -2,7 +2,6 @@ package prerna.semoss.web.form;
 
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.Hashtable;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -231,7 +230,7 @@ public class FormResource {
 			}
 		}
 
-		Map<String, Object> returnData = new Hashtable<String, Object>();
+		Map<String, Object> returnData = new HashMap<String, Object>();
 		returnData.put("cac_id", cacId);
 		returnData.put("validInstances", userAccessableInstances);
 		return WebUtility.getResponse(returnData, 200);
