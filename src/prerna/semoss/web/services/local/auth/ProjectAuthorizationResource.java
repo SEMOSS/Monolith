@@ -446,9 +446,6 @@ public class ProjectAuthorizationResource {
 			}
 		}
 
-		// get the requested permission as a numeric -- it was passed as a string
-		Integer requestedPermissionNumeric = AccessPermissionEnum.getIdByPermission(requestedPermission);
-
 		// Determine if admin right are required to add users and, if so, if requester
 		// has those rights.
 		if (AbstractSecurityUtils.adminOnlyProjectAddAccess() && !SecurityAdminUtils.userIsAdmin(requester)) {
@@ -458,86 +455,104 @@ public class ProjectAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		List<String> alreadyHaveAccess = new ArrayList<>();
-		List<String> requestAlreadyExists = new ArrayList<>();
-		List<String> newRequestAdded = new ArrayList<>();
-		List<String> accessGranted = new ArrayList<>();
-		List<String> couldNotAddRequest = new ArrayList<>();
+		Map<String, Object> responses = SecurityProjectUtils.propagateProjectPermission(requester, projectId, newUserId, newUserType, requestedPermission, 
+				 endDate, usageRestriction, usageFrequency, maxTokens, maxResponseTime);
+		
+		return WebUtility.getResponse(responses, 200);
+	}
+	
+	/**
+	 * Propagate project dependent permissions
+	 * 
+	 * @param request
+	 * @param form
+	 * @return
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("propagateProjectDependencyPermissions")
+	public Response propagateProjectDependencyPermissions(@Context HttpServletRequest request,
+			MultivaluedMap<String, String> form) {
+		Map<String, Object> ret = new HashMap<String, Object>();
 
-		// loop through the dependencies and process request according to the
-		// requestor's permissions on each engine.
-		List<String> dependentEngineIds = SecurityProjectUtils.getProjectDependencies(projectId);
-		for (int i = 0; i < dependentEngineIds.size(); i++) {
-			String engineId = dependentEngineIds.get(i);
-			Integer currentPendingUserPermission = SecurityEngineUtils.getUserAccessRequestEnginePermission(newUserId,
-					engineId);
-			Integer requesterEnginePermission = SecurityEngineUtils
-					.getUserEnginePermission(User.getSingleLogginName(requester), dependentEngineIds.get(i));
-			Integer currentNewUserPermission = SecurityEngineUtils
-					.getUserEnginePermission(User.getSingleLogginName(requester), dependentEngineIds.get(i));
-
-			// if newUser is requesting permission which he/she already has access, take no
-			// action
-			if (currentNewUserPermission == requestedPermissionNumeric) {
-				alreadyHaveAccess.add(engineId);
-				classLogger.info("User already has " + requestedPermission + " access to " + engineId);
-				// if newUser has already requested this access and it is still pending, take no
-				// action
-			} else if (currentPendingUserPermission != null
-					&& requestedPermissionNumeric == currentPendingUserPermission) {
-				requestAlreadyExists.add(engineId);
-				classLogger.info("user has already requested " + requestedPermission + "access to " + engineId
-						+ " and the request is pending.");
-				// if requester has insufficient privileges on the engine so forward request to
-				// engine owner
-			} else if (requesterEnginePermission == null || requesterEnginePermission == 3) {
-				try {
-					SecurityEngineUtils.setUserAccessRequest(newUserId, newUserType, dependentEngineIds.get(i),
-							"No Comment at this time", requestedPermissionNumeric, requester);
-					newRequestAdded.add(engineId);
-					classLogger
-							.info("User has forwarded " + newUserId + "'s request to the owner of engine " + engineId);
-				} catch (Exception e) {
-					couldNotAddRequest.add(engineId);
-					classLogger.error(Constants.STACKTRACE, e);
-				}
-				// if the newUser has permissions on the engine but not to the level requested,
-				// edit the existing record
-			} else if (requesterEnginePermission < 3 && currentNewUserPermission != null
-					&& currentNewUserPermission > requestedPermissionNumeric) {
-				try {
-					SecurityEngineUtils.editEngineUserPermission(requester, newUserId, engineId, requestedPermission,
-							endDate, usageRestriction, usageFrequency, maxTokens, maxResponseTime);
-					accessGranted.add(engineId);
-					classLogger.info("User has updated permission for " + newUserId + " to " + engineId);
-				} catch (IllegalAccessException e) {
-					couldNotAddRequest.add(engineId);
-					classLogger.error(Constants.STACKTRACE, e);
-				}
-				// if none of the above and requestor has proper permission, add user to the
-				// engine permission database
-			} else if (requesterEnginePermission < 3 && currentNewUserPermission == null) {
-				try {
-					accessGranted.add(engineId);
-					SecurityEngineUtils.addEngineUser(requester, newUserId, engineId, requestedPermission, endDate,
-							usageRestriction, usageFrequency, maxTokens, maxResponseTime);
-					classLogger.info("User has added " + newUserId + " to " + engineId);
-				} catch (IllegalAccessException | IllegalArgumentException e) {
-					couldNotAddRequest.add(engineId);
-					classLogger.error(Constants.STACKTRACE, e);
-				}
-			} else {
-				couldNotAddRequest.add(engineId);
-				classLogger.info("User could not add or forward " + newUserId + "'s request for engine " + engineId);
-			}
+		User requester = null;
+		try {
+			requester = ResourceUtility.getUser(request);
+			classLogger.info("User is attempting to modify engine permissions.");
+		} catch (IllegalAccessException e) {
+			classLogger.warn("Invalid user session trying to access authorization resources");
+			classLogger.error(Constants.STACKTRACE, e);
+			ret.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(ret, 401);
 		}
 
-		ret.put("Successfully processed permission propagation", true);
-		ret.put("alreadyHaveAccess", alreadyHaveAccess);
-		ret.put("requestAlreadyExists", requestAlreadyExists);
-		ret.put("newRequestAdded", newRequestAdded);
-		ret.put("accessGranted", accessGranted);
-		ret.put("couldNotAddRequest", couldNotAddRequest);
+		// Get form info
+
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
+		
+		List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
+
+
+		// Determine if admin right are required to add users and, if so, if requester
+		// has those rights.
+		if (AbstractSecurityUtils.adminOnlyProjectAddAccess() && !SecurityAdminUtils.userIsAdmin(requester)) {
+			classLogger.warn("User is trying to add a user for project " + projectId + " but is not an admin");
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+		
+		Map<String, Object> userRet = new HashMap<String, Object>();
+		
+		for (Map<String, String> userRequest : requests) {
+			String newUserId = userRequest.get("userid");
+			String newUserType = userRequest.get("type");
+			String requestedPermission = userRequest.get("permission");
+			String usageRestriction = userRequest.containsKey("usageRestriction")
+					? userRequest.get("usageRestriction")
+					: null;
+			String usageFrequency = userRequest.containsKey("usageFrequency")
+					? userRequest.get("usageFrequency")
+					: null;
+			int maxTokens = 0;
+			
+			String maxTokensStr = userRequest.containsKey("maxTokens")
+					? userRequest.get("maxTokens")
+					: null;
+	
+			if (maxTokensStr != null && !(maxTokensStr = maxTokensStr.trim()).isEmpty()) {
+				// must be a valid integer
+				try {
+					maxTokens = Integer.parseInt(maxTokensStr);
+				} catch (NumberFormatException e) {
+					classLogger.error(Constants.STACKTRACE, e);
+					ret.put(Constants.ERROR_MESSAGE, "maxTokens must be a valid integer value");
+					return WebUtility.getResponse(ret, 400);
+				}
+			}
+			double maxResponseTime = 0.0;
+			String maxResponseTimeStr = userRequest.containsKey("maxResponseTime")
+					? userRequest.get("maxResponseTime")
+					: null;
+			if (maxResponseTimeStr != null && !(maxResponseTimeStr = maxResponseTimeStr.trim()).isEmpty()) {
+				// must be a valid double
+				try {
+					maxResponseTime = Double.parseDouble(maxResponseTimeStr);
+				} catch (NumberFormatException e) {
+					classLogger.error(Constants.STACKTRACE, e);
+					ret.put(Constants.ERROR_MESSAGE, "maxResponseTime must be a valid double value");
+					return WebUtility.getResponse(ret, 400);
+				}
+			}
+			Map<String, Object> responses = SecurityProjectUtils.propagateProjectPermission(requester, projectId, newUserId, newUserType, requestedPermission, 
+				 endDate, usageRestriction, usageFrequency, maxTokens, maxResponseTime);
+			userRet.put(newUserId, responses);
+		}
+		
+		ret.put("success", true);
+		ret.put("users", userRet);
+		
 		return WebUtility.getResponse(ret, 200);
 	}
 
