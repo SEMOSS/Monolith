@@ -96,6 +96,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 				throw new IllegalArgumentException("The group type cannot be null");
 			}
 			AdminSecurityGroupUtils.getInstance(user).addGroup(user, newGroupId, newGroupType, description);
+			success = true;
 		} catch (IllegalArgumentException e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -139,6 +140,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			String groupType = WebUtility.inputSanitizer(request.getParameter("type"));
 
 			AdminSecurityGroupUtils.getInstance(user).deleteGroupAndPropagate(groupId, groupType);
+			success = true;
 		} catch (IllegalArgumentException e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -155,6 +157,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("/editGroup")
+	@Deprecated
 	public Response editGroup(@Context HttpServletRequest request) {
 		Map<String, String> errorRet = new HashMap<>();
 		User user = null;
@@ -192,6 +195,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 
 			AdminSecurityGroupUtils.getInstance(user).editGroupAndPropagate(user, groupId, groupType, newGroupId,
 					newType, newDescription);
+			success = true;
 		} catch (IllegalArgumentException e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -225,7 +229,6 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			errorRet.put(Constants.ERROR_MESSAGE, "The user doesn't have the permissions to perform this action.");
 			return WebUtility.getResponse(errorRet, 400);
 		}
-
 		boolean success = false;
 		try {
 			String groupId = WebUtility.inputSQLSanitizer(request.getParameter("groupId"));
@@ -237,14 +240,12 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 				throw new IllegalArgumentException("The new group id cannot be null or empty");
 			}
 			String groupType = WebUtility.inputSanitizer(request.getParameter("type"));
-			String newType = WebUtility.inputSanitizer(request.getParameter("newType"));
-			String newDescription = WebUtility.inputSanitizer(request.getParameter("newDescription"));
-			if ((newType == null || (newType = newType.trim()).isEmpty())) {
-				throw new IllegalArgumentException("The new group type cannot be null");
+			if ((groupType == null || (groupType = groupType.trim()).isEmpty())) {
+				throw new IllegalArgumentException("The group type cannot be null");
 			}
-
+			String newDescription = WebUtility.inputSanitizer(request.getParameter("newDescription"));
 			AdminSecurityGroupUtils.getInstance(user).editGroupDetailsAndPropagate(user, groupId, groupType, newGroupId,
-					newType, newDescription);
+					newDescription);
 			success = true;
 		} catch (IllegalArgumentException e) {
 			classLogger.error(Constants.STACKTRACE, e);
@@ -475,6 +476,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			String endDate = WebUtility.inputSanitizer(request.getParameter("endDate"));
 
 			AdminSecurityGroupUtils.getInstance(user).addUserToGroup(user, groupId, userId, userLoginType, endDate);
+			success = true;
 		} catch (IllegalArgumentException e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -525,6 +527,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			}
 
 			AdminSecurityGroupUtils.getInstance(user).removeUserFromGroup(groupId, userId, userLoginType);
+			success = true;
 		} catch (IllegalArgumentException e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -594,6 +597,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 
 			AdminSecurityGroupUtils.getInstance(user).addGroupProjectPermission(user, groupId, groupType, projectId,
 					permission, endDate);
+			success = true;
 		} catch (IllegalArgumentException e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -705,6 +709,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			String groupType = WebUtility.inputSanitizer(request.getParameter("type"));
 
 			AdminSecurityGroupUtils.getInstance(user).removeGroupProjectPermission(user, groupId, groupType, projectId);
+			success = true;
 		} catch (IllegalArgumentException e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -958,6 +963,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 
 			AdminSecurityGroupUtils.getInstance(user).addGroupEnginePermission(user, groupId, groupType, engineId,
 					permission, endDate);
+			success = true;
 		} catch (IllegalArgumentException e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -1069,6 +1075,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			String groupType = WebUtility.inputSanitizer(request.getParameter("type"));
 
 			AdminSecurityGroupUtils.getInstance(user).removeGroupEnginePermission(user, groupId, groupType, engineId);
+			success = true;
 		} catch (IllegalArgumentException e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
