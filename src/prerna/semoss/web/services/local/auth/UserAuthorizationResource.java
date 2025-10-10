@@ -2,7 +2,6 @@ package prerna.semoss.web.services.local.auth;
 
 import java.sql.SQLException;
 import java.util.HashMap;
-import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 
@@ -103,14 +102,14 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 	public Response createUserAccessKey(@Context HttpServletRequest request) {
 		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		if (user == null) {
-			Map<String, String> ret = new Hashtable<>();
+			Map<String, String> ret = new HashMap<>();
 			ret.put(Constants.ERROR_MESSAGE, "No active session. Please login");
 			return WebUtility.getResponse(ret, 401);
 		}
 		AccessToken token = user.getPrimaryLoginToken();
 		boolean accessKeysAllowed = SocialPropertiesUtil.getInstance().accessKeysAllowed(token.getProvider());
 		if (!accessKeysAllowed) {
-			Map<String, String> ret = new Hashtable<>();
+			Map<String, String> ret = new HashMap<>();
 			ret.put(Constants.ERROR_MESSAGE,
 					"Creating access keys is not allowed. Please reach out to an administrator if you require this functionality");
 			return WebUtility.getResponse(ret, 401);
@@ -119,7 +118,7 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 		String tokenName = WebUtility.inputSanitizer(request.getParameter("tokenName"));
 		if (tokenName != null) {
 			if (tokenName.length() > 255) {
-				Map<String, String> ret = new Hashtable<>();
+				Map<String, String> ret = new HashMap<>();
 				ret.put(Constants.ERROR_MESSAGE, "Token name must be less than 255 characters long");
 				return WebUtility.getResponse(ret, 400);
 			}
@@ -127,7 +126,7 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 		String tokenDescription = WebUtility.inputSanitizer(request.getParameter("tokenDescription"));
 		if (tokenDescription != null) {
 			if (tokenDescription.length() > 500) {
-				Map<String, String> ret = new Hashtable<>();
+				Map<String, String> ret = new HashMap<>();
 				ret.put(Constants.ERROR_MESSAGE, "Token description must be less than 500 characters long");
 				return WebUtility.getResponse(ret, 400);
 			}
@@ -138,7 +137,7 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 			oneTimeDetails = SecurityUserAccessKeyUtils.createUserAccessToken(token, tokenName, tokenDescription);
 			return WebUtility.getResponse(oneTimeDetails, 200);
 		} catch (SQLException e) {
-			Map<String, String> ret = new Hashtable<>();
+			Map<String, String> ret = new HashMap<>();
 			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(ret, 400);
 		}

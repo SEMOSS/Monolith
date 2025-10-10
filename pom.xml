@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
+<project
+	xmlns="http://maven.apache.org/POM/4.0.0"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 	<modelVersion>4.0.0</modelVersion>
@@ -35,19 +36,10 @@
 		<project.reporting.outputEncoding>cp1252</project.reporting.outputEncoding>
 		<openhtml.version>1.0.1</openhtml.version>
 		<maven.build.timestamp.format>yyyy-MM-dd HH:mm:ss</maven.build.timestamp.format>
-        <build.date>${maven.build.timestamp}</build.date>
+		<build.date>${maven.build.timestamp}</build.date>
 	</properties>
 	<!-- LEGACY
-	<distributionManagement>
-		<snapshotRepository>
-			<id>ossrh</id>
-			<url>https://oss.sonatype.org/content/repositories/snapshots</url>
-		</snapshotRepository>
-		<repository>
-			<id>ossrh</id>
-			<url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
-		</repository>
-	</distributionManagement>
+	<distributionManagement><snapshotRepository><id>ossrh</id><url>https://oss.sonatype.org/content/repositories/snapshots</url></snapshotRepository><repository><id>ossrh</id><url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url></repository></distributionManagement>
 	-->
 	<reporting>
 		<plugins>
@@ -59,8 +51,8 @@
 					<reportSet>
 						<reports>
 							<report>index</report>
-                			<report>summary</report>
-                			<report>dependency-info</report>
+							<report>summary</report>
+							<report>dependency-info</report>
 							<report>dependencies</report>
 							<report>dependency-convergence</report>
 						</reports>
@@ -76,8 +68,8 @@
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>3.14.0</version>
 				<configuration>
-    				<source>21</source>
-    				<target>21</target>
+					<source>21</source>
+					<target>21</target>
 					<encoding>cp1252</encoding>
 				</configuration>
 			</plugin>
@@ -131,6 +123,23 @@
 							</target>
 						</configuration>
 					</execution>
+					<!-- this is so log4j can pick up the plugins working in eclipse -->
+					<execution>
+						<id>copy-semoss-resources</id>
+						<phase>process-resources</phase>
+						<goals>
+							<goal>run</goal>
+						</goals>
+						<configuration>
+							<target>
+								<mkdir dir="${project.build.outputDirectory}/META-INF/org/apache/logging/log4j/core/config/plugins"/>
+								<copy file="../Semoss/src/main/resources/META-INF/org/apache/logging/log4j/core/config/plugins/Log4j2Plugins.dat"
+			                          todir="${project.build.outputDirectory}/META-INF/org/apache/logging/log4j/core/config/plugins"
+			                          overwrite="true"
+			                          failonerror="false"/>
+							</target>
+						</configuration>
+					</execution>
 				</executions>
 			</plugin>
 		</plugins>
@@ -145,9 +154,9 @@
 				<plugins>
 					<!-- https://mvnrepository.com/artifact/org.apache.maven.plugins/maven-war-plugin -->
 					<plugin>
-					    <groupId>org.apache.maven.plugins</groupId>
-					    <artifactId>maven-war-plugin</artifactId>
-					    <version>3.4.0</version>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-war-plugin</artifactId>
+						<version>3.4.0</version>
 						<configuration>
 							<webXml>WebContent/WEB-INF/web.xml</webXml>
 							<failOnMissingWebXml>true</failOnMissingWebXml>
@@ -178,9 +187,7 @@
 			<!-- however, the following would enable this profile, -->
 			<!-- and we want to stick with dev unless -P deploy is given
 			explicitly -->
-			<!--activation>
-				<jdk>[1.8,)</jdk>
-			</activation-->
+			<!--activation><jdk>[1.8,)</jdk></activation-->
 			<!-- disabling javadoc lint - ideally should clean up javadocs -->
 			<!-- see https://stackoverflow.com/a/16743137/9612364 -->
 			<properties>
@@ -191,7 +198,7 @@
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-war-plugin</artifactId>
-					    <version>3.4.0</version>
+						<version>3.4.0</version>
 						<configuration>
 							<webXml>WebContent/WEB-INF/web.xml</webXml>
 							<failOnMissingWebXml>true</failOnMissingWebXml>
@@ -233,38 +240,10 @@
 						</executions>
 					</plugin>
 					<!-- LEGACY
-					<plugin>
-						<groupId>org.sonatype.plugins</groupId>
-						<artifactId>nexus-staging-maven-plugin</artifactId>
-						<version>1.6.7</version>
-						<extensions>true</extensions>
-						<configuration>
-							<serverId>ossrh</serverId>
-							<nexusUrl>https://oss.sonatype.org/</nexusUrl>
-							<autoReleaseAfterClose>false</autoReleaseAfterClose>
-						</configuration>
-					</plugin>
+					<plugin><groupId>org.sonatype.plugins</groupId><artifactId>nexus-staging-maven-plugin</artifactId><version>1.6.7</version><extensions>true</extensions><configuration><serverId>ossrh</serverId><nexusUrl>https://oss.sonatype.org/</nexusUrl><autoReleaseAfterClose>false</autoReleaseAfterClose></configuration></plugin>
 					-->
 					<!-- LEGACY
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-gpg-plugin</artifactId>
-						<version>1.5</version>
-						<executions>
-							<execution>
-								<id>sign-artifacts</id>
-								<phase>verify</phase>
-								<goals>
-									<goal>sign</goal>
-								</goals>
-								<configuration>
-									<gpgArguments>
-										<arg>loopback</arg>
-									</gpgArguments>
-								</configuration>
-							</execution>
-						</executions>
-					</plugin>
+					<plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-gpg-plugin</artifactId><version>1.5</version><executions><execution><id>sign-artifacts</id><phase>verify</phase><goals><goal>sign</goal></goals><configuration><gpgArguments><arg>loopback</arg></gpgArguments></configuration></execution></executions></plugin>
 					-->
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
@@ -296,31 +275,20 @@
 							</execution>
 						</executions>
 					</plugin>
-		          <plugin>
-		            <groupId>org.sonatype.central</groupId>
-		            <artifactId>central-publishing-maven-plugin</artifactId>
-		            <version>0.8.0</version>
-		            <extensions>true</extensions>
-		            <configuration>
-		              <publishingServerId>central</publishingServerId>
-		            </configuration>
-		          </plugin>
+					<plugin>
+						<groupId>org.sonatype.central</groupId>
+						<artifactId>central-publishing-maven-plugin</artifactId>
+						<version>0.8.0</version>
+						<extensions>true</extensions>
+						<configuration>
+							<publishingServerId>central</publishingServerId>
+						</configuration>
+					</plugin>
 				</plugins>
 			</build>
 		</profile>
 	</profiles>
 	<repositories>
-		<repository>
-			<id>public</id>
-			<name>Sonatype's Maven repository</name>
-			<url>https://oss.sonatype.org/content/groups/public</url>
-			<releases>
-				<enabled>true</enabled>
-			</releases>
-			<snapshots>
-				<enabled>false</enabled>
-			</snapshots>
-		</repository>
 		<repository>
 			<id>repo1</id>
 			<name>Maven Repository Switchboard</name>
@@ -335,10 +303,10 @@
 			<id>central-portal-snapshots</id>
 			<url>https://central.sonatype.com/repository/maven-snapshots/</url>
 			<releases>
-			<enabled>false</enabled>
+				<enabled>false</enabled>
 			</releases>
 			<snapshots>
-			<enabled>true</enabled>
+				<enabled>true</enabled>
 			</snapshots>
 		</repository>
 		<repository>
@@ -353,9 +321,7 @@
 			</snapshots>
 		</repository>
 		<!-- repository for Apache Storm -->
-		<!-- <repository> <id>clojars.org</id>
-		<url>http://clojars.org/repo</url> 
-		</repository> -->
+		<!-- <repository><id>clojars.org</id><url>http://clojars.org/repo</url></repository> -->
 		<repository>
 			<id>redshift</id>
 			<url>https://s3.amazonaws.com/redshift-maven-repository/release</url>
@@ -366,6 +332,14 @@
 			<groupId>org.semoss</groupId>
 			<artifactId>semoss</artifactId>
 			<version>${ci.version}</version>
+			<classifier>shaded-dependencies</classifier>
+			<exclusions>
+				<!-- even though maven properly uses the shard, eclispe m2e does not and this causes issues with log4j for local dev -->
+				<exclusion>
+					<groupId>com.amazonaws</groupId>
+					<artifactId>athena-jdbc</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/org.apache.tomcat/tomcat-catalina -->
 		<!-- this is the primary tomcat specific jar -->
@@ -383,9 +357,9 @@
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/jakarta.activation/jakarta.activation-api -->
 		<dependency>
-		    <groupId>jakarta.activation</groupId>
-		    <artifactId>jakarta.activation-api</artifactId>
-		    <version>1.2.2</version>
+			<groupId>jakarta.activation</groupId>
+			<artifactId>jakarta.activation-api</artifactId>
+			<version>1.2.2</version>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/org.jboss.resteasy/resteasy-core -->
 		<dependency>
@@ -394,17 +368,17 @@
 			<version>4.7.10.Final</version>
 			<exclusions>
 				<exclusion>
-			    	<groupId>org.reactivestreams</groupId>
-		    		<artifactId>reactive-streams</artifactId>
-			    </exclusion>
-			    <exclusion>
-			    	<groupId>org.ow2.asm</groupId>
-		    		<artifactId>asm</artifactId>
-			    </exclusion>
-			    <exclusion>
+					<groupId>org.reactivestreams</groupId>
+					<artifactId>reactive-streams</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.ow2.asm</groupId>
+					<artifactId>asm</artifactId>
+				</exclusion>
+				<exclusion>
 					<groupId>jakarta.activation</groupId>
 					<artifactId>jakarta.activation-api</artifactId>
-			    </exclusion>
+				</exclusion>
 				<exclusion>
 					<groupId>org.jboss.logging</groupId>
 					<artifactId>jboss-logging</artifactId>
@@ -425,53 +399,53 @@
 			<version>15.2.2</version>
 			<exclusions>
 				<exclusion>
-		    		<groupId>com.google.guava</groupId>
-		    		<artifactId>guava</artifactId>
-		    	</exclusion>
-		    	<exclusion>
-		    		<groupId>org.json</groupId>
-		    		<artifactId>json</artifactId>
-		    	</exclusion>
-		    	<exclusion>
+					<groupId>com.google.guava</groupId>
+					<artifactId>guava</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.json</groupId>
+					<artifactId>json</artifactId>
+				</exclusion>
+				<exclusion>
 					<groupId>jakarta.activation</groupId>
 					<artifactId>jakarta.activation-api</artifactId>
-			    </exclusion>
+				</exclusion>
 				<exclusion>
 					<groupId>com.fasterxml.woodstox</groupId>
 					<artifactId>woodstox-core</artifactId>
 				</exclusion>
 				<exclusion>
-		    		<artifactId>commons-logging</artifactId>
-		    		<groupId>commons-logging</groupId>
-		    	</exclusion>
-		    	<exclusion>
-		    		<groupId>org.glassfish</groupId>
-		    		<artifactId>jakarta.json</artifactId>
-		    	</exclusion>
-		    	<exclusion>
-		    		<groupId>joda-time</groupId>
-		    		<artifactId>joda-time</artifactId>
-		    	</exclusion>
-		    	<exclusion>
+					<artifactId>commons-logging</artifactId>
+					<groupId>commons-logging</groupId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.glassfish</groupId>
+					<artifactId>jakarta.json</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>joda-time</groupId>
+					<artifactId>joda-time</artifactId>
+				</exclusion>
+				<exclusion>
 					<groupId>com.sun.xml.rpc</groupId>
 					<artifactId>jaxrpc-impl</artifactId>
-		    	</exclusion>
-		    	<exclusion>
-		    		<groupId>org.javassist</groupId>
-		    		<artifactId>javassist</artifactId>
-		    	</exclusion>
-		    	<exclusion>
-		    		<groupId>org.codehaus.woodstox</groupId>
-		    		<artifactId>stax2-api</artifactId>
-		    	</exclusion>
-		    	<exclusion>
+				</exclusion>
+				<exclusion>
+					<groupId>org.javassist</groupId>
+					<artifactId>javassist</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.codehaus.woodstox</groupId>
+					<artifactId>stax2-api</artifactId>
+				</exclusion>
+				<exclusion>
 					<groupId>org.ow2.asm</groupId>
 					<artifactId>*</artifactId>
-		    	</exclusion>
-		    	<exclusion>
-		    		<groupId>com.sun.mail</groupId>
-		    		<artifactId>jakarta.mail</artifactId>
-		    	</exclusion>
+				</exclusion>
+				<exclusion>
+					<groupId>com.sun.mail</groupId>
+					<artifactId>jakarta.mail</artifactId>
+				</exclusion>
 				<exclusion>
 					<groupId>org.owasp.esapi</groupId>
 					<artifactId>*</artifactId>
@@ -480,7 +454,16 @@
 					<groupId>com.fasterxml.jackson.core</groupId>
 					<artifactId>*</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>org.apache.santuario</groupId>
+					<artifactId>xmlsec</artifactId>
+				</exclusion>
 			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.santuario</groupId>
+			<artifactId>xmlsec</artifactId>
+			<version>4.0.4</version>
 		</dependency>
 		<!-- adding updated jar to deal with exclusion w/ vulnerability -->
 		<!-- https://mvnrepository.com/artifact/com.fasterxml.woodstox/woodstox-core -->
@@ -498,15 +481,15 @@
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/com.sun.xml.rpc/jaxrpc-impl -->
 		<dependency>
-		    <groupId>com.sun.xml.rpc</groupId>
-		    <artifactId>jaxrpc-impl</artifactId>
-		    <version>1.1.6</version>
-		    <exclusions>
-		    	<exclusion>
-		    		<groupId>com.sun.mail</groupId>
-		    		<artifactId>jakarta.mail</artifactId>
-		    	</exclusion>
-		    	<exclusion>
+			<groupId>com.sun.xml.rpc</groupId>
+			<artifactId>jaxrpc-impl</artifactId>
+			<version>1.1.6</version>
+			<exclusions>
+				<exclusion>
+					<groupId>com.sun.mail</groupId>
+					<artifactId>jakarta.mail</artifactId>
+				</exclusion>
+				<exclusion>
 					<groupId>com.sun.xml.fastinfoset</groupId>
 					<artifactId>FastInfoset</artifactId>
 				</exclusion>
@@ -514,25 +497,25 @@
 					<groupId>jakarta.xml.rpc</groupId>
 					<artifactId>jakarta.xml.rpc-api</artifactId>
 				</exclusion>
-		    </exclusions>
+			</exclusions>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/com.sun.xml.fastinfoset/FastInfoset -->
 		<dependency>
-		    <groupId>com.sun.xml.fastinfoset</groupId>
-		    <artifactId>FastInfoset</artifactId>
-		    <version>1.2.18</version>
+			<groupId>com.sun.xml.fastinfoset</groupId>
+			<artifactId>FastInfoset</artifactId>
+			<version>1.2.18</version>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/jakarta.xml.rpc/jakarta.xml.rpc-api -->
 		<dependency>
-		    <groupId>jakarta.xml.rpc</groupId>
-		    <artifactId>jakarta.xml.rpc-api</artifactId>
-		    <version>1.1.4</version>
-		    <exclusions>
-		    	<exclusion>
+			<groupId>jakarta.xml.rpc</groupId>
+			<artifactId>jakarta.xml.rpc-api</artifactId>
+			<version>1.1.4</version>
+			<exclusions>
+				<exclusion>
 					<groupId>jakarta.servlet</groupId>
 					<artifactId>jakarta.servlet-api</artifactId>
 				</exclusion>
-		    </exclusions>
+			</exclusions>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/org.bouncycastle/bcpkix-jdk18on -->
 		<dependency>
@@ -542,21 +525,21 @@
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/joda-time/joda-time -->
 		<dependency>
-		    <groupId>joda-time</groupId>
-		    <artifactId>joda-time</artifactId>
-		    <version>2.14.0</version>
-		    <exclusions>
-		    	<exclusion>
-		    		<groupId>org.joda</groupId>
-		    		<artifactId>joda-convert</artifactId>
-		    	</exclusion>
-		    </exclusions>
+			<groupId>joda-time</groupId>
+			<artifactId>joda-time</artifactId>
+			<version>2.14.0</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.joda</groupId>
+					<artifactId>joda-convert</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/com.mikesamuel/json-sanitizer -->
 		<dependency>
-		    <groupId>com.mikesamuel</groupId>
-		    <artifactId>json-sanitizer</artifactId>
-		    <version>1.2.3</version>
+			<groupId>com.mikesamuel</groupId>
+			<artifactId>json-sanitizer</artifactId>
+			<version>1.2.3</version>
 		</dependency>
 	</dependencies>
 </project>
