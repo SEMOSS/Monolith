@@ -27,7 +27,7 @@
  *******************************************************************************/
 package prerna.web.services.util;
 
-import java.util.Hashtable;
+import java.util.concurrent.ConcurrentHashMap;
 
 import prerna.engine.api.IRemoteQueryable;
 import prerna.util.Utility;
@@ -35,46 +35,42 @@ import prerna.util.Utility;
 public class QueryResultHash {
 
 	long runner = 1;
-	Hashtable objHash = new Hashtable();
+	ConcurrentHashMap objHash = new ConcurrentHashMap();
 	static QueryResultHash hash = null;
-	
-	protected QueryResultHash()
-	{
+
+	protected QueryResultHash() {
 		// do nothing
 	}
-	
-	public static QueryResultHash getInstance()
-	{
-		if(hash == null)
+
+	public static QueryResultHash getInstance() {
+		if (hash == null) {
 			hash = new QueryResultHash();
+		}
 		return hash;
 	}
-	
-	public String addObject(IRemoteQueryable maObject)
-	{
+
+	public String addObject(IRemoteQueryable maObject) {
 		String prefix = Utility.getDIHelperProperty("ENGINE_GUID");
-		if(prefix == null)
+		if (prefix == null) {
 			prefix = "QueryNo";
+		}
 		String key = prefix + runner;
 		maObject.setRemoteId(key);
 		objHash.put(key, maObject);
 		runner++;
 		return key;
 	}
-	
-	public Object getObject(String key)
-	{
+
+	public Object getObject(String key) {
 		return objHash.get(key);
 	}
-	
-	public String setObject(String key, Object maObject)
-	{
+
+	public String setObject(String key, Object maObject) {
 		objHash.put(key, maObject);
 		return key;
 	}
 
-	public void cleanObject(String key)
-	{
+	public void cleanObject(String key) {
 		objHash.remove(key);
 	}
 

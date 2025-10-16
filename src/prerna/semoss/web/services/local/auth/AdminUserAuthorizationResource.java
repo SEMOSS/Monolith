@@ -1,7 +1,6 @@
 package prerna.semoss.web.services.local.auth;
 
 import java.util.HashMap;
-import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 
@@ -300,12 +299,12 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 		try {
 			ret = adminUtils.editUser(userInfo);
 		} catch (IllegalArgumentException e) {
-			Map<String, String> retMap = new Hashtable<>();
+			Map<String, String> retMap = new HashMap<>();
 			retMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(retMap, 400);
 		}
 		if (!ret) {
-			Map<String, String> retMap = new Hashtable<>();
+			Map<String, String> retMap = new HashMap<>();
 			retMap.put(Constants.ERROR_MESSAGE, "Unknown error occurred with updating user. Please try again.");
 			return WebUtility.getResponse(retMap, 400);
 		}
