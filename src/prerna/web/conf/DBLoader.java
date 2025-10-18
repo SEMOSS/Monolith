@@ -1,5 +1,5 @@
 /*******************************************************************************
-' * Copyright 2015 Defense Health Agency (DHA)
+ * Copyright 2015 Defense Health Agency (DHA)
  *
  * If your use of this software does not include any GPLv2 components:
  * 	Licensed under the Apache License, Version 2.0 (the "License");
@@ -216,13 +216,86 @@ public class DBLoader implements ServletContextListener {
 					.getEngineProperty(Constants.SCHEDULER_DB);
 			IDatabaseEngine userTracking = (IDatabaseEngine) DIHelper.getInstance()
 					.getEngineProperty(Constants.USER_TRACKING_DB);
-			if (localmaster == null || security == null || !localmaster.isConnected() || !security.isConnected()
-					|| (!Utility.schedulerForceDisable() && scheduler != null && !scheduler.isConnected())
-					|| (Utility.isUserTrackingEnabled() && (userTracking == null || !userTracking.isConnected()))
-					|| (Utility.isAuditLogsDatabaseEnabled() && (auditDb == null || !auditDb.isConnected()))) {
-				// you have messed up!!!
-				StartUpSuccessFilter.setStartUpSuccess(false);
+			boolean startupFailed = false;
+
+			// Check localmaster
+			if (localmaster == null) {
+				classLogger.error("STARTUP CHECK FAILED: localmaster is NULL");
+				startupFailed = true;
+			} else if (!localmaster.isConnected()) {
+				classLogger.error("STARTUP CHECK FAILED: localmaster is NOT CONNECTED");
+				startupFailed = true;
+			} else {
+				classLogger.info("STARTUP CHECK PASSED: localmaster is connected");
 			}
+
+			// Check security
+			if (security == null) {
+				classLogger.error("STARTUP CHECK FAILED: security is NULL");
+				startupFailed = true;
+			} else if (!security.isConnected()) {
+				classLogger.error("STARTUP CHECK FAILED: security is NOT CONNECTED");
+				startupFailed = true;
+			} else {
+				classLogger.info("STARTUP CHECK PASSED: security is connected");
+			}
+
+			// Check scheduler (conditional)
+			if (!Utility.schedulerForceDisable()) {
+				if (scheduler == null) {
+					classLogger.error("STARTUP CHECK FAILED: scheduler is NULL (SCHEDULER_FORCE_DISABLE=false)");
+					startupFailed = true;
+				} else if (!scheduler.isConnected()) {
+					classLogger
+							.error("STARTUP CHECK FAILED: scheduler is NOT CONNECTED (SCHEDULER_FORCE_DISABLE=false)");
+					startupFailed = true;
+				} else {
+					classLogger.info("STARTUP CHECK PASSED: scheduler is connected");
+				}
+			} else {
+				classLogger.info("STARTUP CHECK SKIPPED: scheduler (SCHEDULER_FORCE_DISABLE=true)");
+			}
+
+			// Check userTracking (conditional)
+			if (Utility.isUserTrackingEnabled()) {
+				if (userTracking == null) {
+					classLogger.error("STARTUP CHECK FAILED: userTracking is NULL (USER_TRACKING_ENABLED=true)");
+					startupFailed = true;
+				} else if (!userTracking.isConnected()) {
+					classLogger
+							.error("STARTUP CHECK FAILED: userTracking is NOT CONNECTED (USER_TRACKING_ENABLED=true)");
+					startupFailed = true;
+				} else {
+					classLogger.info("STARTUP CHECK PASSED: userTracking is connected");
+				}
+			} else {
+				classLogger.info("STARTUP CHECK SKIPPED: userTracking (USER_TRACKING_ENABLED=false)");
+			}
+
+			// Check auditDb (conditional)
+			if (Utility.isAuditLogsDatabaseEnabled()) {
+				if (auditDb == null) {
+					classLogger.error("STARTUP CHECK FAILED: auditDb is NULL (AUDIT_LOGS_DATABASE_ENABLED=true)");
+					startupFailed = true;
+				} else if (!auditDb.isConnected()) {
+					classLogger
+							.error("STARTUP CHECK FAILED: auditDb is NOT CONNECTED (AUDIT_LOGS_DATABASE_ENABLED=true)");
+					startupFailed = true;
+				} else {
+					classLogger.info("STARTUP CHECK PASSED: auditDb is connected");
+				}
+			} else {
+				classLogger.info("STARTUP CHECK SKIPPED: auditDb (AUDIT_LOGS_DATABASE_ENABLED=false)");
+			}
+
+			if (startupFailed) {
+				classLogger.error("STARTUP FAILED - See detailed errors above");
+				StartUpSuccessFilter.setStartUpSuccess(false);
+				// dont continue trying to load / init
+				return;
+			}
+
+			classLogger.info("STARTUP SUCCESS - All required components are connected");
 
 			// Load and run triggerOnLoad jobs
 			if (!Utility.schedulerForceDisable() && scheduler != null) {
