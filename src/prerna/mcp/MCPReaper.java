@@ -257,7 +257,7 @@ public class MCPReaper implements Runnable {
 				return response.toString();
 			}
 			String protocolVersion = params.getString("protocolVersion");
-			String expression = "InitMCP(project='" + projectId + "', protocolVersion='" + protocolVersion + "');";
+			String expression = "InitMCP(project='" + projectId + "', protocolVersion='" + protocolVersion + "', message='" + json + "');";
 			JSONObject resultMap = (JSONObject) runPixel(insight.getUser(), insight, expression, sessionId);
 			response.put("result", resultMap);
 		}
@@ -290,26 +290,26 @@ public class MCPReaper implements Runnable {
 			// latest closing price as a float.\n "}]},
 			// "id":1}
 
-			String expression = "GetMCPTools(project='" + projectId + "');";
+			String expression = "GetMCPTools(project='" + projectId + "', message='" + json + "');";
 			JSONObject toolMap = (JSONObject) runPixel(insight.getUser(), insight, expression, sessionId);
 			response.put("result", toolMap);
 		}
 		// {"method":"tools/list","params":{},"jsonrpc":"2.0","id":2}
 		else if (method.equalsIgnoreCase("resources/list")) {
 			// {"jsonrpc":"2.0","id":3,"result":{"resources":[]}}
-			String expression = "GetMCPResources(project='" + projectId + "');";
+			String expression = "GetMCPResources(project='" + projectId + "' , message='" + json + "');";
 			JSONObject toolMap = (JSONObject) runPixel(insight.getUser(), insight, expression, sessionId);
 			response.put("result", toolMap);
 		} else if (method.equalsIgnoreCase("resources/templates/list")) {
 			// {"jsonrpc":"2.0","id":3,"result":{"resources":[]}}
-			String expression = "GetMCPResourcesTemplates(project='" + projectId + "');";
+			String expression = "GetMCPResourcesTemplates(project='" + projectId + "', message='" + json + "');";
 			JSONObject toolMap = (JSONObject) runPixel(insight.getUser(), insight, expression, sessionId);
 			response.put("result", toolMap);
 		}
 		// {"method":"resources/list","params":{},"jsonrpc":"2.0","id":3}
 		else if (method.equalsIgnoreCase("prompts/list")) {
 			// {"jsonrpc":"2.0","id":4,"result":{"prompts":[]}}
-			String expression = "GetMCPPrompts(project='" + projectId + "');";
+			String expression = "GetMCPPrompts(project='" + projectId + "', message='" + json + "');";
 			JSONObject toolMap = (JSONObject) runPixel(insight.getUser(), insight, expression, sessionId);
 			response.put("result", toolMap);
 		}
@@ -318,9 +318,8 @@ public class MCPReaper implements Runnable {
 			// {"jsonrpc":"2.0","id":5,"result":{"content":[{"type":"text","text":"334.07000732421875"}],"isError":false}}
 			// {"jsonrpc":"2.0","id":5,"result":{"content":[{"type":"text","text":"334.07000732421875"}],"isError":false}}
 			String callName = root.getJSONObject("params").getString("name");
-			String arguments = "[" + root.getJSONObject("params").get("arguments") + "]";
-			String pixel = "RunMCPTool(project='" + projectId + "'" + ", function='" + callName + "'" + ", paramValues="
-					+ arguments + ");";
+			//String arguments = "[" + root.getJSONObject("params").get("arguments") + "]";
+			String pixel = "RunMCPTool(project='" + projectId + "'" + ", message='" + json + "');";
 
 			classLogger.info("Making call to " + callName);
 			Object retObject = null;
