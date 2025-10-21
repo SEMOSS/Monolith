@@ -333,6 +333,20 @@
 			<artifactId>semoss</artifactId>
 			<version>${ci.version}</version>
 			<classifier>shaded-dependencies</classifier>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.parquet</groupId>
+					<artifactId>*</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>*</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.amazon.athena</groupId>
+					<artifactId>athena-jdbc-uber</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/org.apache.tomcat/tomcat-catalina -->
 		<!-- this is the primary tomcat specific jar -->
@@ -446,6 +460,14 @@
 				<exclusion>
 					<groupId>com.fasterxml.jackson.core</groupId>
 					<artifactId>*</artifactId>
+				</exclusion>
+				<exclusion>
+				    <groupId>org.slf4j</groupId>
+				    <artifactId>*</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.openidentityplatform.commons.i18n-framework</groupId>
+					<artifactId>slf4j</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>org.apache.santuario</groupId>
