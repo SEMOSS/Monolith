@@ -94,6 +94,7 @@ public class DBLoader implements ServletContextListener {
 	public void contextInitialized(ServletContextEvent arg0) {
 		ThreadContext.put(SemossLogUtils.REQUEST_ID, GUID.v7().toUUID().toString());
 		ThreadContext.put(SemossLogUtils.USER_ID, "STARTUP");
+		ThreadContext.put(SemossLogUtils.USER_TYPE, "SYSTEM");
 		ThreadContext.put(SemossLogUtils.SESSION_ID, "STARTUP");
 		ThreadContext.put(SemossLogUtils.CLIENT_IP, "STARTUP");
 
@@ -366,6 +367,7 @@ public class DBLoader implements ServletContextListener {
 	public void contextDestroyed(ServletContextEvent arg0) {
 		ThreadContext.put(SemossLogUtils.REQUEST_ID, GUID.v7().toUUID().toString());
 		ThreadContext.put(SemossLogUtils.USER_ID, "SHUTDOWN");
+		ThreadContext.put(SemossLogUtils.USER_TYPE, "SYSTEM");
 		ThreadContext.put(SemossLogUtils.SESSION_ID, "SHUTDOWN");
 		ThreadContext.put(SemossLogUtils.CLIENT_IP, "SHUTDOWN");
 

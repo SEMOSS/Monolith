@@ -64,6 +64,7 @@ import org.apache.commons.lang.time.FastDateFormat;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.ThreadContext;
+import org.javatuples.Pair;
 import org.owasp.encoder.Encode;
 import org.owasp.esapi.ESAPI;
 import org.owasp.esapi.codecs.MySQLCodec;
@@ -592,7 +593,9 @@ public final class WebUtility {
 
 			User user = (User) session.getAttribute(Constants.SESSION_USER);
 			if (user != null) {
-				ThreadContext.put(SemossLogUtils.USER_ID, User.getSingleLogginName(user));
+				Pair<String, String> login = User.getPrimaryUserIdAndTypePair(user);
+				ThreadContext.put(SemossLogUtils.USER_ID, login.getValue0());
+				ThreadContext.put(SemossLogUtils.USER_TYPE, login.getValue1());
 			} else {
 				ThreadContext.put(SemossLogUtils.USER_ID, "UNKNOWN");
 			}
