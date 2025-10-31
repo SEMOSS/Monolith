@@ -29,9 +29,11 @@ import prerna.auth.User;
 import prerna.auth.utils.SecurityNativeUserUtils;
 import prerna.auth.utils.SecurityPasswordResetUtils;
 import prerna.auth.utils.SecurityUserAccessKeyUtils;
+import prerna.auth.utils.SecurityUserUtils;
 import prerna.auth.utils.UserRegistrationEmailService;
 import prerna.date.SemossDate;
 import prerna.semoss.web.services.local.ResourceUtility;
+import prerna.semoss.web.services.local.UserResource;
 import prerna.util.Constants;
 import prerna.util.SocialPropertiesUtil;
 import prerna.web.services.util.WebUtility;
@@ -57,11 +59,12 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 	@Consumes({ "application/json", "application/x-www-form-urlencoded" })
 	public Response editUser(@Context HttpServletRequest request) {
 		User user = null;
+		Map<String, String> errorMap = new HashMap<String, String>();
+
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
 			classLogger.error(Constants.STACKTRACE, e);
-			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
@@ -81,7 +84,6 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 				userInfo = jsonObj.toMap();
 			} catch (IOException | org.json.JSONException e) {
 				classLogger.error(Constants.STACKTRACE, e);
-				Map<String, String> errorMap = new HashMap<String, String>();
 				errorMap.put(Constants.ERROR_MESSAGE, "Error reading request body.");
 				return WebUtility.getResponse(errorMap, 400);
 			}
@@ -93,14 +95,20 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 				userInfo = jsonObj.toMap();
 			} catch (org.json.JSONException e) {
 				classLogger.error(Constants.STACKTRACE, e);
-				Map<String, String> errorMap = new HashMap<String, String>();
 				errorMap.put(Constants.ERROR_MESSAGE, "Error parsing user JSON from form data.");
 				return WebUtility.getResponse(errorMap, 400);
 			}
 		}
 
-		// need to actually build out this logic...
-		return null;
+		boolean update = SecurityUserUtils.editUser(user, userInfo);
+		if (update) {
+			AccessToken authToken = AccessToken.copyToken(user.getAccessToken(user.getLogins().get(0)));
+			authToken.setName((String) userInfo.get("name"));
+			authToken.setEmail((String) userInfo.get("newEmail"));
+			UserResource.addAccessToken(authToken, request, false);
+		}
+
+		return WebUtility.getResponse(userInfo, 200);
 	}
 
 	/**
