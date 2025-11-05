@@ -22,19 +22,19 @@ import org.apache.logging.log4j.Logger;
 import prerna.auth.AccessToken;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityShareSessionUtils;
-import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.semoss.web.services.local.UserResource;
 import prerna.util.Constants;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 public class ShareSessionFilter implements Filter {
-	
+
 	private static final Logger classLogger = LogManager.getLogger(ShareSessionFilter.class);
 	private static final String SHARE_TOKEN_KEY = "sessionToken";
-	
+
 	@Override
-	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
+	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2)
+			throws IOException, ServletException {
 
 		// this will be the full path of the request
 		// like http://localhost:8080/Monolith_Dev/api/engine/runPixel
@@ -52,30 +52,30 @@ public class ShareSessionFilter implements Filter {
 			// System.out.println("Session ID >> " + session.getId());
 			user = (User) session.getAttribute(Constants.SESSION_USER);
 		}
-		
+
 		HttpServletRequest req = (HttpServletRequest) arg0;
 		String currentQueryString = req.getQueryString();
 		Map<String, String> parsedQueryParams = parseQueryParameters(currentQueryString);
 		if (parsedQueryParams.get(SHARE_TOKEN_KEY) != null) {
 			String shareToken = WebUtility.cleanHttpResponse(parsedQueryParams.get(SHARE_TOKEN_KEY));
-			
+
 			// user doesn't exist, lets try to validate
 			if (user == null || user.getLogins().isEmpty()) {
 				try {
 					Object[] shareDetails = SecurityShareSessionUtils.getShareSessionDetails(shareToken);
-					if(shareDetails == null) {
-						classLogger.info(ResourceUtility.getLogMessage(req, session, 
-								User.getSingleLogginName(user), "is trying to login through a share token but the token '"+shareToken+"' doesn't exist"));
+					if (shareDetails == null) {
+						classLogger.info("User is trying to login through a share token but the token '" + shareToken
+								+ "' doesn't exist");
 					}
-					
+
 					boolean shareSession = (boolean) shareDetails[6];
 					boolean shareAuth = (boolean) shareDetails[7];
 					// this either returns true or throws an error
 					SecurityShareSessionUtils.validateShareSessionDetails(shareDetails);
-					if(shareSession) {
-						classLogger.info(ResourceUtility.getLogMessage(req, session, 
-								User.getSingleLogginName(user), "successfully used a share token '" + shareToken + "' to attempt to redirect to the session and login"));
-	
+					if (shareSession) {
+						classLogger.info("User has successfully used a share token '" + shareToken
+								+ "' to attempt to redirect to the session and login");
+
 						String sessionId = (String) shareDetails[1];
 						String routeId = (String) shareDetails[2];
 						// create the cookie add it and sent it back
@@ -95,35 +95,36 @@ public class ShareSessionFilter implements Filter {
 								}
 							}
 						}
-						
+
 						// add route if it exists
 						String routeCookieName = Utility.getDIHelperProperty(Constants.LOAD_BALANCER_COOKIE_NAME);
-						if (routeCookieName != null && !routeCookieName.isEmpty()
-								&& routeId != null && !routeId.isEmpty()) {
+						if (routeCookieName != null && !routeCookieName.isEmpty() && routeId != null
+								&& !routeId.isEmpty()) {
 							Cookie c = new Cookie(routeCookieName, routeId);
 							c.setHttpOnly(true);
 							c.setSecure(req.isSecure());
 							c.setPath(contextPath);
 							((HttpServletResponse) arg1).addCookie(c);
 						}
-					} else if(shareAuth) {
-						classLogger.info(ResourceUtility.getLogMessage(req, session, 
-								User.getSingleLogginName(user), "successfully used a share token '" + shareToken + "' to for authentication"));
+					} else if (shareAuth) {
+						classLogger.info(
+								"User has successfully used a share token '" + shareToken + "' to for authentication");
 
 						AccessToken token = SecurityShareSessionUtils.generateAccessTokenForShareAuth(shareDetails);
 						UserResource.addAccessToken(token, req, false);
-						 // continue with the filter chain
-				        // wrap the request to allow subsequent reading
-				        HttpServletRequestWrapper requestWrapper = new HttpServletRequestWrapper(req);
-				        // continue with the filter chain
+						// continue with the filter chain
+						// wrap the request to allow subsequent reading
+						HttpServletRequestWrapper requestWrapper = new HttpServletRequestWrapper(req);
+						// continue with the filter chain
 						arg2.doFilter(requestWrapper, arg1);
 						return;
 					} else {
-						classLogger.warn("ShareSessionFilter token is not properly set for sharing a session or authorization");
+						classLogger.warn(
+								"ShareSessionFilter token is not properly set for sharing a session or authorization");
 					}
 				} catch (Exception e) {
-					classLogger.info(ResourceUtility.getLogMessage((HttpServletRequest)arg0, session, 
-							User.getSingleLogginName(user), "is trying to login through a auth/share token but the token '"+shareToken+"' resulted in the error: " + e.getMessage()));
+					classLogger.info("User is trying to login through a auth/share token but the token '" + shareToken
+							+ "' resulted in the error: " + e.getMessage());
 					classLogger.error(Constants.STACKTRACE, e);
 					arg2.doFilter(arg0, arg1);
 					return;
@@ -133,12 +134,12 @@ public class ShareSessionFilter implements Filter {
 				// why do you have the share session still?
 				// i'm going to remove it
 				// and redirect you back
-				classLogger.info(ResourceUtility.getLogMessage((HttpServletRequest)arg0, session, 
-						User.getSingleLogginName(user), "is already logged in but trying to login again using a auth/share token '" + shareToken + "'"));
+				classLogger.info("User is already logged in but trying to login again using a auth/share token '"
+						+ shareToken + "'");
 				arg2.doFilter(arg0, arg1);
 				return;
 			}
-			
+
 			// and now redirect back to the URL
 			// if get, we can do it
 			String method = req.getMethod();
@@ -151,7 +152,7 @@ public class ShareSessionFilter implements Filter {
 
 				((HttpServletResponse) arg1).setStatus(HttpServletResponse.SC_MOVED_TEMPORARILY);
 				String newQueryString = removeQueryParam(currentQueryString, SHARE_TOKEN_KEY);
-				if(newQueryString != null && !newQueryString.isEmpty()) {
+				if (newQueryString != null && !newQueryString.isEmpty()) {
 					((HttpServletResponse) arg1).sendRedirect(fullUrl + "?" + newQueryString);
 				} else {
 					((HttpServletResponse) arg1).sendRedirect(fullUrl);
@@ -167,12 +168,12 @@ public class ShareSessionFilter implements Filter {
 				((HttpServletResponse) arg1).setStatus(HttpServletResponse.SC_TEMPORARY_REDIRECT);
 				((HttpServletResponse) arg1).setHeader("Location", fullUrl);
 				return;
-			} 
+			}
 		}
-		
-        // wrap the request to allow subsequent reading
-        HttpServletRequestWrapper requestWrapper = new HttpServletRequestWrapper(req);
-        // continue with the filter chain
+
+		// wrap the request to allow subsequent reading
+		HttpServletRequestWrapper requestWrapper = new HttpServletRequestWrapper(req);
+		// continue with the filter chain
 		arg2.doFilter(requestWrapper, arg1);
 	}
 
@@ -183,52 +184,52 @@ public class ShareSessionFilter implements Filter {
 	 * @return
 	 */
 	private static String removeQueryParam(String query, String parameterToRemove) {
-		if(query == null) {
+		if (query == null) {
 			return null;
 		}
-	    String[] params = query.split("&");
-	    StringBuilder updatedQuery = new StringBuilder();
+		String[] params = query.split("&");
+		StringBuilder updatedQuery = new StringBuilder();
 
-	    for (String param : params) {
-	        String[] keyValue = param.split("=");
-	        if (keyValue.length > 0 && !keyValue[0].equals(parameterToRemove)) {
-	            if (updatedQuery.length() > 0) {
-	                updatedQuery.append("&");
-	            }
-	            updatedQuery.append(param);
-	        }
-	    }
+		for (String param : params) {
+			String[] keyValue = param.split("=");
+			if (keyValue.length > 0 && !keyValue[0].equals(parameterToRemove)) {
+				if (updatedQuery.length() > 0) {
+					updatedQuery.append("&");
+				}
+				updatedQuery.append(param);
+			}
+		}
 
-	    return updatedQuery.toString();
+		return updatedQuery.toString();
 	}
-	
+
 	/**
 	 * 
 	 * @param query
 	 * @return
 	 */
 	private static Map<String, String> parseQueryParameters(String query) {
-        Map<String, String> queryParams = new HashMap<>();
-        if(query == null) {
+		Map<String, String> queryParams = new HashMap<>();
+		if (query == null) {
 			return queryParams;
 		}
-        
-        // Split query string by "&" to get individual parameters
-        String[] params = query.split("&");
-        for (String param : params) {
-            // Split each parameter by "=" to get key-value pairs
-            String[] keyValue = param.split("=");
-            if (keyValue.length == 2) {
-                // Store key-value pairs in the map
-                String key = keyValue[0];
-                String value = keyValue[1];
-                queryParams.put(key, value);
-            }
-        }
 
-	    return queryParams;
+		// Split query string by "&" to get individual parameters
+		String[] params = query.split("&");
+		for (String param : params) {
+			// Split each parameter by "=" to get key-value pairs
+			String[] keyValue = param.split("=");
+			if (keyValue.length == 2) {
+				// Store key-value pairs in the map
+				String key = keyValue[0];
+				String value = keyValue[1];
+				queryParams.put(key, value);
+			}
+		}
+
+		return queryParams;
 	}
-	
+
 	@Override
 	public void destroy() {
 		// destroy

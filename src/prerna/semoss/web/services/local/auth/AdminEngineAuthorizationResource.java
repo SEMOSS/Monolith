@@ -48,81 +48,77 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 
 	@Context
 	protected ServletContext context;
-	
+
 	/**
 	 * Get the apps the user has access to
+	 * 
 	 * @param request
 	 * @return
 	 */
 	@GET
 	@Produces("application/json")
 	@Path("getEngines")
-	public Response getEnginesGET(@Context HttpServletRequest request, 
-			@QueryParam("engineId") List<String> engineFilter,
-			@QueryParam("engineTypes") List<String> engineTypes,
-			@QueryParam("filterWord") String searchTerm, 
-			@QueryParam("limit") Integer limit,
-			@QueryParam("offset") Integer offset,
-			@QueryParam("metaKeys") List<String> metaKeys,
+	public Response getEnginesGET(@Context HttpServletRequest request,
+			@QueryParam("engineId") List<String> engineFilter, @QueryParam("engineTypes") List<String> engineTypes,
+			@QueryParam("filterWord") String searchTerm, @QueryParam("limit") Integer limit,
+			@QueryParam("offset") Integer offset, @QueryParam("metaKeys") List<String> metaKeys,
 //			@QueryParam("metaFilters") Map<String, Object> metaFilters,
-			@QueryParam("noMeta") Boolean noMeta,
-			@QueryParam("userT") Boolean includeUserTracking
-			) {
+			@QueryParam("noMeta") Boolean noMeta, @QueryParam("userT") Boolean includeUserTracking) {
 		engineFilter = WebUtility.inputSanitizer(engineFilter);
 		engineTypes = WebUtility.inputSanitizer(engineTypes);
 		metaKeys = WebUtility.inputSanitizer(metaKeys);
 		searchTerm = WebUtility.inputSanitizer(searchTerm);
-	    
+
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
 			performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to get all engines when not an admin"));
+			classLogger.warn("User is trying to get all engines when not an admin");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		AdminMyEnginesReactor reactor = new AdminMyEnginesReactor();
 		reactor.In();
 		Insight temp = new Insight();
 		temp.setUser(user);
 		reactor.setInsight(temp);
 		searchTerm = WebUtility.inputSanitizer(searchTerm);
-		if(searchTerm != null) {
+		if (searchTerm != null) {
 			GenRowStruct struct = new GenRowStruct();
 			struct.add(new NounMetadata(searchTerm, PixelDataType.CONST_STRING));
 			reactor.getNounStore().addNoun(ReactorKeysEnum.FILTER_WORD.getKey(), struct);
 		}
-		if(limit != null) {
+		if (limit != null) {
 			GenRowStruct struct = new GenRowStruct();
 			struct.add(new NounMetadata(limit, PixelDataType.CONST_INT));
 			reactor.getNounStore().addNoun(ReactorKeysEnum.LIMIT.getKey(), struct);
 		}
-		if(offset != null) {
+		if (offset != null) {
 			GenRowStruct struct = new GenRowStruct();
 			struct.add(new NounMetadata(offset, PixelDataType.CONST_INT));
 			reactor.getNounStore().addNoun(ReactorKeysEnum.OFFSET.getKey(), struct);
 		}
-		if(engineFilter != null && !engineFilter.isEmpty()) {
+		if (engineFilter != null && !engineFilter.isEmpty()) {
 			GenRowStruct struct = new GenRowStruct();
-			for(String engine : engineFilter) {
+			for (String engine : engineFilter) {
 				struct.add(new NounMetadata(WebUtility.inputSanitizer(engine), PixelDataType.CONST_STRING));
 			}
 			reactor.getNounStore().addNoun(ReactorKeysEnum.ENGINE.getKey(), struct);
 		}
-		if(engineTypes != null && !engineTypes.isEmpty()) {
+		if (engineTypes != null && !engineTypes.isEmpty()) {
 			GenRowStruct struct = new GenRowStruct();
-			for(String eType : engineTypes) {
+			for (String eType : engineTypes) {
 				struct.add(new NounMetadata(WebUtility.inputSanitizer(eType), PixelDataType.CONST_STRING));
 			}
 			reactor.getNounStore().addNoun(ReactorKeysEnum.ENGINE_TYPE.getKey(), struct);
 		}
-		if(metaKeys != null && !metaKeys.isEmpty()) {
+		if (metaKeys != null && !metaKeys.isEmpty()) {
 			GenRowStruct struct = new GenRowStruct();
-			for(String metaK : metaKeys) {
+			for (String metaK : metaKeys) {
 				struct.add(new NounMetadata(WebUtility.inputSanitizer(metaK), PixelDataType.CONST_STRING));
 			}
 			reactor.getNounStore().addNoun(ReactorKeysEnum.META_KEYS.getKey(), struct);
@@ -132,21 +128,21 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 //			struct.add(new NounMetadata(metaFilters, PixelDataType.MAP));
 //			reactor.getNounStore().addNoun(ReactorKeysEnum.META_FILTERS.getKey(), struct);
 //		}
-		if(noMeta != null) {
+		if (noMeta != null) {
 			GenRowStruct struct = new GenRowStruct();
 			struct.add(new NounMetadata(noMeta, PixelDataType.BOOLEAN));
 			reactor.getNounStore().addNoun(ReactorKeysEnum.NO_META.getKey(), struct);
 		}
-		if(includeUserTracking != null) {
+		if (includeUserTracking != null) {
 			GenRowStruct struct = new GenRowStruct();
 			struct.add(new NounMetadata(includeUserTracking, PixelDataType.BOOLEAN));
 			reactor.getNounStore().addNoun(ReactorKeysEnum.INCLUDE_USERTRACKING_KEY.getKey(), struct);
 		}
-		
+
 		NounMetadata outputNoun = reactor.execute();
 		return WebUtility.getResponse(outputNoun.getValue(), 200);
 	}
-	
+
 	@POST
 	@Produces("application/json")
 	@Path("getEngines")
@@ -156,81 +152,90 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to get all engines when not an admin"));
+			classLogger.warn("User is trying to get all engines when not an admin");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		AdminMyEnginesReactor reactor = new AdminMyEnginesReactor();
 		reactor.In();
 		Insight temp = new Insight();
 		temp.setUser(user);
 		reactor.setInsight(temp);
-		
+
 		Map<String, String[]> parameterMap = request.getParameterMap();
-		
-		if(parameterMap.containsKey("filterWord") && parameterMap.get("filterWord") != null && parameterMap.get("filterWord").length > 0) {
+
+		if (parameterMap.containsKey("filterWord") && parameterMap.get("filterWord") != null
+				&& parameterMap.get("filterWord").length > 0) {
 			GenRowStruct struct = new GenRowStruct();
 			struct.add(new NounMetadata(parameterMap.get("filterWord")[0], PixelDataType.CONST_STRING));
 			reactor.getNounStore().addNoun(ReactorKeysEnum.FILTER_WORD.getKey(), struct);
 		}
-		if(parameterMap.containsKey("limit") && parameterMap.get("limit") != null && parameterMap.get("limit").length > 0) {
+		if (parameterMap.containsKey("limit") && parameterMap.get("limit") != null
+				&& parameterMap.get("limit").length > 0) {
 			GenRowStruct struct = new GenRowStruct();
 			struct.add(new NounMetadata(parameterMap.get("limit")[0], PixelDataType.CONST_INT));
 			reactor.getNounStore().addNoun(ReactorKeysEnum.LIMIT.getKey(), struct);
 		}
-		if(parameterMap.containsKey("offset") && parameterMap.get("offset") != null && parameterMap.get("offset").length > 0) {
+		if (parameterMap.containsKey("offset") && parameterMap.get("offset") != null
+				&& parameterMap.get("offset").length > 0) {
 			GenRowStruct struct = new GenRowStruct();
 			struct.add(new NounMetadata(parameterMap.get("offset")[0], PixelDataType.CONST_INT));
 			reactor.getNounStore().addNoun(ReactorKeysEnum.OFFSET.getKey(), struct);
 		}
-		if(parameterMap.containsKey("engineId") && parameterMap.get("engineId") != null && parameterMap.get("engineId").length > 0) {
+		if (parameterMap.containsKey("engineId") && parameterMap.get("engineId") != null
+				&& parameterMap.get("engineId").length > 0) {
 			GenRowStruct struct = new GenRowStruct();
 			String[] engineFilter = parameterMap.get("engineId");
-			for(String engine : engineFilter) {
+			for (String engine : engineFilter) {
 				struct.add(new NounMetadata(engine, PixelDataType.CONST_STRING));
 			}
 			reactor.getNounStore().addNoun(ReactorKeysEnum.ENGINE.getKey(), struct);
 		}
-		if(parameterMap.containsKey("engineTypes") && parameterMap.get("engineTypes") != null && parameterMap.get("engineTypes").length > 0) {
+		if (parameterMap.containsKey("engineTypes") && parameterMap.get("engineTypes") != null
+				&& parameterMap.get("engineTypes").length > 0) {
 			GenRowStruct struct = new GenRowStruct();
 			String[] engineTypes = parameterMap.get("engineTypes");
-			for(String eType : engineTypes) {
+			for (String eType : engineTypes) {
 				struct.add(new NounMetadata(eType, PixelDataType.CONST_STRING));
 			}
 			reactor.getNounStore().addNoun(ReactorKeysEnum.ENGINE_TYPE.getKey(), struct);
 		}
-		if(parameterMap.containsKey("metaKeys") && parameterMap.get("metaKeys") != null && parameterMap.get("metaKeys").length > 0) {
+		if (parameterMap.containsKey("metaKeys") && parameterMap.get("metaKeys") != null
+				&& parameterMap.get("metaKeys").length > 0) {
 			GenRowStruct struct = new GenRowStruct();
 			String[] metaKeys = parameterMap.get("metaKeys");
-			for(String metaK : metaKeys) {
+			for (String metaK : metaKeys) {
 				struct.add(new NounMetadata(metaK, PixelDataType.CONST_STRING));
 			}
 			reactor.getNounStore().addNoun(ReactorKeysEnum.META_KEYS.getKey(), struct);
 		}
-		if(parameterMap.containsKey("metaFilters") && parameterMap.get("metaFilters") != null && parameterMap.get("metaFilters").length > 0) {
+		if (parameterMap.containsKey("metaFilters") && parameterMap.get("metaFilters") != null
+				&& parameterMap.get("metaFilters").length > 0) {
 			Map<String, Object> metaFilters = new Gson().fromJson(parameterMap.get("metaFilters")[0], Map.class);
 			GenRowStruct struct = new GenRowStruct();
 			struct.add(new NounMetadata(metaFilters, PixelDataType.MAP));
 			reactor.getNounStore().addNoun(ReactorKeysEnum.META_FILTERS.getKey(), struct);
 		}
-		if(parameterMap.containsKey("noMeta") && parameterMap.get("noMeta") != null && parameterMap.get("noMeta").length > 0) {
+		if (parameterMap.containsKey("noMeta") && parameterMap.get("noMeta") != null
+				&& parameterMap.get("noMeta").length > 0) {
 			GenRowStruct struct = new GenRowStruct();
 			struct.add(new NounMetadata(parameterMap.get("noMeta")[0], PixelDataType.BOOLEAN));
 			reactor.getNounStore().addNoun(ReactorKeysEnum.NO_META.getKey(), struct);
 		}
-		if(parameterMap.containsKey("userT") && parameterMap.get("userT") != null && parameterMap.get("userT").length > 0) {
+		if (parameterMap.containsKey("userT") && parameterMap.get("userT") != null
+				&& parameterMap.get("userT").length > 0) {
 			GenRowStruct struct = new GenRowStruct();
 			struct.add(new NounMetadata(parameterMap.get("userT")[0], PixelDataType.BOOLEAN));
 			reactor.getNounStore().addNoun(ReactorKeysEnum.INCLUDE_USERTRACKING_KEY.getKey(), struct);
 		}
-		
+
 		NounMetadata outputNoun = reactor.execute();
 		return WebUtility.getResponse(outputNoun.getValue(), 200);
 	}
-	
+
 	@POST
 	@Path("/getAllUserEngines")
 	@Produces("application/json")
@@ -239,15 +244,16 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		User user = null;
 		String userId = WebUtility.inputSQLSanitizer(form.getFirst("userId"));
 		List<String> engineTypes = null;
-		if(WebUtility.inputSQLSanitizer(form.getFirst("engineTypes")) != null) {
+		if (WebUtility.inputSQLSanitizer(form.getFirst("engineTypes")) != null) {
 			engineTypes = new Gson().fromJson(form.getFirst("engineTypes"), List.class);
-			engineTypes = WebUtility.inputSanitizer(engineTypes);  
+			engineTypes = WebUtility.inputSanitizer(engineTypes);
 		}
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to pull the engines that user " + userId + " has access to when not an admin"));
+			classLogger.warn(
+					"User is trying to pull the engines that user " + userId + " has access to when not an admin");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -256,7 +262,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 
 		return WebUtility.getResponse(adminUtils.getAllUserEngines(userId, engineTypes), 200);
 	}
-	
+
 	@POST
 	@Path("/grantAllEngines")
 	@Produces("application/json")
@@ -267,18 +273,20 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		boolean isAddNew = Boolean.parseBoolean(form.getFirst("isAddNew") + "");
 		List<String> engineTypes = null;
-		if(form.getFirst("engineTypes") != null) {
+		if (form.getFirst("engineTypes") != null) {
 			engineTypes = new Gson().fromJson(form.getFirst("engineTypes"), List.class);
 			engineTypes = WebUtility.inputSanitizer(engineTypes);
 		}
 
-		String logETypes = (engineTypes == null || engineTypes.isEmpty()) ? "[ALL]" : ("[" + String.join(", ", engineTypes) + "]");
-		
+		String logETypes = (engineTypes == null || engineTypes.isEmpty()) ? "[ALL]"
+				: ("[" + String.join(", ", engineTypes) + "]");
+
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to grant all the engines of type " + logETypes + " to user " + userId + " when not an admin"));
+			classLogger.warn("User is trying to grant all the engines of type " + logETypes + " to user " + userId
+					+ " when not an admin");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -295,18 +303,19 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 
 		// log the operation
-		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has granted all engines of type " + logETypes + " to " + userId + "with permission " + permission));
-		
+		classLogger.info("User has granted all engines of type " + logETypes + " to " + userId + "with permission "
+				+ permission);
+
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
-	
-	
+
 	@POST
 	@Path("/grantNewUsersEngineAccess")
 	@Produces("application/json")
-	public Response grantNewUsersEngineAccess(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	public Response grantNewUsersEngineAccess(@Context HttpServletRequest request,
+			MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
@@ -316,7 +325,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to grant engine to new users when not an admin"));
+			classLogger.warn("User is trying to grant engine to new users when not an admin");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -333,15 +342,16 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 
 		// log the operation
-		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has granted engine " + engineId + "to new users with permission " + permission));
+		classLogger.info("User has granted engine " + engineId + "to new users with permission " + permission);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
-	
+
 	/**
 	 * Get the engine users and their permissions
+	 * 
 	 * @param request
 	 * @param engineId
 	 * @param userId
@@ -353,22 +363,22 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Produces("application/json")
 	@Path("getEngineUsers")
-	public Response getEngineUsers(@Context HttpServletRequest request, 
-			@QueryParam("engineId") String engineId, @QueryParam("userId") String userId, 
-			@QueryParam("searchTerm") String searchTerm, @QueryParam("permission") String permission, 
-			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+	public Response getEngineUsers(@Context HttpServletRequest request, @QueryParam("engineId") String engineId,
+			@QueryParam("userId") String userId, @QueryParam("searchTerm") String searchTerm,
+			@QueryParam("permission") String permission, @QueryParam("limit") long limit,
+			@QueryParam("offset") long offset) {
 		engineId = WebUtility.inputSanitizer(engineId);
-	    userId = WebUtility.inputSQLSanitizer(userId);
-	    searchTerm = WebUtility.inputSanitizer(searchTerm);
-	    permission = WebUtility.inputSanitizer(permission);
-	    
+		userId = WebUtility.inputSQLSanitizer(userId);
+		searchTerm = WebUtility.inputSanitizer(searchTerm);
+		permission = WebUtility.inputSanitizer(permission);
+
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to pull all the users who use engine " + engineId + " when not an admin"));
+			classLogger.warn("User is trying to pull all the users who use engine " + engineId + " when not an admin");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -383,9 +393,10 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 
 		return WebUtility.getResponse(ret, 200);
 	}
-	
+
 	/**
 	 * Add a user to a engine
+	 * 
 	 * @param request
 	 * @param form
 	 * @return
@@ -404,24 +415,29 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add user " + newUserId + " to engine " + engineId + " when not an admin"));
+			classLogger
+					.warn("User is trying to add user " + newUserId + " to engine " + engineId + " when not an admin");
 			classLogger.error(Constants.STACKTRACE, e);
 			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(ret, 401);
 		}
-		
+
 		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = null; // form.getFirst("endDate");
-		
-		String usageRestriction = form.containsKey("usageRestriction") ? WebUtility.inputSQLSanitizer(form.getFirst("usageRestriction")) : null;
-	    String usageFrequency = form.containsKey("usageFrequency") ? WebUtility.inputSQLSanitizer(form.getFirst("usageFrequency")) : null;
-	    int maxTokens = 0;
+
+		String usageRestriction = form.containsKey("usageRestriction")
+				? WebUtility.inputSQLSanitizer(form.getFirst("usageRestriction"))
+				: null;
+		String usageFrequency = form.containsKey("usageFrequency")
+				? WebUtility.inputSQLSanitizer(form.getFirst("usageFrequency"))
+				: null;
+		int maxTokens = 0;
 		String maxTokensStr = WebUtility.inputSanitizer(request.getParameter("maxTokens"));
-		if(maxTokensStr != null && !(maxTokensStr=maxTokensStr.trim()).isEmpty()) {
+		if (maxTokensStr != null && !(maxTokensStr = maxTokensStr.trim()).isEmpty()) {
 			// must be a valid integer
 			try {
 				maxTokens = Integer.parseInt(maxTokensStr);
-			} catch(NumberFormatException e) {
+			} catch (NumberFormatException e) {
 				classLogger.error(Constants.STACKTRACE, e);
 				ret.put(Constants.ERROR_MESSAGE, "maxTokens must be a valid integer value");
 				return WebUtility.getResponse(ret, 400);
@@ -429,19 +445,20 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 		double maxResponseTime = 0.0;
 		String maxResponseTimeStr = WebUtility.inputSanitizer(request.getParameter("maxResponseTime"));
-		if(maxResponseTimeStr != null && !(maxResponseTimeStr=maxResponseTimeStr.trim()).isEmpty()) {
+		if (maxResponseTimeStr != null && !(maxResponseTimeStr = maxResponseTimeStr.trim()).isEmpty()) {
 			// must be a valid double
 			try {
 				maxResponseTime = Double.parseDouble(maxResponseTimeStr);
-			} catch(NumberFormatException e) {
+			} catch (NumberFormatException e) {
 				classLogger.error(Constants.STACKTRACE, e);
 				ret.put(Constants.ERROR_MESSAGE, "maxResponseTime must be a valid double value");
 				return WebUtility.getResponse(ret, 400);
 			}
 		}
-		
+
 		try {
-			adminUtils.addEngineUser(newUserId, engineId, permission, user, endDate, usageRestriction, usageFrequency, maxTokens, maxResponseTime);
+			adminUtils.addEngineUser(newUserId, engineId, permission, user, endDate, usageRestriction, usageFrequency,
+					maxTokens, maxResponseTime);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -449,13 +466,15 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 
 		// log the operation
-		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has added user " + newUserId + " to engine " + engineId + " with permission " + permission));
+		classLogger
+				.info("User has added user " + newUserId + " to engine " + engineId + " with permission " + permission);
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
-	
+
 	/**
 	 * Add user permissions in bulk to a engine
+	 * 
 	 * @param request
 	 * @param form
 	 * @return
@@ -466,38 +485,41 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	public Response addEngineUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String engineId = WebUtility.inputSanitizer( form.getFirst("engineId"));
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add user permission to engine " + engineId + " when not an admin"));
+			classLogger.warn("User is trying to add user permission to engine " + engineId + " when not an admin");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
-		boolean graphApi = Boolean.parseBoolean("" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_lookup"));
+
+		boolean graphApi = Boolean
+				.parseBoolean("" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_lookup"));
 
 		// adding user permissions in bulk
 		List<Map<String, Object>> permission = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
 			// if we are doing the grpah api
 			// then the users might not already exist in the security db
-			if(graphApi) {
+			if (graphApi) {
 				// filter out users that already exist
 				List<Map<String, Object>> filteredUsers = permission.stream()
-						.filter(map -> !SecurityQueryUtils.checkUserExist((String) map.get(Constants.MAP_USERID))).collect(Collectors.toList());
+						.filter(map -> !SecurityQueryUtils.checkUserExist((String) map.get(Constants.MAP_USERID)))
+						.collect(Collectors.toList());
 				if (filteredUsers != null && !filteredUsers.isEmpty()) {
 					AccessToken token = null;
-					  // Add new users to OAuth if they don't exist
+					// Add new users to OAuth if they don't exist
 					for (Map<String, Object> map : filteredUsers) {
 						token = new AccessToken();
 						token.setId((String) map.get(Constants.MAP_USERID));
 						token.setEmail((String) map.get(Constants.MAP_EMAIL));
 						token.setName((String) map.get(Constants.MAP_NAME));
-						token.setProvider(AuthProvider.getProviderFromString((String) map.get(AuthProvider.MICROSOFT.name())));
+						token.setProvider(
+								AuthProvider.getProviderFromString((String) map.get(AuthProvider.MICROSOFT.name())));
 						token.setUsername((String) map.get(Constants.MAP_USERNAME));
 						SecurityUpdateUtils.addOAuthUser(token);
 					}
@@ -512,15 +534,16 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 
 		// log the operation
-		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has added user permissions to engine " + engineId));
-		
+		classLogger.info("User has added user permissions to engine " + engineId);
+
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
-	
+
 	/**
 	 * Add all users to a engine
+	 * 
 	 * @param request
 	 * @param form
 	 * @return
@@ -539,13 +562,13 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to add all users to engine " + engineId + " when not an admin"));
+			classLogger.warn("User is trying to add all users to engine " + engineId + " when not an admin");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		try {
 			adminUtils.addAllEngineUsers(engineId, permission, user, endDate);
 		} catch (Exception e) {
@@ -556,15 +579,16 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 
 		// log the operation
-		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has added all users to engine " + engineId + " with permission " + permission));
-		
+		classLogger.info("User has added all users to engine " + engineId + " with permission " + permission);
+
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
-	
+
 	/**
 	 * Edit user permission for a engine
+	 * 
 	 * @param request
 	 * @param form
 	 * @return
@@ -584,23 +608,28 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			classLogger.error(Constants.STACKTRACE, e);
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user " + existingUserId + " permissions for engine " + engineId + " when not an admin"));
+			classLogger.warn("User is trying to edit user " + existingUserId + " permissions for engine " + engineId
+					+ " when not an admin");
 			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(ret, 401);
 		}
-		
+
 		String newPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = null; // form.getFirst("endDate");
 
-		String usageRestriction = form.containsKey("usageRestriction") ? WebUtility.inputSQLSanitizer(form.getFirst("usageRestriction")) : null;
-	    String usageFrequency = form.containsKey("usageFrequency") ? WebUtility.inputSQLSanitizer(form.getFirst("usageFrequency")) : null;
-	    int maxTokens = 0;
+		String usageRestriction = form.containsKey("usageRestriction")
+				? WebUtility.inputSQLSanitizer(form.getFirst("usageRestriction"))
+				: null;
+		String usageFrequency = form.containsKey("usageFrequency")
+				? WebUtility.inputSQLSanitizer(form.getFirst("usageFrequency"))
+				: null;
+		int maxTokens = 0;
 		String maxTokensStr = WebUtility.inputSanitizer(request.getParameter("maxTokens"));
-		if(maxTokensStr != null && !(maxTokensStr=maxTokensStr.trim()).isEmpty()) {
+		if (maxTokensStr != null && !(maxTokensStr = maxTokensStr.trim()).isEmpty()) {
 			// must be a valid integer
 			try {
 				maxTokens = Integer.parseInt(maxTokensStr);
-			} catch(NumberFormatException e) {
+			} catch (NumberFormatException e) {
 				classLogger.error(Constants.STACKTRACE, e);
 				ret.put(Constants.ERROR_MESSAGE, "maxTokens must be a valid integer value");
 				return WebUtility.getResponse(ret, 400);
@@ -608,33 +637,36 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 		double maxResponseTime = 0.0;
 		String maxResponseTimeStr = WebUtility.inputSanitizer(request.getParameter("maxResponseTime"));
-		if(maxResponseTimeStr != null && !(maxResponseTimeStr=maxResponseTimeStr.trim()).isEmpty()) {
+		if (maxResponseTimeStr != null && !(maxResponseTimeStr = maxResponseTimeStr.trim()).isEmpty()) {
 			// must be a valid double
 			try {
 				maxResponseTime = Double.parseDouble(maxResponseTimeStr);
-			} catch(NumberFormatException e) {
+			} catch (NumberFormatException e) {
 				classLogger.error(Constants.STACKTRACE, e);
 				ret.put(Constants.ERROR_MESSAGE, "maxResponseTime must be a valid double value");
 				return WebUtility.getResponse(ret, 400);
 			}
 		}
-		
+
 		try {
-			adminUtils.editEngineUserPermission(existingUserId, engineId, newPermission, user, endDate, usageRestriction, usageFrequency, maxTokens, maxResponseTime);
+			adminUtils.editEngineUserPermission(existingUserId, engineId, newPermission, user, endDate,
+					usageRestriction, usageFrequency, maxTokens, maxResponseTime);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(ret, 400);
 		}
-		
+
 		// log the operation
-		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has edited user " + existingUserId + " permission to engine " + engineId + " with level " + newPermission));
+		classLogger.info("User has edited user " + existingUserId + " permission to engine " + engineId + " with level "
+				+ newPermission);
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
-	
+
 	/**
 	 * Edit user permission for a engine
+	 * 
 	 * @param request
 	 * @param form
 	 * @return
@@ -642,7 +674,8 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("editEngineUserPermissions")
-	public Response editEngineUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	public Response editEngineUserPermissions(@Context HttpServletRequest request,
+			MultivaluedMap<String, String> form) {
 		User user = null;
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		try {
@@ -650,12 +683,13 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			classLogger.error(Constants.STACKTRACE, e);
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user access permissions for engine " + engineId + " when not an admin"));
+			classLogger.warn(
+					"User is trying to edit user access permissions for engine " + engineId + " when not an admin");
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		List<Map<String, Object>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
 			SecurityAdminUtils.editEngineUserPermissions(engineId, requests, user);
@@ -665,17 +699,18 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
-		
+
 		// log the operation
-		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has edited user access permissions to engine " + engineId));
-		
+		classLogger.info("User has edited user access permissions to engine " + engineId);
+
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
-	
+
 	/**
 	 * update all user's permission level to new permission level for a engine
+	 * 
 	 * @param request
 	 * @param form
 	 * @return
@@ -683,7 +718,8 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("updateEngineUserPermissions")
-	public Response updateEngineUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	public Response updateEngineUserPermissions(@Context HttpServletRequest request,
+			MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
@@ -694,12 +730,12 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			classLogger.error(Constants.STACKTRACE, e);
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to edit user permissions for engine " + engineId + " when not an admin"));
+			classLogger.warn("User is trying to edit user permissions for engine " + engineId + " when not an admin");
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		try {
 			adminUtils.updateEngineUserPermissions(engineId, newPermission, user, endDate);
 		} catch (Exception e) {
@@ -708,17 +744,18 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
-		
+
 		// log the operation
-		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has edited user permissions to engine " + engineId + " with level " + newPermission));
-		
+		classLogger.info("User has edited user permissions to engine " + engineId + " with level " + newPermission);
+
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
-	
+
 	/**
 	 * Remove user permission for a engine
+	 * 
 	 * @param request
 	 * @param form
 	 * @return
@@ -726,24 +763,26 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("removeEngineUserPermission")
-	public Response removeEngineUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	public Response removeEngineUserPermission(@Context HttpServletRequest request,
+			MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		
+
 		String existingUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
-		
+
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove user " + existingUserId + " from having access to engine " + engineId + " when not an admin"));
+			classLogger.warn("User is trying to remove user " + existingUserId + " from having access to engine "
+					+ engineId + " when not an admin");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		try {
 			adminUtils.removeEngineUser(existingUserId, engineId);
 		} catch (Exception e) {
@@ -752,17 +791,18 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
-		
+
 		// log the operation
-		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has removed user " + existingUserId + " from having access to engine " + engineId));
-		
+		classLogger.info("User has removed user " + existingUserId + " from having access to engine " + engineId);
+
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
-	
+
 	/**
 	 * Remove user permissions for a engine, in bulk
+	 * 
 	 * @param request
 	 * @param form
 	 * @return
@@ -770,7 +810,8 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("removeEngineUserPermissions")
-	public Response removeEngineUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	public Response removeEngineUserPermissions(@Context HttpServletRequest request,
+			MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
@@ -778,7 +819,8 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to remove usersfrom having access to engine " + engineId + " when not an admin"));
+			classLogger.warn(
+					"User is trying to remove usersfrom having access to engine " + engineId + " when not an admin");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -795,22 +837,22 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
-		
+
 		// log the operation
-		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has removed users from having access to engine " + engineId));
-		
+		classLogger.info("User has removed users from having access to engine " + engineId);
+
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
-	
+
 	@POST
 	@Produces("application/json")
 	@Path("setEngineGlobal")
 	public Response setEngineGlobal(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		
+
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		boolean isPublic = Boolean.parseBoolean(form.getFirst("public"));
 		String logPublic = isPublic ? " public " : " private";
@@ -819,7 +861,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the engine " + engineId + logPublic + " when not an admin"));
+			classLogger.warn("User is trying to set the engine " + engineId + logPublic + " when not an admin");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -828,23 +870,24 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 
 		try {
 			adminUtils.setEngineGlobal(engineId, isPublic);
-		} catch (Exception e){
-			classLogger.error(Constants.STACKTRACE,e);
+		} catch (Exception e) {
+			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
 
 		// log the operation
-		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has set the engine " + engineId + logPublic));
-		
+		classLogger.info("User has set the engine " + engineId + logPublic);
+
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
-	} 
-	
+	}
+
 	/**
 	 * Set the engine as being discoverable for the entire semoss instance
+	 * 
 	 * @param request
 	 * @param form
 	 * @return
@@ -855,7 +898,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	public Response setEngineDiscoverable(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		
+
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		boolean isDiscoverable = Boolean.parseBoolean(form.getFirst("discoverable"));
 		String logDiscoverable = isDiscoverable ? " discoverable " : " not discoverable";
@@ -864,16 +907,16 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to set the engine " + engineId + logDiscoverable + " when not an admin"));
+			classLogger.warn("User is trying to set the engine " + engineId + logDiscoverable + " when not an admin");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		try {
 			adminUtils.setEngineDiscoverable(engineId, isDiscoverable);
-		} catch (Exception e){
+		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
@@ -881,8 +924,8 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 
 		// log the operation
-		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has set the engine " + engineId + logDiscoverable));
-		
+		classLogger.info("User has set the engine " + engineId + logDiscoverable);
+
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
@@ -890,6 +933,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 
 	/**
 	 * Get users with no access to a given engine
+	 * 
 	 * @param request
 	 * @param form
 	 * @return
@@ -898,32 +942,30 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("getEngineUsersNoCredentials")
 	public Response getEngineUsersNoCredentials(@Context HttpServletRequest request,
-			@QueryParam("engineId") String engineId, 
-			@QueryParam("searchTerm") String searchTerm,
-			@QueryParam("limit") long limit,
-			@QueryParam("offset") long offset) {
+			@QueryParam("engineId") String engineId, @QueryParam("searchTerm") String searchTerm,
+			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
 		engineId = WebUtility.inputSanitizer(engineId);
 		searchTerm = WebUtility.inputSanitizer(searchTerm);
-	    
+
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false),
-					User.getSingleLogginName(user), " is trying to get all users when not an admin"));
+			classLogger.warn("User is trying to get all users when not an admin");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
-		boolean graphApi = Boolean.parseBoolean("" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_lookup"));
-		
+
+		boolean graphApi = Boolean
+				.parseBoolean("" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_lookup"));
+
 		// if not graph api
 		// then we will look at our security db
-		if(!graphApi) {
+		if (!graphApi) {
 			List<Map<String, Object>> ret = adminUtils.getEngineUsersNoCredentials(engineId, searchTerm, limit, offset);
 			return WebUtility.getResponse(ret, 200);
 		}
@@ -931,19 +973,20 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		String graphApiGroupId = SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_groupId");
 
 		try {
-			List<Map<String, Object>> filteredUsers = MsGraphUtility.getEngineUsers(request, user, engineId, searchTerm, graphApiGroupId , limit, offset, true);
+			List<Map<String, Object>> filteredUsers = MsGraphUtility.getEngineUsers(request, user, engineId, searchTerm,
+					graphApiGroupId, limit, offset, true);
 			return WebUtility.getResponse(filteredUsers, 200);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 500); 
+			return WebUtility.getResponse(errorMap, 500);
 		}
 	}
-	
-	
+
 	/**
 	 * Admin approval of user access requests
+	 * 
 	 * @param request
 	 * @param form
 	 * @return
@@ -951,7 +994,8 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("approveEngineUserAccessRequest")
-	public Response approveEngineUserAccessRequest(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	public Response approveEngineUserAccessRequest(@Context HttpServletRequest request,
+			MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 
 		User user = null;
@@ -961,13 +1005,14 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to approve user request for permission to engine " + engineId + " when not an admin"));
+			classLogger.warn("User is trying to approve user request for permission to engine " + engineId
+					+ " when not an admin");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		// adding user permissions and updating user access requests in bulk
 		List<Map<String, Object>> requests = new Gson().fromJson(form.getFirst("requests"), List.class);
 		try {
@@ -983,15 +1028,16 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 
 		// log the operation
-		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has approved user access requests and added user permissions to engine " + engineId));
-		
+		classLogger.info("User has approved user access requests and added user permissions to engine " + engineId);
+
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
-	
+
 	/**
 	 * Admin deny of user access requests
+	 * 
 	 * @param request
 	 * @param form
 	 * @return
@@ -999,7 +1045,8 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("denyEngineUserAccessRequest")
-	public Response denyEngineUserAccessRequest(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	public Response denyEngineUserAccessRequest(@Context HttpServletRequest request,
+			MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 
 		User user = null;
@@ -1008,13 +1055,14 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "is trying to deny user request for permission to engine " + engineId + " when not an admin"));
+			classLogger.warn(
+					"User is trying to deny user request for permission to engine " + engineId + " when not an admin");
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		// updating user access requests in bulk
 		List<String> requestIds = new Gson().fromJson(form.getFirst("requestIds"), List.class);
 		requestIds = WebUtility.inputSQLSanitizer(requestIds);
@@ -1031,11 +1079,11 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 
 		// log the operation
-		classLogger.info(ResourceUtility.getLogMessage(request, request.getSession(false), User.getSingleLogginName(user), "has denied user access requests to engine " + engineId));
-		
+		classLogger.info("User has denied user access requests to engine " + engineId);
+
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
-	
+
 }
