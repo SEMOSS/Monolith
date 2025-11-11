@@ -222,8 +222,12 @@ public class ServerConfigurationResource {
 		// append values that can change without restarting the server
 		// logins allowed
 		myConfiguration.put("loginsAllowed", SocialPropertiesUtil.getInstance().getLoginsAllowed());
+		// connections allowed
+		myConfiguration.put("connectionsAllowed", SocialPropertiesUtil.getInstance().getConnectionsAllowed());
 		// get a list of all the logins and the display name and if it is oauth
 		myConfiguration.put("availableProviders", SocialPropertiesUtil.getInstance().getAvailableProviders());
+		// get a list of all the resource providers and the display name if it is oauth
+		myConfiguration.put("availableResourceProviders", SocialPropertiesUtil.getInstance().getAvailableResourceProviders());
 		// is native registration allowed
 		myConfiguration.put("nativeRegistration", SocialPropertiesUtil.getInstance().isNativeRegistrationAllowed());
 

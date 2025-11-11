@@ -141,8 +141,30 @@ public class UserResource {
 				session.invalidate();
 			}
 		}
-
 		Map<String, String> retMap = User.getLoginNames(semossUser);
+		return WebUtility.getResponse(retMap, 200, newCookies.toArray(new NewCookie[] {}));
+	}
+	
+	@GET
+	@Path("/connections")
+	public Response getAllConnections(@Context HttpServletRequest request) {
+		List<NewCookie> newCookies = new ArrayList<>();
+		HttpSession session = request.getSession(false);
+		User semossUser = null;
+		if (session != null) {
+			semossUser = (User) session.getAttribute(Constants.SESSION_USER);
+		}
+
+		if (semossUser == null) {
+			// not authenticated
+			// remove any cookies we shouldn't have
+			WebUtility.expireSessionCookies(request, newCookies);
+
+			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
+				session.invalidate();
+			}
+		}
+		Map<String, String> retMap = User.getConnectionsNames(semossUser);
 		return WebUtility.getResponse(retMap, 200, newCookies.toArray(new NewCookie[] {}));
 	}
 
@@ -199,6 +221,9 @@ public class UserResource {
 			}
 		}
 
+		// drop all the resource token for the user
+		thisUser.dropAllResourceAccessToken();
+		
 		List<NewCookie> nullCookies = null;
 		if (noUser) {
 			// when we call session.invalidate() the UserSessionLoader will properly log is
@@ -308,6 +333,27 @@ public class UserResource {
 				classLogger.error(Constants.STACKTRACE, e);
 			}
 		}
+	}
+	
+	/**
+	 * Method to add an resource access token to a user
+	 * 
+	 * @param token
+	 * @param request
+	 */
+	public static void addResourceAccessToken(AccessToken token, HttpServletRequest request, boolean autoAdd) {
+		HttpSession session = request.getSession();
+		User semossUser = (User) session.getAttribute(Constants.SESSION_USER);
+		if (autoAdd) {
+			SecurityUpdateUtils.addOAuthUser(token);
+		}
+		semossUser.setResourceAccessToken(token);
+		semossUser.setAnonymous(false);
+		session.setAttribute(Constants.SESSION_USER, semossUser);
+
+		// log the user resource connection
+		classLogger.info("User is connected to provider " + token.getProvider());
+
 	}
 
 	public static void userTrackingLogin(HttpServletRequest request, User semossUser, AuthProvider ap) {
@@ -740,12 +786,6 @@ public class UserResource {
 	@Path("/login/salesforce")
 	public Response loginSalesforce(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
-		if (socialData.getLoginsAllowed().get("salesforce") == null
-				|| !socialData.getLoginsAllowed().get("salesforce")) {
-			Map<String, Object> ret = new HashMap<>();
-			ret.put(Constants.ERROR_MESSAGE, "Salesforce login is not allowed");
-			return WebUtility.getResponse(ret, 400);
-		}
 		/*
 		 * Try to log in the user If they are not logged in Redirect the FE
 		 */
@@ -754,6 +794,22 @@ public class UserResource {
 		User userObj = null;
 		if (session != null) {
 			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		}
+		boolean isResourceConnection = (userObj != null);
+
+		if (isResourceConnection) {
+			if (socialData.getConnectionsAllowed().get("salesforce") == null
+					|| !socialData.getConnectionsAllowed().get("salesforce")) {
+				Map<String, Object> ret = new HashMap<>();
+				ret.put(Constants.ERROR_MESSAGE, "Salesforce resource connection is not allowed");
+				return WebUtility.getResponse(ret, 400);
+			}
+		} else {
+			if (socialData.getLoginsAllowed().get("salesforce") == null || !socialData.getLoginsAllowed().get("salesforce")) {
+				Map<String, Object> ret = new HashMap<>();
+				ret.put(Constants.ERROR_MESSAGE, "Salesforce login is not allowed");
+				return WebUtility.getResponse(ret, 400);
+			}
 		}
 		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
 		if (customRedirect != null && !customRedirect.isEmpty()) {
@@ -764,7 +820,7 @@ public class UserResource {
 		}
 		String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
 		if (queryString != null && queryString.contains("code")) {
-			if (userObj == null || userObj.getAccessToken(AuthProvider.SALESFORCE) == null) {
+			if (userObj == null || (userObj.getAccessToken(AuthProvider.SALESFORCE) == null && userObj.getResourceAccessToken(AuthProvider.SALESFORCE) == null)) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				// oauth code should match [ -~]+ (1 or more ascii)
@@ -798,8 +854,12 @@ public class UserResource {
 						return null;
 					}
 					accessToken.setProvider(AuthProvider.SALESFORCE);
-					addAccessToken(accessToken, request, autoAdd);
-
+					// add to specific access token based on the isResourceConnection value
+					if (isResourceConnection) {
+						addResourceAccessToken(accessToken, request, autoAdd);
+					} else {
+						addAccessToken(accessToken, request, autoAdd);
+					}
 					if (classLogger.isDebugEnabled()) {
 						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
 					}
@@ -811,14 +871,15 @@ public class UserResource {
 		if (session != null || (session = request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
-		if (userObj == null || userObj.getAccessToken(AuthProvider.SALESFORCE) == null) {
+		if (userObj == null || (userObj.getAccessToken(AuthProvider.SALESFORCE) == null && userObj.getResourceAccessToken(AuthProvider.SALESFORCE) == null)) {
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(getSalesforceRedirect(request));
 			return null;
 		}
-
-		setMainPageRedirect(request, response);
+		if (!isResourceConnection) {
+			setMainPageRedirect(request, response);
+		}
 		return null;
 	}
 
@@ -844,12 +905,6 @@ public class UserResource {
 	@Path("/login/surveymonkey")
 	public Response loginSurveyMonkey(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
-		if (socialData.getLoginsAllowed().get("surveymonkey") == null
-				|| !socialData.getLoginsAllowed().get("surveymonkey")) {
-			Map<String, Object> ret = new HashMap<>();
-			ret.put(Constants.ERROR_MESSAGE, "Surveymonkey login is not allowed");
-			return WebUtility.getResponse(ret, 400);
-		}
 		/*
 		 * Try to log in the user If they are not logged in Redirect the FE
 		 */
@@ -858,6 +913,23 @@ public class UserResource {
 		User userObj = null;
 		if (session != null) {
 			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		}
+		boolean isResourceConnection = (userObj != null);
+
+		if (isResourceConnection) {
+			if (socialData.getConnectionsAllowed().get("surveymonkey") == null
+					|| !socialData.getConnectionsAllowed().get("surveymonkey")) {
+				Map<String, Object> ret = new HashMap<>();
+				ret.put(Constants.ERROR_MESSAGE, "surveymonkey resource connection is not allowed");
+				return WebUtility.getResponse(ret, 400);
+			}
+		} else {
+			if (socialData.getLoginsAllowed().get("surveymonkey") == null
+					|| !socialData.getLoginsAllowed().get("surveymonkey")) {
+				Map<String, Object> ret = new HashMap<>();
+				ret.put(Constants.ERROR_MESSAGE, "surveymonkey login is not allowed");
+				return WebUtility.getResponse(ret, 400);
+			}
 		}
 		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
 		if (customRedirect != null && !customRedirect.isEmpty()) {
@@ -868,7 +940,7 @@ public class UserResource {
 		}
 		String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
 		if (queryString != null && queryString.contains("code")) {
-			if (userObj == null || userObj.getAccessToken(AuthProvider.SURVEYMONKEY) == null) {
+			if (userObj == null || (userObj.getAccessToken(AuthProvider.SURVEYMONKEY) == null && userObj.getResourceAccessToken(AuthProvider.SURVEYMONKEY) == null)) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				// oauth code should match [ -~]+ (1 or more ascii)
@@ -903,7 +975,12 @@ public class UserResource {
 					}
 					accessToken.setProvider(AuthProvider.SURVEYMONKEY);
 					MonkeyProfile.fillAccessToken(accessToken, null);
-					addAccessToken(accessToken, request, autoAdd);
+					// add to specific access token based on the isResourceConnection value
+					if (isResourceConnection) {
+						addResourceAccessToken(accessToken, request, autoAdd);
+					} else {
+						addAccessToken(accessToken, request, autoAdd);
+					}
 
 					if (classLogger.isDebugEnabled()) {
 						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
@@ -916,14 +993,15 @@ public class UserResource {
 		if (session != null || (session = request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
-		if (userObj == null || userObj.getAccessToken(AuthProvider.SURVEYMONKEY) == null) {
+		if (userObj == null || (userObj.getAccessToken(AuthProvider.SURVEYMONKEY) == null && userObj.getResourceAccessToken(AuthProvider.SURVEYMONKEY) == null)) {
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(getSurveyMonkeyRedirect(request));
 			return null;
 		}
-
-		setMainPageRedirect(request, response);
+		if (!isResourceConnection) {
+			setMainPageRedirect(request, response);
+		}
 		return null;
 	}
 
@@ -950,11 +1028,6 @@ public class UserResource {
 	@Path("/login/github")
 	public Response loginGithub(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
-		if (socialData.getLoginsAllowed().get("github") == null || !socialData.getLoginsAllowed().get("github")) {
-			Map<String, Object> ret = new HashMap<>();
-			ret.put(Constants.ERROR_MESSAGE, "GitHub login is not allowed");
-			return WebUtility.getResponse(ret, 400);
-		}
 		/*
 		 * Try to log in the user If they are not logged in Redirect the FE
 		 */
@@ -963,6 +1036,22 @@ public class UserResource {
 		User userObj = null;
 		if (session != null) {
 			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		}
+		boolean isResourceConnection = (userObj != null);
+
+		if (isResourceConnection) {
+			if (socialData.getConnectionsAllowed().get("github") == null
+					|| !socialData.getConnectionsAllowed().get("github")) {
+				Map<String, Object> ret = new HashMap<>();
+				ret.put(Constants.ERROR_MESSAGE, "Github resource connection is not allowed");
+				return WebUtility.getResponse(ret, 400);
+			}
+		} else {
+			if (socialData.getLoginsAllowed().get("github") == null || !socialData.getLoginsAllowed().get("github")) {
+				Map<String, Object> ret = new HashMap<>();
+				ret.put(Constants.ERROR_MESSAGE, "Github login is not allowed");
+				return WebUtility.getResponse(ret, 400);
+			}
 		}
 		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
 		if (customRedirect != null && !customRedirect.isEmpty()) {
@@ -974,7 +1063,7 @@ public class UserResource {
 
 		String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
 		if (queryString != null && queryString.contains("code")) {
-			if (userObj == null || userObj.getAccessToken(AuthProvider.GITHUB) == null) {
+			if (userObj == null || (userObj.getAccessToken(AuthProvider.GITHUB) == null && userObj.getResourceAccessToken(AuthProvider.GITHUB) == null)) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				// oauth code and state should match [ -~]+ (1 or more ascii)
@@ -1010,7 +1099,6 @@ public class UserResource {
 						return null;
 					}
 					accessToken.setProvider(AuthProvider.GITHUB);
-
 					try {
 						GitRepoUtils.addCertForDomain(url);
 					} catch (Exception e) {
@@ -1019,9 +1107,12 @@ public class UserResource {
 					// add specific Git values
 					GithubTokenFiller profiler = new GithubTokenFiller();
 					profiler.fillAccessToken(accessToken, null, null, null, null);
-
-					addAccessToken(accessToken, request, autoAdd);
-
+					// add to specific access token based on the isResourceConnection value
+					if (isResourceConnection) {
+						addResourceAccessToken(accessToken, request, autoAdd);
+					} else {
+						addAccessToken(accessToken, request, autoAdd);
+					}
 					if (classLogger.isDebugEnabled()) {
 						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
 					}
@@ -1033,7 +1124,7 @@ public class UserResource {
 		if (session != null || (session = request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
-		if (userObj == null || userObj.getAccessToken(AuthProvider.GITHUB) == null) {
+		if (userObj == null || (userObj.getAccessToken(AuthProvider.GITHUB) == null && userObj.getResourceAccessToken(AuthProvider.GITHUB) == null)) {
 			// not authenticated
 			try {
 				GitRepoUtils.addCertForDomain("https://github.com");
@@ -1044,8 +1135,9 @@ public class UserResource {
 			response.sendRedirect(getGithubRedirect(request));
 			return null;
 		}
-
-		setMainPageRedirect(request, response);
+		if (!isResourceConnection) {
+			setMainPageRedirect(request, response);
+		}
 		return null;
 	}
 
@@ -1075,11 +1167,6 @@ public class UserResource {
 	@Path("/login/gitlab")
 	public Response loginGitlab(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
-		if (socialData.getLoginsAllowed().get("gitlab") == null || !socialData.getLoginsAllowed().get("gitlab")) {
-			Map<String, Object> ret = new HashMap<>();
-			ret.put(Constants.ERROR_MESSAGE, "GitLab login is not allowed");
-			return WebUtility.getResponse(ret, 400);
-		}
 		/*
 		 * Try to log in the user If they are not logged in Redirect the FE
 		 */
@@ -1088,6 +1175,22 @@ public class UserResource {
 		User userObj = null;
 		if (session != null) {
 			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		}
+		boolean isResourceConnection = (userObj != null);
+
+		if (isResourceConnection) {
+			if (socialData.getConnectionsAllowed().get("gitlab") == null
+					|| !socialData.getConnectionsAllowed().get("gitlab")) {
+				Map<String, Object> ret = new HashMap<>();
+				ret.put(Constants.ERROR_MESSAGE, "Gitlab resource connection is not allowed");
+				return WebUtility.getResponse(ret, 400);
+			}
+		} else {
+			if (socialData.getLoginsAllowed().get("gitlab") == null || !socialData.getLoginsAllowed().get("gitlab")) {
+				Map<String, Object> ret = new HashMap<>();
+				ret.put(Constants.ERROR_MESSAGE, "Gitlab login is not allowed");
+				return WebUtility.getResponse(ret, 400);
+			}
 		}
 		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
 		if (customRedirect != null && !customRedirect.isEmpty()) {
@@ -1101,7 +1204,7 @@ public class UserResource {
 		String prefix = "gitlab_";
 
 		if (queryString != null && queryString.contains("code")) {
-			if (userObj == null || userObj.getAccessToken(AuthProvider.GITLAB) == null) {
+			if (userObj == null || (userObj.getAccessToken(AuthProvider.GITLAB) == null && userObj.getResourceAccessToken(AuthProvider.GITLAB) == null)) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				// oauth code and state should match [ -~]+ (1 or more ascii)
@@ -1146,7 +1249,12 @@ public class UserResource {
 							true);
 					accessToken = (AccessToken) BeanFiller.fillFromJson(output, jsonPattern, beanPropsArr, accessToken);
 
-					addAccessToken(accessToken, request, autoAdd);
+					// add to specific access token based on the isResourceConnection value
+					if (isResourceConnection) {
+						addResourceAccessToken(accessToken, request, autoAdd);
+					} else {
+						addAccessToken(accessToken, request, autoAdd);
+					}
 
 					if (classLogger.isDebugEnabled()) {
 						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
@@ -1159,7 +1267,7 @@ public class UserResource {
 		if (session != null || (session = request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
-		if (userObj == null || userObj.getAccessToken(AuthProvider.GITLAB) == null) {
+		if (userObj == null || (userObj.getAccessToken(AuthProvider.GITLAB) == null && userObj.getResourceAccessToken(AuthProvider.GITLAB) == null)) {
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(getGitlabRedirect(request));
@@ -1186,11 +1294,12 @@ public class UserResource {
 				userGroups.add(thisInput);
 			}
 
-			userObj.getAccessToken(AuthProvider.GITLAB).setUserGroups(userGroups);
+			userObj.getAvailableAccessToken(AuthProvider.GITLAB).setUserGroups(userGroups);
 			userObj.getAccessToken(AuthProvider.GITLAB).setUserGroupType(AuthProvider.GITLAB.toString());
 		}
-
-		setMainPageRedirect(request, response);
+		if (!isResourceConnection) {
+			setMainPageRedirect(request, response);
+		}
 		return null;
 	}
 
@@ -1232,11 +1341,6 @@ public class UserResource {
 	@Path("/login/microsoft")
 	public Response loginMicrosoft(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
-		if (socialData.getLoginsAllowed().get("ms") == null || !socialData.getLoginsAllowed().get("ms")) {
-			Map<String, Object> ret = new HashMap<>();
-			ret.put(Constants.ERROR_MESSAGE, "Microsoft login is not allowed");
-			return WebUtility.getResponse(ret, 400);
-		}
 		/*
 		 * Try to log in the user If they are not logged in Redirect the FE
 		 */
@@ -1245,6 +1349,21 @@ public class UserResource {
 		User userObj = null;
 		if (session != null) {
 			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		}
+		boolean isResourceConnection = (userObj != null);
+
+		if (isResourceConnection) {
+			if (socialData.getConnectionsAllowed().get("ms") == null || !socialData.getConnectionsAllowed().get("ms")) {
+				Map<String, Object> ret = new HashMap<>();
+				ret.put(Constants.ERROR_MESSAGE, "Microsoft resource connection is not allowed");
+				return WebUtility.getResponse(ret, 400);
+			}
+		} else {
+			if (socialData.getLoginsAllowed().get("ms") == null || !socialData.getLoginsAllowed().get("ms")) {
+				Map<String, Object> ret = new HashMap<>();
+				ret.put(Constants.ERROR_MESSAGE, "Microsoft login is not allowed");
+				return WebUtility.getResponse(ret, 400);
+			}
 		}
 		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
 		if (customRedirect != null && !customRedirect.isEmpty()) {
@@ -1255,7 +1374,7 @@ public class UserResource {
 		}
 		String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
 		if (queryString != null && queryString.contains("code")) {
-			if (userObj == null || userObj.getAccessToken(AuthProvider.MICROSOFT) == null) {
+			if (userObj == null || (userObj.getAccessToken(AuthProvider.MICROSOFT) == null && userObj.getResourceAccessToken(AuthProvider.MICROSOFT) == null)) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				// oauth code should match [ -~]+ (1 or more ascii)
@@ -1306,7 +1425,12 @@ public class UserResource {
 							throw new IllegalArgumentException("External users are not allowed");
 						}
 					}
-					addAccessToken(accessToken, request, autoAdd);
+					// add to specific access token based on the isResourceConnection value
+					if (isResourceConnection) {
+						addResourceAccessToken(accessToken, request, autoAdd);
+					} else {
+						addAccessToken(accessToken, request, autoAdd);
+					}
 
 					if (classLogger.isDebugEnabled()) {
 						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
@@ -1319,14 +1443,15 @@ public class UserResource {
 		if (session != null || (session = request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
-		if (userObj == null || userObj.getAccessToken(AuthProvider.MICROSOFT) == null) {
+		if (userObj == null || (userObj.getAccessToken(AuthProvider.MICROSOFT) == null && userObj.getResourceAccessToken(AuthProvider.MICROSOFT) == null)) {
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(getMicrosoftRedirect(request));
 			return null;
 		}
-
-		setMainPageRedirect(request, response);
+		if (!isResourceConnection) {
+			setMainPageRedirect(request, response);
+		}
 		return null;
 	}
 
@@ -1362,11 +1487,6 @@ public class UserResource {
 	@Path("/login/adfs")
 	public Response loginADFS(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
-		if (socialData.getLoginsAllowed().get("adfs") == null || !socialData.getLoginsAllowed().get("adfs")) {
-			Map<String, Object> ret = new HashMap<>();
-			ret.put(Constants.ERROR_MESSAGE, "ADFS login is not allowed");
-			return WebUtility.getResponse(ret, 400);
-		}
 		/*
 		 * Try to log in the user If they are not logged in Redirect the FE
 		 */
@@ -1375,6 +1495,22 @@ public class UserResource {
 		User userObj = null;
 		if (session != null) {
 			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		}
+		boolean isResourceConnection = (userObj != null);
+
+		if (isResourceConnection) {
+			if (socialData.getConnectionsAllowed().get("adfs") == null
+					|| !socialData.getConnectionsAllowed().get("adfs")) {
+				Map<String, Object> ret = new HashMap<>();
+				ret.put(Constants.ERROR_MESSAGE, "adfs resource connection is not allowed");
+				return WebUtility.getResponse(ret, 400);
+			}
+		} else {
+			if (socialData.getLoginsAllowed().get("adfs") == null || !socialData.getLoginsAllowed().get("adfs")) {
+				Map<String, Object> ret = new HashMap<>();
+				ret.put(Constants.ERROR_MESSAGE, "adfs login is not allowed");
+				return WebUtility.getResponse(ret, 400);
+			}
 		}
 		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
 		if (customRedirect != null && !customRedirect.isEmpty()) {
@@ -1386,7 +1522,7 @@ public class UserResource {
 
 		String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
 		if (queryString != null && queryString.contains("code")) {
-			if (userObj == null || userObj.getAccessToken(AuthProvider.ADFS) == null) {
+			if (userObj == null || (userObj.getAccessToken(AuthProvider.ADFS) == null && userObj.getResourceAccessToken(AuthProvider.ADFS) == null)) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				// oauth code should match [ -~]+ (1 or more ascii)
@@ -1432,7 +1568,12 @@ public class UserResource {
 					String[] beanPropsArr = beanProps.split(",", -1);
 					accessToken = (AccessToken) BeanFiller.fillFromJson(json, jsonPattern, beanPropsArr, accessToken);
 
-					addAccessToken(accessToken, request, autoAdd);
+					// add to specific access token based on the isResourceConnection value
+					if (isResourceConnection) {
+						addResourceAccessToken(accessToken, request, autoAdd);
+					} else {
+						addAccessToken(accessToken, request, autoAdd);
+					}
 
 					if (classLogger.isDebugEnabled()) {
 						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
@@ -1445,14 +1586,15 @@ public class UserResource {
 		if (session != null || (session = request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
-		if (userObj == null || userObj.getAccessToken(AuthProvider.ADFS) == null) {
+		if (userObj == null || (userObj.getAccessToken(AuthProvider.ADFS) == null && userObj.getResourceAccessToken(AuthProvider.ADFS) == null)) {
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(getADFSRedirect(request));
 			return null;
 		}
-
-		setMainPageRedirect(request, response);
+		if (!isResourceConnection) {
+			setMainPageRedirect(request, response);
+		}
 		return null;
 	}
 
@@ -1503,11 +1645,6 @@ public class UserResource {
 	@Path("/login/okta")
 	public Response loginOkta(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
-		if (socialData.getLoginsAllowed().get("okta") == null || !socialData.getLoginsAllowed().get("okta")) {
-			Map<String, Object> ret = new HashMap<>();
-			ret.put(Constants.ERROR_MESSAGE, "Okta login is not allowed");
-			return WebUtility.getResponse(ret, 400);
-		}
 		/*
 		 * Try to log in the user If they are not logged in Redirect the FE
 		 */
@@ -1516,6 +1653,22 @@ public class UserResource {
 		User userObj = null;
 		if (session != null) {
 			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		}
+		boolean isResourceConnection = (userObj != null);
+
+		if (isResourceConnection) {
+			if (socialData.getConnectionsAllowed().get("okta") == null
+					|| !socialData.getConnectionsAllowed().get("okta")) {
+				Map<String, Object> ret = new HashMap<>();
+				ret.put(Constants.ERROR_MESSAGE, "okta resource connection is not allowed");
+				return WebUtility.getResponse(ret, 400);
+			}
+		} else {
+			if (socialData.getLoginsAllowed().get("okta") == null || !socialData.getLoginsAllowed().get("okta")) {
+				Map<String, Object> ret = new HashMap<>();
+				ret.put(Constants.ERROR_MESSAGE, "okta login is not allowed");
+				return WebUtility.getResponse(ret, 400);
+			}
 		}
 		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
 		if (customRedirect != null && !customRedirect.isEmpty()) {
@@ -1526,7 +1679,7 @@ public class UserResource {
 		}
 		String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
 		if (queryString != null && queryString.contains("code")) {
-			if (userObj == null || userObj.getAccessToken(AuthProvider.MICROSOFT) == null) {
+			if (userObj == null || (userObj.getAccessToken(AuthProvider.OKTA) == null && userObj.getResourceAccessToken(AuthProvider.OKTA) == null)) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				// oauth code should match [ -~]+ (1 or more ascii)
@@ -1571,7 +1724,12 @@ public class UserResource {
 
 					OktaTokenFiller profiler = new OktaTokenFiller();
 					profiler.fillAccessToken(accessToken, userinfo_url, jsonPattern, beanPropsArr, null);
-					addAccessToken(accessToken, request, autoAdd);
+					// add to specific access token based on the isResourceConnection value
+					if (isResourceConnection) {
+						addResourceAccessToken(accessToken, request, autoAdd);
+					} else {
+						addAccessToken(accessToken, request, autoAdd);
+					}
 					if (classLogger.isDebugEnabled()) {
 						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
 					}
@@ -1583,14 +1741,15 @@ public class UserResource {
 		if (session != null || (session = request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
-		if (userObj == null || userObj.getAccessToken(AuthProvider.OKTA) == null) {
+		if (userObj == null || (userObj.getAccessToken(AuthProvider.OKTA) == null && userObj.getResourceAccessToken(AuthProvider.OKTA) == null)) {
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(getOktaRedirect(request));
 			return null;
 		}
-
-		setMainPageRedirect(request, response);
+		if (!isResourceConnection) {
+			setMainPageRedirect(request, response);
+		}
 		return null;
 	}
 
@@ -1621,12 +1780,6 @@ public class UserResource {
 	@Path("/login/siteminder")
 	public Response loginSiteminder(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
-		if (socialData.getLoginsAllowed().get("siteminder") == null
-				|| !socialData.getLoginsAllowed().get("siteminder")) {
-			Map<String, Object> ret = new HashMap<>();
-			ret.put(Constants.ERROR_MESSAGE, "Siteminder login is not allowed");
-			return WebUtility.getResponse(ret, 400);
-		}
 		/*
 		 * Try to log in the user If they are not logged in Redirect the FE
 		 */
@@ -1635,6 +1788,23 @@ public class UserResource {
 		User userObj = null;
 		if (session != null) {
 			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		}
+		boolean isResourceConnection = (userObj != null);
+
+		if (isResourceConnection) {
+			if (socialData.getConnectionsAllowed().get("siteminder") == null
+					|| !socialData.getConnectionsAllowed().get("siteminder")) {
+				Map<String, Object> ret = new HashMap<>();
+				ret.put(Constants.ERROR_MESSAGE, "siteminder resource connection is not allowed");
+				return WebUtility.getResponse(ret, 400);
+			}
+		} else {
+			if (socialData.getLoginsAllowed().get("siteminder") == null
+					|| !socialData.getLoginsAllowed().get("siteminder")) {
+				Map<String, Object> ret = new HashMap<>();
+				ret.put(Constants.ERROR_MESSAGE, "siteminder login is not allowed");
+				return WebUtility.getResponse(ret, 400);
+			}
 		}
 		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
 		if (customRedirect != null && !customRedirect.isEmpty()) {
@@ -1646,7 +1816,7 @@ public class UserResource {
 
 		String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
 		if (queryString != null && queryString.contains("code")) {
-			if (userObj == null || userObj.getAccessToken(AuthProvider.SITEMINDER) == null) {
+			if (userObj == null || (userObj.getAccessToken(AuthProvider.SITEMINDER) == null && userObj.getResourceAccessToken(AuthProvider.SITEMINDER) == null)) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				// oauth code should match [ -~]+ (1 or more ascii)
@@ -1686,7 +1856,12 @@ public class UserResource {
 					}
 
 					accessToken.setProvider(AuthProvider.SITEMINDER);
-					addAccessToken(accessToken, request, autoAdd);
+					// add to specific access token based on the isResourceConnection value
+					if (isResourceConnection) {
+						addResourceAccessToken(accessToken, request, autoAdd);
+					} else {
+						addAccessToken(accessToken, request, autoAdd);
+					}
 					if (classLogger.isDebugEnabled()) {
 						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
 					}
@@ -1698,14 +1873,15 @@ public class UserResource {
 		if (session != null || (session = request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
-		if (userObj == null || userObj.getAccessToken(AuthProvider.SITEMINDER) == null) {
+		if (userObj == null || (userObj.getAccessToken(AuthProvider.SITEMINDER) == null && userObj.getResourceAccessToken(AuthProvider.SITEMINDER) == null)) {
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(getSiteminderRedirect(request));
 			return null;
 		}
-
-		setMainPageRedirect(request, response);
+		if (!isResourceConnection) {
+			setMainPageRedirect(request, response);
+		}
 		return null;
 	}
 
@@ -1741,11 +1917,6 @@ public class UserResource {
 	@Path("/login/dropbox")
 	public Response loginDropBox(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
-		if (socialData.getLoginsAllowed().get("dropbox") == null || !socialData.getLoginsAllowed().get("dropbox")) {
-			Map<String, Object> ret = new HashMap<>();
-			ret.put(Constants.ERROR_MESSAGE, "Dropbox login is not allowed");
-			return WebUtility.getResponse(ret, 400);
-		}
 		/*
 		 * Try to log in the user If they are not logged in Redirect the FE
 		 */
@@ -1754,6 +1925,22 @@ public class UserResource {
 		User userObj = null;
 		if (session != null) {
 			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		}
+		boolean isResourceConnection = (userObj != null);
+
+		if (isResourceConnection) {
+			if (socialData.getConnectionsAllowed().get("dropbox") == null
+					|| !socialData.getConnectionsAllowed().get("dropbox")) {
+				Map<String, Object> ret = new HashMap<>();
+				ret.put(Constants.ERROR_MESSAGE, "dropbox resource connection is not allowed");
+				return WebUtility.getResponse(ret, 400);
+			}
+		} else {
+			if (socialData.getLoginsAllowed().get("dropbox") == null || !socialData.getLoginsAllowed().get("dropbox")) {
+				Map<String, Object> ret = new HashMap<>();
+				ret.put(Constants.ERROR_MESSAGE, "dropbox login is not allowed");
+				return WebUtility.getResponse(ret, 400);
+			}
 		}
 		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
 		if (customRedirect != null && !customRedirect.isEmpty()) {
@@ -1765,7 +1952,7 @@ public class UserResource {
 
 		String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
 		if (queryString != null && queryString.contains("code")) {
-			if (userObj == null || userObj.getAccessToken(AuthProvider.DROPBOX) == null) {
+			if (userObj == null || (userObj.getAccessToken(AuthProvider.DROPBOX) == null && userObj.getResourceAccessToken(AuthProvider.DROPBOX) == null)) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				// oauth code should match [ -~]+ (1 or more ascii)
@@ -1799,7 +1986,12 @@ public class UserResource {
 						return null;
 					}
 					accessToken.setProvider(AuthProvider.DROPBOX);
-					addAccessToken(accessToken, request, autoAdd);
+					// add to specific access token based on the isResourceConnection value
+					if (isResourceConnection) {
+						addResourceAccessToken(accessToken, request, autoAdd);
+					} else {
+						addAccessToken(accessToken, request, autoAdd);
+					}
 
 					if (classLogger.isDebugEnabled()) {
 						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
@@ -1812,14 +2004,15 @@ public class UserResource {
 		if (session != null || (session = request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
-		if (userObj == null || userObj.getAccessToken(AuthProvider.DROPBOX) == null) {
+		if (userObj == null || (userObj.getAccessToken(AuthProvider.DROPBOX) == null && userObj.getResourceAccessToken(AuthProvider.DROPBOX) == null)) {
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(getDBRedirect(request));
 			return null;
 		}
-
-		setMainPageRedirect(request, response);
+		if (!isResourceConnection) {
+			setMainPageRedirect(request, response);
+		}
 		return null;
 	}
 
@@ -1849,20 +2042,31 @@ public class UserResource {
 	@Path("/login/google")
 	public Response loginGoogle(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
-		if (socialData.getLoginsAllowed().get("google") == null || !socialData.getLoginsAllowed().get("google")) {
-			Map<String, Object> ret = new HashMap<>();
-			ret.put(Constants.ERROR_MESSAGE, "Google login is not allowed");
-			return WebUtility.getResponse(ret, 400);
-		}
 		/*
 		 * Try to log in the user If they are not logged in Redirect the FE
 		 */
-
+		
 		HttpSession session = request.getSession(false);
 		User userObj = null;
 		if (session != null) {
 			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		}
+		boolean isResourceConnection = (userObj != null);
+		
+		if (isResourceConnection) {
+			if (socialData.getConnectionsAllowed().get("google") == null || !socialData.getConnectionsAllowed().get("google")) {
+				Map<String, Object> ret = new HashMap<>();
+				ret.put(Constants.ERROR_MESSAGE, "Google resource connection is not allowed");
+				return WebUtility.getResponse(ret, 400);
+			}
+		} else {
+			if (socialData.getLoginsAllowed().get("google") == null || !socialData.getLoginsAllowed().get("google")) {
+				Map<String, Object> ret = new HashMap<>();
+				ret.put(Constants.ERROR_MESSAGE, "Google login is not allowed");
+				return WebUtility.getResponse(ret, 400);
+			}
+		}
+		
 		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
 		if (customRedirect != null && !customRedirect.isEmpty()) {
 			if (session == null) {
@@ -1873,7 +2077,7 @@ public class UserResource {
 
 		String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
 		if (queryString != null && queryString.contains("code")) {
-			if (userObj == null || userObj.getAccessToken(AuthProvider.GOOGLE) == null) {
+			if (userObj == null || (userObj.getAccessToken(AuthProvider.GOOGLE) == null && userObj.getResourceAccessToken(AuthProvider.GOOGLE) == null)) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				// oauth code should match [ -~]+ (1 or more ascii)
@@ -1915,8 +2119,12 @@ public class UserResource {
 					// user
 					GoogleTokenFiller profiler = new GoogleTokenFiller();
 					profiler.fillAccessToken(accessToken, null, null, null, null);
-					addAccessToken(accessToken, request, autoAdd);
-
+					// add to specific access token based on the isResourceConnection value
+					if (isResourceConnection) {
+						addResourceAccessToken(accessToken, request, autoAdd);
+					} else {
+						addAccessToken(accessToken, request, autoAdd);
+					}
 					// Shows how to make a google credential from an access token
 					if (classLogger.isDebugEnabled()) {
 						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
@@ -1929,14 +2137,15 @@ public class UserResource {
 		if (session != null || (session = request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
-		if (userObj == null || userObj.getAccessToken(AuthProvider.GOOGLE) == null) {
+		if (userObj == null || (userObj.getAccessToken(AuthProvider.GOOGLE) == null && userObj.getResourceAccessToken(AuthProvider.GOOGLE) == null)) {
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(getGoogleRedirect(request));
 			return null;
 		}
-
-		setMainPageRedirect(request, response);
+		if (!isResourceConnection) {
+			setMainPageRedirect(request, response);
+		}
 		return null;
 	}
 
@@ -2021,12 +2230,6 @@ public class UserResource {
 	@Path("/login/producthunt")
 	public Response loginProducthunt(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
-		if (socialData.getLoginsAllowed().get("producthunt") == null
-				|| !socialData.getLoginsAllowed().get("producthunt")) {
-			Map<String, Object> ret = new HashMap<>();
-			ret.put(Constants.ERROR_MESSAGE, "Producthunt login is not allowed");
-			return WebUtility.getResponse(ret, 400);
-		}
 		/*
 		 * Try to log in the user If they are not logged in Redirect the FE
 		 */
@@ -2035,6 +2238,23 @@ public class UserResource {
 		User userObj = null;
 		if (session != null) {
 			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		}
+		boolean isResourceConnection = (userObj != null);
+
+		if (isResourceConnection) {
+			if (socialData.getConnectionsAllowed().get("producthunt") == null
+					|| !socialData.getConnectionsAllowed().get("producthunt")) {
+				Map<String, Object> ret = new HashMap<>();
+				ret.put(Constants.ERROR_MESSAGE, "producthunt resource connection is not allowed");
+				return WebUtility.getResponse(ret, 400);
+			}
+		} else {
+			if (socialData.getLoginsAllowed().get("producthunt") == null
+					|| !socialData.getLoginsAllowed().get("producthunt")) {
+				Map<String, Object> ret = new HashMap<>();
+				ret.put(Constants.ERROR_MESSAGE, "producthunt login is not allowed");
+				return WebUtility.getResponse(ret, 400);
+			}
 		}
 		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
 		if (customRedirect != null && !customRedirect.isEmpty()) {
@@ -2046,7 +2266,7 @@ public class UserResource {
 
 		String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
 		if (queryString != null && queryString.contains("code")) {
-			if (userObj == null || userObj.getAccessToken(AuthProvider.PRODUCT_HUNT) == null) {
+			if (userObj == null || (userObj.getAccessToken(AuthProvider.PRODUCT_HUNT) == null && userObj.getResourceAccessToken(AuthProvider.PRODUCT_HUNT) == null)) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				// oauth code should match [ -~]+ (1 or more ascii)
@@ -2080,7 +2300,12 @@ public class UserResource {
 						return null;
 					}
 					accessToken.setProvider(AuthProvider.PRODUCT_HUNT);
-					addAccessToken(accessToken, request, autoAdd);
+					// add to specific access token based on the isResourceConnection value
+					if (isResourceConnection) {
+						addResourceAccessToken(accessToken, request, autoAdd);
+					} else {
+						addAccessToken(accessToken, request, autoAdd);
+					}
 
 					if (classLogger.isDebugEnabled()) {
 						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
@@ -2093,13 +2318,14 @@ public class UserResource {
 		if (session != null || (session = request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
-		if (userObj == null || userObj.getAccessToken(AuthProvider.PRODUCT_HUNT) == null) {
+		if (userObj == null || (userObj.getAccessToken(AuthProvider.PRODUCT_HUNT) == null && userObj.getResourceAccessToken(AuthProvider.PRODUCT_HUNT) == null)) {
 			response.setStatus(302);
 			response.sendRedirect(getProducthuntRedirect(request));
 			return null;
 		}
-
-		setMainPageRedirect(request, response);
+		if (!isResourceConnection) {
+			setMainPageRedirect(request, response);
+		}
 		return null;
 	}
 
@@ -2129,11 +2355,6 @@ public class UserResource {
 	@Path("/login/linkedin")
 	public Response loginLinkedin(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
-		if (socialData.getLoginsAllowed().get("linkedin") == null || !socialData.getLoginsAllowed().get("linkedin")) {
-			Map<String, Object> ret = new HashMap<>();
-			ret.put(Constants.ERROR_MESSAGE, "LinkedIn login is not allowed");
-			return WebUtility.getResponse(ret, 400);
-		}
 		/*
 		 * Try to log in the user If they are not logged in Redirect the FE
 		 */
@@ -2142,6 +2363,23 @@ public class UserResource {
 		User userObj = null;
 		if (session != null) {
 			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		}
+		boolean isResourceConnection = (userObj != null);
+
+		if (isResourceConnection) {
+			if (socialData.getConnectionsAllowed().get("linkedin") == null
+					|| !socialData.getConnectionsAllowed().get("linkedin")) {
+				Map<String, Object> ret = new HashMap<>();
+				ret.put(Constants.ERROR_MESSAGE, "linkedin resource connection is not allowed");
+				return WebUtility.getResponse(ret, 400);
+			}
+		} else {
+			if (socialData.getLoginsAllowed().get("linkedin") == null
+					|| !socialData.getLoginsAllowed().get("linkedin")) {
+				Map<String, Object> ret = new HashMap<>();
+				ret.put(Constants.ERROR_MESSAGE, "linkedin login is not allowed");
+				return WebUtility.getResponse(ret, 400);
+			}
 		}
 		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
 		if (customRedirect != null && !customRedirect.isEmpty()) {
@@ -2153,7 +2391,7 @@ public class UserResource {
 
 		String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
 		if (queryString != null && queryString.contains("code")) {
-			if (userObj == null || userObj.getAccessToken(AuthProvider.LINKEDIN) == null) {
+			if (userObj == null || (userObj.getAccessToken(AuthProvider.LINKEDIN) == null && userObj.getResourceAccessToken(AuthProvider.LINKEDIN) == null)) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				// oauth code should match [ -~]+ (1 or more ascii)
@@ -2187,7 +2425,12 @@ public class UserResource {
 						return null;
 					}
 					accessToken.setProvider(AuthProvider.LINKEDIN);
-					addAccessToken(accessToken, request, autoAdd);
+					// add to specific access token based on the isResourceConnection value
+					if (isResourceConnection) {
+						addResourceAccessToken(accessToken, request, autoAdd);
+					} else {
+						addAccessToken(accessToken, request, autoAdd);
+					}
 
 					if (classLogger.isDebugEnabled()) {
 						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
@@ -2200,13 +2443,14 @@ public class UserResource {
 		if (session != null || (session = request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
-		if (userObj == null || userObj.getAccessToken(AuthProvider.LINKEDIN) == null) {
+		if (userObj == null || (userObj.getAccessToken(AuthProvider.LINKEDIN) == null && userObj.getResourceAccessToken(AuthProvider.LINKEDIN) == null)) {
 			response.setStatus(302);
 			response.sendRedirect(getLinkedinRedirect(request));
 			return null;
 		}
-
-		setMainPageRedirect(request, response);
+		if (!isResourceConnection) {
+			setMainPageRedirect(request, response);
+		}
 		return null;
 	}
 
@@ -2240,11 +2484,6 @@ public class UserResource {
 	@Path("/login/twitter")
 	public Response loginTwitter(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
-		if (socialData.getLoginsAllowed().get("twitter") == null || !socialData.getLoginsAllowed().get("twitter")) {
-			Map<String, Object> ret = new HashMap<>();
-			ret.put(Constants.ERROR_MESSAGE, "Twitter login is not allowed");
-			return WebUtility.getResponse(ret, 400);
-		}
 		// getting the bearer token on twitter for app authentication is a lot simpler
 		// need to just combine the id and secret
 		// base 64 and send as authorization
@@ -2256,6 +2495,23 @@ public class UserResource {
 		if (session != null) {
 			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		}
+		boolean isResourceConnection = (userObj != null);
+
+		if (isResourceConnection) {
+			if (socialData.getConnectionsAllowed().get("twitter") == null
+					|| !socialData.getConnectionsAllowed().get("twitter")) {
+				Map<String, Object> ret = new HashMap<>();
+				ret.put(Constants.ERROR_MESSAGE, "twitter resource connection is not allowed");
+				return WebUtility.getResponse(ret, 400);
+			}
+		} else {
+			if (socialData.getLoginsAllowed().get("twitter") == null
+					|| !socialData.getLoginsAllowed().get("twitter")) {
+				Map<String, Object> ret = new HashMap<>();
+				ret.put(Constants.ERROR_MESSAGE, "twitter login is not allowed");
+				return WebUtility.getResponse(ret, 400);
+			}
+		}
 		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
 		if (customRedirect != null && !customRedirect.isEmpty()) {
 			if (session == null) {
@@ -2266,7 +2522,7 @@ public class UserResource {
 
 		String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
 		if (queryString != null && queryString.contains("code")) {
-			if (userObj == null || userObj.getAccessToken(AuthProvider.GITHUB) == null) {
+			if (userObj == null || (userObj.getAccessToken(AuthProvider.TWITTER) == null && userObj.getResourceAccessToken(AuthProvider.TWITTER) == null)) {
 
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 				// oauth code and state should match [ -~]+ (1 or more ascii)
@@ -2303,7 +2559,12 @@ public class UserResource {
 					}
 
 					accessToken.setProvider(AuthProvider.TWITTER);
-					addAccessToken(accessToken, request, autoAdd);
+					// add to specific access token based on the isResourceConnection value
+					if (isResourceConnection) {
+						addResourceAccessToken(accessToken, request, autoAdd);
+					} else {
+						addAccessToken(accessToken, request, autoAdd);
+					}
 
 					if (classLogger.isDebugEnabled()) {
 						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
@@ -2316,14 +2577,15 @@ public class UserResource {
 		if (session != null || (session = request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
-		if (userObj == null || userObj.getAccessToken(AuthProvider.TWITTER) == null) {
+		if (userObj == null || (userObj.getAccessToken(AuthProvider.TWITTER) == null && userObj.getResourceAccessToken(AuthProvider.TWITTER) == null)) {
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(getTwitterRedirect(request));
 			return null;
 		}
-
-		setMainPageRedirect(request, response);
+		if (!isResourceConnection) {
+			setMainPageRedirect(request, response);
+		}
 		return null;
 	}
 
@@ -2374,11 +2636,6 @@ public class UserResource {
 		 */
 
 		provider = WebUtility.inputSanitizer(provider);
-		if (socialData.getLoginsAllowed().get(provider) == null || !socialData.getLoginsAllowed().get(provider)) {
-			Map<String, Object> ret = new HashMap<>();
-			ret.put(Constants.ERROR_MESSAGE, provider + " login is not allowed");
-			return WebUtility.getResponse(ret, 400);
-		}
 
 		AuthProvider providerEnum = AuthProvider.getProviderFromString(provider.toUpperCase());
 
@@ -2386,6 +2643,23 @@ public class UserResource {
 		User userObj = null;
 		if (session != null) {
 			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		}
+		boolean isResourceConnection = (userObj != null);
+
+		if (isResourceConnection) {
+			if (socialData.getConnectionsAllowed().get(provider) == null
+					|| !socialData.getConnectionsAllowed().get(provider)) {
+				Map<String, Object> ret = new HashMap<>();
+				ret.put(Constants.ERROR_MESSAGE, "twitter resource connection is not allowed");
+				return WebUtility.getResponse(ret, 400);
+			}
+		} else {
+			if (socialData.getLoginsAllowed().get(provider) == null
+					|| !socialData.getLoginsAllowed().get(provider)) {
+				Map<String, Object> ret = new HashMap<>();
+				ret.put(Constants.ERROR_MESSAGE, "twitter login is not allowed");
+				return WebUtility.getResponse(ret, 400);
+			}
 		}
 		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
 		if (customRedirect != null && !customRedirect.isEmpty()) {
@@ -2397,7 +2671,7 @@ public class UserResource {
 
 		String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
 		if (queryString != null && queryString.contains("code")) {
-			if (userObj == null || userObj.getAccessToken(providerEnum) == null) {
+			if (userObj == null || (userObj.getAccessToken(providerEnum) == null && userObj.getResourceAccessToken(providerEnum) == null)) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				// oauth code should match [ -~]+ (1 or more ascii)
@@ -2524,7 +2798,12 @@ public class UserResource {
 						accessToken.setUserGroupType(providerEnum.toString());
 					}
 
-					addAccessToken(accessToken, request, autoAdd);
+					// add to specific access token based on the isResourceConnection value
+					if (isResourceConnection) {
+						addResourceAccessToken(accessToken, request, autoAdd);
+					} else {
+						addAccessToken(accessToken, request, autoAdd);
+					}
 
 					if (classLogger.isDebugEnabled()) {
 						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
@@ -2537,14 +2816,15 @@ public class UserResource {
 		if (session != null || (session = request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
-		if (userObj == null || userObj.getAccessToken(providerEnum) == null) {
+		if (userObj == null || (userObj.getAccessToken(providerEnum) == null && userObj.getResourceAccessToken(providerEnum) == null)) {
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(getGenericRedirect(provider, request));
 			return null;
 		}
-
-		setMainPageRedirect(request, response);
+		if (!isResourceConnection) {
+			setMainPageRedirect(request, response);
+		}
 		return null;
 	}
 
@@ -3061,6 +3341,13 @@ public class UserResource {
 	@Path("/loginsAllowed/")
 	public Response loginsAllowed(@Context HttpServletRequest request) {
 		return WebUtility.getResponse(socialData.getLoginsAllowed(), 200);
+	}
+	
+	@GET
+	@Produces("application/json")
+	@Path("/connectionsAllowed/")
+	public Response connectionsAllowed(@Context HttpServletRequest request) {
+		return WebUtility.getResponse(socialData.getConnectionsAllowed(), 200);
 	}
 
 	@GET
