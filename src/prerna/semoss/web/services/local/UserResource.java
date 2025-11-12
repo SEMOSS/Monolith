@@ -205,27 +205,35 @@ public class UserResource {
 				thisUser.getAssetProjectId(token);
 				thisUser.getWorkspaceProjectId(token);
 			}
-			removed = thisUser.dropAccessToken(token);
-			if (thisUser.getLogins().isEmpty()) {
-				noUser = true;
+			boolean isLoginProvider = socialData.getLoginsAllowed().getOrDefault(provider.toLowerCase(), false);
+			boolean isConnectionProvider = socialData.getConnectionsAllowed().getOrDefault(provider.toLowerCase(), false);
+			
+			if (!isLoginProvider && isConnectionProvider) {
+				removed = thisUser.dropResourceAccessToken(token);
+				classLogger.info("Disconnected resource provider: " + provider);
 			} else {
-				request.getSession().setAttribute(Constants.SESSION_USER, thisUser);
+				removed = thisUser.dropAccessToken(token);
+				if (thisUser.getLogins().isEmpty()) {
+					noUser = true;
+				} else {
+					request.getSession().setAttribute(Constants.SESSION_USER, thisUser);
 
-				SyncUserAppsThread sync = new SyncUserAppsThread(workspaceEngineId, assetEngineId);
-				Thread t = new Thread(sync);
-				t.start();
+					SyncUserAppsThread sync = new SyncUserAppsThread(workspaceEngineId, assetEngineId);
+					Thread t = new Thread(sync);
+					t.start();
 
-				// put the new map for the user space
-				session.setAttribute(Constants.USER_WORKSPACE_IDS, thisUser.getWorkspaceEngineMap());
-				session.setAttribute(Constants.USER_ASSET_IDS, thisUser.getAssetEngineMap());
+					// put the new map for the user space
+					session.setAttribute(Constants.USER_WORKSPACE_IDS, thisUser.getWorkspaceEngineMap());
+					session.setAttribute(Constants.USER_ASSET_IDS, thisUser.getAssetEngineMap());
+				}
 			}
 		}
-
-		// drop all the resource token for the user
-		thisUser.dropAllResourceAccessToken();
 		
 		List<NewCookie> nullCookies = null;
 		if (noUser) {
+			// drop all the resource token if no user
+			thisUser.dropAllResourceAccessToken();
+			
 			// when we call session.invalidate() the UserSessionLoader will properly log is
 			// user logout or tomcat ending
 			session.setAttribute(UserSessionLoader.IS_USER_LOGOUT, true);
