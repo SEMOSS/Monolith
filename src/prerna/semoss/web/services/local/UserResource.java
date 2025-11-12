@@ -205,10 +205,8 @@ public class UserResource {
 				thisUser.getAssetProjectId(token);
 				thisUser.getWorkspaceProjectId(token);
 			}
-			boolean isLoginProvider = socialData.getLoginsAllowed().getOrDefault(provider.toLowerCase(), false);
-			boolean isConnectionProvider = socialData.getConnectionsAllowed().getOrDefault(provider.toLowerCase(), false);
 			
-			if (!isLoginProvider && isConnectionProvider) {
+			if (thisUser.getResourceAccessToken(token) != null) {
 				removed = thisUser.dropResourceAccessToken(token);
 				classLogger.info("Disconnected resource provider: " + provider);
 			} else {
