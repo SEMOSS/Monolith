@@ -192,7 +192,25 @@ public class UserResource {
 		classLogger.info("User is logging out of provider " + provider);
 		provider = WebUtility.inputSanitizer(provider);
 		if (provider.equalsIgnoreCase("ALL")) {
-			removed = true;
+			boolean clearedLogins = false;
+			boolean clearedResources = false;
+			
+			try {
+				thisUser.dropAllAccessToken();
+				clearedLogins = true;
+				classLogger.info("Successfully dropped all access tokens for user");
+			} catch (Exception e) {
+				classLogger.error("Failed to  drop login tokens for user", e);
+			}
+			
+			try {
+				thisUser.dropAllResourceAccessToken();
+				clearedResources = true;
+				classLogger.info("Successfully dropped all resource tokens for user");
+			} catch (Exception e) {
+				classLogger.error("Failed to  drop resource tokens for user", e);
+			}
+			removed = clearedLogins && clearedResources;
 			noUser = true;
 		} else {
 			AuthProvider token = AuthProvider.valueOf(provider.toUpperCase());
@@ -229,9 +247,6 @@ public class UserResource {
 		
 		List<NewCookie> nullCookies = null;
 		if (noUser) {
-			// drop all the resource token if no user
-			thisUser.dropAllResourceAccessToken();
-			
 			// when we call session.invalidate() the UserSessionLoader will properly log is
 			// user logout or tomcat ending
 			session.setAttribute(UserSessionLoader.IS_USER_LOGOUT, true);
