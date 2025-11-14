@@ -36,6 +36,7 @@ public class ResourceUtility {
 		allowAccessWithoutLogin.add("config/fetchCsrf");
 		allowAccessWithoutLogin.add("auth/logins");
 		allowAccessWithoutLogin.add("auth/loginsAllowed");
+		allowAccessWithoutLogin.add("auth/connections");
 		allowAccessWithoutLogin.add("auth/connectionsAllowed");
 		allowAccessWithoutLogin.add("auth/login");
 		allowAccessWithoutLogin.add("auth/loginLDAP");

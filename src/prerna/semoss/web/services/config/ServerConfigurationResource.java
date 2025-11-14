@@ -243,6 +243,9 @@ public class ServerConfigurationResource {
 		// TODO: but not sure where this is all happening, so sending both keys for now
 		myConfiguration.put("logins", User.getLoginNames(user));
 		myConfiguration.put("loginDetails", User.getLoginDetails(user));
+		// current resource connections
+		myConfiguration.put("connections", User.getConnectionsNames(user));
+		myConfiguration.put("connectionDetails", User.getConnectionDetails(user));
 		// themes
 		myConfiguration.put("theme", AdminThemeUtils.getActiveAdminTheme());
 		// add if we are using csrf
