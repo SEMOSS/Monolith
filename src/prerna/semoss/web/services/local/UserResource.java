@@ -427,7 +427,7 @@ public class UserResource {
 		String jsonPattern = "[name, picture]";
 		String accessString = null;
 		try {
-			AccessToken googleToken = semossUser.getAccessToken(AuthProvider.GOOGLE);
+			AccessToken googleToken = semossUser.getAvailableAccessToken(AuthProvider.GOOGLE);
 			accessString = googleToken.getAccess_token();
 		} catch (Exception e) {
 			ret.put(Constants.ERROR_MESSAGE, "Log into your Google account");
@@ -495,7 +495,7 @@ public class UserResource {
 
 		String accessString = null;
 		try {
-			AccessToken msToken = semossUser.getAccessToken(AuthProvider.MICROSOFT);
+			AccessToken msToken = semossUser.getAvailableAccessToken(AuthProvider.MICROSOFT);
 			accessString = msToken.getAccess_token();
 			String url = "https://graph.microsoft.com/v1.0/me/";
 			String output = HttpHelperUtility.makeGetCall(url, accessString, null, true);
@@ -547,7 +547,7 @@ public class UserResource {
 
 		String accessString = null;
 		try {
-			AccessToken adfsToken = semossUser.getAccessToken(AuthProvider.ADFS);
+			AccessToken adfsToken = semossUser.getAvailableAccessToken(AuthProvider.ADFS);
 			accessString = adfsToken.getAccess_token();
 			String json = decodeTokenPayload(adfsToken.getAccess_token());
 			adfsToken = (AccessToken) BeanFiller.fillFromJson(json, jsonPattern, beanPropsArr, adfsToken);
@@ -593,7 +593,7 @@ public class UserResource {
 		String jsonPattern = "[name.display_name, profile_photo_url]";
 		String accessString = null;
 		try {
-			AccessToken dropToken = semossUser.getAccessToken(AuthProvider.DROPBOX);
+			AccessToken dropToken = semossUser.getAvailableAccessToken(AuthProvider.DROPBOX);
 			accessString = dropToken.getAccess_token();
 		} catch (Exception e) {
 			ret.put(Constants.ERROR_MESSAGE, "Log into your DropBox account");
@@ -651,7 +651,7 @@ public class UserResource {
 
 		String accessString = null;
 		try {
-			AccessToken gitToken = semossUser.getAccessToken(AuthProvider.GITHUB);
+			AccessToken gitToken = semossUser.getAvailableAccessToken(AuthProvider.GITHUB);
 			accessString = gitToken.getAccess_token();
 		} catch (Exception e) {
 			ret.put(Constants.ERROR_MESSAGE, "Log into your Github account");
@@ -703,7 +703,7 @@ public class UserResource {
 
 		String accessString = null;
 		try {
-			AccessToken accessToken = semossUser.getAccessToken(AuthProvider.OKTA);
+			AccessToken accessToken = semossUser.getAvailableAccessToken(AuthProvider.OKTA);
 			accessString = accessToken.getAccess_token();
 			String userInfoURL = socialData.getProperty(prefix + "userinfo_url");
 			String socialBeanProps = socialData.getProperty(prefix + "beanProps");
@@ -772,7 +772,7 @@ public class UserResource {
 
 		String accessString = null;
 		try {
-			AccessToken genericToken = semossUser.getAccessToken(providerEnum);
+			AccessToken genericToken = semossUser.getAvailableAccessToken(providerEnum);
 			accessString = genericToken.getAccess_token();
 			// String url = "https://graph.microsoft.com/v1.0/me/";
 			String output = HttpHelperUtility.makeGetCall(userInfoURL, accessString, null, true);
@@ -898,9 +898,8 @@ public class UserResource {
 			response.sendRedirect(getSalesforceRedirect(request));
 			return null;
 		}
-		if (!isResourceConnection) {
-			setMainPageRedirect(request, response);
-		}
+		
+		setMainPageRedirect(request, response);
 		return null;
 	}
 
@@ -1020,9 +1019,8 @@ public class UserResource {
 			response.sendRedirect(getSurveyMonkeyRedirect(request));
 			return null;
 		}
-		if (!isResourceConnection) {
-			setMainPageRedirect(request, response);
-		}
+		
+		setMainPageRedirect(request, response);
 		return null;
 	}
 
@@ -1156,9 +1154,8 @@ public class UserResource {
 			response.sendRedirect(getGithubRedirect(request));
 			return null;
 		}
-		if (!isResourceConnection) {
-			setMainPageRedirect(request, response);
-		}
+		
+		setMainPageRedirect(request, response);
 		return null;
 	}
 
@@ -1318,9 +1315,8 @@ public class UserResource {
 			userObj.getAvailableAccessToken(AuthProvider.GITLAB).setUserGroups(userGroups);
 			userObj.getAccessToken(AuthProvider.GITLAB).setUserGroupType(AuthProvider.GITLAB.toString());
 		}
-		if (!isResourceConnection) {
-			setMainPageRedirect(request, response);
-		}
+		
+		setMainPageRedirect(request, response);
 		return null;
 	}
 
@@ -1470,9 +1466,8 @@ public class UserResource {
 			response.sendRedirect(getMicrosoftRedirect(request));
 			return null;
 		}
-		if (!isResourceConnection) {
-			setMainPageRedirect(request, response);
-		}
+		
+		setMainPageRedirect(request, response);
 		return null;
 	}
 
@@ -1613,9 +1608,8 @@ public class UserResource {
 			response.sendRedirect(getADFSRedirect(request));
 			return null;
 		}
-		if (!isResourceConnection) {
-			setMainPageRedirect(request, response);
-		}
+		
+		setMainPageRedirect(request, response);
 		return null;
 	}
 
@@ -1768,9 +1762,8 @@ public class UserResource {
 			response.sendRedirect(getOktaRedirect(request));
 			return null;
 		}
-		if (!isResourceConnection) {
-			setMainPageRedirect(request, response);
-		}
+		
+		setMainPageRedirect(request, response);
 		return null;
 	}
 
@@ -1900,9 +1893,8 @@ public class UserResource {
 			response.sendRedirect(getSiteminderRedirect(request));
 			return null;
 		}
-		if (!isResourceConnection) {
-			setMainPageRedirect(request, response);
-		}
+		
+		setMainPageRedirect(request, response);
 		return null;
 	}
 
@@ -2031,9 +2023,8 @@ public class UserResource {
 			response.sendRedirect(getDBRedirect(request));
 			return null;
 		}
-		if (!isResourceConnection) {
-			setMainPageRedirect(request, response);
-		}
+		
+		setMainPageRedirect(request, response);
 		return null;
 	}
 
@@ -2164,9 +2155,8 @@ public class UserResource {
 			response.sendRedirect(getGoogleRedirect(request));
 			return null;
 		}
-		if (!isResourceConnection) {
-			setMainPageRedirect(request, response);
-		}
+		
+		setMainPageRedirect(request, response);
 		return null;
 	}
 
@@ -2344,9 +2334,8 @@ public class UserResource {
 			response.sendRedirect(getProducthuntRedirect(request));
 			return null;
 		}
-		if (!isResourceConnection) {
-			setMainPageRedirect(request, response);
-		}
+		
+		setMainPageRedirect(request, response);
 		return null;
 	}
 
@@ -2469,9 +2458,8 @@ public class UserResource {
 			response.sendRedirect(getLinkedinRedirect(request));
 			return null;
 		}
-		if (!isResourceConnection) {
-			setMainPageRedirect(request, response);
-		}
+		
+		setMainPageRedirect(request, response);
 		return null;
 	}
 
@@ -2604,9 +2592,8 @@ public class UserResource {
 			response.sendRedirect(getTwitterRedirect(request));
 			return null;
 		}
-		if (!isResourceConnection) {
-			setMainPageRedirect(request, response);
-		}
+		
+		setMainPageRedirect(request, response);
 		return null;
 	}
 
@@ -2843,9 +2830,8 @@ public class UserResource {
 			response.sendRedirect(getGenericRedirect(provider, request));
 			return null;
 		}
-		if (!isResourceConnection) {
-			setMainPageRedirect(request, response);
-		}
+		
+		setMainPageRedirect(request, response);
 		return null;
 	}
 
