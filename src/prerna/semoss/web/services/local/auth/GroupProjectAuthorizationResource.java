@@ -1,6 +1,8 @@
 package prerna.semoss.web.services.local.auth;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import javax.annotation.security.PermitAll;
@@ -282,6 +284,48 @@ public class GroupProjectAuthorizationResource {
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
+	}
+
+	@GET
+	@Produces("application/json")
+	@Path("getGroupsWithAccessToProject")
+	public Response getAllGroupsWithAccessToProject(@Context HttpServletRequest request,
+			@QueryParam("projectId") String projectId, @QueryParam("limit") long limit,
+			@QueryParam("offset") long offset) {
+		projectId = WebUtility.inputSanitizer(projectId);
+		if (projectId == null || projectId.isEmpty()) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Must define the projectId");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			classLogger.warn("Invalid user session trying to access authorization resources");
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		List<Map<String, Object>> groups = new ArrayList<Map<String, Object>>();
+		try {
+			groups = SecurityGroupProjectUtils.getGroupsWithAccessToProject(user, projectId, limit, offset);
+			return WebUtility.getResponse(groups, 200);
+		} catch (IllegalAccessException e) {
+			classLogger
+					.warn("User is trying to get details for project " + projectId + " without having proper access");
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		} catch (Exception e) {
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		}
 	}
 
 }
