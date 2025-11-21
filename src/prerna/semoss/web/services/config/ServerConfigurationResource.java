@@ -40,8 +40,8 @@ import prerna.web.services.util.WebUtility;
 @Path("/config")
 @PermitAll
 public class ServerConfigurationResource {
-	
-	private static final Logger logger = LogManager.getLogger(ServerConfigurationResource.class); 
+
+	private static final Logger logger = LogManager.getLogger(ServerConfigurationResource.class);
 
 	private static volatile Map<String, Object> config = null;
 
@@ -57,13 +57,14 @@ public class ServerConfigurationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			//ignoring user here because it is okay to. This is for health checks or server checks even when users havent been instantiated.
+			// ignoring user here because it is okay to. This is for health checks or server
+			// checks even when users havent been instantiated.
 		}
-		
-		if(config != null) {
+
+		if (config != null) {
 			return getConfiguration(request, user);
 		}
-		
+
 		// make thread safe
 		synchronized (ServerConfigurationResource.class) {
 			if (config == null) {
@@ -73,7 +74,7 @@ public class ServerConfigurationResource {
 
 		return getConfiguration(request, user);
 	}
-	
+
 	private static void loadConfig() {
 		Map<String, Object> loadConfig = new HashMap<>();
 
@@ -128,7 +129,7 @@ public class ServerConfigurationResource {
 		loadConfig.put("adminOnlyInsightAddAccess", AbstractSecurityUtils.adminOnlyInsightAddAccess());
 		loadConfig.put("adminOnlyInsightSetPublic", AbstractSecurityUtils.adminOnlyInsightSetPublic());
 		loadConfig.put("adminOnlyInsightShare", AbstractSecurityUtils.adminOnlyInsightShare());
-		
+
 		// return a boolean if we want to use a dedicated logout page
 		// instead of redirecting to the login page
 		loadConfig.put("useLogoutPage", DBLoader.useLogoutPage());
@@ -142,7 +143,7 @@ public class ServerConfigurationResource {
 				logger.error(Constants.STACKTRACE, e);
 			}
 		}
-		
+
 		// shared file path
 		String sharedFilePath = Utility.getDIHelperProperty(Constants.SHARED_FILE_PATH);
 		if (sharedFilePath != null && !sharedFilePath.isEmpty()) {
@@ -152,7 +153,7 @@ public class ServerConfigurationResource {
 				logger.error(Constants.STACKTRACE, e);
 			}
 		}
-		
+
 		// version of the application
 		try {
 			Map<String, String> versionMap = VersionReactor.getVersionMap(false);
@@ -181,7 +182,7 @@ public class ServerConfigurationResource {
 			localMode = Boolean.parseBoolean(localModeStr);
 		}
 		loadConfig.put("localDeployment", localMode);
-		
+
 		// insights are cacheable by default
 		boolean cacheableOnByDefault = Utility.getApplicationCacheInsight();
 		loadConfig.put("cacheInsightByDefault", cacheableOnByDefault);
@@ -191,7 +192,7 @@ public class ServerConfigurationResource {
 		loadConfig.put("cacheInsightEncrypt", cacheEncrypt);
 		String cacheCron = Utility.getApplicationCacheCron();
 		loadConfig.put("cacheCron", cacheCron);
-		
+
 		// to make welcome dialog optional
 		boolean showWelcomeBanner = Utility.getWelcomeBannerOption();
 		loadConfig.put("showWelcomeBanner", showWelcomeBanner);
@@ -199,7 +200,7 @@ public class ServerConfigurationResource {
 		// send back the permission mapping
 		loadConfig.put("permissionMappingString", AccessPermissionEnum.flushEnumString());
 		loadConfig.put("permissionMappingInteger", AccessPermissionEnum.flushEnumInteger());
-		
+
 		// some initial pipeline / widget-menu filtering
 		loadConfig.put("pipelineLandingFilter", Utility.getApplicationPipelineLandingFilter());
 		loadConfig.put("pipelineSourceFilter", Utility.getApplicationPipelineSourceFilter());
@@ -207,6 +208,8 @@ public class ServerConfigurationResource {
 //		loadConfig.put("widgetTabExportDashboard", Utility.getApplicationWidgetTabExportDashboard());
 		loadConfig.put("adminOnlyViewMenuBarFlag", Utility.getAdminOnlyViewMenuBarFlag());
 		loadConfig.put("adminOnlyNonAprrovedFlag", Utility.getAdminOnlyNonApprovedFlag());
+
+		loadConfig.put("applicationUrl", Utility.getApplicationUrl());
 		ServerConfigurationResource.config = loadConfig;
 	}
 
@@ -229,13 +232,15 @@ public class ServerConfigurationResource {
 
 		// password requirements
 		try {
-			myConfiguration.put("passwordRequirements", PasswordRequirements.getInstance().getAllPasswordRequirements());
+			myConfiguration.put("passwordRequirements",
+					PasswordRequirements.getInstance().getAllPasswordRequirements());
 		} catch (Exception e) {
 			logger.error(Constants.STACKTRACE, e);
 		}
 		// current logins
 		// TODO: added 2022-02-25
-		// TODO: should move away from logins cause sometimes people are using this as if the name is the ID
+		// TODO: should move away from logins cause sometimes people are using this as
+		// if the name is the ID
 		// TODO: but not sure where this is all happening, so sending both keys for now
 		myConfiguration.put("logins", User.getLoginNames(user));
 		myConfiguration.put("loginDetails", User.getLoginDetails(user));
@@ -253,14 +258,15 @@ public class ServerConfigurationResource {
 		if (user == null && (session.isNew() || request.isRequestedSessionIdValid())) {
 			session.invalidate();
 		}
-		
+
 		return myConfiguration;
 	}
-	
+
 	@GET
 	@Path("/")
 	@Produces("application/json")
-	public Response getServerConfig(@Context HttpServletRequest request, @Context HttpServletResponse response, @Context FilterChain filterChain) {
+	public Response getServerConfig(@Context HttpServletRequest request, @Context HttpServletResponse response,
+			@Context FilterChain filterChain) {
 		List<NewCookie> newCookies = new ArrayList<>();
 
 		try {
@@ -272,10 +278,10 @@ public class ServerConfigurationResource {
 			// clean up any invalid cookies on the browser
 			WebUtility.expireSessionCookies(request, newCookies);
 		}
-		
+
 		return WebUtility.getResponseNoCache(getConfig(request), 200, newCookies.toArray(new NewCookie[] {}));
 	}
-	
+
 	@GET
 	@Path("/fetchCsrf")
 	@Produces("application/json")
