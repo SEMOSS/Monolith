@@ -118,6 +118,7 @@ public class NameServer {
 
 	private static final String ERROR_TYPE = "errorType";
 	private static final String INSIGHT_NOT_FOUND = "INSIGHT_NOT_FOUND";
+	private static final String EXPRESSION_NOT_FOUND = "EXPRESSION_NOT_FOUND";
 	// base URL for the requests on this server instance
 	private static String baseURL = null;
 
@@ -395,7 +396,7 @@ public class NameServer {
 		if (expression == null || (expression = expression.trim()).isEmpty()) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Must pass in 'expression' key containing the pixel to execute");
-			errorMap.put(ERROR_TYPE, INSIGHT_NOT_FOUND);
+			errorMap.put(ERROR_TYPE, EXPRESSION_NOT_FOUND);
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		if (!expression.endsWith(";")) {
@@ -900,7 +901,7 @@ public class NameServer {
 		if (expression == null || (expression = expression.trim()).isEmpty()) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Must pass in 'expression' key containing the pixel to execute");
-			errorMap.put(ERROR_TYPE, INSIGHT_NOT_FOUND);
+			errorMap.put(ERROR_TYPE, EXPRESSION_NOT_FOUND);
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		if (!expression.endsWith(";")) {
