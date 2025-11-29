@@ -36,24 +36,31 @@ import prerna.engine.api.IModelEngine;
 import prerna.util.Utility;
 
 /**
- * OpenAI Transparent Proxy Endpoint
+ * Codex Backend API Implementation for SEMOSS
  *
- * This endpoint acts as a transparent proxy between Codex (or any OpenAI-compatible client)
- * and OpenAI's API. It:
+ * This endpoint implements the Codex Backend API that sits between Codex CLI and model providers.
+ * Flow: Codex CLI ? This Backend ? OpenAI (or other model providers)
  *
- * 1. Accepts the Authorization header with Base64-encoded access_key:secret_key (User Access Keys)
- * 2. Validates credentials and retrieves the authenticated User
- * 3. Checks if the User has access to the requested engine
- * 4. Extracts the OpenAI API key from the engine configuration
- * 5. Forwards the request to OpenAI API without modification
- * 6. Returns OpenAI's response without modification
+ * Codex CLI sends requests with fields like:
+ * - instructions: System prompt
+ * - input: User message (can be array or string)
+ * - tools: Function calling definitions
+ * - reasoning: Reasoning mode
+ * - store: Conversation storage
+ * - etc.
  *
- * This maintains full compatibility with OpenAI's API while adding SEMOSS authentication.
+ * This backend must:
+ * 1. Accept Codex CLI's custom API format
+ * 2. Authenticate using SEMOSS User Access Keys
+ * 3. Transform to OpenAI's standard format
+ * 4. Forward to OpenAI
+ * 5. Transform response back to Codex format
  *
- * To create User Access Keys:
- * - Login to SEMOSS
- * - POST /api/auth/user/createUserAccessKey with tokenName parameter
- * - Use the returned access_key and secret_key
+ * Reference: https://github.com/openai/codex/blob/main/docs/config.md#model_providers
+ *
+ * Authentication:
+ * - Uses SEMOSS User Access Keys (Base64-encoded access_key:secret_key)
+ * - Create keys via: POST /api/auth/user/createUserAccessKey
  */
 @Path("/openai/proxy")
 public class OpenAIProxyEndpoint {
@@ -166,11 +173,12 @@ public class OpenAIProxyEndpoint {
 	/**
 	 * Proxy endpoint for /v1/chat/completions
 	 * Transparently forwards requests to OpenAI while handling SEMOSS authentication
+	 * Supports both streaming (text/event-stream) and non-streaming (application/json) responses
 	 */
 	@POST
 	@Path("/v1/chat/completions")
 	@Consumes(MediaType.APPLICATION_JSON)
-	@Produces(MediaType.APPLICATION_JSON)
+	@Produces({MediaType.APPLICATION_JSON, "text/event-stream"})
 	public Response proxyChatCompletions(@Context HttpServletRequest request) {
 		return proxyRequest(request, "/v1/chat/completions");
 	}
@@ -251,10 +259,22 @@ public class OpenAIProxyEndpoint {
 				} else {
 					classLogger.info("  {}: {}", headerName, headerValue);
 				}
-			}
-			classLogger.info("========================================");
+		}
+		classLogger.info("========================================");
 
-			// Step 1: Extract and validate Authorization header
+		// Read request body first for logging
+		String requestBody = readRequestBody(request);
+		classLogger.info("=== REQUEST BODY ===");
+		classLogger.info("Request body length: {}", requestBody.length());
+		if (requestBody.length() < 5000) {
+			classLogger.info("Request body: {}", requestBody);
+		} else {
+			classLogger.info("Request body (first 1000 chars): {}", requestBody.substring(0, 1000));
+			classLogger.info("Request body (last 500 chars): {}", requestBody.substring(requestBody.length() - 500));
+		}
+		classLogger.info("========================================");
+
+		// Step 1: Extract and validate Authorization header
 			String authHeader = request.getHeader("Authorization");
 			if (authHeader == null) {
 				authHeader = request.getHeader("authorization");
@@ -302,11 +322,10 @@ public class OpenAIProxyEndpoint {
 			return errorResponse("Invalid credentials. User Access Key not found or credentials are incorrect.", 401);
 		}
 
-		// Step 4: Read request body
-			String requestBody = readRequestBody(request);
-			if (requestBody == null || requestBody.isEmpty()) {
-				return errorResponse("Missing request body", 400);
-			}
+		// Step 4: Validate request body (already read earlier for logging)
+		if (requestBody == null || requestBody.isEmpty()) {
+			return errorResponse("Missing request body", 400);
+		}
 
 		// Step 5: Extract model/engine ID from request
 		Map<String, Object> requestJson = parseJson(requestBody);
