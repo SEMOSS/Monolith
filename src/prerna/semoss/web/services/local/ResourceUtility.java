@@ -20,6 +20,11 @@ public class ResourceUtility {
 	static {
 		allowAccessWithoutUsers.add("config");
 		allowAccessWithoutUsers.add("config/fetchCsrf");
+		// OpenAI proxy endpoints handle their own authentication
+		allowAccessWithoutUsers.add("openai/proxy/health");
+		allowAccessWithoutUsers.add("openai/proxy/v1/chat/completions");
+		allowAccessWithoutUsers.add("openai/proxy/v1/completions");
+		allowAccessWithoutUsers.add("openai/proxy/v1/embeddings");
 	}
 
 	public static List<String> allowAccessWithoutLogin = new ArrayList<>();
@@ -51,6 +56,12 @@ public class ResourceUtility {
 		// legacy ms login
 		allowAccessWithoutLogin.add("auth/userinfo/ms");
 		allowAccessWithoutLogin.add("auth/login/ms");
+
+		// OpenAI proxy endpoints handle their own authentication via Bearer tokens
+		allowAccessWithoutLogin.add("openai/proxy/health");
+		allowAccessWithoutLogin.add("openai/proxy/v1/chat/completions");
+		allowAccessWithoutLogin.add("openai/proxy/v1/completions");
+		allowAccessWithoutLogin.add("openai/proxy/v1/embeddings");
 	}
 
 	/**
@@ -77,13 +88,13 @@ public class ResourceUtility {
 	public static String getClientIp(@Context HttpServletRequest request) {
 		String remoteAddr = "";
 		if (request != null) {
-			remoteAddr = WebUtility.inputSanitizer(request.getHeader("X-FORWARDED-FOR"));
+			remoteAddr = request.getHeader("X-FORWARDED-FOR");
 			if (remoteAddr == null || "".equals(remoteAddr)) {
 				remoteAddr = request.getRemoteAddr();
 			}
 		}
 
-		return WebUtility.inputSanitizer(remoteAddr);
+		return remoteAddr != null ? remoteAddr : "";
 	}
 
 	/**
