@@ -26,6 +26,7 @@ public class ResourceUtility {
 		allowAccessWithoutUsers.add("openai/proxy/v1/chat/completions");
 		allowAccessWithoutUsers.add("openai/proxy/v1/completions");
 		allowAccessWithoutUsers.add("openai/proxy/v1/embeddings");
+		allowAccessWithoutUsers.add("openai/proxy/v1/responses");
 	}
 
 	public static List<String> allowAccessWithoutLogin = new ArrayList<>();
@@ -64,6 +65,7 @@ public class ResourceUtility {
 		allowAccessWithoutLogin.add("openai/proxy/v1/chat/completions");
 		allowAccessWithoutLogin.add("openai/proxy/v1/completions");
 		allowAccessWithoutLogin.add("openai/proxy/v1/embeddings");
+		allowAccessWithoutLogin.add("openai/proxy/v1/responses");
 	}
 
 	/**

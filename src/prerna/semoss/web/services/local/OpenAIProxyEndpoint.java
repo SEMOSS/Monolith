@@ -176,6 +176,20 @@ public class OpenAIProxyEndpoint {
 	}
 
 	/**
+	 * Proxy endpoint for /v1/responses
+	 * Used by Codex CLI - just pass through to OpenAI's /v1/chat/completions
+	 */
+	@POST
+	@Path("/v1/responses")
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces("text/event-stream")
+	public Response proxyResponses(@Context HttpServletRequest request) {
+		// Codex CLI uses /v1/responses endpoint but sends standard OpenAI format
+		// Just map it to /v1/chat/completions and pass through transparently
+		return proxyRequest(request, "/v1/chat/completions");
+	}
+
+	/**
 	 * Proxy endpoint for /v1/completions
 	 * Transparently forwards requests to OpenAI while handling SEMOSS authentication
 	 */
@@ -352,6 +366,7 @@ public class OpenAIProxyEndpoint {
 			return errorResponse("Internal server error: " + e.getMessage(), 500);
 		}
 	}
+
 
 	/**
 	 * Extract access_key and secret_key from Authorization header
@@ -570,6 +585,9 @@ public class OpenAIProxyEndpoint {
 			classLogger.info("=== PROXYING TO OPENAI ===");
 			classLogger.info("Endpoint: {}{}", OPENAI_BASE_URL, endpoint);
 			classLogger.info("Request body length: {}", requestBody.length());
+			classLogger.info("=== RAW REQUEST BODY BEING SENT TO OPENAI ===");
+			classLogger.info(requestBody);
+			classLogger.info("=== END RAW REQUEST BODY ===");
 
 			// Create connection to OpenAI
 			URL url = new URL(OPENAI_BASE_URL + endpoint);
@@ -628,41 +646,70 @@ public class OpenAIProxyEndpoint {
 	 * Proxy a streaming request to OpenAI
 	 */
 	private Response proxyStreamingRequest(String endpoint, String requestBody, String openAiApiKey) {
+		classLogger.info("=== STREAMING REQUEST TO OPENAI ===");
+		classLogger.info("Endpoint: {}{}", OPENAI_BASE_URL, endpoint);
+		classLogger.info("Request body length: {}", requestBody.length());
+		classLogger.info("=== RAW REQUEST BODY BEING SENT TO OPENAI ===");
+		classLogger.info(requestBody);
+		classLogger.info("=== END RAW REQUEST BODY ===");
+
 		StreamingOutput stream = new StreamingOutput() {
 			@Override
 			public void write(OutputStream output) throws IOException {
 				HttpURLConnection connection = null;
 				try {
+					classLogger.info("Opening connection to OpenAI for streaming...");
+
 					// Create connection to OpenAI
 					URL url = new URL(OPENAI_BASE_URL + endpoint);
 					connection = (HttpURLConnection) url.openConnection();
 					connection.setRequestMethod("POST");
 					connection.setRequestProperty("Content-Type", "application/json");
 					connection.setRequestProperty("Authorization", "Bearer " + openAiApiKey);
+					connection.setRequestProperty("Accept", "text/event-stream");
 					connection.setDoOutput(true);
 					connection.setDoInput(true);
+
+					// Don't timeout on read - streaming can be slow
+					connection.setReadTimeout(0);
+					connection.setConnectTimeout(30000); // 30 seconds connect timeout
+
+					classLogger.info("Sending request to OpenAI...");
 
 					// Send request
 					try (OutputStream os = connection.getOutputStream()) {
 						byte[] input = requestBody.getBytes(StandardCharsets.UTF_8);
 						os.write(input, 0, input.length);
+						os.flush();
 					}
 
 					// Stream response
 					int statusCode = connection.getResponseCode();
+					classLogger.info("OpenAI streaming response status: {}", statusCode);
 
 					if (statusCode >= 200 && statusCode < 300) {
+						classLogger.info("Starting to stream response from OpenAI...");
+
 						try (InputStream is = connection.getInputStream()) {
 							byte[] buffer = new byte[BUFFER_SIZE];
 							int bytesRead;
+							int totalBytes = 0;
+
 							while ((bytesRead = is.read(buffer)) != -1) {
 								output.write(buffer, 0, bytesRead);
-								output.flush();
+								output.flush(); // Flush immediately for SSE
+								totalBytes += bytesRead;
 							}
+
+							classLogger.info("Streaming complete. Total bytes streamed: {}", totalBytes);
 						}
 					} else {
+						classLogger.error("OpenAI streaming error. Status: {}", statusCode);
+
 						// Error response
 						String errorBody = readStream(connection.getErrorStream());
+						classLogger.error("OpenAI error response: {}", errorBody);
+
 						output.write(errorBody.getBytes(StandardCharsets.UTF_8));
 						output.flush();
 					}
@@ -676,6 +723,7 @@ public class OpenAIProxyEndpoint {
 					if (connection != null) {
 						connection.disconnect();
 					}
+					classLogger.info("Streaming connection closed");
 				}
 			}
 		};
@@ -685,20 +733,25 @@ public class OpenAIProxyEndpoint {
 				.header("Content-Type", "text/event-stream")
 				.header("Cache-Control", "no-cache")
 				.header("Connection", "keep-alive")
+				.header("X-Accel-Buffering", "no") // Disable nginx buffering if behind nginx
 				.build();
 	}
 
 	/**
 	 * Read request body from HttpServletRequest
+	 * Handles large payloads properly
 	 */
 	private String readRequestBody(HttpServletRequest request) throws IOException {
 		StringBuilder sb = new StringBuilder();
-		try (BufferedReader reader = new BufferedReader(new InputStreamReader(request.getInputStream(), StandardCharsets.UTF_8))) {
-			String line;
-			while ((line = reader.readLine()) != null) {
-				sb.append(line);
+		try (BufferedReader reader = new BufferedReader(
+				new InputStreamReader(request.getInputStream(), StandardCharsets.UTF_8))) {
+			char[] buffer = new char[8192];
+			int bytesRead;
+			while ((bytesRead = reader.read(buffer)) != -1) {
+				sb.append(buffer, 0, bytesRead);
 			}
 		}
+		classLogger.debug("Read request body: {} bytes", sb.length());
 		return sb.toString();
 	}
 
@@ -724,10 +777,14 @@ public class OpenAIProxyEndpoint {
 	 */
 	private Map<String, Object> parseJson(String json) {
 		try {
+			classLogger.debug("Parsing JSON, length: {}", json != null ? json.length() : 0);
 			TypeReference<Map<String, Object>> typeRef = new TypeReference<Map<String, Object>>() {};
-			return objectMapper.readValue(json, typeRef);
+			Map<String, Object> result = objectMapper.readValue(json, typeRef);
+			classLogger.debug("Parsed JSON successfully, keys: {}", result.keySet());
+			return result;
 		} catch (Exception e) {
-			classLogger.error("Error parsing JSON", e);
+			classLogger.error("Error parsing JSON: {}", e.getMessage());
+			classLogger.error("JSON content (first 500 chars): {}", json != null ? json.substring(0, Math.min(500, json.length())) : "null");
 			return new HashMap<>();
 		}
 	}
