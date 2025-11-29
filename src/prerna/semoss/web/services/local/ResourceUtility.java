@@ -22,6 +22,7 @@ public class ResourceUtility {
 		allowAccessWithoutUsers.add("config/fetchCsrf");
 		// OpenAI proxy endpoints handle their own authentication
 		allowAccessWithoutUsers.add("openai/proxy/health");
+		allowAccessWithoutUsers.add("openai/proxy/debug/auth");
 		allowAccessWithoutUsers.add("openai/proxy/v1/chat/completions");
 		allowAccessWithoutUsers.add("openai/proxy/v1/completions");
 		allowAccessWithoutUsers.add("openai/proxy/v1/embeddings");
@@ -59,6 +60,7 @@ public class ResourceUtility {
 
 		// OpenAI proxy endpoints handle their own authentication via Bearer tokens
 		allowAccessWithoutLogin.add("openai/proxy/health");
+		allowAccessWithoutLogin.add("openai/proxy/debug/auth");
 		allowAccessWithoutLogin.add("openai/proxy/v1/chat/completions");
 		allowAccessWithoutLogin.add("openai/proxy/v1/completions");
 		allowAccessWithoutLogin.add("openai/proxy/v1/embeddings");

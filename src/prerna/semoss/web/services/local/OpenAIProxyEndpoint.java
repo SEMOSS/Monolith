@@ -88,6 +88,82 @@ public class OpenAIProxyEndpoint {
 	}
 
 	/**
+	 * Debug endpoint - logs ALL request details without authentication
+	 * Use this to see exactly what Codex is sending
+	 * DO NOT USE IN PRODUCTION - NO AUTHENTICATION!
+	 */
+	@POST
+	@Path("/debug/auth")
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response debugAuth(@Context HttpServletRequest request) {
+		Map<String, Object> debugInfo = new HashMap<>();
+
+		try {
+			classLogger.info("========================================");
+			classLogger.info("DEBUG ENDPOINT - Logging all request details");
+			classLogger.info("========================================");
+
+			// Log all headers
+			Map<String, String> headers = new HashMap<>();
+			java.util.Enumeration<String> headerNames = request.getHeaderNames();
+			while (headerNames.hasMoreElements()) {
+				String headerName = headerNames.nextElement();
+				String headerValue = request.getHeader(headerName);
+				headers.put(headerName, headerValue);
+				classLogger.info("Header: {} = {}", headerName, headerValue);
+			}
+			debugInfo.put("headers", headers);
+
+			// Read request body
+			String requestBody = readRequestBody(request);
+			classLogger.info("Request Body: {}", requestBody);
+			debugInfo.put("requestBody", requestBody);
+
+			// Try to extract credentials
+			String authHeader = request.getHeader("Authorization");
+			if (authHeader != null) {
+				classLogger.info("========================================");
+				classLogger.info("ATTEMPTING CREDENTIAL EXTRACTION");
+				classLogger.info("========================================");
+				AuthCredentials creds = extractCredentials(authHeader);
+				if (creds != null) {
+					debugInfo.put("extractionSuccess", true);
+					debugInfo.put("accessKey", creds.clientId);
+					debugInfo.put("secretKeyLength", creds.secretKey.length());
+					classLogger.info("SUCCESS: Extracted access_key: {}", creds.clientId);
+				} else {
+					debugInfo.put("extractionSuccess", false);
+					debugInfo.put("error", "Failed to extract credentials");
+					classLogger.error("FAILED: Could not extract credentials");
+				}
+			} else {
+				debugInfo.put("error", "No Authorization header found");
+				classLogger.error("NO AUTHORIZATION HEADER");
+			}
+
+			debugInfo.put("timestamp", System.currentTimeMillis());
+			debugInfo.put("message", "Check server logs for detailed analysis");
+
+			return Response.ok()
+					.entity(objectMapper.writeValueAsString(debugInfo))
+					.type(MediaType.APPLICATION_JSON)
+					.build();
+
+		} catch (Exception e) {
+			classLogger.error("Error in debug endpoint", e);
+			debugInfo.put("error", e.getMessage());
+			try {
+				return Response.status(500)
+						.entity(objectMapper.writeValueAsString(debugInfo))
+						.build();
+			} catch (Exception e2) {
+				return Response.status(500).entity("{\"error\":\"Internal error\"}").build();
+			}
+		}
+	}
+
+	/**
 	 * Proxy endpoint for /v1/chat/completions
 	 * Transparently forwards requests to OpenAI while handling SEMOSS authentication
 	 */
@@ -132,6 +208,38 @@ public class OpenAIProxyEndpoint {
 	 */
 	private Response proxyRequest(HttpServletRequest request, String endpoint) {
 		try {
+			// Log all incoming request details for debugging
+			classLogger.info("========================================");
+			classLogger.info("INCOMING REQUEST TO OPENAI PROXY");
+			classLogger.info("========================================");
+			classLogger.info("Endpoint: {}", endpoint);
+			classLogger.info("Method: {}", request.getMethod());
+			classLogger.info("URL: {}", request.getRequestURL().toString());
+			classLogger.info("Query String: {}", request.getQueryString());
+			classLogger.info("Content-Type: {}", request.getContentType());
+			classLogger.info("Content-Length: {}", request.getContentLength());
+
+			// Log all headers
+			classLogger.info("--- REQUEST HEADERS ---");
+			java.util.Enumeration<String> headerNames = request.getHeaderNames();
+			while (headerNames.hasMoreElements()) {
+				String headerName = headerNames.nextElement();
+				String headerValue = request.getHeader(headerName);
+				// Mask sensitive data but show format
+				if (headerName.equalsIgnoreCase("Authorization")) {
+					if (headerValue.length() > 50) {
+						classLogger.info("  {}: {}...{}", headerName,
+							headerValue.substring(0, 30),
+							headerValue.substring(headerValue.length() - 10));
+					} else {
+						classLogger.info("  {}: {}", headerName, headerValue);
+					}
+				} else {
+					classLogger.info("  {}: {}", headerName, headerValue);
+				}
+			}
+			classLogger.info("========================================");
+
 			// Step 1: Extract and validate Authorization header
 			String authHeader = request.getHeader("Authorization");
 			if (authHeader == null) {
@@ -139,6 +247,7 @@ public class OpenAIProxyEndpoint {
 			}
 
 			if (authHeader == null || authHeader.trim().isEmpty()) {
+				classLogger.error("MISSING AUTHORIZATION HEADER - Request rejected");
 				return errorResponse("Missing Authorization header", 401);
 			}
 
@@ -246,35 +355,115 @@ public class OpenAIProxyEndpoint {
 
 	/**
 	 * Extract access_key and secret_key from Authorization header
-	 * Supports both "Bearer base64(access_key:secret_key)" and "Basic base64(access_key:secret_key)"
-	 * Also handles tokens with "sk-" prefix (e.g., "sk-base64encoded")
+	 * Supports multiple formats:
+	 * 1. "Bearer sk-base64(access_key:secret_key)"
+	 * 2. "Bearer base64(access_key:secret_key)"
+	 * 3. "Bearer access_key:secret_key" (plain text)
+	 * 4. "Basic base64(access_key:secret_key)"
+	 * 5. "Bearer <anything>" - tries multiple decoding strategies
 	 */
 	private AuthCredentials extractCredentials(String authHeader) {
 		try {
+			classLogger.info("=== AUTHENTICATION ATTEMPT ===");
+			classLogger.info("Full Authorization header length: {}", authHeader.length());
+			classLogger.info("Authorization header prefix: {}", authHeader.substring(0, Math.min(30, authHeader.length())));
+			classLogger.info("Authorization header suffix: {}", authHeader.length() > 30 ? "..." + authHeader.substring(authHeader.length() - 20) : "");
+
 			String encodedCredentials;
+			String authType = "unknown";
 
-		if (authHeader.startsWith("Bearer ")) {
-			encodedCredentials = authHeader.substring(7).trim();
-		} else if (authHeader.startsWith("Basic ")) {
-			encodedCredentials = authHeader.substring(6).trim();
-		} else {
-			// Try to decode as-is
-			encodedCredentials = authHeader.trim();
-		}
+			if (authHeader.startsWith("Bearer ")) {
+				encodedCredentials = authHeader.substring(7).trim();
+				authType = "Bearer";
+			} else if (authHeader.startsWith("bearer ")) {
+				encodedCredentials = authHeader.substring(7).trim();
+				authType = "bearer";
+			} else if (authHeader.startsWith("Basic ")) {
+				encodedCredentials = authHeader.substring(6).trim();
+				authType = "Basic";
+			} else {
+				// Try to decode as-is
+				encodedCredentials = authHeader.trim();
+				authType = "raw";
+			}
 
-		// Remove "sk-" prefix if present (OpenAI convention)
-		if (encodedCredentials.startsWith("sk-")) {
-			encodedCredentials = encodedCredentials.substring(3);
-		}
+			classLogger.info("Auth type detected: {}", authType);
+			classLogger.info("Credential string length after prefix removal: {}", encodedCredentials.length());
+			classLogger.info("Credential string starts with: {}", encodedCredentials.substring(0, Math.min(20, encodedCredentials.length())));
 
-		// Decode from Base64
-			byte[] decodedBytes = Base64.getDecoder().decode(encodedCredentials);
-			String decoded = new String(decodedBytes, StandardCharsets.UTF_8);
+			// Remove "sk-" prefix if present (OpenAI convention)
+			boolean hadSkPrefix = false;
+			if (encodedCredentials.startsWith("sk-")) {
+				encodedCredentials = encodedCredentials.substring(3);
+				hadSkPrefix = true;
+				classLogger.info("Removed 'sk-' prefix from credentials");
+				classLogger.info("After sk- removal, length: {}", encodedCredentials.length());
+			}
+
+			String decoded = null;
+			String decodingMethod = "unknown";
+
+			// Try multiple decoding strategies
+
+			// Strategy 1: Try Base64 decoding
+			try {
+				byte[] decodedBytes = Base64.getDecoder().decode(encodedCredentials);
+				decoded = new String(decodedBytes, StandardCharsets.UTF_8);
+				decodingMethod = "base64";
+				classLogger.info("Successfully decoded using Base64");
+				classLogger.info("Decoded string length: {}", decoded.length());
+				classLogger.info("Decoded string preview: {}", decoded.substring(0, Math.min(50, decoded.length())));
+			} catch (IllegalArgumentException e) {
+				classLogger.info("Base64 decoding failed: {}", e.getMessage());
+			}
+
+			// Strategy 2: If Base64 failed, try treating as plain text
+			if (decoded == null) {
+				decoded = encodedCredentials;
+				decodingMethod = "plaintext";
+				classLogger.info("Using credentials as plain text (no decoding)");
+			}
+
+			// Strategy 3: If we had sk- prefix and decoding failed, try decoding the original with sk-
+			if (hadSkPrefix && !decodingMethod.equals("base64")) {
+				try {
+					String withSkPrefix = "sk-" + encodedCredentials;
+					byte[] decodedBytes = Base64.getDecoder().decode(withSkPrefix);
+					String tempDecoded = new String(decodedBytes, StandardCharsets.UTF_8);
+					if (tempDecoded.contains(":")) {
+						decoded = tempDecoded;
+						decodingMethod = "base64_with_sk_prefix";
+						classLogger.info("Successfully decoded with sk- prefix included");
+					}
+				} catch (Exception e) {
+					classLogger.info("Decoding with sk- prefix failed");
+				}
+			}
 
 			// Split into client_id:secret_key
+			classLogger.info("Attempting to split decoded string into access_key:secret_key");
+			classLogger.info("Looking for ':' character in decoded string");
+
+			// Check if colon exists
+			if (!decoded.contains(":")) {
+				classLogger.error("=== CREDENTIAL FORMAT ERROR ===");
+				classLogger.error("Decoded string does NOT contain ':' separator");
+				classLogger.error("Decoded string length: {}", decoded.length());
+				classLogger.error("First 100 chars: {}", decoded.substring(0, Math.min(100, decoded.length())));
+				classLogger.error("Character inspection (first 20 chars):");
+				for (int i = 0; i < Math.min(20, decoded.length()); i++) {
+					char c = decoded.charAt(i);
+					classLogger.error("  [{}] = '{}' (ASCII: {})", i, c, (int)c);
+				}
+				classLogger.error("=================================");
+				return null;
+			}
+
 			String[] parts = decoded.split(":", 2);
 			if (parts.length != 2) {
-				classLogger.warn("Invalid credential format after decoding: {}", decoded);
+				classLogger.error("Invalid credential format after decoding. Expected 'access_key:secret_key', got: {}",
+					decoded.length() > 50 ? decoded.substring(0, 50) + "..." : decoded);
+				classLogger.error("Split resulted in {} parts instead of 2", parts.length);
 				return null;
 			}
 
@@ -283,15 +472,20 @@ public class OpenAIProxyEndpoint {
 			creds.clientId = parts[0].trim();
 			creds.secretKey = parts[1].trim();
 
-			classLogger.info("=== CREDENTIAL DEBUG ===");
+			classLogger.info("=== CREDENTIAL EXTRACTION SUCCESS ===");
+			classLogger.info("Decoding method used: {}", decodingMethod);
 			classLogger.info("Client_id: {}", creds.clientId);
 			classLogger.info("Secret_key length: {}", creds.secretKey.length());
-			classLogger.info("========================");
+			classLogger.info("Client_id length: {}", creds.clientId.length());
+			classLogger.info("====================================");
 
 			return creds;
 
 		} catch (Exception e) {
-			classLogger.error("Error extracting credentials", e);
+			classLogger.error("=== EXCEPTION IN CREDENTIAL EXTRACTION ===");
+			classLogger.error("Error extracting credentials from Authorization header", e);
+			classLogger.error("Stack trace:", e);
+			classLogger.error("==========================================");
 			return null;
 		}
 	}
