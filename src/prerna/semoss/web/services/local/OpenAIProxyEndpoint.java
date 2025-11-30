@@ -8,9 +8,13 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Consumes;
@@ -357,10 +361,46 @@ public class OpenAIProxyEndpoint {
 		requestJson.put("model", openAiModelName);
 		classLogger.info("Replaced engine ID {} with OpenAI model name: {}", engineId, openAiModelName);
 
-		// Convert back to JSON string with the updated model name
+		// Step 8.5: Sanitize messages array to fix Codex CLI tool call issues
+		classLogger.info("=== CHECKING FOR MESSAGES TO SANITIZE ===");
+		classLogger.info("Request JSON contains 'messages': {}", requestJson.containsKey("messages"));
+
+		if (requestJson.containsKey("messages")) {
+			Object messagesObj = requestJson.get("messages");
+			classLogger.info("Messages object type: {}", messagesObj != null ? messagesObj.getClass().getName() : "null");
+			classLogger.info("Is List: {}", messagesObj instanceof java.util.List);
+
+			if (messagesObj instanceof java.util.List) {
+				try {
+					java.util.List<?> messages = (java.util.List<?>) messagesObj;
+					classLogger.info("About to sanitize {} messages", messages.size());
+					java.util.List<Object> sanitizedMessages = sanitizeMessages(messages);
+					requestJson.put("messages", sanitizedMessages);
+					classLogger.info("Successfully sanitized messages array");
+				} catch (Exception e) {
+					classLogger.error("Error sanitizing messages", e);
+					// Continue with original messages if sanitization fails
+				}
+			} else {
+				classLogger.warn("Messages is not a List, skipping sanitization");
+			}
+		} else {
+			classLogger.warn("No 'messages' field in request, skipping sanitization");
+		}
+
+		// Convert back to JSON string with the updated model name and sanitized messages
 		try {
 			requestBody = objectMapper.writeValueAsString(requestJson);
-			classLogger.info("Updated request body with OpenAI model name");
+			classLogger.info("Updated request body with OpenAI model name and sanitized messages");
+			classLogger.info("=== FINAL REQUEST BODY BEING SENT TO OPENAI ===");
+			classLogger.info("Request body length: {}", requestBody.length());
+			if (requestBody.length() < 5000) {
+				classLogger.info(requestBody);
+			} else {
+				classLogger.info("(first 2000 chars): {}", requestBody.substring(0, 2000));
+				classLogger.info("(last 1000 chars): {}", requestBody.substring(requestBody.length() - 1000));
+			}
+			classLogger.info("=== END FINAL REQUEST BODY ===");
 		} catch (Exception e) {
 			classLogger.error("Error updating request body", e);
 			return errorResponse("Error preparing request for OpenAI", 500);
@@ -601,12 +641,8 @@ public class OpenAIProxyEndpoint {
 	private Response proxyNonStreamingRequest(String endpoint, String requestBody, String openAiApiKey) {
 		HttpURLConnection connection = null;
 		try {
-			classLogger.info("=== PROXYING TO OPENAI ===");
+			classLogger.info("=== PROXYING TO OPENAI (NON-STREAMING) ===");
 			classLogger.info("Endpoint: {}{}", OPENAI_BASE_URL, endpoint);
-			classLogger.info("Request body length: {}", requestBody.length());
-			classLogger.info("=== RAW REQUEST BODY BEING SENT TO OPENAI ===");
-			classLogger.info(requestBody);
-			classLogger.info("=== END RAW REQUEST BODY ===");
 
 			// Create connection to OpenAI
 			URL url = new URL(OPENAI_BASE_URL + endpoint);
@@ -667,10 +703,6 @@ public class OpenAIProxyEndpoint {
 	private Response proxyStreamingRequest(String endpoint, String requestBody, String openAiApiKey) {
 		classLogger.info("=== STREAMING REQUEST TO OPENAI ===");
 		classLogger.info("Endpoint: {}{}", OPENAI_BASE_URL, endpoint);
-		classLogger.info("Request body length: {}", requestBody.length());
-		classLogger.info("=== RAW REQUEST BODY BEING SENT TO OPENAI ===");
-		classLogger.info(requestBody);
-		classLogger.info("=== END RAW REQUEST BODY ===");
 
 		StreamingOutput stream = new StreamingOutput() {
 			@Override
@@ -754,6 +786,176 @@ public class OpenAIProxyEndpoint {
 				.header("Connection", "keep-alive")
 				.header("X-Accel-Buffering", "no") // Disable nginx buffering if behind nginx
 				.build();
+	}
+
+	/**
+	 * Sanitize messages array to handle Codex CLI tool call issues
+	 * OpenAI requires that assistant messages with tool_calls are IMMEDIATELY followed by tool responses
+	 *
+	 * Instead of removing messages (losing history), this method:
+	 * 1. Identifies which tool call sequences are valid (complete and consecutive)
+	 * 2. Converts incomplete tool call sequences into regular assistant messages (strips tool_calls)
+	 * 3. Removes only orphaned tool responses (no matching tool call)
+	 *
+	 * This preserves ALL conversation history while preventing 400 errors from OpenAI
+	 */
+	private java.util.List<Object> sanitizeMessages(java.util.List<?> messages) {
+		classLogger.info("=== SANITIZING MESSAGES ===");
+		classLogger.info("Total messages: {}", messages.size());
+
+		java.util.List<Object> sanitized = new java.util.ArrayList<>();
+		java.util.Set<String> validToolCallIds = new java.util.HashSet<>();
+		java.util.Map<Integer, java.util.Set<String>> assistantToolCalls = new java.util.HashMap<>();
+
+		// First pass: identify which tool calls have complete sequences
+		for (int i = 0; i < messages.size(); i++) {
+			if (!(messages.get(i) instanceof Map)) continue;
+
+			Map<?, ?> msg = (Map<?, ?>) messages.get(i);
+			String role = (String) msg.get("role");
+
+			classLogger.debug("Message[{}]: role={}, has_tool_calls={}, has_tool_call_id={}",
+				i, role, msg.containsKey("tool_calls"), msg.containsKey("tool_call_id"));
+
+			if ("assistant".equals(role) && msg.containsKey("tool_calls")) {
+				Object toolCallsObj = msg.get("tool_calls");
+				if (toolCallsObj instanceof java.util.List) {
+					java.util.List<?> toolCalls = (java.util.List<?>) toolCallsObj;
+					java.util.Set<String> expectedIds = new java.util.HashSet<>();
+
+					// Collect tool call IDs
+					for (Object tcObj : toolCalls) {
+						if (tcObj instanceof Map) {
+							Map<?, ?> tc = (Map<?, ?>) tcObj;
+							if (tc.containsKey("id")) {
+								expectedIds.add(String.valueOf(tc.get("id")));
+							}
+						}
+					}
+
+					assistantToolCalls.put(i, expectedIds);
+					classLogger.info("Message[{}]: Assistant with {} tool calls: {}", i, expectedIds.size(), expectedIds);
+
+					// Check if next consecutive messages are tool responses
+					java.util.Set<String> foundIds = new java.util.HashSet<>();
+					boolean sequenceBroken = false;
+
+					for (int j = i + 1; j < messages.size(); j++) {
+						if (!(messages.get(j) instanceof Map)) {
+							sequenceBroken = true;
+							break;
+						}
+
+						Map<?, ?> nextMsg = (Map<?, ?>) messages.get(j);
+						String nextRole = (String) nextMsg.get("role");
+
+						if ("tool".equals(nextRole) && nextMsg.containsKey("tool_call_id")) {
+							String toolCallId = String.valueOf(nextMsg.get("tool_call_id"));
+							if (expectedIds.contains(toolCallId)) {
+								foundIds.add(toolCallId);
+								classLogger.debug("  Message[{}]: Found tool response for {}", j, toolCallId);
+							} else {
+								// Tool response for different tool call - sequence broken
+								sequenceBroken = true;
+								break;
+							}
+						} else if (foundIds.size() < expectedIds.size()) {
+							// Non-tool message before sequence complete
+							classLogger.warn("  Message[{}]: Found {} message before all tool responses received", j, nextRole);
+							sequenceBroken = true;
+							break;
+						} else {
+							// All tool responses found, next message is fine
+							break;
+						}
+
+						if (foundIds.size() == expectedIds.size()) {
+							break;
+						}
+					}
+
+					// Mark as valid only if complete and not broken
+					if (!sequenceBroken && foundIds.equals(expectedIds)) {
+						validToolCallIds.addAll(expectedIds);
+						classLogger.info("  ? Valid complete tool sequence");
+					} else {
+						classLogger.warn("  ? Incomplete/broken tool sequence - will convert to regular message");
+						classLogger.warn("    Expected: {}, Found: {}, Broken: {}", expectedIds.size(), foundIds.size(), sequenceBroken);
+					}
+				}
+			}
+		}
+
+		// Second pass: build sanitized list
+		int conversionsCount = 0;
+		int orphanedToolsCount = 0;
+		int removedEmptyCount = 0;
+
+		for (int i = 0; i < messages.size(); i++) {
+			Object msgObj = messages.get(i);
+
+			if (!(msgObj instanceof Map)) {
+				sanitized.add(msgObj);
+				continue;
+			}
+
+			@SuppressWarnings("unchecked")
+			Map<String, Object> msg = new java.util.HashMap<>((Map<String, Object>) msgObj);
+			String role = (String) msg.get("role");
+
+			if ("assistant".equals(role) && msg.containsKey("tool_calls")) {
+				java.util.Set<String> toolCallIds = assistantToolCalls.get(i);
+
+				if (toolCallIds != null && !validToolCallIds.containsAll(toolCallIds)) {
+					// Incomplete sequence - need to convert to regular assistant message
+					// Remove tool_calls field
+					msg.remove("tool_calls");
+
+					// Check if message has content
+					Object content = msg.get("content");
+					if (content == null || (content instanceof String && ((String) content).trim().isEmpty())) {
+						// No content and we removed tool_calls - skip this message entirely
+						// Can't have an assistant message with null/empty content
+						removedEmptyCount++;
+						classLogger.warn("Message[{}]: ? Removed assistant with broken tool_calls and no content", i);
+						continue; // Skip this message
+					} else {
+						// Has content, safe to keep as regular message
+						conversionsCount++;
+						classLogger.info("Message[{}]: ? Converted assistant with broken tool_calls to regular message", i);
+					}
+				}
+
+				sanitized.add(msg);
+
+			} else if ("tool".equals(role) && msg.containsKey("tool_call_id")) {
+				String toolCallId = String.valueOf(msg.get("tool_call_id"));
+
+				if (validToolCallIds.contains(toolCallId)) {
+					// Valid tool response - keep it
+					sanitized.add(msg);
+					classLogger.debug("Message[{}]: Kept valid tool response", i);
+				} else {
+					// Orphaned tool response - skip it
+					orphanedToolsCount++;
+					classLogger.warn("Message[{}]: ? Removed orphaned tool response for: {}", i, toolCallId);
+				}
+
+			} else {
+				// Regular message - keep it
+				sanitized.add(msg);
+			}
+		}
+
+		classLogger.info("=== SANITIZATION COMPLETE ===");
+		classLogger.info("Original messages: {}", messages.size());
+		classLogger.info("Sanitized messages: {}", sanitized.size());
+		classLogger.info("Tool sequences converted to regular messages: {}", conversionsCount);
+		classLogger.info("Empty assistant messages removed: {}", removedEmptyCount);
+		classLogger.info("Orphaned tool responses removed: {}", orphanedToolsCount);
+		classLogger.info("? All valid conversation history preserved");
+
+		return sanitized;
 	}
 
 	/**
