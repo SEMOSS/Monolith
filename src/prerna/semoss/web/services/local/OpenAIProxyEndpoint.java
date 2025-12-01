@@ -273,8 +273,7 @@ public class OpenAIProxyEndpoint {
 		if (requestBody.length() < 5000) {
 			classLogger.info("Request body: {}", requestBody);
 		} else {
-			classLogger.info("Request body (first 1000 chars): {}", requestBody.substring(0, 1000));
-			classLogger.info("Request body (last 500 chars): {}", requestBody.substring(requestBody.length() - 500));
+			classLogger.info("Request body {}", requestBody);
 		}
 		classLogger.info("========================================");
 
@@ -397,8 +396,7 @@ public class OpenAIProxyEndpoint {
 			if (requestBody.length() < 5000) {
 				classLogger.info(requestBody);
 			} else {
-				classLogger.info("(first 2000 chars): {}", requestBody.substring(0, 2000));
-				classLogger.info("(last 1000 chars): {}", requestBody.substring(requestBody.length() - 1000));
+				classLogger.info("(request body ): {}", requestBody);
 			}
 			classLogger.info("=== END FINAL REQUEST BODY ===");
 		} catch (Exception e) {
@@ -667,6 +665,7 @@ public class OpenAIProxyEndpoint {
 
 			String responseBody;
 
+
 			if (statusCode >= 200 && statusCode < 300) {
 				responseBody = readStream(connection.getInputStream());
 				classLogger.info("OpenAI success response length: {}", responseBody.length());
@@ -745,21 +744,38 @@ public class OpenAIProxyEndpoint {
 							byte[] buffer = new byte[BUFFER_SIZE];
 							int bytesRead;
 							int totalBytes = 0;
+							StringBuilder responseBodyBuilder = new StringBuilder();
 
 							while ((bytesRead = is.read(buffer)) != -1) {
 								output.write(buffer, 0, bytesRead);
 								output.flush(); // Flush immediately for SSE
 								totalBytes += bytesRead;
+
+								// Accumulate response body for logging
+								responseBodyBuilder.append(new String(buffer, 0, bytesRead, StandardCharsets.UTF_8));
 							}
 
 							classLogger.info("Streaming complete. Total bytes streamed: {}", totalBytes);
+
+							// Log response body
+							String responseBody = responseBodyBuilder.toString();
+							classLogger.info("=== OPENAI RESPONSE BODY ===");
+							classLogger.info("Response body length: {}", responseBody.length());
+							if (responseBody.length() > 2000) {
+								classLogger.info("Response body {}", responseBody);
+							} else {
+								classLogger.info("Response body: {}", responseBody);
+							}
+							classLogger.info("=== END OPENAI RESPONSE BODY ===");
 						}
 					} else {
 						classLogger.error("OpenAI streaming error. Status: {}", statusCode);
 
 						// Error response
 						String errorBody = readStream(connection.getErrorStream());
-						classLogger.error("OpenAI error response: {}", errorBody);
+						classLogger.error("=== OPENAI ERROR RESPONSE BODY ===");
+						classLogger.error("Error response body: {}", errorBody);
+						classLogger.error("=== END OPENAI ERROR RESPONSE BODY ===");
 
 						output.write(errorBody.getBytes(StandardCharsets.UTF_8));
 						output.flush();
@@ -953,7 +969,6 @@ public class OpenAIProxyEndpoint {
 		classLogger.info("Tool sequences converted to regular messages: {}", conversionsCount);
 		classLogger.info("Empty assistant messages removed: {}", removedEmptyCount);
 		classLogger.info("Orphaned tool responses removed: {}", orphanedToolsCount);
-		classLogger.info("? All valid conversation history preserved");
 
 		return sanitized;
 	}
