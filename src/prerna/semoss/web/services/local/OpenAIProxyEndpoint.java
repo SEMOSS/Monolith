@@ -270,11 +270,7 @@ public class OpenAIProxyEndpoint {
 		String requestBody = readRequestBody(request);
 		classLogger.info("=== REQUEST BODY ===");
 		classLogger.info("Request body length: {}", requestBody.length());
-		if (requestBody.length() < 5000) {
-			classLogger.info("Request body: {}", requestBody);
-		} else {
-			classLogger.info("Request body {}", requestBody);
-		}
+        classLogger.info("Request body: {}", requestBody);
 		classLogger.info("========================================");
 
 		// Step 1: Extract and validate Authorization header
@@ -373,8 +369,8 @@ public class OpenAIProxyEndpoint {
 				try {
 					java.util.List<?> messages = (java.util.List<?>) messagesObj;
 					classLogger.info("About to sanitize {} messages", messages.size());
-					java.util.List<Object> sanitizedMessages = sanitizeMessages(messages);
-					requestJson.put("messages", sanitizedMessages);
+					//java.util.List<Object> sanitizedMessages = sanitizeMessages(messages);
+					//requestJson.put("messages", sanitizedMessages);
 					classLogger.info("Successfully sanitized messages array");
 				} catch (Exception e) {
 					classLogger.error("Error sanitizing messages", e);
@@ -761,11 +757,9 @@ public class OpenAIProxyEndpoint {
 							String responseBody = responseBodyBuilder.toString();
 							classLogger.info("=== OPENAI RESPONSE BODY ===");
 							classLogger.info("Response body length: {}", responseBody.length());
-							if (responseBody.length() > 2000) {
+
 								classLogger.info("Response body {}", responseBody);
-							} else {
-								classLogger.info("Response body: {}", responseBody);
-							}
+
 							classLogger.info("=== END OPENAI RESPONSE BODY ===");
 						}
 					} else {
