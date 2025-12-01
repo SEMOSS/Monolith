@@ -19,6 +19,7 @@ import java.util.Set;
 import javax.annotation.security.PermitAll;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
+import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -72,8 +73,17 @@ public class OpenAIEndpoints {
 	private static final String INSIGHT_NOT_FOUND = "INSIGHT_NOT_FOUND";
 
 	@POST
+	@Path("/v1/chat/completions")
+	@Consumes({ "application/json" })
+	@Produces({ "application/json;charset=utf-8", "text/event-stream" })
+	public Response runV1ModelChatCompletion(@Context HttpServletRequest request) {
+		return runModelChatCompletion(request);
+	}
+
+	@POST
 	@Path("/chat/completions")
-	@Produces("application/json;charset=utf-8")
+	@Consumes({ "application/json" })
+	@Produces({ "application/json;charset=utf-8", "text/event-stream" })
 	public Response runModelChatCompletion(@Context HttpServletRequest request) {
 		HttpSession session = request.getSession(false);
 		User user = null;
@@ -149,7 +159,6 @@ public class OpenAIEndpoints {
 		boolean isStreamingRequest = false;
 		if (dataMap.containsKey("stream")) {
 			isStreamingRequest = Boolean.parseBoolean(dataMap.get("stream").toString());
-			dataMap.remove("stream");
 		}
 
 		String engineId = WebUtility.inputSanitizer((String) dataMap.remove("model"));
@@ -410,7 +419,8 @@ public class OpenAIEndpoints {
 
 	@POST
 	@Path("/completions")
-	@Produces("application/json;charset=utf-8")
+	@Consumes({ "application/json" })
+	@Produces({ "application/json;charset=utf-8", "text/event-stream" })
 	public Response runModelCompletion(@Context HttpServletRequest request) {
 		HttpSession session = request.getSession(false);
 		User user = null;
@@ -499,7 +509,6 @@ public class OpenAIEndpoints {
 		boolean isStreamingRequest = false;
 		if (dataMap.containsKey("stream")) {
 			isStreamingRequest = Boolean.parseBoolean(dataMap.get("stream").toString());
-			dataMap.remove("stream");
 		}
 
 		if (!SecurityEngineUtils.userCanViewEngine(user, engineId)) {
@@ -665,6 +674,7 @@ public class OpenAIEndpoints {
 
 	@POST
 	@Path("/embeddings")
+	@Consumes({ "application/json" })
 	@Produces("application/json;charset=utf-8")
 	public Response runModelEmbeddings(@Context HttpServletRequest request) {
 		HttpSession session = request.getSession(false);
@@ -841,6 +851,7 @@ public class OpenAIEndpoints {
 
 	@GET
 	@Path("/models")
+	@Consumes({ "application/json" })
 	@Produces("application/json;charset=utf-8")
 	public Response listModels(@Context HttpServletRequest request) {
 		// https://platform.openai.com/docs/api-reference/models/list
@@ -890,6 +901,7 @@ public class OpenAIEndpoints {
 
 	@GET
 	@Path("/models/{modelId}")
+	@Consumes({ "application/json" })
 	@Produces("application/json;charset=utf-8")
 	public Response retrieveModel(@Context HttpServletRequest request, @PathParam("modelId") String modelId) {
 		// https://platform.openai.com/docs/api-reference/models/retrieve
