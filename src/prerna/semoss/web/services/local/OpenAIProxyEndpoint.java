@@ -198,7 +198,7 @@ public class OpenAIProxyEndpoint {
 	public Response proxyResponses(@Context HttpServletRequest request) {
 		// Codex CLI uses /v1/responses endpoint but sends standard OpenAI format
 		// Just map it to /v1/chat/completions and pass through transparently
-		return proxyRequest(request, "/v1/chat/completions");
+        return proxyRequest(request, "/v1/responses");
 	}
 
 	/**
