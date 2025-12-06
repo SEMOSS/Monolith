@@ -70,7 +70,6 @@ import prerna.sablecc2.om.NounStore;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.util.AssetUtility;
 import prerna.util.Constants;
-import prerna.util.DIHelper;
 import prerna.util.EngineUtility;
 import prerna.util.Utility;
 import prerna.util.insight.TextToGraphic;
@@ -340,9 +339,8 @@ public class ProjectResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		String propFileLoc = (String) DIHelper.getInstance().getProjectProperty(projectId + "_" + Constants.STORE);
-		Properties prop = Utility.loadProperties(propFileLoc);
-		String projectName = prop.getProperty(Constants.PROJECT_ALIAS);
+		IProject project = Utility.getProject(projectId);
+		String projectName = project.getProjectName();
 
 		String fileLocation = EngineUtility.getSpecificEngineBaseFolder(IEngine.CATALOG_TYPE.PROJECT, projectId,
 				projectName) + DIR_SEPARATOR + "app_root/version/assets/landing.html";
@@ -403,9 +401,8 @@ public class ProjectResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		String propFileLoc = (String) DIHelper.getInstance().getProjectProperty(projectId + "_" + Constants.STORE);
-		Properties prop = Utility.loadProperties(propFileLoc);
-		String projectName = prop.getProperty(Constants.PROJECT_ALIAS);
+		IProject project = Utility.getProject(projectId);
+		String projectName = project.getProjectName();
 
 		String fileLocation = EngineUtility.getSpecificEngineBaseFolder(IEngine.CATALOG_TYPE.PROJECT, projectId,
 				projectName) + DIR_SEPARATOR + "app_root/version/assets/" + WebUtility.inputSanitizer(relPath);
@@ -617,16 +614,11 @@ public class ProjectResource {
 		if (ClusterUtil.IS_CLUSTER) {
 			return ClusterUtil.getEngineAndProjectImage(projectId, IEngine.CATALOG_TYPE.PROJECT);
 		}
-		String propFileLoc = (String) DIHelper.getInstance()
-				.getProjectProperty(WebUtility.inputSanitizer(projectId) + "_" + Constants.STORE);
-		if (propFileLoc == null && !projectId.equals("NEWSEMOSSAPP")) {
-			String imageDir = Utility.getBaseFolder() + "/images/stock/";
-			return new File(imageDir + "color-logo.png");
-		}
-		Properties prop = Utility.loadProperties(propFileLoc);
-		String projectName = prop.getProperty(Constants.PROJECT_ALIAS);
+		projectId = WebUtility.inputSanitizer(projectId);
 
-		String fileLocation = AssetUtility.getProjectVersionFolder(projectName, WebUtility.inputSanitizer(projectId));
+		IProject project = Utility.getProject(projectId);
+		String projectName = project.getProjectName();
+		String fileLocation = AssetUtility.getProjectVersionFolder(projectName, projectId);
 		File f = findImageFile(fileLocation);
 		if (f != null) {
 			return f;
@@ -729,22 +721,18 @@ public class ProjectResource {
 	 */
 	private File getInsightImageFile(String projectId, String id, String feUrl, String params, String sessionId) {
 		File f = null;
-		String fileLocation = null;
-		String propFileLoc = (String) DIHelper.getInstance().getProjectProperty(projectId + "_" + Constants.STORE);
-		if (propFileLoc != null) {
-			Properties prop = Utility.loadProperties(propFileLoc);
-			String projectName = prop.getProperty(Constants.PROJECT_ALIAS);
+		IProject project = Utility.getProject(projectId);
+		String projectName = project.getProjectName();
 
-			fileLocation = AssetUtility.getProjectVersionFolder(projectName, projectId);
-			if (params != null && !params.isEmpty() && !params.equals("undefined")) {
-				String encodedParams = Utility.encodeURIComponent(params);
-				fileLocation = fileLocation + DIR_SEPARATOR + id + DIR_SEPARATOR + "params" + DIR_SEPARATOR
-						+ encodedParams;
-			} else {
-				fileLocation = fileLocation + DIR_SEPARATOR + id;
-			}
-			f = findImageFile(fileLocation);
+		String fileLocation = AssetUtility.getProjectVersionFolder(projectName, projectId);
+		if (params != null && !params.isEmpty() && !params.equals("undefined")) {
+			String encodedParams = Utility.encodeURIComponent(params);
+			fileLocation = fileLocation + DIR_SEPARATOR + id + DIR_SEPARATOR + "params" + DIR_SEPARATOR + encodedParams;
+		} else {
+			fileLocation = fileLocation + DIR_SEPARATOR + id;
 		}
+		f = findImageFile(fileLocation);
+
 		if (f != null && f.exists()) {
 			return f;
 		} else {

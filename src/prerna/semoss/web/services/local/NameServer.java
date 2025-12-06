@@ -755,6 +755,14 @@ public class NameServer {
 					.header("Cache-Control",
 							"no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0")
 					.header("Pragma", "no-cache").build();
+		} catch (Exception e) {
+			Map<String, Object> error = new HashMap<>();
+			error.put(ERROR_TYPE, "unknown");
+			error.put("message", e.getMessage());
+			return Response.status(500).entity(error)
+					.header("Cache-Control",
+							"no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0")
+					.header("Pragma", "no-cache").build();
 		} finally {
 			// there are times when we spin up
 			// other runPixel requests on the same
