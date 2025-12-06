@@ -39,8 +39,8 @@ import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityUpdateUtils;
 import prerna.ds.util.RdbmsQueryBuilder;
+import prerna.engine.api.IRDBMSEngine;
 import prerna.engine.api.IRawSelectWrapper;
-import prerna.engine.impl.rdbms.RDBMSNativeEngine;
 import prerna.forms.FormBuilder;
 import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.semoss.web.services.local.ResourceUtility;
@@ -72,18 +72,19 @@ public class CACFilter implements Filter {
 	private static FilterConfig filterConfig;
 
 	@Override
-	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
+	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2)
+			throws IOException, ServletException {
 		setInitParams(arg0);
 
 		X509Certificate[] certs = (X509Certificate[]) arg0.getAttribute("javax.servlet.request.X509Certificate");
-		HttpSession session = ((HttpServletRequest)arg0).getSession(true);
+		HttpSession session = ((HttpServletRequest) arg0).getSession(true);
 
 		User user = null;
 		AccessToken token = null;
 
-		if(certs != null) {
+		if (certs != null) {
 			user = (User) session.getAttribute(Constants.SESSION_USER);
-			if(user == null) {
+			if (user == null) {
 				token = new AccessToken();
 				token.setProvider(AuthProvider.CAC);
 
@@ -93,20 +94,20 @@ public class CACFilter implements Filter {
 				String email = null;
 
 				// loop through all the certs
-				CERT_LOOP : for(int i = 0; i < certs.length; i++) {
+				CERT_LOOP: for (int i = 0; i < certs.length; i++) {
 					X509Certificate cert = certs[i];
 
 					String fullName = cert.getSubjectX500Principal().getName();
-					classLogger.info("REQUEST COMING FROM " +  Utility.cleanLogString(fullName));
+					classLogger.info("REQUEST COMING FROM " + Utility.cleanLogString(fullName));
 
 					LdapName ldapDN;
 
 					try {
-		
+
 						ldapDN = new LdapName(fullName);
-						for(Rdn rdn: ldapDN.getRdns()) {
+						for (Rdn rdn : ldapDN.getRdns()) {
 							// only care about CN
-							if(!rdn.getType().equals("CN")) {
+							if (!rdn.getType().equals("CN")) {
 								// try next rdn
 								continue;
 							}
@@ -115,7 +116,7 @@ public class CACFilter implements Filter {
 							String value = rdn.getValue().toString();
 
 							// account for topaz
-							if(value.equals("topazbpm001.mhse2e.med.osd.mil")) {
+							if (value.equals("topazbpm001.mhse2e.med.osd.mil")) {
 								cacId = value;
 								name = "TOPAZ";
 								// THIS IS FOR TOPAZ HITTING MHS
@@ -136,32 +137,32 @@ public class CACFilter implements Filter {
 							// need to account for middle name present
 							// and any other distinction like Jr. after the last name
 							String[] split = value.split("\\.");
-							if(split.length < 3) {
+							if (split.length < 3) {
 								// didn't pass
 								// try next rdn
 								continue;
 							}
 
 							// just going to validate the cac has length 10
-							cacId = split[split.length-1];
-							if(cacId.length() < 10) {
+							cacId = split[split.length - 1];
+							if (cacId.length() < 10) {
 								// didn't pass
 								// try next rdn
 								continue;
 							}
 
 							// if we got to here, we have a valid cac!
-							name = Stream.of(split).limit(split.length-1).collect(Collectors.joining(" "));
+							name = Stream.of(split).limit(split.length - 1).collect(Collectors.joining(" "));
 							// we also need to get the email since that is what we will store
 							email = null;
 
 							try {
-								EMAIL_LOOP : for(List<?> altNames : cert.getSubjectAlternativeNames()) {
-									for(Object alternative : altNames) {
-										if(alternative instanceof String) {
+								EMAIL_LOOP: for (List<?> altNames : cert.getSubjectAlternativeNames()) {
+									for (Object alternative : altNames) {
+										if (alternative instanceof String) {
 											String altStr = alternative.toString();
 											// really simple email check...
-											if(altStr.contains("@")) {
+											if (altStr.contains("@")) {
 												email = altStr;
 												break EMAIL_LOOP;
 											}
@@ -172,7 +173,7 @@ public class CACFilter implements Filter {
 								classLogger.error(Constants.STACKTRACE, e);
 							}
 
-							if(email != null) {
+							if (email != null) {
 								// lower case the email
 								// and try to update it in all the different locations
 								email = email.toLowerCase();
@@ -182,7 +183,7 @@ public class CACFilter implements Filter {
 							token.setEmail(email);
 							token.setName(name);
 							String upn = getUPN(cert);
-							if(upn != null && !upn.isEmpty()) {
+							if (upn != null && !upn.isEmpty()) {
 								token.setSAN("UPN", upn);
 							}
 
@@ -198,27 +199,30 @@ public class CACFilter implements Filter {
 				// if we have the token
 				// and it has values filled in
 				// we know we can populate the user
-				if(token.getName() != null) {
+				if (token.getName() != null) {
 					classLogger.info("Valid request coming from user " + token.getName());
-					// store in session, log in user tracking db, and add the user to security db if autoadd
-					UserResource.addAccessToken(token, ((HttpServletRequest)arg0), CACFilter.autoAdd);
+					// store in session, log in user tracking db, and add the user to security db if
+					// autoadd
+					UserResource.addAccessToken(token, ((HttpServletRequest) arg0), CACFilter.autoAdd);
 					// do we need to update credentials?
-					// might be useful for when we add users 
+					// might be useful for when we add users
 					// but the cert has different values we want to use
-					if(CACFilter.updateUser) {
+					if (CACFilter.updateUser) {
 						SecurityUpdateUtils.updateOAuthUser(token);
 					}
 
 					// new user has entered!
 					// do we need to count?
-					if(tracker != null && !token.getName().equals("TOPAZ")) {
+					if (tracker != null && !token.getName().equals("TOPAZ")) {
 						tracker.addToQueue(LocalDate.now());
 					}
 
 					// are we logging their information?
-					if(userLogger != null && !token.getName().equals("TOPAZ")) {
+					if (userLogger != null && !token.getName().equals("TOPAZ")) {
 						// grab the ip address
-						userLogger.addToQueue(new String[] {cacId, name, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")), ResourceUtility.getClientIp((HttpServletRequest)arg0)});
+						userLogger.addToQueue(new String[] { cacId, name,
+								LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+								ResourceUtility.getClientIp((HttpServletRequest) arg0) });
 					}
 				}
 			}
@@ -231,14 +235,14 @@ public class CACFilter implements Filter {
 		Collection<List<?>> sans;
 		try {
 			sans = JcaX509ExtensionUtils.getSubjectAlternativeNames(cert);
-			//get all subject alt names
+			// get all subject alt names
 			if (sans != null) {
 				classLogger.info("Subject Alternative Names: " + sans.toString());
 				for (List<?> l : sans) {
-					
-					//expected size is 2
+
+					// expected size is 2
 					if (l.size() == 2) {
-						
+
 						// expected type 0 for the san
 						Integer type = (Integer) l.get(0);
 						if (type.equals(new Integer(0))) {
@@ -246,14 +250,15 @@ public class CACFilter implements Filter {
 							ASN1Sequence asn1seq = ASN1Sequence.getInstance(value);
 							ASN1ObjectIdentifier oid = ASN1ObjectIdentifier.getInstance(asn1seq.getObjectAt(0));
 
-							//IF THE OID is the UPN value - grab it and we are good, else continue
-							if(oid.getId().equalsIgnoreCase("1.3.6.1.4.1.311.20.2.3")) {
-								ASN1TaggedObject tag = ASN1TaggedObject.getInstance(asn1seq.getObjectAt(1).toASN1Primitive());
+							// IF THE OID is the UPN value - grab it and we are good, else continue
+							if (oid.getId().equalsIgnoreCase("1.3.6.1.4.1.311.20.2.3")) {
+								ASN1TaggedObject tag = ASN1TaggedObject
+										.getInstance(asn1seq.getObjectAt(1).toASN1Primitive());
 								if (tag.getTagNo() != 0) {
-									//this should be 0 for UPN
+									// this should be 0 for UPN
 									continue;
 								}
-								 return DERUTF8String.getInstance(tag, true).toString();
+								return DERUTF8String.getInstance(tag, true).toString();
 
 							} else {
 								continue;
@@ -266,9 +271,9 @@ public class CACFilter implements Filter {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		
+
 		return null;
-	
+
 	}
 
 	@Override
@@ -277,16 +282,15 @@ public class CACFilter implements Filter {
 
 	}
 
-
 	@Override
 	public void init(FilterConfig arg0) throws ServletException {
 		CACFilter.filterConfig = arg0;
 	}
 
 	private void setInitParams(ServletRequest arg0) {
-		if(CACFilter.autoAdd == null) {
+		if (CACFilter.autoAdd == null) {
 			String autoAddStr = CACFilter.filterConfig.getInitParameter(AUTO_ADD);
-			if(autoAddStr != null) {
+			if (autoAddStr != null) {
 				CACFilter.autoAdd = Boolean.parseBoolean(autoAddStr);
 			} else {
 				// Default value is true
@@ -294,7 +298,7 @@ public class CACFilter implements Filter {
 			}
 
 			String updateUserStr = CACFilter.filterConfig.getInitParameter(UPDATE_USER_INFO);
-			if(updateUserStr != null) {
+			if (updateUserStr != null) {
 				CACFilter.updateUser = Boolean.parseBoolean(updateUserStr);
 			} else {
 				// Default value is false
@@ -303,21 +307,25 @@ public class CACFilter implements Filter {
 
 			boolean logUsers = false;
 			String logUserInfoStr = CACFilter.filterConfig.getInitParameter(LOG_USER_INFO);
-			if(logUserInfoStr != null) {
+			if (logUserInfoStr != null) {
 				logUsers = Boolean.parseBoolean(logUserInfoStr);
 			}
-			if(logUsers) {
+			if (logUsers) {
 				String logInfoPath = CACFilter.filterConfig.getInitParameter(LOG_USER_INFO_PATH);
 				String logInfoSep = CACFilter.filterConfig.getInitParameter(LOG_USER_INFO_SEP);
-				if(logInfoPath == null) {
-					classLogger.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
-					classLogger.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
-					classLogger.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
-					classLogger.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
+				if (logInfoPath == null) {
+					classLogger.info(
+							"SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
+					classLogger.info(
+							"SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
+					classLogger.info(
+							"SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
+					classLogger.info(
+							"SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
 				}
 				try {
 					userLogger = UserFileLogUtil.getInstance(logInfoPath, logInfoSep);
-				} catch(Exception e) {
+				} catch (Exception e) {
 					classLogger.info(e.getMessage());
 					classLogger.info(e.getMessage());
 					classLogger.info(e.getMessage());
@@ -327,15 +335,15 @@ public class CACFilter implements Filter {
 
 			boolean countUsers = false;
 			String countUsersStr = CACFilter.filterConfig.getInitParameter(COUNT_USER_ENTRY);
-			if(countUsersStr != null) {
+			if (countUsersStr != null) {
 				countUsers = Boolean.parseBoolean(countUsersStr);
 			} else {
 				countUsers = false;
 			}
 
-			if(countUsers) {
+			if (countUsers) {
 				String countDatabaseId = CACFilter.filterConfig.getInitParameter(COUNT_USER_ENTRY_DATABASE);
-				if(countDatabaseId == null) {
+				if (countDatabaseId == null) {
 					classLogger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
 					classLogger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
 					classLogger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
@@ -343,7 +351,7 @@ public class CACFilter implements Filter {
 				}
 				try {
 					tracker = CACTrackingUtil.getInstance(countDatabaseId);
-				} catch(Exception e) {
+				} catch (Exception e) {
 					classLogger.info(e.getMessage());
 					classLogger.info(e.getMessage());
 					classLogger.info(e.getMessage());
@@ -362,19 +370,19 @@ public class CACFilter implements Filter {
 		String cleanNewId = RdbmsQueryBuilder.escapeForSQLStatement(newId);
 		{
 			// security update block
-			RDBMSNativeEngine securityDb = (RDBMSNativeEngine) Utility.getDatabase(Constants.SECURITY_DB);
+			IRDBMSEngine securityDb = (IRDBMSEngine) Utility.getDatabase(Constants.SECURITY_DB);
 
 			// let us not try to run this multiple times...
-			String requireUpdateQuery = "SELECT * FROM SMSS_USER WHERE ID='" + cleanOldId +"'";
+			String requireUpdateQuery = "SELECT * FROM SMSS_USER WHERE ID='" + cleanOldId + "'";
 			IRawSelectWrapper wrapper = null;
 			try {
 				wrapper = WrapperManager.getInstance().getRawWrapper(securityDb, requireUpdateQuery);
 				// if we have next
 				// that means we need to update
 				// from id to email
-				if(wrapper.hasNext()) {
+				if (wrapper.hasNext()) {
 					// need to update all the places the user id is used
-					String updateQuery = "UPDATE SMSS_USER SET ID='" +  cleanNewId +"' WHERE ID='" + cleanOldId + "'";
+					String updateQuery = "UPDATE SMSS_USER SET ID='" + cleanNewId + "' WHERE ID='" + cleanOldId + "'";
 					try {
 						securityDb.insertData(updateQuery);
 					} catch (SQLException e) {
@@ -382,7 +390,8 @@ public class CACFilter implements Filter {
 					}
 
 					// need to update all the places the user id is used
-					updateQuery = "UPDATE ENGINEPERMISSION SET USERID='" +  cleanNewId +"' WHERE USERID='" + cleanOldId + "'";
+					updateQuery = "UPDATE ENGINEPERMISSION SET USERID='" + cleanNewId + "' WHERE USERID='" + cleanOldId
+							+ "'";
 					try {
 						securityDb.insertData(updateQuery);
 					} catch (SQLException e) {
@@ -390,7 +399,8 @@ public class CACFilter implements Filter {
 					}
 
 					// need to update all the places the user id is used
-					updateQuery = "UPDATE USERINSIGHTPERMISSION SET USERID='" +  cleanNewId +"' WHERE USERID='" + cleanOldId + "'";
+					updateQuery = "UPDATE USERINSIGHTPERMISSION SET USERID='" + cleanNewId + "' WHERE USERID='"
+							+ cleanOldId + "'";
 					try {
 						securityDb.insertData(updateQuery);
 					} catch (SQLException e) {
@@ -400,7 +410,7 @@ public class CACFilter implements Filter {
 			} catch (Exception e1) {
 				classLogger.error(Constants.STACKTRACE, e1);
 			} finally {
-				if(wrapper != null) {
+				if (wrapper != null) {
 					try {
 						wrapper.close();
 					} catch (IOException e) {
@@ -411,41 +421,44 @@ public class CACFilter implements Filter {
 		}
 
 		{
-			RDBMSNativeEngine formEngine = (RDBMSNativeEngine) Utility.getDatabase(FormBuilder.FORM_BUILDER_ENGINE_NAME);
-			if(formEngine != null) {
+			IRDBMSEngine formEngine = (IRDBMSEngine) Utility.getDatabase(FormBuilder.FORM_BUILDER_ENGINE_NAME);
+			if (formEngine != null) {
 				// let us not try to run this multiple times...
-				String requireUpdateQuery = "SELECT * FROM FORMS_USER_ACCESS WHERE USER_ID='" + cleanOldId +"'";
+				String requireUpdateQuery = "SELECT * FROM FORMS_USER_ACCESS WHERE USER_ID='" + cleanOldId + "'";
 				IRawSelectWrapper wrapper = null;
 				try {
 					wrapper = WrapperManager.getInstance().getRawWrapper(formEngine, requireUpdateQuery);
 					// if we have next
 					// that means we need to update
 					// from id to email
-					if(wrapper.hasNext()) {
+					if (wrapper.hasNext()) {
 
 						// form builder update block
 						String emailColumnExists = "SELECT COLUMN_NAME, TYPE_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'FORMS_USER_ACCESS' AND COLUMN_NAME='EMAIL'";
 						IRawSelectWrapper requireFormUpdateWrapper = null;
 						try {
-							requireFormUpdateWrapper = WrapperManager.getInstance().getRawWrapper(formEngine, emailColumnExists);
-							if(!requireFormUpdateWrapper.hasNext()) {
-								formEngine.insertData("ALTER TABLE FORMS_USER_ACCESS ADD COLUMN IF NOT EXISTS EMAIL VARCHAR(200);");
+							requireFormUpdateWrapper = WrapperManager.getInstance().getRawWrapper(formEngine,
+									emailColumnExists);
+							if (!requireFormUpdateWrapper.hasNext()) {
+								formEngine.insertData(
+										"ALTER TABLE FORMS_USER_ACCESS ADD COLUMN IF NOT EXISTS EMAIL VARCHAR(200);");
 								formEngine.insertData("UPDATE FORMS_USER_ACCESS SET EMAIL = USER_ID;");
 							}
 						} catch (Exception e) {
 							classLogger.error(Constants.STACKTRACE, e);
 						} finally {
-							if(requireFormUpdateWrapper != null) {
+							if (requireFormUpdateWrapper != null) {
 								try {
 									requireFormUpdateWrapper.close();
-								} catch(IOException e) {
+								} catch (IOException e) {
 									classLogger.error(Constants.STACKTRACE, e);
 								}
 							}
 						}
 
 						// now that the schema is in place, lets update the values
-						String updateQuery = "UPDATE FORMS_USER_ACCESS SET USER_ID='" +  cleanNewId +"' WHERE USER_ID='" + cleanOldId + "'";
+						String updateQuery = "UPDATE FORMS_USER_ACCESS SET USER_ID='" + cleanNewId + "' WHERE USER_ID='"
+								+ cleanOldId + "'";
 						try {
 							formEngine.insertData(updateQuery);
 						} catch (SQLException e) {
@@ -456,7 +469,7 @@ public class CACFilter implements Filter {
 				} catch (Exception e1) {
 					classLogger.error(Constants.STACKTRACE, e1);
 				} finally {
-					if(wrapper != null) {
+					if (wrapper != null) {
 						try {
 							wrapper.close();
 						} catch (IOException e) {
