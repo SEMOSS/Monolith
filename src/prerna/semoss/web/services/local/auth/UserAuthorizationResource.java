@@ -3,6 +3,7 @@ package prerna.semoss.web.services.local.auth;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.sql.SQLException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -502,6 +503,85 @@ public class UserAuthorizationResource extends AbstractAdminResource {
 		retMap.put("userId", userId);
 		retMap.put("message", "Email has been sent to: " + email);
 		return WebUtility.getResponse(retMap, 200);
+	}
+
+	/**
+	 * Set user metadata
+	 * 
+	 * @param request
+	 * @param form
+	 * @return
+	 */
+	@POST
+	@Path("setUserMetadata")
+	@Produces("application/json")
+	public Response setUserMetadata(@Context HttpServletRequest request) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		String metaKey = null;
+		Object metaValue = null;
+
+		String contentType = request.getContentType();
+		if (contentType != null && contentType.startsWith("application/json")) {
+			try {
+				StringBuilder jsonBuffer = new StringBuilder();
+				String line;
+				try (BufferedReader reader = request.getReader()) {
+					while ((line = reader.readLine()) != null) {
+						jsonBuffer.append(line);
+					}
+				}
+				JSONObject root = new JSONObject(jsonBuffer.toString());
+				metaKey = root.has("metaKey") ? root.getString("metaKey") : null;
+				boolean arrayValue = root.optJSONArray("metaValue") != null;
+				if (arrayValue) {
+					metaValue = root.getJSONArray("metaValue").toList();
+				} else {
+					metaValue = root.has("metaValue") ? root.getString("metaValue") : null;
+				}
+			} catch (IOException | org.json.JSONException e) {
+				classLogger.error(Constants.STACKTRACE, e);
+				Map<String, String> errorMap = new HashMap<String, String>();
+				errorMap.put(Constants.ERROR_MESSAGE, "Error parsing JSON request body.");
+				return WebUtility.getResponse(errorMap, 400);
+			}
+		} else {
+			Map<String, String[]> paramMap = request.getParameterMap();
+			metaKey = paramMap.get("metaKey") != null ? paramMap.get("metaKey")[0] : null;
+			metaValue = paramMap.get("metaValue") != null ? Arrays.asList(paramMap.get("metaValue")) : null;
+		}
+
+		if (metaKey == null) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Parameter metaKey cannot be null");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		if (metaValue == null) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Parameter metaValue cannot be null");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		try {
+			SecurityUserUtils.updateUserMetadata(user, metaKey, metaValue);
+		} catch (Exception e) {
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorRet = new HashMap<String, String>();
+			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
+			return WebUtility.getResponse(errorRet, 500);
+		}
+
+		Map<String, String> successMap = new HashMap<>();
+		successMap.put("userMetadata", "Metadata " + metaKey + " updated to " + metaValue);
+		return WebUtility.getResponse(successMap, 200);
 	}
 
 	/**
