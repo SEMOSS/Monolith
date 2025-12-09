@@ -394,8 +394,7 @@ public class OpenAIEndpoints {
 	}
 
 	/**
-	 * Handle OpenAI Responses API endpoint - mirrors completions flow but calls /v1/responses
-	 * This is a parallel implementation that must preserve completions behavior unchanged
+	 * Handle OpenAI Responses API endpoint
 	 */
 	private Response runModelChatResponsesInternal(@Context HttpServletRequest request) {
 		HttpSession session = request.getSession(false);
@@ -404,7 +403,7 @@ public class OpenAIEndpoints {
 		if (session != null) {
 			user = ((User) session.getAttribute(Constants.SESSION_USER));
 		}
-		// how did you even get past the no user in session filter?
+
 		if (user == null) {
 			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
 				session.invalidate();
@@ -482,7 +481,6 @@ public class OpenAIEndpoints {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
-		// Responses API: Codex sends 'input' field (array of messages)
 		Object fullPrompt = dataMap.remove("input");
 		if (fullPrompt == null) {
 			classLogger.error("Missing 'input' field. Request keys: " + dataMap.keySet());
@@ -491,7 +489,6 @@ public class OpenAIEndpoints {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
-		// Codex also sends 'instructions' field for system instructions - add it to the messages if present
 		Object instructions = dataMap.remove("instructions");
 		if (instructions != null) {
 			classLogger.info("Found 'instructions' field, will be passed through to model");
