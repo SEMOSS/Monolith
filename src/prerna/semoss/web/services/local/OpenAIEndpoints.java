@@ -596,6 +596,8 @@ public class OpenAIEndpoints {
                                         for (Map<String, Object> streamObj : partialResponseContent) {
                                             String streamType = (String) streamObj.get("stream_type");
                                             Map<String, Object> dataMap = (Map<String, Object>) streamObj.get("data");
+
+                                            // Raw passthrough mode - forward OpenAI events directly
                                             if (streamType.equalsIgnoreCase("raw_sse")) {
                                                 OpenAIResponsesHelper.writeSSEEvent(dataMap, writer);
                                                 started = true;
@@ -607,109 +609,18 @@ public class OpenAIEndpoints {
                                                     writer.flush();
                                                     break STREAM_COMPLETE_LOOP;
                                                 }
-                                                continue;
                                             }
+                                        }
+                                    }
 
-                                            if (streamType.equalsIgnoreCase("content")) {
-                                                if (dataMap.containsKey("finish_reason")) {
-                                                    String finishReason = (String) dataMap.get("finish_reason");
-													OpenAIResponsesHelper.writeFinishReason(engineId, messageId,
-															creationTimestamp, finishReason, writer);
-													break STREAM_COMPLETE_LOOP;
-												} else {
-													String newContent = (String) dataMap.get("content");
-													if (newContent != null && !newContent.isEmpty()) {
-														OpenAIResponsesHelper.writeContentChunk(engineId,
-																messageId, creationTimestamp, newContent, started,
-																writer);
-														started = true;
-													}
-												}
-											} else if (streamType.equalsIgnoreCase("thinking")) {
-												// Handle thinking/reasoning content for Responses API
-												if (dataMap.containsKey("finish_reason")) {
-													String finishReason = (String) dataMap.get("finish_reason");
-													OpenAIResponsesHelper.writeFinishReason(engineId, messageId,
-															creationTimestamp, finishReason, writer);
-													break STREAM_COMPLETE_LOOP;
-												} else {
-													String thinkingContent = (String) dataMap.get("content");
-													if (thinkingContent != null && !thinkingContent.isEmpty()) {
-														OpenAIResponsesHelper.writeThinkingChunk(engineId,
-																messageId, creationTimestamp, thinkingContent, started,
-																writer);
-														started = true;
-													}
-												}
-											} else {
-												// assuming only other type is tool at the moment
-												if (dataMap.containsKey("finish_reason")) {
-													// send the finish chunk
-													String finishReason = (String) dataMap.get("finish_reason");
-													OpenAIResponsesHelper.writeFinishReason(engineId, messageId,
-															creationTimestamp, finishReason, writer);
-													break STREAM_COMPLETE_LOOP;
-												} else {
-													OpenAIResponsesHelper.writeToolChunk(engineId, messageId,
-															creationTimestamp, dataMap, started, writer);
-													started = true;
-												}
-											}
-										}
-									}
-
-									// if job is complete, we should never hit this if
-									// a completion should have been sent
-									if (jobStatus == PixelJobStatus.PROGRESS_COMPLETE && started) {
-										// send final chunk with empty delta && finish_reason="stop"
-										OpenAIResponsesHelper.writeFinishReason(engineId, messageId,
-												creationTimestamp, "stop", writer);
-										break STREAM_COMPLETE_LOOP;
-									} else if (jobStatus == PixelJobStatus.PROGRESS_COMPLETE && !started) {
-										// we didn't start
-										// and there is no output
-										// lets check the result
-										// ... most likely this is a tool output
-										PixelRunner finalOutput = PixelJobManager.getManager().getOutput(jobId);
-										NounMetadata finalNoun = finalOutput.getResults().get(0);
-										Object finalObject = finalNoun.getValue();
-										String messageType = null;
-										Map<String, Object> resultOutput = null;
-										if (finalObject instanceof Map) {
-											resultOutput = (Map<String, Object>) finalObject;
-											messageType = (String) resultOutput.get("messageType");
-										}
-
-										if ("TOOL".equals(messageType)) {
-											// this is a function call request that was not streamed
-											// maybe the model doesn't support streaming of tools
-											List<Map<String, Object>> response = (List<Map<String, Object>>) resultOutput
-													.get("response");
-
-											if (response != null && !response.isEmpty()) {
-												OpenAIResponsesHelper.writeFullToolResponseAsChunk(engineId,
-														messageId, creationTimestamp, response, writer);
-											}
-											OpenAIResponsesHelper.writeFinishReason(engineId, messageId,
-													creationTimestamp, "tool_calls", writer);
-										} else {
-											// Handle regular text response
-											String content = null;
-											if (resultOutput != null) {
-												content = (String) resultOutput.get("response");
-												if (content != null && !content.isEmpty()) {
-													OpenAIResponsesHelper.writeContentChunk(engineId, messageId,
-															creationTimestamp, content, true, writer);
-												}
-											}
-
-											// send final chunk with empty delta && finish_reason="stop"
-											OpenAIResponsesHelper.writeFinishReason(engineId, messageId,
-													creationTimestamp, "stop", writer);
-										}
-
-										// job is marked complete, always break
-										break STREAM_COMPLETE_LOOP;
+                                    // if job is complete without streaming, break
+                                    if (jobStatus == PixelJobStatus.PROGRESS_COMPLETE) {
+                                        if (!started) {
+                                            // No streaming happened, send [DONE] to close connection
+                                            writer.write("data: [DONE]\n\n");
+                                            writer.flush();
+                                        }
+                                        break STREAM_COMPLETE_LOOP;
                                     }
 
                                     // small delay
