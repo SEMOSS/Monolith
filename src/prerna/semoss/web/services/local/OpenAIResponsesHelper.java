@@ -144,7 +144,6 @@ public final class OpenAIResponsesHelper {
 
 		// sending chunk as SSE event
 		String eventJson = mapper.writeValueAsString(event);
-		System.out.println("[RESPONSES-WRITE-CHUNK] Writing content chunk (length=" + newContent.length() + "): " + newContent.substring(0, Math.min(50, newContent.length())));
 		writer.write("data: " + eventJson + "\n\n");
 		writer.flush();
 	}
