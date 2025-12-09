@@ -387,7 +387,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		Map<String, Object> ret = new HashMap<String, Object>();
 		String searchParam = searchTerm != null ? searchTerm : userId;
 		List<Map<String, Object>> members = adminUtils.getEngineUsers(engineId, searchParam, permission, limit, offset);
-		long totalMembers = SecurityAdminUtils.getEngineUsersCount(engineId, searchParam, permission);
+		long totalMembers = adminUtils.getEngineUsersCount(engineId, searchParam, permission);
 		ret.put("totalMembers", totalMembers);
 		ret.put("members", members);
 
@@ -677,10 +677,11 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	public Response editEngineUserPermissions(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		User user = null;
+		SecurityAdminUtils adminUtils = null;
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		try {
 			user = ResourceUtility.getUser(request);
-			performAdminCheck(request, user);
+			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			classLogger.warn(
@@ -692,7 +693,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 
 		List<Map<String, Object>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
-			SecurityAdminUtils.editEngineUserPermissions(engineId, requests, user);
+			adminUtils.editEngineUserPermissions(engineId, requests, user);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();

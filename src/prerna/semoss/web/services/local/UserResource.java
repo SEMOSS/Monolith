@@ -83,6 +83,7 @@ import prerna.auth.utils.SecurityAPIUserUtils;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityNativeUserUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
+import prerna.auth.utils.SecurityUserUtils;
 import prerna.cluster.util.ClusterUtil;
 import prerna.io.connector.GenericTokenFiller;
 import prerna.io.connector.github.GithubTokenFiller;
@@ -289,6 +290,10 @@ public class UserResource {
 		}
 		semossUser.setAccessToken(token);
 		semossUser.setAnonymous(false);
+
+		// also set the user metadata
+		SecurityUserUtils.loadUserMetadata(token);
+
 		session.setAttribute(Constants.SESSION_USER, semossUser);
 		WebUtility.loggingContextLoginEvent(session);
 
