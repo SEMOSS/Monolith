@@ -225,7 +225,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		Map<String, Object> ret = new HashMap<String, Object>();
 		List<Map<String, Object>> members = adminUtils.getInsightUsers(projectId, insightId, userId, permission, limit,
 				offset);
-		long totalMembers = SecurityAdminUtils.getInsightUsersCount(projectId, insightId, userId, permission);
+		long totalMembers = adminUtils.getInsightUsersCount(projectId, insightId, userId, permission);
 		ret.put("totalMembers", totalMembers);
 		ret.put("members", members);
 
@@ -484,12 +484,13 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	public Response editInsightUserPermissions(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		User user = null;
+		SecurityAdminUtils adminUtils = null;
 		String projectId = WebUtility.inputSQLSanitizer(form.getFirst("projectId"));
 		String insightId = WebUtility.inputSQLSanitizer(form.getFirst("insightId"));
 		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
-			performAdminCheck(request, user);
+			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			classLogger.warn(
@@ -501,7 +502,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 
 		List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
-			SecurityAdminUtils.editInsightUserPermissions(projectId, insightId, requests, user, endDate);
+			adminUtils.editInsightUserPermissions(projectId, insightId, requests, user, endDate);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();

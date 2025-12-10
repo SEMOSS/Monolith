@@ -361,7 +361,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		String searchParam = searchTerm != null ? searchTerm : userId;
 		List<Map<String, Object>> members = adminUtils.getProjectUsers(projectId, searchParam, permission, limit,
 				offset);
-		long totalMembers = SecurityAdminUtils.getProjectUsersCount(projectId, searchParam, permission);
+		long totalMembers = adminUtils.getProjectUsersCount(projectId, searchParam, permission);
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("totalMembers", totalMembers);
 		ret.put("members", members);
@@ -523,11 +523,12 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	public Response editProjectUserPermissions(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		User user = null;
+		SecurityAdminUtils adminUtils = null;
 		String projectId = WebUtility.inputSQLSanitizer(form.getFirst("projectId"));
 		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
-			performAdminCheck(request, user);
+			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			classLogger.warn(
@@ -539,7 +540,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 
 		List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
-			SecurityAdminUtils.editProjectUserPermissions(projectId, requests, user, endDate);
+			adminUtils.editProjectUserPermissions(projectId, requests, user, endDate);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
