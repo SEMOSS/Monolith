@@ -41,7 +41,7 @@ import prerna.web.services.util.WebUtility;
 
 @Path("/auth/user")
 @PermitAll
-public class UserAuthorizationResource extends AbstractAdminResource {
+public class UserAuthorizationResource {
 
 	private static final Logger classLogger = LogManager.getLogger(UserAuthorizationResource.class);
 
