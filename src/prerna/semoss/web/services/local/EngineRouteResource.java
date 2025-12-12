@@ -11,6 +11,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.stream.Collectors;
 
 import javax.annotation.security.PermitAll;
 import javax.servlet.http.HttpServletRequest;
@@ -41,6 +42,8 @@ import prerna.engine.impl.CaseInsensitiveProperties;
 import prerna.engine.impl.SmssUtilities;
 import prerna.io.connector.couch.CouchException;
 import prerna.io.connector.couch.CouchUtil;
+import prerna.io.connector.secrets.ISecrets;
+import prerna.io.connector.secrets.SecretsFactory;
 import prerna.util.Constants;
 import prerna.util.DefaultImageGeneratorUtil;
 import prerna.util.EngineUtility;
@@ -107,13 +110,8 @@ public class EngineRouteResource {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
-		// using the current smss properties
-		// and the new file contents
-		// unconceal any hidden values that have not been altered
 		Properties currentSmssProperties = engine.getSmssProp();
 		String newSmssContent = request.getParameter("smss");
-		String unconcealedNewSmssContent = SmssUtilities.unconcealSmssSensitiveInfo(newSmssContent,
-				currentSmssProperties);
 
 		// validate the new SMSS
 		// that the user is not doing something they cannot do
@@ -128,6 +126,52 @@ public class EngineRouteResource {
 				return WebUtility.getResponse(errorMap, 400);
 			}
 		}
+
+		// this section is for secrets
+		ISecrets secretStore = SecretsFactory.getSecretConnector();
+		if (secretStore != null) {
+			try {
+				Map<String, Object> currentSecrets = secretStore.getEngineSecrets(engine.getCatalogType(),
+						engine.getEngineId(), engine.getEngineName());
+
+				String unconcealedNewSmssContent = SmssUtilities.unconcealSmssSensitiveInfo(newSmssContent,
+						currentSmssProperties, currentSecrets);
+				Properties newProp = new CaseInsensitiveProperties(
+						Utility.loadPropertiesString(unconcealedNewSmssContent));
+
+				secretStore.writeEngineSecrets(engine.getCatalogType(), engine.getEngineId(), engine.getEngineName(),
+						newProp.stringPropertyNames().stream().collect(Collectors.toMap(key -> key, newProp::get)));
+
+			} catch (Exception e) {
+				classLogger.error("An error occurred saving the engine details in the secret store", e);
+				Map<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE,
+						"An error occurred initializing the new engine details. Detailed message = " + e.getMessage());
+				return WebUtility.getResponse(errorMap, 400);
+			}
+
+			try {
+				engine.close();
+				engine.open(currentSmssFileLocation);
+			} catch (Exception e) {
+				classLogger.error(Constants.STACKTRACE, e);
+				Map<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE,
+						"An error occurred re-connecting to the engine with the new credentials. Detailed message = "
+								+ e.getMessage());
+				return WebUtility.getResponse(errorMap, 400);
+			}
+
+			Map<String, Object> success = new HashMap<>();
+			success.put("success", true);
+			return WebUtility.getResponse(success, 200);
+		}
+
+		// using the current smss properties
+		// and the new file contents
+		// unconceal any hidden values that have not been altered
+		String unconcealedNewSmssContent = SmssUtilities.unconcealSmssSensitiveInfo(newSmssContent,
+				currentSmssProperties);
 
 		// read the current smss as text in case of an error
 		String currentSmssContent = null;
