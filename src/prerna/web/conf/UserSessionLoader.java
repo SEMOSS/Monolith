@@ -1,6 +1,7 @@
 package prerna.web.conf;
 
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -17,6 +18,9 @@ import org.apache.logging.log4j.Logger;
 import prerna.auth.SyncUserAppsThread;
 import prerna.auth.User;
 import prerna.cache.ICache;
+import prerna.cluster.util.ClusterUtil;
+import prerna.engine.impl.model.Room;
+import prerna.engine.impl.model.RoomUtils;
 import prerna.engine.impl.r.IRUserConnection;
 import prerna.om.ClientProcessWrapper;
 import prerna.om.Insight;
