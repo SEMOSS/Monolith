@@ -45,6 +45,11 @@ import prerna.auth.utils.SecurityEngineUtils;
 import prerna.date.SemossDate;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.IModelEngine;
+import prerna.engine.impl.model.AbstractModelEngine;
+import prerna.engine.impl.model.Room;
+import prerna.engine.impl.model.RoomUtils;
+import prerna.engine.impl.model.message.InputMessage;
+import prerna.engine.impl.model.message.ResponseMessage;
 import prerna.engine.impl.model.responses.AskModelEngineResponse;
 import prerna.engine.impl.model.responses.EmbeddingsModelEngineResponse;
 import prerna.om.Insight;
@@ -71,6 +76,8 @@ public class OpenAIEndpoints {
 
 	private static final String ERROR_TYPE = "errorType";
 	private static final String INSIGHT_NOT_FOUND = "INSIGHT_NOT_FOUND";
+
+	private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
 
 	@POST
 	@Path("/v1/chat/completions")
@@ -112,6 +119,7 @@ public class OpenAIEndpoints {
 		final String SESSION_ID = session.getId();
 		final String JOB_ID = GUID.v7().toUUID().toString();
 		Insight insight = null;
+		Room room = null;
 		ObjectMapper objectMapper = new ObjectMapper();
 
 		// set the user timezone
@@ -176,6 +184,7 @@ public class OpenAIEndpoints {
 					"Bad Request: The 'data' parameter is missing the required 'model' field.");
 			return WebUtility.getResponse(errorMap, 400);
 		}
+		IModelEngine engine = Utility.getModel(engineId);
 
 		Object fullPrompt = dataMap.remove("messages");
 		if (fullPrompt == null) {
@@ -217,6 +226,15 @@ public class OpenAIEndpoints {
 			errorMap.put(ERROR_TYPE, INSIGHT_NOT_FOUND);
 			return WebUtility.getResponse(errorMap, 400);
 		}
+		// set the user
+		insight.setUser(user);
+
+		String roomId = WebUtility.inputSanitizer((String) dataMap.remove("room_id"));
+		// room name gets updated during parsing of full prompt
+		room = RoomUtils.createRoomIfNotExists(roomId, insight, engine, null);
+		// this is if you are passing full prompt but want us to maintain the history
+		boolean appendFullPrompt = Boolean
+				.parseBoolean(WebUtility.inputSanitizer((String) dataMap.remove("append_full_prompt")) + "");
 
 		ThreadStore.setInsightId(insight.getInsightId());
 		ThreadStore.setSessionId(SESSION_ID);
@@ -224,17 +242,18 @@ public class OpenAIEndpoints {
 		ThreadStore.setUser(insight.getUser());
 
 		final Insight finalInsight = insight;
+		final Room finalRoom = room;
 
-		// set the user
-		insight.setUser(user);
+		dataMap.put(AbstractModelEngine.FULL_PROMPT, fullPrompt);
+		dataMap.put(AbstractModelEngine.APPEND_FULL_PROMPT, appendFullPrompt);
 
-		dataMap.put("full_prompt", fullPrompt);
-
-		IModelEngine engine = Utility.getModel(engineId);
 		if (!isStreamingRequest) {
 			AskModelEngineResponse llmResponse;
 			try {
-				llmResponse = engine.ask(null, null, insight, dataMap);
+				InputMessage msg = InputMessage.builder(room).withModelType(engine.getModelType()).withParamMap(dataMap)
+						.build();
+				ResponseMessage response = room.ask(msg, engine);
+				llmResponse = response.getModelEngineResponse();
 			} catch (Exception e) {
 				classLogger.error(Constants.STACKTRACE, e);
 				Map<String, String> errorMap = new HashMap<>();
@@ -257,7 +276,7 @@ public class OpenAIEndpoints {
 							String jobId = null;
 							try (Writer writer = new BufferedWriter(new OutputStreamWriter(output))) {
 								// Execute model request but get job ID so can poll for partial responses
-								jobId = startAsyncModelRequest(engine, finalInsight, dataMap, SESSION_ID);
+								jobId = startAsyncModelRequest(engine, finalInsight, finalRoom, dataMap, SESSION_ID);
 
 								boolean started = false;
 
@@ -651,7 +670,7 @@ public class OpenAIEndpoints {
 	 * @param dataMap
 	 * @return
 	 */
-	private String startAsyncModelRequest(IModelEngine engine, Insight insight, Map<String, Object> dataMap,
+	private String startAsyncModelRequest(IModelEngine engine, Insight insight, Room room, Map<String, Object> dataMap,
 			String sessionId) {
 		try {
 			// start async job
@@ -659,10 +678,10 @@ public class OpenAIEndpoints {
 			PixelJobThread jt = manager.makeJob(insight, sessionId, null);
 			String jobId = jt.getJobId();
 
-			Gson gson = new GsonBuilder().disableHtmlEscaping().create();
-			String modelPixel = "LLM(engine='" + engine.getEngineId() + "', command='<encode>ignore</encode>'"
-			// this should have the full_prompt
-					+ ",paramValues=[" + gson.toJson(dataMap) + "]);";
+			String modelPixel = "LLM(engine='" + engine.getEngineId() + "',roomId='" + room.getId()
+					+ "',command='<encode>ignore</encode>'"
+					// this should have the full_prompt
+					+ ",paramValues=[" + GSON.toJson(dataMap) + "]);";
 			jt.addPixel(modelPixel);
 			jt.start();
 			return jobId;
@@ -699,6 +718,7 @@ public class OpenAIEndpoints {
 		final String SESSION_ID = session.getId();
 		final String JOB_ID = GUID.v7().toUUID().toString();
 		Insight insight = null;
+		Room room = null;
 		ObjectMapper objectMapper = new ObjectMapper();
 
 		// set the user timezone
@@ -756,6 +776,7 @@ public class OpenAIEndpoints {
 					"Bad Request: The 'data' parameter is missing the required 'model' field.");
 			return WebUtility.getResponse(errorMap, 400);
 		}
+		IModelEngine engine = Utility.getModel(engineId);
 
 		String question = (String) dataMap.remove("prompt");
 		if (question == null) {
@@ -802,21 +823,25 @@ public class OpenAIEndpoints {
 			errorMap.put(ERROR_TYPE, INSIGHT_NOT_FOUND);
 			return WebUtility.getResponse(errorMap, 400);
 		}
+		// set the user
+		insight.setUser(user);
+
+		String roomId = WebUtility.inputSanitizer((String) dataMap.remove("room_id"));
+		// room name gets updated during parsing of full prompt
+		room = RoomUtils.createRoomIfNotExists(roomId, insight, engine, null);
 
 		ThreadStore.setInsightId(insight.getInsightId());
 		ThreadStore.setSessionId(SESSION_ID);
 		ThreadStore.setJobId(JOB_ID);
 		ThreadStore.setUser(insight.getUser());
 
-		// set the user
-		insight.setUser(user);
-
-		IModelEngine engine = Utility.getModel(engineId);
-
 		if (!isStreamingRequest) {
 			AskModelEngineResponse llmResponse;
 			try {
-				llmResponse = engine.ask(question, null, insight, dataMap);
+				InputMessage msg = InputMessage.builder(room).withModelType(engine.getModelType())
+						.withInputUIPrompt(question).withInputPrompt(question).withParamMap(dataMap).build();
+				ResponseMessage response = room.ask(msg, engine);
+				llmResponse = response.getModelEngineResponse();
 			} catch (Exception e) {
 				classLogger.error(Constants.STACKTRACE, e);
 				Map<String, String> errorMap = new HashMap<>();
@@ -880,12 +905,16 @@ public class OpenAIEndpoints {
 			classLogger.info("Starting fake streaming response for model: " + engineId);
 
 			final Insight FINAL_INSIGHT = insight;
+			final Room FINAL_ROOM = room;
 			return Response.ok().header("Content-Type", "text/event-stream").header("Cache-Control", "no-cache")
 					.header("Connection", "keep-alive").entity((StreamingOutput) output -> {
 						ObjectMapper mapper = new ObjectMapper();
 						try (Writer writer = new BufferedWriter(new OutputStreamWriter(output))) {
 							// Get full completion from your model in one go
-							AskModelEngineResponse llmResponse = engine.ask(question, null, FINAL_INSIGHT, dataMap);
+							InputMessage msg = InputMessage.builder(FINAL_ROOM).withModelType(engine.getModelType())
+									.withInputUIPrompt(question).withInputPrompt(question).withParamMap(dataMap)
+									.build();
+							AskModelEngineResponse llmResponse = engine.askRoom(question, FINAL_ROOM, msg, dataMap);
 							String completionText = llmResponse.getStringResponse();
 							Integer promptTokens = llmResponse.getNumberOfTokensInPrompt();
 							Integer responseTokens = llmResponse.getNumberOfTokensInResponse();

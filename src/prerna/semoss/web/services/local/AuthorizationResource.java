@@ -27,22 +27,28 @@
  *******************************************************************************/
 package prerna.semoss.web.services.local;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
-import javax.ws.rs.core.StreamingOutput;
+import javax.ws.rs.core.Response;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import prerna.auth.utils.SecurityQueryUtils;
+import prerna.auth.User;
+import prerna.auth.utils.SecurityEngineUtils;
+import prerna.graph.utility.MsGraphUtility;
+import prerna.util.Constants;
+import prerna.util.SocialPropertiesUtil;
 import prerna.web.services.util.WebUtility;
 
 @Path("/authorization")
@@ -55,11 +61,66 @@ public class AuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("searchForUser")
-	public StreamingOutput searchForUser(@Context HttpServletRequest request,
-			@QueryParam("searchTerm") String searchTerm) {
-		List<Map<String, Object>> ret = SecurityQueryUtils
-				.searchForUser(WebUtility.inputSQLSanitizer(searchTerm.trim()));
-		return WebUtility.getSO(ret);
+	public Response searchForUser(@Context HttpServletRequest request, @QueryParam("engineId") String engineId,
+			@QueryParam("searchTerm") String searchTerm, @QueryParam("limit") long limit,
+			@QueryParam("offset") long offset) {
+
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			classLogger.warn("User  invalid user session trying to access authorization resources");
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		boolean graphApi = Boolean
+				.parseBoolean("" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_lookup"));
+
+		// if not graph api
+		// then we will look at our security db
+		if (!graphApi) {
+			try {
+				List<Map<String, Object>> ret = SecurityEngineUtils.getEngineUsersNoCredentials(user, engineId,
+						searchTerm, limit, offset);
+				return WebUtility.getResponse(ret, 200);
+			} catch (IllegalAccessException e) {
+				classLogger.warn("User is trying to pull users for " + engineId
+						+ " that do not have credentials without having proper access");
+				classLogger.error(Constants.STACKTRACE, e);
+				Map<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+				return WebUtility.getResponse(errorMap, 401);
+			}
+		}
+
+		HttpSession session = request.getSession(false);
+		String sessionKey = "u_" + User.getSingleLogginName(user) + "_" + searchTerm;
+
+		// Initialize or retrieve session data
+		Map<String, Object> sessionData = (Map<String, Object>) session.getAttribute(sessionKey);
+		// New search if:
+		// 1. No session data exists (first time searching this term), OR
+		// 2. Offset is 0 (user is restarting the search)
+		if (sessionData == null || offset == 0) {
+			// Clear any existing data and start fresh
+			sessionData = new HashMap<>();
+			session.setAttribute(sessionKey, sessionData);
+		}
+
+		String graphApiGroupId = SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_groupId");
+		try {
+			List<Map<String, Object>> filteredUsers = MsGraphUtility.fetchMsGraphUsers(user, searchTerm,
+					graphApiGroupId, sessionData);
+			return WebUtility.getResponse(filteredUsers, 200);
+		} catch (Exception e) {
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 500);
+		}
 	}
 
 }
