@@ -1,6 +1,7 @@
 package prerna.web.conf;
 
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -17,6 +18,9 @@ import org.apache.logging.log4j.Logger;
 import prerna.auth.SyncUserAppsThread;
 import prerna.auth.User;
 import prerna.cache.ICache;
+import prerna.cluster.util.ClusterUtil;
+import prerna.engine.impl.model.Room;
+import prerna.engine.impl.model.RoomUtils;
 import prerna.engine.impl.r.IRUserConnection;
 import prerna.om.ClientProcessWrapper;
 import prerna.om.Insight;
@@ -154,6 +158,54 @@ public class UserSessionLoader implements HttpSessionListener {
 		} catch(Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 		}
+		
+		
+		// if cloud sync enabled, push and clear the rooms
+		if (ClusterUtil.IS_CLUSTER) {
+			if (thisUser != null && thisUser.roomHash != null) {
+				Map<String, Object> roomHash = thisUser.roomHash;
+				for (Map.Entry<String, Object> entry : roomHash.entrySet()) {
+					String roomId = entry.getKey();
+					Object roomObj = entry.getValue();
+					try {
+						// Assume roomObj has a getRoomFolderPath() method or similar
+						String roomFolderPath = null;
+						Room room = null;
+						if (roomObj != null) {
+							try {
+								room = (Room) roomObj;
+								roomFolderPath = room.getRoomFolderPath();
+							} catch (Exception e) {
+								classLogger.warn("Could not get room folder path for room: " + roomId, e);
+							}
+						}
+						if (roomFolderPath != null) {
+							java.io.File roomFolder = new java.io.File(roomFolderPath);
+							if (roomFolder.exists() && roomFolder.isDirectory() && RoomUtils.hasFiles(room)) {
+								// Push to cloud (placeholder, implement as needed)
+								try {
+									ClusterUtil.pushRoom(roomId);
+									classLogger.info(sessionId + " >>> Pushed room " + roomId + " to cloud");
+								} catch (Exception e) {
+									classLogger.error("Failed to push room " + roomId + " to cloud", e);
+								}
+							}
+							// Remove local folder
+							try {
+								ICache.deleteFolder(roomFolderPath);
+								classLogger.info(sessionId + " >>> Deleted local room folder for room " + roomId);
+							} catch (Exception e) {
+								classLogger.error("Failed to delete local room folder for room " + roomId, e);
+							}
+							
+						}
+					} catch (Exception e) {
+						classLogger.error("Error processing room " + roomId, e);
+					}
+				}
+			}
+		}
+		
 		
 		// register the successful logout
 		UserTrackingUtils.registerLogout(sessionId);
