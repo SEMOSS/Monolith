@@ -184,7 +184,7 @@ public class UserSessionLoader implements HttpSessionListener {
 							if (roomFolder.exists() && roomFolder.isDirectory() && RoomUtils.hasFiles(room)) {
 								// Push to cloud (placeholder, implement as needed)
 								try {
-									ClusterUtil.pushRoomToCloud(roomId, roomFolderPath);
+									ClusterUtil.pushRoom(roomId);
 									classLogger.info(sessionId + " >>> Pushed room " + roomId + " to cloud");
 								} catch (Exception e) {
 									classLogger.error("Failed to push room " + roomId + " to cloud", e);
