@@ -131,8 +131,10 @@ jobs:
         run: rm -rf .m2/repository/org/semoss
 
       - name: Deploy with Maven
-        run: /usr/share/maven/bin/mvn $MAVEN_CLI_OPTS deploy -P deploy -Dci.version=${{ vars.VERSION }}-SNAPSHOT
-
+        run: |
+            /usr/share/maven/bin/mvn $MAVEN_CLI_OPTS versions:set-property -Dproperty=ci.version -DnewVersion=${{ vars.VERSION }}-SNAPSHOT -DgenerateBackupPoms=false
+            /usr/share/maven/bin/mvn $MAVEN_CLI_OPTS deploy -P deploy -Dmaven.test.skip=${{ vars.SKIP_TESTS }}
+     
       - name: Clear Maven repository after deploy
         run: rm -rf .m2/repository/org/semoss
 
@@ -176,8 +178,10 @@ jobs:
         run: rm -rf .m2/repository/org/semoss
 
       - name: Release with Maven
-        run: /usr/share/maven/bin/mvn $MAVEN_CLI_OPTS deploy -P deploy -Dci.version=${{ vars.VERSION }}
-
+        run: |
+            /usr/share/maven/bin/mvn $MAVEN_CLI_OPTS versions:set-property -Dproperty=ci.version -DnewVersion=${{ vars.VERSION }} -DgenerateBackupPoms=false
+            /usr/share/maven/bin/mvn $MAVEN_CLI_OPTS deploy -P deploy -Dmaven.test.skip=${{ vars.SKIP_TESTS }}
+     
       - name: Clear Maven repository after release
         run: rm -rf .m2/repository/org/semoss
 
