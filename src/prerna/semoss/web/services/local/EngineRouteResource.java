@@ -11,6 +11,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.stream.Collectors;
 
 import javax.annotation.security.PermitAll;
 import javax.servlet.http.HttpServletRequest;
@@ -41,6 +42,8 @@ import prerna.engine.impl.CaseInsensitiveProperties;
 import prerna.engine.impl.SmssUtilities;
 import prerna.io.connector.couch.CouchException;
 import prerna.io.connector.couch.CouchUtil;
+import prerna.io.connector.secrets.ISecrets;
+import prerna.io.connector.secrets.SecretsFactory;
 import prerna.util.Constants;
 import prerna.util.DefaultImageGeneratorUtil;
 import prerna.util.EngineUtility;
@@ -52,30 +55,29 @@ import prerna.web.services.util.WebUtility;
 public class EngineRouteResource {
 
 	private static final Logger classLogger = LogManager.getLogger(ModelEngineResource.class);
-	
+
 	private boolean canAccessOrDiscoverableEngine(User user, String engineId) throws IllegalAccessException {
 		engineId = SecurityQueryUtils.testUserEngineIdForAlias(user, engineId);
-		if(!SecurityEngineUtils.userCanViewEngine(user, engineId)
+		if (!SecurityEngineUtils.userCanViewEngine(user, engineId)
 				&& !SecurityEngineUtils.engineIsDiscoverable(engineId)) {
 			throw new IllegalAccessException("Engine " + engineId + " does not exist or user does not have access");
 		}
-		
+
 		return true;
 	}
-	
+
 	///////////////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////////////
-	
-	
+
 	@POST
 	@Path("/updateSmssFile")
 	@Produces("application/json;charset=utf-8")
 	public Response updateSmssFile(@Context HttpServletRequest request, @PathParam("engineId") String engineId) {
 		engineId = WebUtility.inputSanitizer(engineId);
-		
+
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -86,10 +88,11 @@ public class EngineRouteResource {
 		}
 		try {
 			boolean isAdmin = SecurityAdminUtils.userIsAdmin(user);
-			if(!isAdmin) {
+			if (!isAdmin) {
 				boolean isOwner = SecurityEngineUtils.userIsOwner(user, engineId);
-				if(!isOwner) {
-					throw new IllegalAccessException("Engine " + engineId + " does not exist or user does not have permissions to update the smss. User must be the owner to perform this function.");
+				if (!isOwner) {
+					throw new IllegalAccessException("Engine " + engineId
+							+ " does not exist or user does not have permissions to update the smss. User must be the owner to perform this function.");
 				}
 			}
 		} catch (IllegalAccessException e) {
@@ -101,58 +104,101 @@ public class EngineRouteResource {
 		IEngine engine = Utility.getEngine(engineId);
 		String currentSmssFileLocation = engine.getSmssFilePath();
 		File currentSmssFile = new File(currentSmssFileLocation);
-		if(!currentSmssFile.exists() || !currentSmssFile.isFile()) {
+		if (!currentSmssFile.exists() || !currentSmssFile.isFile()) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Could not find current engie smss file");
 			return WebUtility.getResponse(errorMap, 400);
 		}
-		
-		// using the current smss properties
-		// and the new file contents
-		// unconceal any hidden values that have not been altered
+
 		Properties currentSmssProperties = engine.getSmssProp();
 		String newSmssContent = request.getParameter("smss");
-		String unconcealedNewSmssContent = SmssUtilities.unconcealSmssSensitiveInfo(newSmssContent, currentSmssProperties);
-		
+
 		// validate the new SMSS
 		// that the user is not doing something they cannot do
 		// like update the engine id / alias
 		{
 			Properties newProp = new CaseInsensitiveProperties(Utility.loadPropertiesString(newSmssContent));
-			if(!newProp.get(Constants.ENGINE).equals(currentSmssProperties.get(Constants.ENGINE))
+			if (!newProp.get(Constants.ENGINE).equals(currentSmssProperties.get(Constants.ENGINE))
 					|| !newProp.get(Constants.ENGINE_ALIAS).equals(currentSmssProperties.get(Constants.ENGINE_ALIAS))
-					|| !newProp.get(Constants.ENGINE_TYPE).equals(currentSmssProperties.get(Constants.ENGINE_TYPE))
-					) {
+					|| !newProp.get(Constants.ENGINE_TYPE).equals(currentSmssProperties.get(Constants.ENGINE_TYPE))) {
 				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put(Constants.ERROR_MESSAGE, "The engine id, engine name, and engine type cannot be changed");
 				return WebUtility.getResponse(errorMap, 400);
 			}
 		}
-		
+
+		// this section is for secrets
+		ISecrets secretStore = SecretsFactory.getSecretConnector();
+		if (secretStore != null) {
+			try {
+				Map<String, Object> currentSecrets = secretStore.getEngineSecrets(engine.getCatalogType(),
+						engine.getEngineId(), engine.getEngineName());
+
+				String unconcealedNewSmssContent = SmssUtilities.unconcealSmssSensitiveInfo(newSmssContent,
+						currentSmssProperties, currentSecrets);
+				Properties newProp = new CaseInsensitiveProperties(
+						Utility.loadPropertiesString(unconcealedNewSmssContent));
+
+				secretStore.writeEngineSecrets(engine.getCatalogType(), engine.getEngineId(), engine.getEngineName(),
+						newProp.stringPropertyNames().stream().collect(Collectors.toMap(key -> key, newProp::get)));
+
+			} catch (Exception e) {
+				classLogger.error("An error occurred saving the engine details in the secret store", e);
+				Map<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE,
+						"An error occurred initializing the new engine details. Detailed message = " + e.getMessage());
+				return WebUtility.getResponse(errorMap, 400);
+			}
+
+			try {
+				engine.close();
+				engine.open(currentSmssFileLocation);
+			} catch (Exception e) {
+				classLogger.error(Constants.STACKTRACE, e);
+				Map<String, String> errorMap = new HashMap<>();
+				errorMap.put(Constants.ERROR_MESSAGE,
+						"An error occurred re-connecting to the engine with the new credentials. Detailed message = "
+								+ e.getMessage());
+				return WebUtility.getResponse(errorMap, 400);
+			}
+
+			Map<String, Object> success = new HashMap<>();
+			success.put("success", true);
+			return WebUtility.getResponse(success, 200);
+		}
+
+		// using the current smss properties
+		// and the new file contents
+		// unconceal any hidden values that have not been altered
+		String unconcealedNewSmssContent = SmssUtilities.unconcealSmssSensitiveInfo(newSmssContent,
+				currentSmssProperties);
+
 		// read the current smss as text in case of an error
 		String currentSmssContent = null;
 		try {
 			currentSmssContent = new String(Files.readAllBytes(Paths.get(currentSmssFile.toURI())));
 		} catch (IOException e) {
 			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "An error occurred reading the current engine smss details. Detailed message = " + e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE,
+					"An error occurred reading the current engine smss details. Detailed message = " + e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
-		
+
 		try {
 			engine.close();
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "An error occurred closing the engine. Detailed message = " + e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE,
+					"An error occurred closing the engine. Detailed message = " + e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		try {
-			try (FileWriter fw = new FileWriter(currentSmssFile, false)){
+			try (FileWriter fw = new FileWriter(currentSmssFile, false)) {
 				fw.write(unconcealedNewSmssContent);
 			}
 			engine.open(currentSmssFileLocation);
-		} catch(Exception e) {
+		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			// reset the values
 			try {
@@ -162,28 +208,31 @@ public class EngineRouteResource {
 				classLogger.error(Constants.STACKTRACE, e1);
 			}
 			currentSmssFile.delete();
-			try (FileWriter fw = new FileWriter(currentSmssFile, false)){
+			try (FileWriter fw = new FileWriter(currentSmssFile, false)) {
 				fw.write(currentSmssContent);
 				engine.open(currentSmssFileLocation);
-			} catch(Exception e2) {
+			} catch (Exception e2) {
 				classLogger.error(Constants.STACKTRACE, e2);
 				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, "A fatal error occurred and could not revert the engine to an operational state. Detailed message = " + e2.getMessage());
+				errorMap.put(Constants.ERROR_MESSAGE,
+						"A fatal error occurred and could not revert the engine to an operational state. Detailed message = "
+								+ e2.getMessage());
 				return WebUtility.getResponse(errorMap, 400);
 			}
 			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "An error occurred initializing the new engine details. Detailed message = " + e.getMessage());
+			errorMap.put(Constants.ERROR_MESSAGE,
+					"An error occurred initializing the new engine details. Detailed message = " + e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
-		
+
 		// push to cloud
 		ClusterUtil.pushEngineSmss(engineId, engine.getCatalogType());
-		
+
 		Map<String, Object> success = new HashMap<>();
 		success.put("success", true);
 		return WebUtility.getResponse(success, 200);
 	}
-	
+
 	///////////////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -193,12 +242,13 @@ public class EngineRouteResource {
 	/*
 	 * Code below is around engine images
 	 */
-	
+
 	@GET
 	@Path("/image/download")
-	@Produces({MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML})
-	public Response imageDownload(@Context final Request coreRequest, @Context HttpServletRequest request, @PathParam("engineId") String engineId) {
-		engineId=WebUtility.inputSanitizer(engineId);
+	@Produces({ MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML })
+	public Response imageDownload(@Context final Request coreRequest, @Context HttpServletRequest request,
+			@PathParam("engineId") String engineId) {
+		engineId = WebUtility.inputSanitizer(engineId);
 
 		User user = null;
 		try {
@@ -208,13 +258,13 @@ public class EngineRouteResource {
 			errorMap.put("error", "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		IEngine.CATALOG_TYPE engineType = null;
 		Object[] typeAndSubtype = null;
 		try {
 			typeAndSubtype = SecurityEngineUtils.getEngineTypeAndSubtype(engineId);
 			engineType = (IEngine.CATALOG_TYPE) typeAndSubtype[0];
-		} catch(Exception e) {
+		} catch (Exception e) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put("error", "Unknown engine with id " + engineId);
 			return WebUtility.getResponse(errorMap, 400);
@@ -226,26 +276,27 @@ public class EngineRouteResource {
 			errorMap.put("error", e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		String engineName = SecurityEngineUtils.getEngineAliasForId(engineId);
 		String engineNameAndId = SmssUtilities.getUniqueName(engineName, engineId);
-		
+
 		// will define these here up front
 		String couchSelector = null;
 		String engineVersionPath = null;
 		try {
 			couchSelector = EngineUtility.getCouchSelector(engineType);
 			engineVersionPath = EngineUtility.getSpecificEngineVersionFolder(engineType, engineNameAndId);
-		} catch(Exception e) {
+		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> returnMap = new HashMap<>();
-			returnMap.put(Constants.ERROR_MESSAGE, "Unknown engine type '"+engineType+"' for engine " + engineNameAndId);
+			returnMap.put(Constants.ERROR_MESSAGE,
+					"Unknown engine type '" + engineType + "' for engine " + engineNameAndId);
 			return WebUtility.getResponse(returnMap, 400);
 		}
-		
+
 		File exportFile = null;
 		// is the image in couch db
-		if(CouchUtil.COUCH_ENABLED) {
+		if (CouchUtil.COUCH_ENABLED) {
 			try {
 				Map<String, String> selectors = new HashMap<>();
 				selectors.put(couchSelector, engineId);
@@ -253,9 +304,9 @@ public class EngineRouteResource {
 			} catch (CouchException e) {
 				classLogger.error(Constants.STACKTRACE, e);
 			}
-		} 
+		}
 		// is the image in cloud storage
-		else if(ClusterUtil.IS_CLUSTER) {
+		else if (ClusterUtil.IS_CLUSTER) {
 			try {
 				exportFile = ClusterUtil.getEngineAndProjectImage(engineId, engineType);
 			} catch (Exception e) {
@@ -264,32 +315,33 @@ public class EngineRouteResource {
 				errorMap.put(Constants.ERROR_MESSAGE, "Error sending image file");
 				return WebUtility.getResponse(errorMap, 400);
 			}
-		// is the image local in engine folder
+			// is the image local in engine folder
 		} else {
 			exportFile = findImageFile(engineVersionPath);
-			if(exportFile == null) {
+			if (exportFile == null) {
 				// make the image
 				String fileLocation = engineVersionPath + "/" + "image.png";
 				exportFile = DefaultImageGeneratorUtil.pickRandomImage(fileLocation);
 			}
 		}
-		
-		if(exportFile != null && exportFile.exists()) {
+
+		if (exportFile != null && exportFile.exists()) {
 			String exportName = engineId + "_Image." + FilenameUtils.getExtension(exportFile.getAbsolutePath());
 			// want to cache this on browser if user has access
 //			CacheControl cc = new CacheControl();
 //			cc.setMaxAge(86400);
 //			cc.setPrivate(true);
 //			cc.setMustRevalidate(true);
-		    EntityTag etag = new EntityTag(Long.toString(exportFile.lastModified()));
-		    ResponseBuilder builder = coreRequest.evaluatePreconditions(etag);
+			EntityTag etag = new EntityTag(Long.toString(exportFile.lastModified()));
+			ResponseBuilder builder = coreRequest.evaluatePreconditions(etag);
 
-		    // cached resource did not change
-		    if(builder != null) {
-		        return builder.build();
-		    }
-		    
-			return Response.status(200).entity(exportFile).header("Content-Disposition", "attachment; filename=" + exportName)
+			// cached resource did not change
+			if (builder != null) {
+				return builder.build();
+			}
+
+			return Response.status(200).entity(exportFile)
+					.header("Content-Disposition", "attachment; filename=" + exportName)
 //					.cacheControl(cc)
 					.tag(etag)
 //					.lastModified(new Date(exportFile.lastModified()))
@@ -300,9 +352,10 @@ public class EngineRouteResource {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 	}
-	
+
 	/**
 	 * Find an image in the directory
+	 * 
 	 * @param folderDirectory
 	 * @return
 	 */
@@ -316,10 +369,10 @@ public class EngineRouteResource {
 		FileFilter imageExtensionFilter = new WildcardFileFilter(extensions);
 		File baseFolder = new File(WebUtility.normalizePath(folderDirectory));
 		File[] imageFiles = baseFolder.listFiles(imageExtensionFilter);
-		if(imageFiles != null && imageFiles.length > 0) {
+		if (imageFiles != null && imageFiles.length > 0) {
 			return imageFiles[0];
 		}
 		return null;
 	}
-	
+
 }

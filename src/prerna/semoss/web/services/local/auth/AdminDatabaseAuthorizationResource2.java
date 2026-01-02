@@ -231,7 +231,7 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 		String searchParam = searchTerm != null ? searchTerm : userId;
 		List<Map<String, Object>> members = adminUtils.getEngineUsers(databaseId, searchParam, permission, limit,
 				offset);
-		long totalMembers = SecurityAdminUtils.getEngineUsersCount(databaseId, searchParam, permission);
+		long totalMembers = adminUtils.getEngineUsersCount(databaseId, searchParam, permission);
 		ret.put("totalMembers", totalMembers);
 		ret.put("members", members);
 
@@ -452,10 +452,11 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 				"CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/editEngineUserPermissions with PARAM engineId");
 
 		User user = null;
+		SecurityAdminUtils adminUtils = null;
 		String databaseId = WebUtility.inputSanitizer(form.getFirst("databaseId"));
 		try {
 			user = ResourceUtility.getUser(request);
-			performAdminCheck(request, user);
+			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			classLogger.warn(
@@ -467,7 +468,7 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 
 		List<Map<String, Object>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
-			SecurityAdminUtils.editEngineUserPermissions(databaseId, requests, user);
+			adminUtils.editEngineUserPermissions(databaseId, requests, user);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();

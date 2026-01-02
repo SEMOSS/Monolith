@@ -130,7 +130,6 @@ public class MCPResource {
 				}
 				// get the zone id
 				ZoneId zoneId = ZoneId.of(Utility.getApplicationZoneId());
-				;
 				user.setZoneId(zoneId);
 				session.setAttribute(Constants.INSIGHT, insightId);
 			} else {

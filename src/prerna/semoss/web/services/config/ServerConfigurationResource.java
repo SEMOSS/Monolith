@@ -27,6 +27,7 @@ import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityInsightUtils;
 import prerna.auth.utils.SecurityProjectUtils;
+import prerna.date.SemossDate;
 import prerna.ds.py.PyUtils;
 import prerna.reactor.cluster.VersionReactor;
 import prerna.semoss.web.services.local.ResourceUtility;
@@ -41,7 +42,7 @@ import prerna.web.services.util.WebUtility;
 @PermitAll
 public class ServerConfigurationResource {
 
-	private static final Logger logger = LogManager.getLogger(ServerConfigurationResource.class);
+	private static final Logger classLogger = LogManager.getLogger(ServerConfigurationResource.class);
 
 	private static volatile Map<String, Object> config = null;
 
@@ -140,7 +141,7 @@ public class ServerConfigurationResource {
 			try {
 				loadConfig.put("file-limit", Integer.parseInt(fileTransferMax));
 			} catch (Exception e) {
-				logger.error(Constants.STACKTRACE, e);
+				classLogger.error(Constants.STACKTRACE, e);
 			}
 		}
 
@@ -150,7 +151,7 @@ public class ServerConfigurationResource {
 			try {
 				loadConfig.put("fileSharedPath", sharedFilePath);
 			} catch (Exception e) {
-				logger.error(Constants.STACKTRACE, e);
+				classLogger.error(Constants.STACKTRACE, e);
 			}
 		}
 
@@ -159,7 +160,7 @@ public class ServerConfigurationResource {
 			Map<String, String> versionMap = VersionReactor.getVersionMap(false);
 			loadConfig.put("version", versionMap);
 		} catch (Exception e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error(Constants.STACKTRACE, e);
 		}
 
 		// send the default frame type
@@ -239,7 +240,7 @@ public class ServerConfigurationResource {
 			myConfiguration.put("passwordRequirements",
 					PasswordRequirements.getInstance().getAllPasswordRequirements());
 		} catch (Exception e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error(Constants.STACKTRACE, e);
 		}
 		// current logins
 		// TODO: added 2022-02-25
@@ -260,6 +261,8 @@ public class ServerConfigurationResource {
 		myConfiguration.put("engineMetaKeys", SecurityEngineUtils.getMetakeyOptions(null));
 		myConfiguration.put("projectMetaKeys", SecurityProjectUtils.getMetakeyOptions(null));
 		myConfiguration.put("insightMetaKeys", SecurityInsightUtils.getMetakeyOptions(null));
+		// current date
+		myConfiguration.put("systemDate", new SemossDate(Utility.getCurrentZonedDateTimeUTC()));
 		// do not keep this session
 		// if no user and it is new
 		if (user == null && (session.isNew() || request.isRequestedSessionIdValid())) {
