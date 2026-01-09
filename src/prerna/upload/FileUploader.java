@@ -1,3 +1,19 @@
+/*******************************************************************************
+ * Copyright 2015 Defense Health Agency (DHA)
+ *
+ * If your use of this software does not include any GPLv2 components:
+ * 	Licensed under the Apache License, Version 2.0 (the "License");
+ * 	you may not use this file except in compliance with the License.
+ * 	You may obtain a copy of the License at
+ *
+ * 	  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * 	Unless required by applicable law or agreed to in writing, software
+ * 	distributed under the License is distributed on an "AS IS" BASIS,
+ * 	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * 	See the License for the specific language governing permissions and
+ * 	limitations under the License.
+ *******************************************************************************/
 package prerna.upload;
 
 import java.io.File;
@@ -12,11 +28,13 @@ import java.util.Map;
 import javax.annotation.security.PermitAll;
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
+import javax.ws.rs.Consumes;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
+import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
@@ -38,6 +56,7 @@ import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityInsightUtils;
 import prerna.auth.utils.SecurityProjectUtils;
 import prerna.auth.utils.SecurityQueryUtils;
+import prerna.engine.api.IEngine;
 import prerna.io.connector.antivirus.VirusScannerUtils;
 import prerna.io.connector.antivirus.VirusScanningException;
 import prerna.om.HeadersException;
@@ -55,7 +74,10 @@ import prerna.web.services.util.WebUtility;
 @PermitAll
 public class FileUploader extends Uploader {
 
+	private static final long serialVersionUID = 1L;
+
 	private static final Logger classLogger = LogManager.getLogger(FileUploader.class);
+
 	/*
 	 * Moving a file onto the BE cannot be performed through pixel Thus, we still
 	 * expose "drag and drop" of a file through a rest call However, this is only
@@ -63,9 +85,18 @@ public class FileUploader extends Uploader {
 	 * create/add to a data frame occurs through pixel
 	 */
 
+	/**
+	 * Checks user-defined headers for illegal characters, reserved words, and
+	 * duplicates.
+	 * 
+	 * @param form The form data containing the upload type and headers to check.
+	 * @return A response containing a map of invalid headers and the reasons why
+	 *         they are invalid.
+	 */
 	@POST
 	@Path("/headerCheck")
-	@Produces("application/json")
+	@Produces(MediaType.APPLICATION_JSON)
+	@Consumes(MediaType.APPLICATION_FORM_URLENCODED)
 	public Response checkUserDefinedHeaders(MultivaluedMap<String, String> form) {
 		Gson gson = new Gson();
 
@@ -93,7 +124,7 @@ public class FileUploader extends Uploader {
 						new TypeToken<List<Map<String, String[]>>>() {
 						}.getType());
 			} catch (Exception e) {
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.error("Error parsing user defined headers", e);
 				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put(Constants.ERROR_MESSAGE,
 						"Invalid format passed for user defined headers: " + headersToCheckString);
@@ -155,7 +186,7 @@ public class FileUploader extends Uploader {
 				userDefinedHeadersMap = gson.fromJson(headersToCheckString, new TypeToken<Map<String, String[]>>() {
 				}.getType());
 			} catch (Exception e) {
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.error("Error parsing user defined headers", e);
 				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put(Constants.ERROR_MESSAGE,
 						"Invalid format passed for user defined headers: " + headersToCheckString);
@@ -200,8 +231,21 @@ public class FileUploader extends Uploader {
 		}
 	}
 
+	/**
+	 * Uploads a file to the server.
+	 * 
+	 * @param context      The servlet context.
+	 * @param request      The HTTP servlet request.
+	 * @param insightId    The ID of the insight to upload the file to.
+	 * @param relativePath The relative path to upload the file to.
+	 * @param projectId    The ID of the project to upload the file to.
+	 * @param engineId     The ID of the engine to upload the file to.
+	 * @return A response containing a list of maps with the file name and location.
+	 */
 	@POST
 	@Path("baseUpload")
+	@Produces(MediaType.APPLICATION_JSON)
+	@Consumes(MediaType.MULTIPART_FORM_DATA)
 	public Response baseUpload(@Context ServletContext context, @Context HttpServletRequest request,
 			@QueryParam("insightId") String insightId, @QueryParam("path") String relativePath,
 			@QueryParam("projectId") String projectId, @QueryParam("engineId") String engineId) {
@@ -211,63 +255,47 @@ public class FileUploader extends Uploader {
 		projectId = WebUtility.inputSanitizer(projectId);
 		engineId = WebUtility.inputSanitizer(engineId);
 
-		Insight in = InsightStore.getInstance().get(insightId);
+		Insight in = getValidInsight(insightId);
 		if (in == null) {
-			HashMap<String, String> errorMap = new HashMap<String, String>();
+			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Session could not be validated in order to upload files");
 			return WebUtility.getResponse(errorMap, 400);
 		}
-
 		User user = in.getUser();
-		if (user == null) {
-			HashMap<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Session could not be validated in order to upload files");
-			return WebUtility.getResponse(errorMap, 400);
-		}
 
-		if (user.isAnonymous() && !AbstractSecurityUtils.anonymousUserUploadData()) {
-			HashMap<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload files");
-			return WebUtility.getResponse(errorMap, 400);
+		Response permResponse = checkGeneralUserPermissions(user);
+		if (permResponse != null) {
+			return permResponse;
 		}
 
 		if (user.isAnonymous() && in.isSavedInsight()) {
-			HashMap<String, String> errorMap = new HashMap<String, String>();
+			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload files to a saved insight");
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		if (in.isSavedInsight() && !SecurityInsightUtils.userCanEditInsight(user, in.getProjectId(), in.getRdbmsId())) {
-			HashMap<String, String> errorMap = new HashMap<String, String>();
+			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User does not edit access for this insight");
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
-		if (AbstractSecurityUtils.adminSetPublisher() && !SecurityQueryUtils.userIsPublisher(user)) {
-			HashMap<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE,
-					"User does not have permission to publish data. Please reach out to the admin to get proper access");
-			return WebUtility.getResponse(errorMap, 400);
-		}
-
 		if (projectId != null && !projectId.equalsIgnoreCase("user")) {
-			if (!SecurityProjectUtils.userCanEditProject(in.getUser(), projectId)) {
-				HashMap<String, String> errorMap = new HashMap<String, String>();
-				errorMap.put(Constants.ERROR_MESSAGE, "User does not have permission for this project.");
-				return WebUtility.getResponse(errorMap, 400);
+			permResponse = checkProjectEditPermission(user, projectId);
+			if (permResponse != null) {
+				return permResponse;
 			}
 		}
 
 		if (engineId != null) {
-			if (!SecurityEngineUtils.userCanEditEngine(in.getUser(), engineId)) {
-				HashMap<String, String> errorMap = new HashMap<String, String>();
-				errorMap.put(Constants.ERROR_MESSAGE, "User does not have permission for this engine.");
-				return WebUtility.getResponse(errorMap, 400);
+			permResponse = checkEngineEditPermission(user, engineId);
+			if (permResponse != null) {
+				return permResponse;
 			}
 		}
 
 		if (projectId != null && engineId != null) {
-			HashMap<String, String> errorMap = new HashMap<String, String>();
+			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Cannot provide both a projectId and engineId in the same request");
 			return WebUtility.getResponse(errorMap, 422);
 		}
@@ -278,16 +306,15 @@ public class FileUploader extends Uploader {
 			// collect all of the data input on the form
 			List<Map<String, String>> inputData = getBaseUploadData(fileItems, in, relativePath, projectId, engineId,
 					user);
-			// clear the thread store
 			return WebUtility.getResponse(inputData, 200);
 		} catch (VirusScanningException e) {
-			classLogger.error(Constants.STACKTRACE, e);
-			HashMap<String, String> errorMap = new HashMap<String, String>();
+			classLogger.error("Virus scan failed during upload", e);
+			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
-			HashMap<String, String> errorMap = new HashMap<String, String>();
+			classLogger.error("Error during file upload", e);
+			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Error uploading file. Error = " + e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} finally {
@@ -299,14 +326,14 @@ public class FileUploader extends Uploader {
 	 * Method to parse just files and move to the server
 	 * 
 	 * @param fileItems    a list of maps containing the file name and file location
-	 * @param in
-	 * @param relativePath
-	 * @param projectId
-	 * @param engineId
-	 * @param user
-	 * @return
-	 * @throws VirusScanningException
-	 * @throws IOException
+	 * @param in           The insight to upload the file to.
+	 * @param relativePath The relative path to upload the file to.
+	 * @param projectId    The ID of the project to upload the file to.
+	 * @param engineId     The ID of the engine to upload the file to.
+	 * @param user         The user uploading the file.
+	 * @return A list of maps containing the file name and file location.
+	 * @throws VirusScanningException if a virus is detected in the file.
+	 * @throws IOException            if an error occurs while writing the file.
 	 */
 	private List<Map<String, String>> getBaseUploadData(List<FileItem> fileItems, Insight in, String relativePath,
 			String projectId, String engineId, User user) throws VirusScanningException, IOException {
@@ -342,6 +369,263 @@ public class FileUploader extends Uploader {
 			}
 		}
 
+		List<Map<String, String>> retData = processFileItems(fileItems, filePath, fePath);
+		return retData;
+	}
+
+	/**
+	 * Uploads a file to the project assets.
+	 * 
+	 * @param context      The servlet context.
+	 * @param request      The HTTP servlet request.
+	 * @param insightId    The ID of the insight to upload the file to.
+	 * @param relativePath The relative path to upload the file to.
+	 * @param projectId    The ID of the project to upload the file to.
+	 * @return A response containing a list of maps with the file name and location.
+	 */
+	@POST
+	@Path("projectAssetsUpload")
+	@Produces(MediaType.APPLICATION_JSON)
+	@Consumes(MediaType.MULTIPART_FORM_DATA)
+	public Response projectAssetsUpload(@Context ServletContext context, @Context HttpServletRequest request,
+			@QueryParam("insightId") String insightId, @QueryParam("path") String relativePath,
+			@QueryParam("projectId") String projectId) {
+
+		insightId = WebUtility.inputSanitizer(insightId);
+		relativePath = WebUtility.inputSanitizer(relativePath);
+		projectId = WebUtility.inputSanitizer(projectId);
+
+		Insight in = getValidInsight(insightId);
+		if (in == null) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Session could not be validated in order to upload files");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		User user = in.getUser();
+
+		Response permResponse = checkGeneralUserPermissions(user);
+		if (permResponse != null) {
+			return permResponse;
+		}
+
+		if (projectId == null || (projectId = projectId.trim()).isEmpty()) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Must provide a project id.");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		permResponse = checkProjectEditPermission(user, projectId);
+		if (permResponse != null) {
+			return permResponse;
+		}
+
+		ThreadStore.setSessionId(request.getSession().getId());
+		try {
+			List<FileItem> fileItems = processRequest(context, request, insightId);
+			// collect all of the data input on the form
+			IProject project = Utility.getProject(projectId);
+			List<Map<String, String>> inputData = uploadEngineAssets(fileItems, in, relativePath, project, user);
+			return WebUtility.getResponse(inputData, 200);
+		} catch (VirusScanningException e) {
+			classLogger.error("Virus scan failed during upload", e);
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		} catch (Exception e) {
+			classLogger.error("Error during file upload", e);
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Error uploading file. Error = " + e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		} finally {
+			ThreadStore.remove();
+		}
+	}
+
+	/**
+	 * Uploads a file to the engine assets.
+	 * 
+	 * @param context      The servlet context.
+	 * @param request      The HTTP servlet request.
+	 * @param insightId    The ID of the insight to upload the file to.
+	 * @param relativePath The relative path to upload the file to.
+	 * @param engineId     The ID of the engine to upload the file to.
+	 * @return A response containing a list of maps with the file name and location.
+	 */
+	@POST
+	@Path("engineAssetsUpload")
+	@Produces(MediaType.APPLICATION_JSON)
+	@Consumes(MediaType.MULTIPART_FORM_DATA)
+	public Response engineAssetsUpload(@Context ServletContext context, @Context HttpServletRequest request,
+			@QueryParam("insightId") String insightId, @QueryParam("path") String relativePath,
+			@QueryParam("engineId") String engineId) {
+
+		insightId = WebUtility.inputSanitizer(insightId);
+		relativePath = WebUtility.inputSanitizer(relativePath);
+		engineId = WebUtility.inputSanitizer(engineId);
+
+		Insight in = getValidInsight(insightId);
+		if (in == null) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Session could not be validated in order to upload files");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		User user = in.getUser();
+
+		Response permResponse = checkGeneralUserPermissions(user);
+		if (permResponse != null) {
+			return permResponse;
+		}
+
+		if (engineId == null || (engineId = engineId.trim()).isEmpty()) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Must provide an engine id.");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		permResponse = checkEngineEditPermission(user, engineId);
+		if (permResponse != null) {
+			return permResponse;
+		}
+
+		ThreadStore.setSessionId(request.getSession().getId());
+		try {
+			List<FileItem> fileItems = processRequest(context, request, insightId);
+			// collect all of the data input on the form
+			IEngine engine = Utility.getEngine(engineId);
+			List<Map<String, String>> inputData = uploadEngineAssets(fileItems, in, relativePath, engine, user);
+			return WebUtility.getResponse(inputData, 200);
+		} catch (VirusScanningException e) {
+			classLogger.error("Virus scan failed during upload", e);
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		} catch (Exception e) {
+			classLogger.error("Error during file upload", e);
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Error uploading file. Error = " + e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		} finally {
+			ThreadStore.remove();
+		}
+	}
+
+	/**
+	 * Validates that the insight and user are valid.
+	 * 
+	 * @param insightId The insight ID to validate.
+	 * @return The Insight object if valid, otherwise null.
+	 */
+	private Insight getValidInsight(String insightId) {
+		Insight in = InsightStore.getInstance().get(insightId);
+		if (in == null || in.getUser() == null) {
+			return null;
+		}
+		return in;
+	}
+
+	/**
+	 * Validates general user permissions for uploading.
+	 * 
+	 * @param user The user to validate.
+	 * @return A Response object if permissions are denied, otherwise null.
+	 */
+	private Response checkGeneralUserPermissions(User user) {
+		if (user.isAnonymous() && !AbstractSecurityUtils.anonymousUserUploadData()) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload files");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		if (AbstractSecurityUtils.adminSetPublisher() && !SecurityQueryUtils.userIsPublisher(user)) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE,
+					"User does not have permission to publish data. Please reach out to the admin to get proper access");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		return null;
+	}
+
+	/**
+	 * Validates if the user has edit permission for a project.
+	 * 
+	 * @param user      The user to validate.
+	 * @param projectId The project ID to check.
+	 * @return A Response object if permissions are denied, otherwise null.
+	 */
+	private Response checkProjectEditPermission(User user, String projectId) {
+		if (!SecurityProjectUtils.userCanEditProject(user, projectId)) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User does not have permission for this project.");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		return null;
+	}
+
+	/**
+	 * Validates if the user has edit permission for an engine.
+	 * 
+	 * @param user     The user to validate.
+	 * @param engineId The engine ID to check.
+	 * @return A Response object if permissions are denied, otherwise null.
+	 */
+	private Response checkEngineEditPermission(User user, String engineId) {
+		if (!SecurityEngineUtils.userCanEditEngine(user, engineId)) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User does not have permission for this engine.");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		return null;
+	}
+
+	/**
+	 * Uploads engine assets.
+	 * 
+	 * @param fileItems    The file items to upload.
+	 * @param in           The insight to upload the file to.
+	 * @param relativePath The relative path to upload the file to.
+	 * @param engine       The engine to upload the file to.
+	 * @param user         The user uploading the file.
+	 * @return A list of maps containing the file name and file location.
+	 * @throws VirusScanningException if a virus is detected in the file.
+	 * @throws IOException            if an error occurs while writing the file.
+	 */
+	private List<Map<String, String>> uploadEngineAssets(List<FileItem> fileItems, Insight in, String relativePath,
+			IEngine engine, User user) throws VirusScanningException, IOException {
+
+		String assetFolder = EngineUtility.getSpecificEngineAssetsFolder(engine.getCatalogType(), engine.getEngineId(),
+				engine.getEngineName());
+		String fePath = DIR_SEPARATOR;
+
+		String filePath = assetFolder;
+		// add relative path
+		if (relativePath != null) {
+			filePath = assetFolder + DIR_SEPARATOR + WebUtility.normalizePath(relativePath);
+			fePath += relativePath;
+		}
+		File fileDir = new File(WebUtility.normalizePath(filePath));
+		if (!fileDir.exists()) {
+			Boolean success = fileDir.mkdirs();
+			if (!success) {
+				classLogger.info("Unable to make direction at location: " + Utility.cleanLogString(filePath));
+			}
+		}
+
+		List<Map<String, String>> retData = processFileItems(fileItems, filePath, fePath);
+		return retData;
+	}
+
+	/**
+	 * Processes the file items and writes them to the server.
+	 * 
+	 * @param fileItems The file items to process.
+	 * @param filePath  The path to write the files to.
+	 * @param fePath    The front-end path to the files.
+	 * @return A list of maps containing the file name and file location.
+	 * @throws VirusScanningException if a virus is detected in the file.
+	 * @throws IOException            if an error occurs while writing the file.
+	 */
+	private List<Map<String, String>> processFileItems(List<FileItem> fileItems, String filePath, String fePath)
+			throws VirusScanningException, IOException {
 		Iterator<FileItem> iteratorFileItems = fileItems.iterator();
 		// collect all of the data input on the form
 		List<Map<String, String>> retData = new ArrayList<Map<String, String>>();
@@ -360,7 +644,7 @@ public class FileUploader extends Uploader {
 						type = MimeTypes.getDefaultMimeTypes().forName(contentType);
 						name += type.getExtension();
 					} catch (MimeTypeException e) {
-						classLogger.error(Constants.STACKTRACE, e);
+						classLogger.error("Error determining mime type from content type", e);
 					}
 				}
 
@@ -373,22 +657,6 @@ public class FileUploader extends Uploader {
 
 				// Check for viruses on upload
 				checkForViruses(fi);
-
-//				String fileLocation = null;
-//				String fileSuffix = null;
-//				Date date = new Date();
-//				String modifiedDate = new SimpleDateFormat("yyyy_MM_dd_HH_mm_ss_SSSS").format(date);
-				// account for upload of an h2
-				// the connection url requires it to end with .mv.db
-				// otherwise it errors
-//				if(name.endsWith(".mv.db")) {
-//					fileSuffix = FilenameUtils.getBaseName(name).trim().replace(".mv",  "").replace(" ", "_") 
-//							+ "_____UNIQUE" + modifiedDate + ".mv.db";
-//				} else {
-//					fileSuffix = FilenameUtils.getBaseName(name).trim().replace(" ", "_") 
-//							+ "_____UNIQUE" + modifiedDate + "." + FilenameUtils.getExtension(name);
-//				}
-//				fileLocation = filePath + DIR_SEPARATOR + fileSuffix;
 
 				String fileLocation = Utility.getUniqueFilePath(filePath, name);
 				File file = new File(WebUtility.normalizePath(fileLocation));
@@ -411,11 +679,6 @@ public class FileUploader extends Uploader {
 				// i.e. this is a person copy/pasting
 				// the values directly
 				classLogger.info("Writing Input To File");
-//				Date date = new Date();
-//				String modifiedDate = new SimpleDateFormat("yyyy_MM_dd_HH_mm_ss_SSSS").format(date);
-//				String fileSuffix = "FileString_" + modifiedDate;;
-//				String fileLocation = filePath + DIR_SEPARATOR + fileSuffix;
-
 				// Check for viruses on upload
 				checkForViruses(fi);
 
@@ -443,8 +706,11 @@ public class FileUploader extends Uploader {
 	}
 
 	/**
+	 * Checks a file for viruses.
 	 * 
-	 * @param fi
+	 * @param fi The file item to check.
+	 * @throws VirusScanningException if a virus is detected in the file.
+	 * @throws IOException            if an error occurs while reading the file.
 	 */
 	private void checkForViruses(FileItem fi) throws VirusScanningException, IOException {
 		if (Utility.isVirusScanningEnabled()) {
@@ -468,8 +734,8 @@ public class FileUploader extends Uploader {
 			} catch (VirusScanningException e) {
 				throw e;
 			} catch (IOException e) {
-				classLogger.error(Constants.STACKTRACE, e);
-				throw new IllegalArgumentException("Could not read file item.");
+				classLogger.error("Could not read file item for virus scanning", e);
+				throw new IllegalArgumentException("Could not read file item for virus scanning.");
 			}
 		}
 	}
