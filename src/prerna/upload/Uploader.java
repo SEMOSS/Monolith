@@ -13,17 +13,6 @@
  * 	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * 	See the License for the specific language governing permissions and
  * 	limitations under the License.
- * ----------------------------------------------------------------------------
- * If your use of this software includes any GPLv2 components:
- * 	This program is free software; you can redistribute it and/or
- * 	modify it under the terms of the GNU General Public License
- * 	as published by the Free Software Foundation; either version 2
- * 	of the License, or (at your option) any later version.
- *
- * 	This program is distributed in the hope that it will be useful,
- * 	but WITHOUT ANY WARRANTY; without even the implied warranty of
- * 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * 	GNU General Public License for more details.
  *******************************************************************************/
 package prerna.upload;
 
@@ -79,9 +68,10 @@ public abstract class Uploader extends HttpServlet {
 	protected static int maxMemSize = 8 * 1024;
 
 	/**
+	 * Normalizes and creates a path.
 	 * 
-	 * @param filePath
-	 * @return
+	 * @param filePath The file path to normalize and create.
+	 * @return The normalized file path.
 	 */
 	public static String normalizeAndCreatePath(String filePath) {
 		// first, normalize path
@@ -103,9 +93,10 @@ public abstract class Uploader extends HttpServlet {
 	}
 
 	/**
+	 * Writes a file item to a file.
 	 * 
-	 * @param fi
-	 * @param file
+	 * @param fi   The file item to write.
+	 * @param file The file to write to.
 	 */
 	public void writeFile(FileItem fi, File file) {
 		try {
@@ -135,8 +126,9 @@ public abstract class Uploader extends HttpServlet {
 	}
 
 	/**
+	 * Deletes files from the server.
 	 * 
-	 * @param files
+	 * @param files The files to delete.
 	 */
 	protected void deleteFilesFromServer(String[] files) {
 		for (String file : files) {
@@ -148,12 +140,13 @@ public abstract class Uploader extends HttpServlet {
 	}
 
 	/**
+	 * Processes a request to upload a file.
 	 * 
-	 * @param context
-	 * @param request
-	 * @param insightId
-	 * @return
-	 * @throws FileUploadException
+	 * @param context   The servlet context.
+	 * @param request   The HTTP servlet request.
+	 * @param insightId The ID of the insight to upload the file to.
+	 * @return A list of file items.
+	 * @throws FileUploadException if an error occurs while processing the request.
 	 */
 	protected List<FileItem> processRequest(@Context ServletContext context, @Context HttpServletRequest request,
 			String insightId) throws FileUploadException {
