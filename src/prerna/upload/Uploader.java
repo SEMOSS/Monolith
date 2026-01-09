@@ -13,17 +13,6 @@
  * 	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * 	See the License for the specific language governing permissions and
  * 	limitations under the License.
- * ----------------------------------------------------------------------------
- * If your use of this software includes any GPLv2 components:
- * 	This program is free software; you can redistribute it and/or
- * 	modify it under the terms of the GNU General Public License
- * 	as published by the Free Software Foundation; either version 2
- * 	of the License, or (at your option) any later version.
- *
- * 	This program is distributed in the hope that it will be useful,
- * 	but WITHOUT ANY WARRANTY; without even the implied warranty of
- * 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * 	GNU General Public License for more details.
  *******************************************************************************/
 package prerna.upload;
 
@@ -52,10 +41,10 @@ import org.apache.commons.fileupload.servlet.ServletFileUpload;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import prerna.cache.ICache;
 import prerna.om.InsightStore;
 import prerna.util.Constants;
 import prerna.util.FileEncoderDetector;
+import prerna.util.FileSystemUtil;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
@@ -64,7 +53,7 @@ import prerna.web.services.util.WebUtility;
  */
 @SuppressWarnings("serial")
 public abstract class Uploader extends HttpServlet {
-	
+
 	private static final Logger logger = LogManager.getLogger(Uploader.class);
 
 	protected static final String DIR_SEPARATOR = java.nio.file.FileSystems.getDefault().getSeparator();
@@ -77,40 +66,42 @@ public abstract class Uploader extends HttpServlet {
 
 	protected static int maxFileSize = 10_000_000 * 1024;
 	protected static int maxMemSize = 8 * 1024;
-	
+
 	/**
+	 * Normalizes and creates a path.
 	 * 
-	 * @param filePath
-	 * @return
+	 * @param filePath The file path to normalize and create.
+	 * @return The normalized file path.
 	 */
 	public static String normalizeAndCreatePath(String filePath) {
 		// first, normalize path
 		String normalizedfilePath = WebUtility.normalizePath(filePath);
 
 		// then set path
-		if(!normalizedfilePath.endsWith(DIR_SEPARATOR)) {
+		if (!normalizedfilePath.endsWith(DIR_SEPARATOR)) {
 			normalizedfilePath = normalizedfilePath + DIR_SEPARATOR;
 		}
 		File f = new File(normalizedfilePath);
-		if(!f.exists() && !f.isDirectory()) {
+		if (!f.exists() && !f.isDirectory()) {
 			Boolean success = f.mkdirs();
-			if(!success) {
+			if (!success) {
 				logger.info("Unable to create file at: " + Utility.cleanLogString(f.getAbsolutePath()));
 			}
 		}
-		
+
 		return normalizedfilePath;
 	}
 
 	/**
+	 * Writes a file item to a file.
 	 * 
-	 * @param fi
-	 * @param file
+	 * @param fi   The file item to write.
+	 * @param file The file to write to.
 	 */
-	public void writeFile(FileItem fi, File file){
+	public void writeFile(FileItem fi, File file) {
 		try {
 			FileEncoderDetector analyzer = new FileEncoderDetector(fi);
-			if(analyzer.isTextContent()) {
+			if (analyzer.isTextContent()) {
 				Charset detectedCharset = analyzer.getCharset();
 				try (InputStream is = fi.getInputStream();
 						OutputStream os = new FileOutputStream(file);
@@ -135,32 +126,33 @@ public abstract class Uploader extends HttpServlet {
 	}
 
 	/**
+	 * Deletes files from the server.
 	 * 
-	 * @param files
+	 * @param files The files to delete.
 	 */
 	protected void deleteFilesFromServer(String[] files) {
-		for(String file : files) {
+		for (String file : files) {
 			// first, normalize path
 			String normalizedFile = WebUtility.normalizePath(file);
-
 			// then delete
-			File f = new File(normalizedFile);
-			ICache.deleteFile(f);
+			FileSystemUtil.deleteFileIfExists(normalizedFile);
 		}
 	}
 
 	/**
+	 * Processes a request to upload a file.
 	 * 
-	 * @param context
-	 * @param request
-	 * @param insightId
-	 * @return
-	 * @throws FileUploadException
+	 * @param context   The servlet context.
+	 * @param request   The HTTP servlet request.
+	 * @param insightId The ID of the insight to upload the file to.
+	 * @return A list of file items.
+	 * @throws FileUploadException if an error occurs while processing the request.
 	 */
-	protected List<FileItem> processRequest(@Context ServletContext context, @Context HttpServletRequest request, String insightId) throws FileUploadException {
+	protected List<FileItem> processRequest(@Context ServletContext context, @Context HttpServletRequest request,
+			String insightId) throws FileUploadException {
 		String tempFilePath = context.getInitParameter(TEMP_FILE_UPLOAD_KEY);
 		tempFilePath = normalizeAndCreatePath(tempFilePath);
-		
+
 		List<FileItem> fileItems = null;
 		DiskFileItemFactory factory = new DiskFileItemFactory();
 		// maximum size that will be stored in memory
@@ -172,10 +164,10 @@ public abstract class Uploader extends HttpServlet {
 		// maximum file size to be uploaded.
 		upload.setSizeMax(maxFileSize);
 		// set encoding as well for the request
-		upload.setHeaderEncoding("UTF-8"); 
+		upload.setHeaderEncoding("UTF-8");
 		// make sure the insight id is valid if present
-		if(insightId != null) {
-			if(InsightStore.getInstance().get(insightId) == null) {
+		if (insightId != null) {
+			if (InsightStore.getInstance().get(insightId) == null) {
 				// this is an invalid insight id
 				// null it out
 				// no logging for you
