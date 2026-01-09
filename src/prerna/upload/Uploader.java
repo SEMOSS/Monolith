@@ -52,10 +52,10 @@ import org.apache.commons.fileupload.servlet.ServletFileUpload;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import prerna.cache.ICache;
 import prerna.om.InsightStore;
 import prerna.util.Constants;
 import prerna.util.FileEncoderDetector;
+import prerna.util.FileSystemUtil;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
@@ -64,7 +64,7 @@ import prerna.web.services.util.WebUtility;
  */
 @SuppressWarnings("serial")
 public abstract class Uploader extends HttpServlet {
-	
+
 	private static final Logger logger = LogManager.getLogger(Uploader.class);
 
 	protected static final String DIR_SEPARATOR = java.nio.file.FileSystems.getDefault().getSeparator();
@@ -77,7 +77,7 @@ public abstract class Uploader extends HttpServlet {
 
 	protected static int maxFileSize = 10_000_000 * 1024;
 	protected static int maxMemSize = 8 * 1024;
-	
+
 	/**
 	 * 
 	 * @param filePath
@@ -88,17 +88,17 @@ public abstract class Uploader extends HttpServlet {
 		String normalizedfilePath = WebUtility.normalizePath(filePath);
 
 		// then set path
-		if(!normalizedfilePath.endsWith(DIR_SEPARATOR)) {
+		if (!normalizedfilePath.endsWith(DIR_SEPARATOR)) {
 			normalizedfilePath = normalizedfilePath + DIR_SEPARATOR;
 		}
 		File f = new File(normalizedfilePath);
-		if(!f.exists() && !f.isDirectory()) {
+		if (!f.exists() && !f.isDirectory()) {
 			Boolean success = f.mkdirs();
-			if(!success) {
+			if (!success) {
 				logger.info("Unable to create file at: " + Utility.cleanLogString(f.getAbsolutePath()));
 			}
 		}
-		
+
 		return normalizedfilePath;
 	}
 
@@ -107,10 +107,10 @@ public abstract class Uploader extends HttpServlet {
 	 * @param fi
 	 * @param file
 	 */
-	public void writeFile(FileItem fi, File file){
+	public void writeFile(FileItem fi, File file) {
 		try {
 			FileEncoderDetector analyzer = new FileEncoderDetector(fi);
-			if(analyzer.isTextContent()) {
+			if (analyzer.isTextContent()) {
 				Charset detectedCharset = analyzer.getCharset();
 				try (InputStream is = fi.getInputStream();
 						OutputStream os = new FileOutputStream(file);
@@ -139,13 +139,11 @@ public abstract class Uploader extends HttpServlet {
 	 * @param files
 	 */
 	protected void deleteFilesFromServer(String[] files) {
-		for(String file : files) {
+		for (String file : files) {
 			// first, normalize path
 			String normalizedFile = WebUtility.normalizePath(file);
-
 			// then delete
-			File f = new File(normalizedFile);
-			ICache.deleteFile(f);
+			FileSystemUtil.deleteFileIfExists(normalizedFile);
 		}
 	}
 
@@ -157,10 +155,11 @@ public abstract class Uploader extends HttpServlet {
 	 * @return
 	 * @throws FileUploadException
 	 */
-	protected List<FileItem> processRequest(@Context ServletContext context, @Context HttpServletRequest request, String insightId) throws FileUploadException {
+	protected List<FileItem> processRequest(@Context ServletContext context, @Context HttpServletRequest request,
+			String insightId) throws FileUploadException {
 		String tempFilePath = context.getInitParameter(TEMP_FILE_UPLOAD_KEY);
 		tempFilePath = normalizeAndCreatePath(tempFilePath);
-		
+
 		List<FileItem> fileItems = null;
 		DiskFileItemFactory factory = new DiskFileItemFactory();
 		// maximum size that will be stored in memory
@@ -172,10 +171,10 @@ public abstract class Uploader extends HttpServlet {
 		// maximum file size to be uploaded.
 		upload.setSizeMax(maxFileSize);
 		// set encoding as well for the request
-		upload.setHeaderEncoding("UTF-8"); 
+		upload.setHeaderEncoding("UTF-8");
 		// make sure the insight id is valid if present
-		if(insightId != null) {
-			if(InsightStore.getInstance().get(insightId) == null) {
+		if (insightId != null) {
+			if (InsightStore.getInstance().get(insightId) == null) {
 				// this is an invalid insight id
 				// null it out
 				// no logging for you
