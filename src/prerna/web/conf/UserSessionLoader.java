@@ -17,7 +17,6 @@ import org.apache.logging.log4j.Logger;
 
 import prerna.auth.SyncUserAppsThread;
 import prerna.auth.User;
-import prerna.cache.ICache;
 import prerna.cluster.util.ClusterUtil;
 import prerna.engine.impl.model.Room;
 import prerna.engine.impl.model.RoomUtils;
@@ -27,6 +26,7 @@ import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.usertracking.UserTrackingUtils;
 import prerna.util.Constants;
+import prerna.util.FileSystemUtil;
 import prerna.util.SymlinkHelper;
 import prerna.util.Utility;
 import prerna.util.insight.InsightUtility;
@@ -35,31 +35,35 @@ import prerna.util.insight.InsightUtility;
 public class UserSessionLoader implements HttpSessionListener {
 
 	public static final String IS_USER_LOGOUT = "IS_USER_LOGOUT";
-	
+
 	private static final Logger classLogger = LogManager.getLogger(UserSessionLoader.class);
 	private static final String DIR_SEPARATOR = java.nio.file.FileSystems.getDefault().getSeparator();
 
+	@Override
 	public void sessionCreated(HttpSessionEvent sessionEvent) {
 
 	}
 
+	@Override
 	public void sessionDestroyed(HttpSessionEvent sessionEvent) {
 		HttpSession session = sessionEvent.getSession();
 		String sessionId = session.getId();
-		
+
 		User thisUser = (User) session.getAttribute(Constants.SESSION_USER);
-		if(thisUser == null) {
+		if (thisUser == null) {
 			// no need to log a new session that is auto dropped
 			// this just keeps writing to the log
-			if(!session.isNew()) {
+			if (!session.isNew()) {
 				classLogger.info(sessionId + " >>> Unknown user ending session");
 			}
 		} else {
-			boolean isUserLogout = Boolean.parseBoolean(session.getAttribute(UserSessionLoader.IS_USER_LOGOUT)+"");
-			if(isUserLogout) {
-				classLogger.info(sessionId + " >>> User " + User.getSingleLogginName(thisUser) + " has logged out to end session");
+			boolean isUserLogout = Boolean.parseBoolean(session.getAttribute(UserSessionLoader.IS_USER_LOGOUT) + "");
+			if (isUserLogout) {
+				classLogger.info(sessionId + " >>> User " + User.getSingleLogginName(thisUser)
+						+ " has logged out to end session");
 			} else {
-				classLogger.info(sessionId + " >>> User " + User.getSingleLogginName(thisUser) + " is ending session from non-logout event");
+				classLogger.info(sessionId + " >>> User " + User.getSingleLogginName(thisUser)
+						+ " is ending session from non-logout event");
 			}
 			// remove the user memory
 			thisUser.removeUserMemory();
@@ -67,25 +71,25 @@ public class UserSessionLoader implements HttpSessionListener {
 		// back up the workspace and asset apps
 		try {
 			SyncUserAppsThread.execute(session);
-		} catch(Exception e) {
+		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 		}
 
 		// clear up insight store
 		InsightStore inStore = InsightStore.getInstance();
 		Set<String> insightIDs = inStore.getInsightIDsForSession(sessionId);
-		if(insightIDs != null) {
+		if (insightIDs != null) {
 			Set<String> copy = new HashSet<String>(insightIDs);
-			for(String insightId : copy) {
+			for (String insightId : copy) {
 				Insight insight = InsightStore.getInstance().get(insightId);
-				if(insight == null) {
+				if (insight == null) {
 					continue;
 				}
 				classLogger.info(sessionId + " >>> Trying to drop insight " + insightId);
 				try {
 					InsightUtility.dropInsight(insight);
 					classLogger.info(sessionId + " >>> Dropped insight " + insightId);
-				} catch(Exception e) {
+				} catch (Exception e) {
 					classLogger.error(Constants.STACKTRACE, e);
 				}
 			}
@@ -99,11 +103,11 @@ public class UserSessionLoader implements HttpSessionListener {
 
 		try {
 			String sessionStorage = Utility.getInsightCacheDir() + DIR_SEPARATOR + sessionId;
-			ICache.deleteFolder(sessionStorage);
-		} catch(Exception e) {
+			FileSystemUtil.deleteFolderIfExists(sessionStorage);
+		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 		}
-		
+
 		// drop the r thread if not netty
 		try {
 			if (thisUser != null) {
@@ -129,37 +133,36 @@ public class UserSessionLoader implements HttpSessionListener {
 					}
 				}
 			}
-		} catch(Exception e) {
+		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 		}
 
 		try {
-			if(thisUser != null) {
+			if (thisUser != null) {
 				// stop the netty thread if used for either r or python
 				ClientProcessWrapper cpw = thisUser.getPythonClientProcessWrapper();
-				if(cpw != null) {
+				if (cpw != null) {
 					cpw.shutdown(true);
 				}
 			}
-		} catch(Exception e) {
+		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 		}
-		
-		//remove the mounts if chroot enabled
+
+		// remove the mounts if chroot enabled
 		try {
 			if (Boolean.parseBoolean(Utility.getDIHelperProperty(Constants.CHROOT_ENABLE))) {
-				if(thisUser != null) {
+				if (thisUser != null) {
 					SymlinkHelper chrootHelper = thisUser.getUserSymlinkHelper();
-					if(chrootHelper != null) {
+					if (chrootHelper != null) {
 						chrootHelper.removeChrootFolder();
 					}
 				}
 			}
-		} catch(Exception e) {
+		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 		}
-		
-		
+
 		// if cloud sync enabled, push and clear the rooms
 		if (ClusterUtil.IS_CLUSTER) {
 			if (thisUser != null && thisUser.roomHash != null) {
@@ -192,12 +195,12 @@ public class UserSessionLoader implements HttpSessionListener {
 							}
 							// Remove local folder
 							try {
-								ICache.deleteFolder(roomFolderPath);
+								FileSystemUtil.deleteFolderIfExists(roomFolderPath);
 								classLogger.info(sessionId + " >>> Deleted local room folder for room " + roomId);
 							} catch (Exception e) {
 								classLogger.error("Failed to delete local room folder for room " + roomId, e);
 							}
-							
+
 						}
 					} catch (Exception e) {
 						classLogger.error("Error processing room " + roomId, e);
@@ -205,8 +208,7 @@ public class UserSessionLoader implements HttpSessionListener {
 				}
 			}
 		}
-		
-		
+
 		// register the successful logout
 		UserTrackingUtils.registerLogout(sessionId);
 	}
