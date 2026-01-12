@@ -441,6 +441,7 @@ public class OpenAIEndpoints {
 		return runResponses(request);
 	}
 
+
 	@POST
 	@Path("/responses")
 	@Consumes({ "application/json" })
@@ -581,101 +582,117 @@ public class OpenAIEndpoints {
 	}
 
 	private Response handleStreamingResponse(IModelEngine engine, Insight finalInsight, Room finalRoom,
-			Map<String, Object> dataMap, String SESSION_ID, String JOB_ID, String engineId) {
+	        Map<String, Object> dataMap, String SESSION_ID, String JOB_ID, String engineId) {
 
-		classLogger.info("Starting streaming response for model: " + engineId);
-		return Response.ok().header("Content-Type", "text/event-stream").header("Cache-Control", "no-cache")
-				.header("Connection", "keep-alive").entity(new StreamingOutput() {
-					@Override
-					public void write(OutputStream output) throws IOException, WebApplicationException {
-						String messageId = "chatcmpl-" + JOB_ID;
-						long creationTimestamp = Instant.now().getEpochSecond();
-						String jobId = null;
+	    classLogger.info("Starting strict Responses API streaming for Codex: " + engineId);
+	    
+	    return Response.ok()
+	            .header("Content-Type", "text/event-stream")
+	            .header("Cache-Control", "no-cache")
+	            .header("Connection", "keep-alive")
+	            .header("X-Accel-Buffering", "no")
+	            .entity(new StreamingOutput() {
+	                @Override
+	                public void write(OutputStream output) throws IOException, WebApplicationException {
+	                    String responseId = "resp_" + JOB_ID;
+	                    String itemId = "item_" + GUID.v7().toUUID().toString();
+	                    long creationTimestamp = Instant.now().getEpochSecond();
+	                    String jobId = null;
+	                    StringBuilder fullTextAccumulator = new StringBuilder();
 
-						try (Writer writer = new BufferedWriter(
-								new OutputStreamWriter(output, StandardCharsets.UTF_8))) {
-							jobId = startAsyncModelRequest(engine, finalInsight, finalRoom, dataMap, SESSION_ID);
+	                    try (Writer writer = new BufferedWriter(new OutputStreamWriter(output, StandardCharsets.UTF_8))) {
+	                        
+	                        Map<String, Object> createdEvent = new HashMap<>();
+	                        createdEvent.put("type", "response.created");
+	                        Map<String, Object> respObj = new HashMap<>();
+	                        respObj.put("id", responseId);
+	                        respObj.put("object", "response");
+	                        respObj.put("status", "in_progress");
+	                        createdEvent.put("response", respObj);
+	                        OpenAIResponsesHelper.writeSSEEvent(createdEvent, writer);
 
-							boolean started = false;
-							STREAM_COMPLETE_LOOP: while (true) {
-								PixelJobThread jt = PixelJobManager.getManager().getJob(jobId);
-								List<Map<String, Object>> partialResponseContent = PixelJobManager.getManager()
-										.getStreamOut(jobId);
-								PixelJobStatus jobStatus = jt == null ? PixelJobStatus.UNKNOWN_JOB
-										: jt.getPixelJobStatus();
+	                        Map<String, Object> itemAddedEvent = new HashMap<>();
+	                        itemAddedEvent.put("type", "response.output_item.added");
+	                        itemAddedEvent.put("response_id", responseId);
+	                        Map<String, Object> itemObj = new HashMap<>();
+	                        itemObj.put("id", itemId);
+	                        itemObj.put("type", "text");
+	                        itemObj.put("object", "response.output_item");
+	                        itemAddedEvent.put("item", itemObj);
+	                        OpenAIResponsesHelper.writeSSEEvent(itemAddedEvent, writer);
 
-								if (partialResponseContent != null && !partialResponseContent.isEmpty()) {
-									for (Map<String, Object> streamObj : partialResponseContent) {
-										String streamType = (String) streamObj.get("stream_type");
-										Map<String, Object> streamData = (Map<String, Object>) streamObj.get("data");
+	                        jobId = startAsyncModelRequest(engine, finalInsight, finalRoom, dataMap, SESSION_ID);
 
-										if (streamType.equalsIgnoreCase("content")) {
-											if (streamData.containsKey("finish_reason")) {
-												OpenAIChatCompletionsHelper.writeFinishReason(engineId, messageId,
-														creationTimestamp, (String) streamData.get("finish_reason"),
-														writer);
-												break STREAM_COMPLETE_LOOP;
-											} else {
-												String newContent = (String) streamData.get("content");
-												if (newContent != null && !newContent.isEmpty()) {
-													OpenAIChatCompletionsHelper.writeContentChunk(engineId, messageId,
-															creationTimestamp, newContent, started, writer);
-													started = true;
-												}
-											}
-										} else {
-											if (streamData.containsKey("finish_reason")) {
-												OpenAIChatCompletionsHelper.writeFinishReason(engineId, messageId,
-														creationTimestamp, (String) streamData.get("finish_reason"),
-														writer);
-												break STREAM_COMPLETE_LOOP;
-											} else {
-												OpenAIChatCompletionsHelper.writeToolChunk(engineId, messageId,
-														creationTimestamp, streamData, started, writer);
-												started = true;
-											}
-										}
-									}
-								}
+	                        STREAM_COMPLETE_LOOP: while (true) {
+	                            PixelJobThread jt = PixelJobManager.getManager().getJob(jobId);
+	                            List<Map<String, Object>> partialResponseContent = PixelJobManager.getManager().getStreamOut(jobId);
+	                            PixelJobStatus jobStatus = jt == null ? PixelJobStatus.UNKNOWN_JOB : jt.getPixelJobStatus();
 
-								if (jobStatus == PixelJobStatus.PROGRESS_COMPLETE) {
-								    if (!started) {
-								        PixelRunner finalOutput = PixelJobManager.getManager().getOutput(jobId);
-								        if (finalOutput != null && !finalOutput.getResults().isEmpty()) {
-								            NounMetadata finalNoun = finalOutput.getResults().get(0);
-								            Object finalObject = finalNoun.getValue();
-								            if (finalObject instanceof Map) {
-								                Map<String, Object> resultOutput = (Map<String, Object>) finalObject;
-								                String content = (String) resultOutput.get("response");
-								                if (content != null && !content.isEmpty()) {
-								                    OpenAIChatCompletionsHelper.writeContentChunk(engineId, messageId, creationTimestamp, content, true, writer);
-								                }
-								            }
-								        }
-								    }
-								    OpenAIChatCompletionsHelper.writeFinishReason(engineId, messageId, creationTimestamp, "stop", writer);
-								    break STREAM_COMPLETE_LOOP;
-								}
+	                            if (partialResponseContent != null && !partialResponseContent.isEmpty()) {
+	                                for (Map<String, Object> streamObj : partialResponseContent) {
+	                                    String streamType = (String) streamObj.get("stream_type");
+	                                    Map<String, Object> streamData = (Map<String, Object>) streamObj.get("data");
 
-								try {
-									Thread.sleep(100);
-								} catch (InterruptedException e) {
-									Thread.currentThread().interrupt();
-									break;
-								}
-							}
-						} catch (Exception e) {
-							classLogger.error("Error in streaming response", e);
-							throw new WebApplicationException(e, 500);
-						} finally {
-							if (jobId != null) {
-								PixelJobManager.getManager().clearJob(jobId);
-								PixelJobManager.getManager().removeJob(jobId);
-							}
-						}
-					}
-				}).build();
+	                                    if (streamType.equalsIgnoreCase("content")) {
+	                                        String newContent = (String) streamData.get("content");
+	                                        if (newContent != null && !newContent.isEmpty()) {
+	                                            fullTextAccumulator.append(newContent);
+	                                            
+	                                            Map<String, Object> deltaEvent = new HashMap<>();
+	                                            deltaEvent.put("type", "response.text.delta");
+	                                            deltaEvent.put("response_id", responseId);
+	                                            deltaEvent.put("item_id", itemId);
+	                                            deltaEvent.put("delta", newContent);
+	                                            OpenAIResponsesHelper.writeSSEEvent(deltaEvent, writer);
+	                                        }
+	                                        
+	                                        if (streamData.containsKey("finish_reason")) {
+	                                            break STREAM_COMPLETE_LOOP;
+	                                        }
+	                                    }
+	                                }
+	                            }
+
+	                            if (jobStatus == PixelJobStatus.PROGRESS_COMPLETE) {
+	                                break STREAM_COMPLETE_LOOP;
+	                            }
+
+	                            Thread.sleep(50);
+	                        }
+
+	                        Map<String, Object> doneEvent = new HashMap<>();
+	                        doneEvent.put("type", "response.done");
+	                        
+	                        Map<String, Object> finalRespBody = new HashMap<>();
+	                        finalRespBody.put("id", responseId);
+	                        finalRespBody.put("object", "response");
+	                        finalRespBody.put("status", "completed");
+	                        
+	                        List<Map<String, Object>> outputItems = new ArrayList<>();
+	                        Map<String, Object> textItem = new HashMap<>();
+	                        textItem.put("id", itemId);
+	                        textItem.put("type", "text");
+	                        textItem.put("text", fullTextAccumulator.toString());
+	                        outputItems.add(textItem);
+	                        
+	                        finalRespBody.put("output", outputItems);
+	                        doneEvent.put("response", finalRespBody);
+
+	                        OpenAIResponsesHelper.writeSSEEvent(doneEvent, writer);
+
+	                    } catch (Exception e) {
+	                        classLogger.error("Error in Responses API streaming", e);
+	                        throw new WebApplicationException(e, 500);
+	                    } finally {
+	                        if (jobId != null) {
+	                            PixelJobManager.getManager().clearJob(jobId);
+	                            PixelJobManager.getManager().removeJob(jobId);
+	                        }
+	                    }
+	                }
+	            }).build();
 	}
+	
 
 	/**
 	 * Start an asynchronous model request and return the job ID
