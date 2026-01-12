@@ -7,6 +7,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -78,7 +79,6 @@ public class OpenAIEndpoints {
 	private static final String INSIGHT_NOT_FOUND = "INSIGHT_NOT_FOUND";
 
 	private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
-	
 
 	@POST
 	@Path("/v1/chat/completions")
@@ -267,7 +267,8 @@ public class OpenAIEndpoints {
 							long creationTimestamp = Instant.now().getEpochSecond();
 
 							String jobId = null;
-							try (Writer writer = new BufferedWriter(new OutputStreamWriter(output))) {
+							try (Writer writer = new BufferedWriter(
+									new OutputStreamWriter(output, StandardCharsets.UTF_8))) {
 								// Execute model request but get job ID so can poll for partial responses
 								jobId = startAsyncModelRequest(engine, finalInsight, finalRoom, dataMap, SESSION_ID);
 
@@ -406,25 +407,25 @@ public class OpenAIEndpoints {
 	}
 
 	@POST
-    @Path("/v1/responses")
-    @Consumes({ "application/json" })
-    @Produces({ "application/json;charset=utf-8", "text/event-stream" })
-    public Response runV1Responses(@Context HttpServletRequest request) {
-        return runResponses(request);
-    }
-    
-    @POST
-    @Path("/responses")
-    @Consumes({ "application/json" })
-    @Produces({ "application/json;charset=utf-8", "text/event-stream" })
-    public Response runResponses(@Context HttpServletRequest request) {
+	@Path("/v1/responses")
+	@Consumes({ "application/json" })
+	@Produces({ "application/json;charset=utf-8", "text/event-stream" })
+	public Response runV1Responses(@Context HttpServletRequest request) {
+		return runResponses(request);
+	}
+
+	@POST
+	@Path("/responses")
+	@Consumes({ "application/json" })
+	@Produces({ "application/json;charset=utf-8", "text/event-stream" })
+	public Response runResponses(@Context HttpServletRequest request) {
 		HttpSession session = request.getSession(false);
 		User user = null;
 
 		if (session != null) {
 			user = ((User) session.getAttribute(Constants.SESSION_USER));
 		}
-		
+
 		if (user == null) {
 			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
 				session.invalidate();
@@ -469,7 +470,8 @@ public class OpenAIEndpoints {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
-		TypeReference<Map<String, Object>> mapType = new TypeReference<Map<String, Object>>() {};
+		TypeReference<Map<String, Object>> mapType = new TypeReference<Map<String, Object>>() {
+		};
 		Map<String, Object> dataMap;
 		try {
 			dataMap = objectMapper.readValue(WebUtility.jsonSanitizer(requestData.toString()), mapType);
@@ -478,10 +480,10 @@ public class OpenAIEndpoints {
 			errorMap.put(Constants.ERROR_MESSAGE, "Error processing JSON: " + e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
-		
+
 		boolean isStreamingRequest = Boolean.parseBoolean(dataMap.getOrDefault("stream", false).toString());
 		String engineId = WebUtility.inputSanitizer((String) dataMap.remove("model"));
-		
+
 		if (engineId == null || engineId.isEmpty()) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Missing 'model' field.");
@@ -496,7 +498,7 @@ public class OpenAIEndpoints {
 
 		IModelEngine engine = Utility.getModel(engineId);
 		Object messages = dataMap.remove("input");
-		
+
 		String insightId = WebUtility.inputSanitizer((String) dataMap.remove("insight_id"));
 		if (insightId == null) {
 			Set<String> sessionInsights = InsightStore.getInstance().getInsightIDsForSession(SESSION_ID);
@@ -532,14 +534,13 @@ public class OpenAIEndpoints {
 
 		if (!isStreamingRequest) {
 			try {
-				InputMessage msg = InputMessage.builder(room)
-						.withModelType(engine.getModelType())
-						.withParamMap(dataMap)
+				InputMessage msg = InputMessage.builder(room).withModelType(engine.getModelType()).withParamMap(dataMap)
 						.build();
 				ResponseMessage response = room.ask(msg, engine);
 				AskModelEngineResponse llmResponse = response.getModelEngineResponse();
-				
-				Map<String, Object> processedResponse = OpenAIChatCompletionsHelper.processAskModelEngineResponse(engineId, llmResponse);
+
+				Map<String, Object> processedResponse = OpenAIChatCompletionsHelper
+						.processAskModelEngineResponse(engineId, llmResponse);
 				return WebUtility.getResponse(processedResponse, 200);
 			} catch (Exception e) {
 				classLogger.error(Constants.STACKTRACE, e);
@@ -551,78 +552,104 @@ public class OpenAIEndpoints {
 			return handleStreamingResponse(engine, insight, room, dataMap, SESSION_ID, JOB_ID, engineId);
 		}
 	}
-	
-	private Response handleStreamingResponse(IModelEngine engine, Insight finalInsight, Room finalRoom, 
-            Map<String, Object> dataMap, String SESSION_ID, 
-            String JOB_ID, String engineId) {
 
-			classLogger.info("Starting streaming response for model: " + engineId);
-			return Response.ok().header("Content-Type", "text/event-stream")
-			.header("Cache-Control", "no-cache")
-			.header("Connection", "keep-alive")
-			.entity(new StreamingOutput() {
-			@Override
-			public void write(OutputStream output) throws IOException, WebApplicationException {
-			String messageId = "chatcmpl-" + JOB_ID;
-			long creationTimestamp = Instant.now().getEpochSecond();
-			String jobId = null;
-			
-			try (Writer writer = new BufferedWriter(new OutputStreamWriter(output))) {
-			jobId = startAsyncModelRequest(engine, finalInsight, finalRoom, dataMap, SESSION_ID);
-			
-			boolean started = false;
-			STREAM_COMPLETE_LOOP: while (true) {
-			PixelJobThread jt = PixelJobManager.getManager().getJob(jobId);
-			List<Map<String, Object>> partialResponseContent = PixelJobManager.getManager().getStreamOut(jobId);
-			PixelJobStatus jobStatus = jt == null ? PixelJobStatus.UNKNOWN_JOB : jt.getPixelJobStatus();
-			
-			if (partialResponseContent != null && !partialResponseContent.isEmpty()) {
-			   for (Map<String, Object> streamObj : partialResponseContent) {
-			       String streamType = (String) streamObj.get("stream_type");
-			       Map<String, Object> streamData = (Map<String, Object>) streamObj.get("data");
-			       
-			       if (streamType.equalsIgnoreCase("content")) {
-			           if (streamData.containsKey("finish_reason")) {
-			               OpenAIChatCompletionsHelper.writeFinishReason(engineId, messageId, creationTimestamp, (String) streamData.get("finish_reason"), writer);
-			               break STREAM_COMPLETE_LOOP;
-			           } else {
-			               String newContent = (String) streamData.get("content");
-			               if (newContent != null && !newContent.isEmpty()) {
-			                   OpenAIChatCompletionsHelper.writeContentChunk(engineId, messageId, creationTimestamp, newContent, started, writer);
-			                   started = true;
-			               }
-			           }
-			       } else {
-			           if (streamData.containsKey("finish_reason")) {
-			               OpenAIChatCompletionsHelper.writeFinishReason(engineId, messageId, creationTimestamp, (String) streamData.get("finish_reason"), writer);
-			               break STREAM_COMPLETE_LOOP;
-			           } else {
-			               OpenAIChatCompletionsHelper.writeToolChunk(engineId, messageId, creationTimestamp, streamData, started, writer);
-			               started = true;
-			           }
-			       }
-			   }
-			}
-			
-			if (jobStatus == PixelJobStatus.PROGRESS_COMPLETE) {
-			   OpenAIChatCompletionsHelper.writeFinishReason(engineId, messageId, creationTimestamp, "stop", writer);
-			   break STREAM_COMPLETE_LOOP;
-			}
-			
-			try { Thread.sleep(100); } catch (InterruptedException e) { Thread.currentThread().interrupt(); break; }
-			}
-			} catch (Exception e) {
-			classLogger.error("Error in streaming response", e);
-			throw new WebApplicationException(e, 500);
-			} finally {
-			if (jobId != null) {
-			PixelJobManager.getManager().clearJob(jobId);
-			PixelJobManager.getManager().removeJob(jobId);
-			}
-			}
-			}
-			}).build();
-			}
+	private Response handleStreamingResponse(IModelEngine engine, Insight finalInsight, Room finalRoom,
+			Map<String, Object> dataMap, String SESSION_ID, String JOB_ID, String engineId) {
+
+		classLogger.info("Starting streaming response for model: " + engineId);
+		return Response.ok().header("Content-Type", "text/event-stream").header("Cache-Control", "no-cache")
+				.header("Connection", "keep-alive").entity(new StreamingOutput() {
+					@Override
+					public void write(OutputStream output) throws IOException, WebApplicationException {
+						String messageId = "chatcmpl-" + JOB_ID;
+						long creationTimestamp = Instant.now().getEpochSecond();
+						String jobId = null;
+
+						try (Writer writer = new BufferedWriter(
+								new OutputStreamWriter(output, StandardCharsets.UTF_8))) {
+							jobId = startAsyncModelRequest(engine, finalInsight, finalRoom, dataMap, SESSION_ID);
+
+							boolean started = false;
+							STREAM_COMPLETE_LOOP: while (true) {
+								PixelJobThread jt = PixelJobManager.getManager().getJob(jobId);
+								List<Map<String, Object>> partialResponseContent = PixelJobManager.getManager()
+										.getStreamOut(jobId);
+								PixelJobStatus jobStatus = jt == null ? PixelJobStatus.UNKNOWN_JOB
+										: jt.getPixelJobStatus();
+
+								if (partialResponseContent != null && !partialResponseContent.isEmpty()) {
+									for (Map<String, Object> streamObj : partialResponseContent) {
+										String streamType = (String) streamObj.get("stream_type");
+										Map<String, Object> streamData = (Map<String, Object>) streamObj.get("data");
+
+										if (streamType.equalsIgnoreCase("content")) {
+											if (streamData.containsKey("finish_reason")) {
+												OpenAIChatCompletionsHelper.writeFinishReason(engineId, messageId,
+														creationTimestamp, (String) streamData.get("finish_reason"),
+														writer);
+												break STREAM_COMPLETE_LOOP;
+											} else {
+												String newContent = (String) streamData.get("content");
+												if (newContent != null && !newContent.isEmpty()) {
+													OpenAIChatCompletionsHelper.writeContentChunk(engineId, messageId,
+															creationTimestamp, newContent, started, writer);
+													started = true;
+												}
+											}
+										} else {
+											if (streamData.containsKey("finish_reason")) {
+												OpenAIChatCompletionsHelper.writeFinishReason(engineId, messageId,
+														creationTimestamp, (String) streamData.get("finish_reason"),
+														writer);
+												break STREAM_COMPLETE_LOOP;
+											} else {
+												OpenAIChatCompletionsHelper.writeToolChunk(engineId, messageId,
+														creationTimestamp, streamData, started, writer);
+												started = true;
+											}
+										}
+									}
+								}
+
+								if (jobStatus == PixelJobStatus.PROGRESS_COMPLETE) {
+								    if (!started) {
+								        PixelRunner finalOutput = PixelJobManager.getManager().getOutput(jobId);
+								        if (finalOutput != null && !finalOutput.getResults().isEmpty()) {
+								            NounMetadata finalNoun = finalOutput.getResults().get(0);
+								            Object finalObject = finalNoun.getValue();
+								            if (finalObject instanceof Map) {
+								                Map<String, Object> resultOutput = (Map<String, Object>) finalObject;
+								                String content = (String) resultOutput.get("response");
+								                if (content != null && !content.isEmpty()) {
+								                    OpenAIChatCompletionsHelper.writeContentChunk(engineId, messageId, creationTimestamp, content, true, writer);
+								                }
+								            }
+								        }
+								    }
+								    OpenAIChatCompletionsHelper.writeFinishReason(engineId, messageId, creationTimestamp, "stop", writer);
+								    break STREAM_COMPLETE_LOOP;
+								}
+
+								try {
+									Thread.sleep(100);
+								} catch (InterruptedException e) {
+									Thread.currentThread().interrupt();
+									break;
+								}
+							}
+						} catch (Exception e) {
+							classLogger.error("Error in streaming response", e);
+							throw new WebApplicationException(e, 500);
+						} finally {
+							if (jobId != null) {
+								PixelJobManager.getManager().clearJob(jobId);
+								PixelJobManager.getManager().removeJob(jobId);
+							}
+						}
+					}
+				}).build();
+	}
+
 	/**
 	 * Start an asynchronous model request and return the job ID
 	 * 
@@ -870,7 +897,8 @@ public class OpenAIEndpoints {
 			return Response.ok().header("Content-Type", "text/event-stream").header("Cache-Control", "no-cache")
 					.header("Connection", "keep-alive").entity((StreamingOutput) output -> {
 						ObjectMapper mapper = new ObjectMapper();
-						try (Writer writer = new BufferedWriter(new OutputStreamWriter(output))) {
+						try (Writer writer = new BufferedWriter(
+								new OutputStreamWriter(output, StandardCharsets.UTF_8))) {
 							// Get full completion from your model in one go
 							InputMessage msg = InputMessage.builder(FINAL_ROOM).withModelType(engine.getModelType())
 									.withInputUIPrompt(question).withInputPrompt(question).withParamMap(dataMap)
