@@ -120,8 +120,7 @@ public class OpenAIEndpoints {
 	@Consumes({ "application/json" })
 	@Produces({ "application/json;charset=utf-8", "text/event-stream" })
 	public Response runModelChatCompletion(@Context HttpServletRequest request) {
-		classLogger.info("RECIEVED REQUEST ON RESPONSES ENDPOINT");
-
+		
 		HttpSession session = request.getSession(false);
 		User user = null;
 
@@ -440,7 +439,6 @@ public class OpenAIEndpoints {
 	@Consumes({ "application/json" })
 	@Produces({ "application/json;charset=utf-8", "text/event-stream" })
 	public Response runV1Responses(@Context HttpServletRequest request) {
-		classLogger.info("RECIEVED REQUEST ON RESPONSES ENDPOINT");
 		return runResponses(request);
 	}
 
@@ -450,7 +448,6 @@ public class OpenAIEndpoints {
 	@Consumes({ "application/json" })
 	@Produces({ "application/json;charset=utf-8", "text/event-stream" })
 	public Response runResponses(@Context HttpServletRequest request) {
-		classLogger.info("RECIEVED REQUEST ON RESPONSES ENDPOINT");
 		HttpSession session = request.getSession(false);
 		User user = null;
 
@@ -534,7 +531,7 @@ public class OpenAIEndpoints {
 		try {
 		    String prettyMessages = objectMapper.writerWithDefaultPrettyPrinter()
 		                                        .writeValueAsString(messages);
-		    classLogger.info("Input Messages Context:\n{}", prettyMessages);
+		    classLogger.debug("Input Messages Context:\n{}", prettyMessages);
 		} catch (Exception e) {
 		    classLogger.error("Failed to log messages object", e);
 		}
