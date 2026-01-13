@@ -584,42 +584,68 @@ public class OpenAIEndpoints {
 	private Response handleStreamingResponse(IModelEngine engine, Insight finalInsight, Room finalRoom,
 	        Map<String, Object> dataMap, String SESSION_ID, String JOB_ID, String engineId) {
 
-	    classLogger.info("Starting strict Responses API streaming for Codex: " + engineId);
-	    
+	    classLogger.info("Starting Strict Protocol Responses API for Codex: " + engineId);
+
 	    return Response.ok()
 	            .header("Content-Type", "text/event-stream")
 	            .header("Cache-Control", "no-cache")
 	            .header("Connection", "keep-alive")
-	            .header("X-Accel-Buffering", "no")
+	            .header("X-Content-Type-Options", "nosniff")
 	            .entity(new StreamingOutput() {
 	                @Override
 	                public void write(OutputStream output) throws IOException, WebApplicationException {
 	                    String responseId = "resp_" + JOB_ID;
-	                    String itemId = "item_" + GUID.v7().toUUID().toString();
+	                    String itemId = "msg_" + GUID.v7().toUUID().toString();
+	                    StringBuilder fullTextAccumulator = new StringBuilder();
 	                    long creationTimestamp = Instant.now().getEpochSecond();
 	                    String jobId = null;
-	                    StringBuilder fullTextAccumulator = new StringBuilder();
+	                    int seq = 0;
 
 	                    try (Writer writer = new BufferedWriter(new OutputStreamWriter(output, StandardCharsets.UTF_8))) {
 	                        
 	                        Map<String, Object> createdEvent = new HashMap<>();
 	                        createdEvent.put("type", "response.created");
+	                        createdEvent.put("sequence_number", seq++);
 	                        Map<String, Object> respObj = new HashMap<>();
 	                        respObj.put("id", responseId);
 	                        respObj.put("object", "response");
 	                        respObj.put("status", "in_progress");
+	                        respObj.put("model", engineId);
+	                        respObj.put("created_at", (double) creationTimestamp);
 	                        createdEvent.put("response", respObj);
 	                        OpenAIResponsesHelper.writeSSEEvent(createdEvent, writer);
 
+	                        Map<String, Object> inProgressEvent = new HashMap<>();
+	                        inProgressEvent.put("type", "response.in_progress");
+	                        inProgressEvent.put("sequence_number", seq++);
+	                        inProgressEvent.put("response", respObj);
+	                        OpenAIResponsesHelper.writeSSEEvent(inProgressEvent, writer);
+
 	                        Map<String, Object> itemAddedEvent = new HashMap<>();
 	                        itemAddedEvent.put("type", "response.output_item.added");
+	                        itemAddedEvent.put("sequence_number", seq++);
 	                        itemAddedEvent.put("response_id", responseId);
+	                        itemAddedEvent.put("output_index", 0);
 	                        Map<String, Object> itemObj = new HashMap<>();
 	                        itemObj.put("id", itemId);
-	                        itemObj.put("type", "text");
-	                        itemObj.put("object", "response.output_item");
+	                        itemObj.put("type", "message");
+	                        itemObj.put("role", "assistant");
+	                        itemObj.put("status", "in_progress");
 	                        itemAddedEvent.put("item", itemObj);
 	                        OpenAIResponsesHelper.writeSSEEvent(itemAddedEvent, writer);
+
+	                        Map<String, Object> partAddedEvent = new HashMap<>();
+	                        partAddedEvent.put("type", "response.content_part.added");
+	                        partAddedEvent.put("sequence_number", seq++);
+	                        partAddedEvent.put("response_id", responseId);
+	                        partAddedEvent.put("item_id", itemId);
+	                        partAddedEvent.put("output_index", 0);
+	                        partAddedEvent.put("content_index", 0);
+	                        Map<String, Object> partObj = new HashMap<>();
+	                        partObj.put("type", "output_text");
+	                        partObj.put("text", "");
+	                        partAddedEvent.put("part", partObj);
+	                        OpenAIResponsesHelper.writeSSEEvent(partAddedEvent, writer);
 
 	                        jobId = startAsyncModelRequest(engine, finalInsight, finalRoom, dataMap, SESSION_ID);
 
@@ -639,49 +665,121 @@ public class OpenAIEndpoints {
 	                                            fullTextAccumulator.append(newContent);
 	                                            
 	                                            Map<String, Object> deltaEvent = new HashMap<>();
-	                                            deltaEvent.put("type", "response.text.delta");
+	                                            deltaEvent.put("type", "response.output_text.delta");
+	                                            deltaEvent.put("sequence_number", seq++);
 	                                            deltaEvent.put("response_id", responseId);
 	                                            deltaEvent.put("item_id", itemId);
+	                                            deltaEvent.put("output_index", 0);
+	                                            deltaEvent.put("content_index", 0);
 	                                            deltaEvent.put("delta", newContent);
 	                                            OpenAIResponsesHelper.writeSSEEvent(deltaEvent, writer);
 	                                        }
-	                                        
-	                                        if (streamData.containsKey("finish_reason")) {
-	                                            break STREAM_COMPLETE_LOOP;
-	                                        }
+	                                        if (streamData.containsKey("finish_reason")) break STREAM_COMPLETE_LOOP;
 	                                    }
 	                                }
 	                            }
-
-	                            if (jobStatus == PixelJobStatus.PROGRESS_COMPLETE) {
-	                                break STREAM_COMPLETE_LOOP;
-	                            }
-
+	                            if (jobStatus == PixelJobStatus.PROGRESS_COMPLETE) break STREAM_COMPLETE_LOOP;
 	                            Thread.sleep(50);
 	                        }
 
-	                        Map<String, Object> doneEvent = new HashMap<>();
-	                        doneEvent.put("type", "response.done");
-	                        
-	                        Map<String, Object> finalRespBody = new HashMap<>();
-	                        finalRespBody.put("id", responseId);
-	                        finalRespBody.put("object", "response");
-	                        finalRespBody.put("status", "completed");
-	                        
-	                        List<Map<String, Object>> outputItems = new ArrayList<>();
-	                        Map<String, Object> textItem = new HashMap<>();
-	                        textItem.put("id", itemId);
-	                        textItem.put("type", "text");
-	                        textItem.put("text", fullTextAccumulator.toString());
-	                        outputItems.add(textItem);
-	                        
-	                        finalRespBody.put("output", outputItems);
-	                        doneEvent.put("response", finalRespBody);
+	                        Map<String, Object> textDoneEvent = new HashMap<>();
+	                        textDoneEvent.put("type", "response.output_text.done");
+	                        textDoneEvent.put("sequence_number", seq++);
+	                        textDoneEvent.put("response_id", responseId);
+	                        textDoneEvent.put("item_id", itemId);
+	                        textDoneEvent.put("output_index", 0);
+	                        textDoneEvent.put("content_index", 0);
+	                        textDoneEvent.put("text", fullTextAccumulator.toString());
+	                        OpenAIResponsesHelper.writeSSEEvent(textDoneEvent, writer);
 
-	                        OpenAIResponsesHelper.writeSSEEvent(doneEvent, writer);
+	                        Map<String, Object> partDoneEvent = new HashMap<>();
+	                        partDoneEvent.put("type", "response.content_part.done");
+	                        partDoneEvent.put("sequence_number", seq++);
+	                        partDoneEvent.put("response_id", responseId);
+	                        partDoneEvent.put("item_id", itemId);
+	                        partDoneEvent.put("output_index", 0);
+	                        partDoneEvent.put("content_index", 0);
+	                        Map<String, Object> partDoneObj = new HashMap<>();
+	                        partDoneObj.put("type", "output_text");
+	                        partDoneObj.put("text", fullTextAccumulator.toString());
+	                        partDoneEvent.put("part", partDoneObj);
+	                        OpenAIResponsesHelper.writeSSEEvent(partDoneEvent, writer);
+
+	                        Map<String, Object> itemDoneEvent = new HashMap<>();
+	                        itemDoneEvent.put("type", "response.output_item.done");
+	                        itemDoneEvent.put("sequence_number", seq++);
+	                        itemDoneEvent.put("response_id", responseId);
+	                        itemDoneEvent.put("output_index", 0);
+	                        
+	                        Map<String, Object> finalItem = new HashMap<>();
+	                        finalItem.put("id", itemId);
+	                        finalItem.put("type", "message");
+	                        finalItem.put("role", "assistant");
+	                        finalItem.put("status", "completed");
+	                        
+	                        List<Map<String, Object>> contentList = new ArrayList<>();
+	                        Map<String, Object> contentPart = new HashMap<>();
+	                        contentPart.put("type", "output_text");
+	                        contentPart.put("text", fullTextAccumulator.toString());
+	                        contentList.add(contentPart);
+	                        finalItem.put("content", contentList);
+	                        
+	                        itemDoneEvent.put("item", finalItem);
+	                        OpenAIResponsesHelper.writeSSEEvent(itemDoneEvent, writer);
+
+	                        Map<String, Object> completedEvent = new HashMap<>();
+	                        completedEvent.put("type", "response.completed");
+	                        completedEvent.put("sequence_number", seq++);
+
+	                        Map<String, Object> finalResp = new HashMap<>();
+	                        finalResp.put("id", responseId);
+	                        finalResp.put("object", "response");
+	                        finalResp.put("status", "completed");
+	                        finalResp.put("model", engineId);
+	                        finalResp.put("created_at", (double) creationTimestamp);
+	                        
+	                        List<Map<String, Object>> outputList = new ArrayList<>();
+	                        outputList.add(finalItem);
+	                        finalResp.put("output", outputList);
+
+	                        int promptTokens = 0;
+	                        int completionTokens = 0;
+	                        try {
+	                            PixelJobThread jt = PixelJobManager.getManager().getJob(jobId);
+	                            if (jt != null) {
+	                                PixelRunner jobOutput = jt.getRunner();
+	                                if (jobOutput != null && !jobOutput.getResults().isEmpty()) {
+	                                    NounMetadata nm = jobOutput.getResults().get(0);
+	                                    if (nm.getValue() instanceof AskModelEngineResponse) {
+	                                        AskModelEngineResponse amr = (AskModelEngineResponse) nm.getValue();
+	                                        promptTokens = amr.getNumberOfTokensInPrompt() != null ? amr.getNumberOfTokensInPrompt() : 0;
+	                                        completionTokens = amr.getNumberOfTokensInResponse() != null ? amr.getNumberOfTokensInResponse() : 0;
+	                                    }
+	                                }
+	                            }
+	                        } catch (Exception e) {
+	                            classLogger.debug("Could not extract usage metadata");
+	                        }
+
+	                        Map<String, Object> usage = new HashMap<>();
+	                        usage.put("total_tokens", promptTokens + completionTokens);
+	                        usage.put("input_tokens", promptTokens);
+	                        usage.put("output_tokens", completionTokens);
+	                        
+	                        Map<String, Object> inputDetails = new HashMap<>();
+	                        inputDetails.put("cached_tokens", 0);
+	                        usage.put("input_tokens_details", inputDetails);
+	                        
+	                        Map<String, Object> outputDetails = new HashMap<>();
+	                        outputDetails.put("reasoning_tokens", 0);
+	                        usage.put("output_tokens_details", outputDetails);
+
+	                        finalResp.put("usage", usage);
+	                        completedEvent.put("response", finalResp);
+	                        OpenAIResponsesHelper.writeSSEEvent(completedEvent, writer);
 
 	                    } catch (Exception e) {
-	                        classLogger.error("Error in Responses API streaming", e);
+	                        classLogger.error("Streaming Error", e);
 	                        throw new WebApplicationException(e, 500);
 	                    } finally {
 	                        if (jobId != null) {
@@ -692,7 +790,6 @@ public class OpenAIEndpoints {
 	                }
 	            }).build();
 	}
-	
 
 	/**
 	 * Start an asynchronous model request and return the job ID
