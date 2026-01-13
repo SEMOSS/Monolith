@@ -38,15 +38,7 @@ public final class OpenAIResponsesHelper {
 	 * @throws IOException
 	 * @throws JsonProcessingException
 	 */
-//	public static void writeSSEEvent(Map<String, Object> rawEvent, Writer writer)
-//			throws JsonProcessingException, IOException {
-//		String eventJson = mapper.writeValueAsString(rawEvent);
-//		writer.write("data: " + eventJson + "\n\n");
-//		writer.flush();
-//	}
-	
-	public static void writeSSEEvent(Map rawEvent, Writer writer) throws JsonProcessingException, IOException {
-	    // OpenAI Responses API requires both event and data fields
+	public static void writeSSEEvent(Map<String, Object> rawEvent, Writer writer) throws JsonProcessingException, IOException {
 	    String eventType = (String) rawEvent.get("type");
 	    if (eventType != null) {
 	        writer.write("event: " + eventType + "\n");
@@ -76,11 +68,9 @@ public final class OpenAIResponsesHelper {
 		responsesMap.put("model", engineId);
 		responsesMap.put("object", "response");
 
-		// Get the number of seconds since the epoch
 		long unixTimestamp = Instant.now().getEpochSecond();
 		responsesMap.put("created_at", unixTimestamp);
 
-		// usage object - Responses API uses different field names
 		Map<String, Object> usage = new HashMap<>();
 		if (promptTokens != null) {
 			usage.put("input_tokens", promptTokens);
@@ -93,10 +83,8 @@ public final class OpenAIResponsesHelper {
 		}
 		responsesMap.put("usage", usage);
 
-		// Build output array
 		List<Map<String, Object>> output = new ArrayList<>();
 
-		// Handle tool calls
 		if (AskModelEngineResponse.TOOL.equals(llmResponse.getMessageType())) {
 			AskToolModelEngineResponse toolResponse = (AskToolModelEngineResponse) llmResponse;
 			List<ToolResponse> tools = toolResponse.getTools();
@@ -112,7 +100,6 @@ public final class OpenAIResponsesHelper {
 
 			responsesMap.put("status", "completed");
 		} else {
-			// Regular text response
 			String response = llmResponse.getStringResponse();
 
 			Map<String, Object> textOutput = new HashMap<>();
@@ -125,7 +112,6 @@ public final class OpenAIResponsesHelper {
 
 		responsesMap.put("output", output);
 
-		// Add thinking/reasoning if present
 		if (llmResponse.getThinking() != null && !llmResponse.getThinking().isEmpty()) {
 			Map<String, Object> reasoning = new HashMap<>();
 			reasoning.put("type", "reasoning");
@@ -141,6 +127,5 @@ public final class OpenAIResponsesHelper {
 	}
 
 	private OpenAIResponsesHelper() {
-		// Private constructor to prevent instantiation
 	}
 }
