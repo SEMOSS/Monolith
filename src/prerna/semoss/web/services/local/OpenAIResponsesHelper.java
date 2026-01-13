@@ -48,6 +48,39 @@ public final class OpenAIResponsesHelper {
 	    writer.write("data: " + eventJson + "\n\n");
 	    writer.flush();
 	}
+	
+	/**
+	 * Normalizes Codex/Responses API message format to standard OpenAI Chat format.
+	 * Converts: content: [{ "type": "input_text", "text": "..." }] 
+	 * To:       content: "..."
+	 */
+	@SuppressWarnings("unchecked")
+	public static Object normalizeMessages(Object input) {
+	    if (!(input instanceof List)) {
+	        return input;
+	    }
+
+	    List<Map<String, Object>> messages = (List<Map<String, Object>>) input;
+	    for (Map<String, Object> message : messages) {
+	        Object content = message.get("content");
+
+	        if (content instanceof List) {
+	            List<Map<String, Object>> contentList = (List<Map<String, Object>>) content;
+	            StringBuilder flattenedText = new StringBuilder();
+
+	            for (Map<String, Object> part : contentList) {
+	                if (part.containsKey("text")) {
+	                    if (flattenedText.length() > 0) {
+	                        flattenedText.append("\n");
+	                    }
+	                    flattenedText.append(part.get("text").toString());
+	                }
+	            }
+	            message.put("content", flattenedText.toString());
+	        }
+	    }
+	    return messages;
+	}
 
 	/**
 	 * Process AskModelEngineResponse into native OpenAI Responses API format
