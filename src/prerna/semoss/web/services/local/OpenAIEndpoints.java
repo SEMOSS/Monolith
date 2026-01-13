@@ -528,23 +528,8 @@ public class OpenAIEndpoints {
 		IModelEngine engine = Utility.getModel(engineId);
 		Object messages = dataMap.remove("input");
 		
-		try {
-		    String prettyMessages = objectMapper.writerWithDefaultPrettyPrinter()
-		                                        .writeValueAsString(messages);
-		    classLogger.info("Input Messages Context:\n{}", prettyMessages);
-		} catch (Exception e) {
-		    classLogger.error("Failed to log messages object", e);
-		}
 		
 		messages = OpenAIResponsesHelper.normalizeMessages(messages);
-		
-		try {
-		    String prettyMessages2 = objectMapper.writerWithDefaultPrettyPrinter()
-		                                        .writeValueAsString(messages);
-		    classLogger.info("NORMALIZED Input Messages Context:\n{}", prettyMessages2);
-		} catch (Exception e) {
-		    classLogger.error("Failed to log messages object", e);
-		}
 
 		String insightId = WebUtility.inputSanitizer((String) dataMap.remove("insight_id"));
 		if (insightId == null) {
@@ -578,14 +563,6 @@ public class OpenAIEndpoints {
 		ThreadStore.setUser(insight.getUser());
 
 		dataMap.put(AbstractModelEngine.FULL_PROMPT, messages);
-		
-		try {
-		    String prettyMessages3 = objectMapper.writerWithDefaultPrettyPrinter()
-		                                        .writeValueAsString(dataMap);
-		    classLogger.info("NORMALIZED Input Messages Context:\n{}", prettyMessages3);
-		} catch (Exception e) {
-		    classLogger.error("Failed to log messages object", e);
-		}
 
 		if (!isStreamingRequest) {
 			try {
