@@ -140,7 +140,7 @@ public class MCPOAuthFilter implements Filter {
 		response.setHeader("WWW-Authenticate", wwwAuthenticate);
 		response.setStatus(401);
 		response.setContentType("application/json");
-		response.getWriter().write("{\"error\":\"invalid_token\",\"error_description\":\"Valid Bearer token required\"}");
+		response.getWriter().write("{\"error\":\"invalid_token\",\"error_description\":\"Authentication required\"}");
 
 		classLogger.info("MCP OAuth filter - sent 401 challenge with resource_metadata: " + resourceMetadataUrl);
 	}
