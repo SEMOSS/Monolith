@@ -29,6 +29,10 @@ package prerna.mcp;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -59,37 +63,76 @@ public class MCPReaper implements Runnable {
 
 	private static final Logger classLogger = LogManager.getLogger(MCPReaper.class);
 
-	private User user = null;
-	private Insight insight = null;
-	private String sessionId = null;
+	private enum Mode {
+		SSE, HTTP_STREAM
+	}
+
+	private final Mode mode;
+	private final Insight insight;
+	private final String sessionId;
+	private final String toolbox;
+	private final String requestUrl;
+	private final Map<String, String> log4jContextMap;
+
+	// HTTP Stream specific fields
+	private InputStream is = null;
+	private OutputStream os = null;
+
+	// SSE specific fields
 	private BufferedReader reader = null;
 	private SseEventSink eventSink = null;
 	private Sse sse = null;
-	private String toolbox = null;
-	private boolean done = false;
-
-	private Map<String, String> log4jContextMap;
 
 	/**
+	 * Constructor for HTTP Stream mode
 	 * 
-	 * @param user
+	 * @param insight
+	 * @param sessionId
+	 * @param is
+	 * @param os
+	 * @param toolbox
+	 * @param requestUrl
+	 * @param log4jContextMap
+	 */
+	public MCPReaper(Insight insight, String sessionId, InputStream is, OutputStream os, String toolbox,
+			String requestUrl, Map<String, String> log4jContextMap) {
+		this.mode = Mode.HTTP_STREAM;
+		this.insight = insight;
+		this.sessionId = sessionId;
+		this.is = is;
+		this.os = os;
+		this.toolbox = toolbox;
+		this.requestUrl = requestUrl;
+
+		if (log4jContextMap == null) {
+			this.log4jContextMap = new HashMap<>();
+		} else {
+			this.log4jContextMap = log4jContextMap;
+		}
+	}
+
+	/**
+	 * Constructor for SSE mode
+	 * 
 	 * @param insight
 	 * @param sessionId
 	 * @param reader
 	 * @param eventSink
 	 * @param sse
 	 * @param toolbox
-	 * @param map
+	 * @param requestUrl
+	 * @param log4jContextMap
 	 */
-	public MCPReaper(User user, Insight insight, String sessionId, BufferedReader reader, SseEventSink eventSink,
-			Sse sse, String toolbox, Map<String, String> log4jContextMap) {
-		this.user = user;
+	public MCPReaper(Insight insight, String sessionId, BufferedReader reader, SseEventSink eventSink, Sse sse,
+			String toolbox, String requestUrl, Map<String, String> log4jContextMap) {
+		this.mode = Mode.SSE;
 		this.insight = insight;
 		this.sessionId = sessionId;
 		this.reader = reader;
 		this.eventSink = eventSink;
-		this.toolbox = toolbox;
 		this.sse = sse;
+		this.toolbox = toolbox;
+		this.requestUrl = requestUrl;
 
 		if (log4jContextMap == null) {
 			this.log4jContextMap = new HashMap<>();
@@ -100,28 +143,82 @@ public class MCPReaper implements Runnable {
 
 	@Override
 	public void run() {
-		try (var ctx = org.apache.logging.log4j.CloseableThreadContext.putAll(this.log4jContextMap)) {
+		if (this.mode == Mode.HTTP_STREAM) {
+			runHttp();
+		} else {
+			runSse();
+		}
+	}
+
+	/**
+	 * Runs the bidirectional HTTP stream communication
+	 */
+	private void runHttp() {
+		try (var ctx = org.apache.logging.log4j.CloseableThreadContext.putAll(this.log4jContextMap);
+				BufferedReader streamReader = new BufferedReader(
+						new InputStreamReader(this.is, StandardCharsets.UTF_8))) {
+
+			sendSseEvent("endpoint", String
+					.format("{\"jsonrpc\":\"2.0\",\"method\":\"endpoint\",\"params\":{\"uri\":\"%s\"}}", requestUrl));
+
 			String actualContent = null;
-			while ((actualContent = reader.readLine()) != null && !done) // that will block every time.. we are good
-			{
-				classLogger.info("REQUEST :::: " + actualContent);
+			// that will block every time.. we are good
+			while ((actualContent = streamReader.readLine()) != null) {
+				classLogger.info("HTTP REQUEST :::: " + actualContent);
 				// Stream the file in chunks
 				String output = generateResponse(actualContent, sessionId, toolbox, insight);
-				classLogger.info("RESPONSE :::: " + output);
+				classLogger.info("HTTP RESPONSE :::: " + output);
 
 				if (output != null) {
-					OutboundSseEvent event = sse.newEventBuilder().data(String.class, output).build();
-					eventSink.send(event);
+					sendSseEvent("message", output);
 				}
-				done = true;
+			}
+		} catch (IOException e) {
+			// Log the exception and let the thread terminate.
+			// The client will see this as an unexpected connection closure.
+			classLogger.error("MCPReaper (HTTP) encountered an I/O error: " + e.getMessage());
+			classLogger.error(Constants.STACKTRACE, e);
+		}
+
+		classLogger.debug("Done with MCPReaper HTTP thread, client has closed the connection.");
+	}
+
+	/**
+	 * 
+	 * @param eventType
+	 * @param data
+	 * @throws IOException
+	 */
+	private void sendSseEvent(String eventType, String data) throws IOException {
+		StringBuilder sseMessage = new StringBuilder();
+		sseMessage.append("event: ").append(eventType).append("\n");
+		sseMessage.append("data: ").append(data).append("\n\n");
+
+		byte[] bytes = sseMessage.toString().getBytes(StandardCharsets.UTF_8);
+		this.os.write(bytes);
+		this.os.flush();
+	}
+
+	/**
+	 * Runs the one-shot SSE communication
+	 */
+	private void runSse() {
+		try (var ctx = org.apache.logging.log4j.CloseableThreadContext.putAll(this.log4jContextMap)) {
+			String actualContent = null;
+			// This will block, read one line, and then the loop will terminate
+			if ((actualContent = this.reader.readLine()) != null) {
+				classLogger.info("SSE REQUEST :::: " + actualContent);
+				// Stream the file in chunks
+				String output = generateResponse(actualContent, this.sessionId, this.toolbox, this.insight);
+				classLogger.info("SSE RESPONSE :::: " + output);
+
+				if (output != null) {
+					OutboundSseEvent event = this.sse.newEventBuilder().data(String.class, output).build();
+					this.eventSink.send(event);
+				}
 			}
 		} catch (IOException e) {
 			classLogger.error(Constants.STACKTRACE, e);
-			/*
-			 * { "jsonrpc": "2.0", "id": 4, "result": { "content": [ { "type": "text",
-			 * "text": "Failed to fetch weather data: API rate limit exceeded" } ],
-			 * "isError": true } }
-			 */
 			JSONObject error = new JSONObject();
 			error.put("jsonrpc", "2.0");
 			error.put("id", 3);
@@ -136,9 +233,13 @@ public class MCPReaper implements Runnable {
 			// send the error
 			OutboundSseEvent event = sse.newEventBuilder().data(String.class, error.toString()).build();
 			eventSink.send(event);
+		} finally {
+			if (this.eventSink != null) {
+				this.eventSink.close();
+			}
 		}
 
-		classLogger.debug("Done with thread !!");
+		classLogger.debug("Done with MCPReaper SSE thread !!");
 	}
 
 	/**
