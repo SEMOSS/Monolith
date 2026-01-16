@@ -78,6 +78,10 @@ public class ResourceUtility {
 		// legacy ms login
 		allowAccessWithoutLogin.add("auth/userinfo/ms");
 		allowAccessWithoutLogin.add("auth/login/ms");
+
+		// MCP OAuth discovery endpoints - must be accessible without login for ChatGPT integration
+		allowAccessWithoutLogin.add(".well-known/oauth-protected-resource");
+		allowAccessWithoutLogin.add("/health"); // Allow MCP health check
 	}
 
 	/**

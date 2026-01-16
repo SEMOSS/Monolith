@@ -36,7 +36,9 @@ import java.io.OutputStreamWriter;
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -64,16 +66,23 @@ import javax.ws.rs.sse.SseEventSink;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.ThreadContext;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import com.google.common.base.Strings;
 
 import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
+import prerna.engine.api.IEngine;
+import prerna.engine.api.IMCP;
+import prerna.engine.impl.MCPFactory;
 import prerna.io.connector.GenericTokenFiller;
 import prerna.mcp.MCPReaper;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
+import prerna.reactor.agent.mcp.MCPErrorCode;
+import prerna.sablecc2.om.execptions.SemossMCPException;
 import prerna.security.HttpHelperUtility;
 import prerna.util.Constants;
 import prerna.util.SocialPropertiesUtil;
@@ -443,6 +452,633 @@ public class MCPResource {
 		session.setAttribute(Constants.SESSION_USER, user);
 
 		classLogger.debug("Access token added to session for user: " + accessToken.getId());
+	}
+
+	// ============================================================================
+	// ChatGPT-Compatible REST Endpoints
+	// ============================================================================
+
+	/**
+	 * OpenAPI specification endpoint for ChatGPT Actions discovery.
+	 * Returns an OpenAPI 3.0 spec that describes the available tools.
+	 *
+	 * @param toolbox_id The toolbox/engine ID
+	 * @param request HTTP request
+	 * @return OpenAPI specification JSON
+	 */
+	@GET
+	@Path("/openapi.json")
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response getOpenApiSpec(
+			@PathParam("toolbox_id") String toolbox_id,
+			@Context HttpServletRequest request) {
+
+		classLogger.info("OpenAPI spec requested for toolbox: " + toolbox_id);
+
+		HttpSession session = request.getSession(false);
+		if (session == null) {
+			Map<String, Object> ret = new HashMap<>();
+			ret.put(Constants.ERROR_MESSAGE, "Authentication required");
+			return WebUtility.getResponse(ret, 401);
+		}
+
+		User user = (User) session.getAttribute(Constants.SESSION_USER);
+		if (user == null) {
+			Map<String, Object> ret = new HashMap<>();
+			ret.put(Constants.ERROR_MESSAGE, "User not authenticated");
+			return WebUtility.getResponse(ret, 401);
+		}
+
+		try {
+			// Get the engine/project
+			IEngine engine = getEngine(toolbox_id);
+			if (engine == null) {
+				Map<String, Object> ret = new HashMap<>();
+				ret.put(Constants.ERROR_MESSAGE, "Toolbox not found: " + toolbox_id);
+				return WebUtility.getResponse(ret, 404);
+			}
+
+			// Build OpenAPI spec from MCP tools
+			IMCP mcp = MCPFactory.build(engine);
+			JSONObject mcpTools = mcp.getMCPTools();
+			JSONObject openApiSpec = buildOpenApiSpec(toolbox_id, mcpTools, request);
+
+			return Response.ok(openApiSpec.toString()).build();
+
+		} catch (Exception e) {
+			classLogger.error("Error generating OpenAPI spec", e);
+			Map<String, Object> ret = new HashMap<>();
+			ret.put(Constants.ERROR_MESSAGE, "Failed to generate OpenAPI spec: " + e.getMessage());
+			return WebUtility.getResponse(ret, 500);
+		}
+	}
+
+	/**
+	 * REST endpoint for listing available tools - ChatGPT compatible.
+	 *
+	 * @param toolbox_id The toolbox/engine ID
+	 * @param request HTTP request
+	 * @return List of available tools
+	 */
+	@GET
+	@Path("/tools")
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response listTools(
+			@PathParam("toolbox_id") String toolbox_id,
+			@Context HttpServletRequest request) {
+
+		classLogger.info("Tools list requested for toolbox: " + toolbox_id);
+
+		HttpSession session = request.getSession(false);
+		if (session == null) {
+			Map<String, Object> ret = new HashMap<>();
+			ret.put(Constants.ERROR_MESSAGE, "Authentication required");
+			return WebUtility.getResponse(ret, 401);
+		}
+
+		User user = (User) session.getAttribute(Constants.SESSION_USER);
+		if (user == null) {
+			Map<String, Object> ret = new HashMap<>();
+			ret.put(Constants.ERROR_MESSAGE, "User not authenticated");
+			return WebUtility.getResponse(ret, 401);
+		}
+
+		try {
+			IEngine engine = getEngine(toolbox_id);
+			if (engine == null) {
+				Map<String, Object> ret = new HashMap<>();
+				ret.put(Constants.ERROR_MESSAGE, "Toolbox not found: " + toolbox_id);
+				return WebUtility.getResponse(ret, 404);
+			}
+
+			IMCP mcp = MCPFactory.build(engine);
+			JSONObject mcpTools = mcp.getMCPTools();
+
+			return Response.ok(mcpTools.toString()).build();
+
+		} catch (Exception e) {
+			classLogger.error("Error listing tools", e);
+			Map<String, Object> ret = new HashMap<>();
+			ret.put(Constants.ERROR_MESSAGE, "Failed to list tools: " + e.getMessage());
+			return WebUtility.getResponse(ret, 500);
+		}
+	}
+
+	/**
+	 * REST endpoint for executing a tool - ChatGPT compatible (synchronous).
+	 * This is the main endpoint ChatGPT will call to execute tools.
+	 *
+	 * Expected request body:
+	 * {
+	 *   "name": "tool_name",
+	 *   "arguments": { "param1": "value1", ... }
+	 * }
+	 *
+	 * @param toolbox_id The toolbox/engine ID
+	 * @param is Request body input stream
+	 * @param request HTTP request
+	 * @return Tool execution result
+	 */
+	@POST
+	@Path("/tools/call")
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response callTool(
+			@PathParam("toolbox_id") String toolbox_id,
+			InputStream is,
+			@Context HttpServletRequest request) {
+
+		classLogger.info("Tool call requested for toolbox: " + toolbox_id);
+
+		HttpSession session = request.getSession(false);
+		if (session == null) {
+			Map<String, Object> ret = new HashMap<>();
+			ret.put(Constants.ERROR_MESSAGE, "Authentication required");
+			return WebUtility.getResponse(ret, 401);
+		}
+
+		User user = (User) session.getAttribute(Constants.SESSION_USER);
+		if (user == null) {
+			Map<String, Object> ret = new HashMap<>();
+			ret.put(Constants.ERROR_MESSAGE, "User not authenticated");
+			return WebUtility.getResponse(ret, 401);
+		}
+
+		try {
+			// Parse request body
+			String requestBody = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+			JSONObject requestJson = new JSONObject(requestBody);
+
+			String toolName = requestJson.getString("name");
+			JSONObject arguments = requestJson.optJSONObject("arguments");
+			if (arguments == null) {
+				arguments = new JSONObject();
+			}
+
+			classLogger.info("Executing tool: " + toolName + " with arguments: " + arguments.toString());
+
+			// Get engine and create insight
+			IEngine engine = getEngine(toolbox_id);
+			if (engine == null) {
+				Map<String, Object> ret = new HashMap<>();
+				ret.put(Constants.ERROR_MESSAGE, "Toolbox not found: " + toolbox_id);
+				return WebUtility.getResponse(ret, 404);
+			}
+
+			// Create or get insight for this session
+			Insight insight = initSession(session);
+			if (insight == null) {
+				Map<String, Object> ret = new HashMap<>();
+				ret.put(Constants.ERROR_MESSAGE, "Failed to initialize session");
+				return WebUtility.getResponse(ret, 500);
+			}
+
+			// Convert JSON arguments to Map
+			Map<String, Object> params = new HashMap<>();
+			for (String key : arguments.keySet()) {
+				params.put(key, arguments.get(key));
+			}
+
+			// Execute the tool
+			IMCP mcp = MCPFactory.build(engine);
+			Object result = mcp.callTool(toolName, params, insight);
+
+			// Build response
+			JSONObject response = new JSONObject();
+			List<Map<String, Object>> contentList = new ArrayList<>();
+			Map<String, Object> contentMap = new HashMap<>();
+			contentMap.put("type", "text");
+			contentMap.put("text", result != null ? result.toString() : "null");
+			contentList.add(contentMap);
+			response.put("content", contentList);
+			response.put("isError", false);
+
+			return Response.ok(response.toString()).build();
+
+		} catch (SemossMCPException e) {
+			classLogger.error("MCP error executing tool", e);
+			JSONObject error = new JSONObject();
+			List<Map<String, Object>> contentList = new ArrayList<>();
+			Map<String, Object> contentMap = new HashMap<>();
+			contentMap.put("type", "text");
+			contentMap.put("text", e.getMessage() != null ? e.getMessage() : e.getError().getDescription());
+			contentList.add(contentMap);
+			error.put("content", contentList);
+			error.put("isError", true);
+			error.put("errorCode", e.getError().getCode());
+			return Response.status(400).entity(error.toString()).type(MediaType.APPLICATION_JSON).build();
+
+		} catch (Exception e) {
+			classLogger.error("Error executing tool", e);
+			JSONObject error = new JSONObject();
+			List<Map<String, Object>> contentList = new ArrayList<>();
+			Map<String, Object> contentMap = new HashMap<>();
+			contentMap.put("type", "text");
+			contentMap.put("text", e.getMessage() != null ? e.getMessage() : "Tool execution failed");
+			contentList.add(contentMap);
+			error.put("content", contentList);
+			error.put("isError", true);
+			error.put("errorCode", MCPErrorCode.TOOL_EXECUTION_FAILED.getCode());
+			return Response.status(500).entity(error.toString()).type(MediaType.APPLICATION_JSON).build();
+		}
+	}
+
+	/**
+	 * Health check endpoint for ChatGPT to verify the server is accessible.
+	 *
+	 * @param toolbox_id The toolbox/engine ID
+	 * @return Health status
+	 */
+	@GET
+	@Path("/health")
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response healthCheck(@PathParam("toolbox_id") String toolbox_id) {
+		Map<String, Object> ret = new HashMap<>();
+		ret.put("status", "healthy");
+		ret.put("toolbox_id", toolbox_id);
+		ret.put("timestamp", System.currentTimeMillis());
+		return WebUtility.getResponse(ret, 200);
+	}
+
+	/**
+	 * OAuth Protected Resource Metadata endpoint for ChatGPT MCP integration.
+	 * This endpoint is required by OpenAI's MCP authorization spec (RFC 9728).
+	 *
+	 * ChatGPT calls this endpoint to discover the authorization server
+	 * and supported scopes for the MCP server.
+	 *
+	 * @param toolbox_id The toolbox/engine ID
+	 * @param request HTTP request
+	 * @return OAuth protected resource metadata JSON
+	 */
+	@GET
+	@Path("/.well-known/oauth-protected-resource")
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response getOAuthProtectedResourceMetadata(
+			@PathParam("toolbox_id") String toolbox_id,
+			@Context HttpServletRequest request) {
+
+		classLogger.info("OAuth protected resource metadata requested for toolbox: " + toolbox_id);
+
+		// Build the resource URL (the MCP server URL)
+		String resourceUrl = getExternalBaseUrl(request) + "/api/ext/mcp/" + toolbox_id;
+
+		// Get the authorization server URL from social properties
+		// First try keycloak_realm_url, then derive from generic_auth_url
+		String authServerUrl = socialData.getProperty("keycloak_realm_url");
+		if (authServerUrl == null || authServerUrl.isEmpty() || authServerUrl.startsWith("<")) {
+			// Try to derive from generic_auth_url (remove /protocol/openid-connect/auth)
+			String genericAuthUrl = socialData.getProperty("generic_auth_url");
+			if (genericAuthUrl != null && !genericAuthUrl.isEmpty() && genericAuthUrl.contains("/protocol/openid-connect")) {
+				authServerUrl = genericAuthUrl.substring(0, genericAuthUrl.indexOf("/protocol/openid-connect"));
+			} else {
+				// Final fallback to a known default
+				authServerUrl = "https://sso.semoss.org/realms/dev";
+			}
+		}
+
+		JSONObject metadata = new JSONObject();
+		metadata.put("resource", resourceUrl);
+
+		JSONArray authServers = new JSONArray();
+		authServers.put(authServerUrl);
+		metadata.put("authorization_servers", authServers);
+
+		// Supported scopes - standard OpenID Connect scopes
+		JSONArray scopes = new JSONArray();
+		scopes.put("openid");
+		scopes.put("profile");
+		scopes.put("email");
+		scopes.put("offline_access");
+		metadata.put("scopes_supported", scopes);
+
+		return Response.ok(metadata.toString()).type(MediaType.APPLICATION_JSON).build();
+	}
+
+	/**
+	 * Helper method to get the external base URL, handling reverse proxies and tunnels.
+	 * Checks X-Forwarded-* headers to determine the actual external URL.
+	 */
+	private String getExternalBaseUrl(HttpServletRequest request) {
+		// Check for forwarded protocol (from reverse proxy/tunnel)
+		String scheme = request.getHeader("X-Forwarded-Proto");
+		if (scheme == null || scheme.isEmpty()) {
+			scheme = request.getScheme();
+		}
+
+		// Check for forwarded host
+		String host = request.getHeader("X-Forwarded-Host");
+		if (host == null || host.isEmpty()) {
+			host = request.getHeader("Host");
+			if (host == null || host.isEmpty()) {
+				host = request.getServerName();
+				int port = request.getServerPort();
+				if ((scheme.equals("http") && port != 80) || (scheme.equals("https") && port != 443)) {
+					host += ":" + port;
+				}
+			}
+		}
+
+		return scheme + "://" + host + request.getContextPath();
+	}
+
+	/**
+	 * Helper method to get engine by ID (tries both engine and project).
+	 */
+	private IEngine getEngine(String engineId) {
+		IEngine engine = null;
+		try {
+			engine = Utility.getEngine(engineId);
+		} catch (Exception ex) {
+			// ignore
+		}
+		if (engine == null) {
+			try {
+				engine = Utility.getProject(engineId);
+			} catch (Exception ex) {
+				// ignore
+			}
+		}
+		return engine;
+	}
+
+	/**
+	 * Builds an OpenAPI 3.0 specification from MCP tools.
+	 */
+	private JSONObject buildOpenApiSpec(String toolboxId, JSONObject mcpTools, HttpServletRequest request) {
+		JSONObject spec = new JSONObject();
+
+		// OpenAPI version
+		spec.put("openapi", "3.0.0");
+
+		// Info section
+		JSONObject info = new JSONObject();
+		info.put("title", "SEMOSS MCP Tool Server");
+		info.put("description", "MCP Tool Server for toolbox: " + toolboxId +
+				". Provides access to SEMOSS tools via REST API.");
+		info.put("version", "1.0.0");
+		spec.put("info", info);
+
+		// Servers section
+		JSONArray servers = new JSONArray();
+		JSONObject server = new JSONObject();
+		// Use helper method that handles X-Forwarded-* headers for reverse proxies/tunnels
+		String baseUrl = getExternalBaseUrl(request) + "/api/ext/mcp/" + toolboxId;
+		server.put("url", baseUrl);
+		server.put("description", "SEMOSS MCP Server");
+		servers.put(server);
+		spec.put("servers", servers);
+
+		// Security schemes
+		JSONObject components = new JSONObject();
+		JSONObject securitySchemes = new JSONObject();
+		JSONObject bearerAuth = new JSONObject();
+		bearerAuth.put("type", "http");
+		bearerAuth.put("scheme", "bearer");
+		bearerAuth.put("bearerFormat", "JWT");
+		bearerAuth.put("description", "Keycloak JWT bearer token");
+		securitySchemes.put("bearerAuth", bearerAuth);
+		components.put("securitySchemes", securitySchemes);
+		spec.put("components", components);
+
+		// Global security requirement
+		JSONArray security = new JSONArray();
+		JSONObject securityItem = new JSONObject();
+		securityItem.put("bearerAuth", new JSONArray());
+		security.put(securityItem);
+		spec.put("security", security);
+
+		// Paths
+		JSONObject paths = new JSONObject();
+
+		// Health endpoint
+		JSONObject healthPath = new JSONObject();
+		JSONObject healthGet = new JSONObject();
+		healthGet.put("summary", "Health check");
+		healthGet.put("description", "Check if the MCP server is healthy and accessible");
+		healthGet.put("operationId", "healthCheck");
+		JSONObject healthResponses = new JSONObject();
+		JSONObject health200 = new JSONObject();
+		health200.put("description", "Server is healthy");
+		healthResponses.put("200", health200);
+		healthGet.put("responses", healthResponses);
+		healthPath.put("get", healthGet);
+		paths.put("/health", healthPath);
+
+		// Tools list endpoint
+		JSONObject toolsPath = new JSONObject();
+		JSONObject toolsGet = new JSONObject();
+		toolsGet.put("summary", "List available tools");
+		toolsGet.put("description", "Returns a list of all available MCP tools");
+		toolsGet.put("operationId", "listTools");
+		JSONObject toolsResponses = new JSONObject();
+		JSONObject tools200 = new JSONObject();
+		tools200.put("description", "List of tools");
+		toolsResponses.put("200", tools200);
+		toolsGet.put("responses", toolsResponses);
+		toolsPath.put("get", toolsGet);
+		paths.put("/tools", toolsPath);
+
+		// Tools call endpoint - generic
+		JSONObject toolsCallPath = new JSONObject();
+		JSONObject toolsCallPost = new JSONObject();
+		toolsCallPost.put("summary", "Execute a tool");
+		toolsCallPost.put("description", "Execute an MCP tool with the provided arguments");
+		toolsCallPost.put("operationId", "callTool");
+
+		// Request body
+		JSONObject requestBody = new JSONObject();
+		requestBody.put("required", true);
+		JSONObject requestContent = new JSONObject();
+		JSONObject requestJson = new JSONObject();
+		JSONObject requestSchema = new JSONObject();
+		requestSchema.put("type", "object");
+		JSONObject requestProps = new JSONObject();
+		JSONObject nameProp = new JSONObject();
+		nameProp.put("type", "string");
+		nameProp.put("description", "The name of the tool to execute");
+		requestProps.put("name", nameProp);
+		JSONObject argsProp = new JSONObject();
+		argsProp.put("type", "object");
+		argsProp.put("description", "Arguments to pass to the tool");
+		requestProps.put("arguments", argsProp);
+		requestSchema.put("properties", requestProps);
+		JSONArray required = new JSONArray();
+		required.put("name");
+		requestSchema.put("required", required);
+		requestJson.put("schema", requestSchema);
+		requestContent.put("application/json", requestJson);
+		requestBody.put("content", requestContent);
+		toolsCallPost.put("requestBody", requestBody);
+
+		// Responses
+		JSONObject callResponses = new JSONObject();
+		JSONObject call200 = new JSONObject();
+		call200.put("description", "Tool execution result");
+		callResponses.put("200", call200);
+		JSONObject call400 = new JSONObject();
+		call400.put("description", "Bad request or tool error");
+		callResponses.put("400", call400);
+		JSONObject call401 = new JSONObject();
+		call401.put("description", "Unauthorized - invalid or missing token");
+		callResponses.put("401", call401);
+		toolsCallPost.put("responses", callResponses);
+		toolsCallPath.put("post", toolsCallPost);
+		paths.put("/tools/call", toolsCallPath);
+
+		// Add individual tool endpoints from MCP tools
+		if (mcpTools.has("tools")) {
+			JSONArray tools = mcpTools.getJSONArray("tools");
+			for (int i = 0; i < tools.length(); i++) {
+				JSONObject tool = tools.getJSONObject(i);
+				String toolName = tool.getString("name");
+				String description = tool.optString("description", "Execute " + toolName);
+				JSONObject inputSchema = tool.optJSONObject("inputSchema");
+
+				// Create a dedicated endpoint for each tool
+				JSONObject toolPath = new JSONObject();
+				JSONObject toolPost = new JSONObject();
+				toolPost.put("summary", toolName);
+				toolPost.put("description", description);
+				toolPost.put("operationId", "call_" + toolName.replace("-", "_").replace(" ", "_"));
+
+				if (inputSchema != null) {
+					JSONObject toolRequestBody = new JSONObject();
+					toolRequestBody.put("required", true);
+					JSONObject toolRequestContent = new JSONObject();
+					JSONObject toolRequestJson = new JSONObject();
+					toolRequestJson.put("schema", inputSchema);
+					toolRequestContent.put("application/json", toolRequestJson);
+					toolRequestBody.put("content", toolRequestContent);
+					toolPost.put("requestBody", toolRequestBody);
+				}
+
+				JSONObject toolResponses = new JSONObject();
+				JSONObject tool200 = new JSONObject();
+				tool200.put("description", "Tool execution result");
+				toolResponses.put("200", tool200);
+				toolPost.put("responses", toolResponses);
+
+				toolPath.put("post", toolPost);
+				paths.put("/tools/" + toolName, toolPath);
+			}
+		}
+
+		spec.put("paths", paths);
+
+		return spec;
+	}
+
+	/**
+	 * Dedicated endpoint for calling a specific tool by name.
+	 * This allows ChatGPT to call tools directly: POST /tools/{tool_name}
+	 *
+	 * @param toolbox_id The toolbox/engine ID
+	 * @param tool_name The name of the tool to execute
+	 * @param is Request body with arguments
+	 * @param request HTTP request
+	 * @return Tool execution result
+	 */
+	@POST
+	@Path("/tools/{tool_name}")
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response callToolByName(
+			@PathParam("toolbox_id") String toolbox_id,
+			@PathParam("tool_name") String tool_name,
+			InputStream is,
+			@Context HttpServletRequest request) {
+
+		classLogger.info("Direct tool call: " + tool_name + " for toolbox: " + toolbox_id);
+
+		HttpSession session = request.getSession(false);
+		if (session == null) {
+			Map<String, Object> ret = new HashMap<>();
+			ret.put(Constants.ERROR_MESSAGE, "Authentication required");
+			return WebUtility.getResponse(ret, 401);
+		}
+
+		User user = (User) session.getAttribute(Constants.SESSION_USER);
+		if (user == null) {
+			Map<String, Object> ret = new HashMap<>();
+			ret.put(Constants.ERROR_MESSAGE, "User not authenticated");
+			return WebUtility.getResponse(ret, 401);
+		}
+
+		try {
+			// Parse arguments from request body
+			String requestBody = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+			JSONObject arguments = new JSONObject();
+			if (requestBody != null && !requestBody.trim().isEmpty()) {
+				arguments = new JSONObject(requestBody);
+			}
+
+			classLogger.info("Executing tool: " + tool_name + " with arguments: " + arguments.toString());
+
+			// Get engine
+			IEngine engine = getEngine(toolbox_id);
+			if (engine == null) {
+				Map<String, Object> ret = new HashMap<>();
+				ret.put(Constants.ERROR_MESSAGE, "Toolbox not found: " + toolbox_id);
+				return WebUtility.getResponse(ret, 404);
+			}
+
+			// Create or get insight
+			Insight insight = initSession(session);
+			if (insight == null) {
+				Map<String, Object> ret = new HashMap<>();
+				ret.put(Constants.ERROR_MESSAGE, "Failed to initialize session");
+				return WebUtility.getResponse(ret, 500);
+			}
+
+			// Convert JSON arguments to Map
+			Map<String, Object> params = new HashMap<>();
+			for (String key : arguments.keySet()) {
+				params.put(key, arguments.get(key));
+			}
+
+			// Execute the tool
+			IMCP mcp = MCPFactory.build(engine);
+			Object result = mcp.callTool(tool_name, params, insight);
+
+			// Build response
+			JSONObject response = new JSONObject();
+			List<Map<String, Object>> contentList = new ArrayList<>();
+			Map<String, Object> contentMap = new HashMap<>();
+			contentMap.put("type", "text");
+			contentMap.put("text", result != null ? result.toString() : "null");
+			contentList.add(contentMap);
+			response.put("content", contentList);
+			response.put("isError", false);
+
+			return Response.ok(response.toString()).build();
+
+		} catch (SemossMCPException e) {
+			classLogger.error("MCP error executing tool: " + tool_name, e);
+			JSONObject error = new JSONObject();
+			List<Map<String, Object>> contentList = new ArrayList<>();
+			Map<String, Object> contentMap = new HashMap<>();
+			contentMap.put("type", "text");
+			contentMap.put("text", e.getMessage() != null ? e.getMessage() : e.getError().getDescription());
+			contentList.add(contentMap);
+			error.put("content", contentList);
+			error.put("isError", true);
+			error.put("errorCode", e.getError().getCode());
+			return Response.status(400).entity(error.toString()).type(MediaType.APPLICATION_JSON).build();
+
+		} catch (Exception e) {
+			classLogger.error("Error executing tool: " + tool_name, e);
+			JSONObject error = new JSONObject();
+			List<Map<String, Object>> contentList = new ArrayList<>();
+			Map<String, Object> contentMap = new HashMap<>();
+			contentMap.put("type", "text");
+			contentMap.put("text", e.getMessage() != null ? e.getMessage() : "Tool execution failed");
+			contentList.add(contentMap);
+			error.put("content", contentList);
+			error.put("isError", true);
+			error.put("errorCode", MCPErrorCode.TOOL_EXECUTION_FAILED.getCode());
+			return Response.status(500).entity(error.toString()).type(MediaType.APPLICATION_JSON).build();
+		}
 	}
 
 }
