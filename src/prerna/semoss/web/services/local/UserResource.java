@@ -54,6 +54,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import javax.ws.rs.Consumes;
+import javax.ws.rs.FormParam;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -3303,6 +3304,8 @@ public class UserResource {
 
 			classLogger.info("MCP callback: Redirecting to ChatGPT with authorization code for user: " +
 				user.getPrimaryLoginToken().getEmail());
+			classLogger.info("MCP callback: Full redirect URL: " + redirectUrl);
+			classLogger.info("MCP callback: ChatGPT redirect_uri was: " + chatgptRedirectUri);
 			response.setStatus(302);
 			response.sendRedirect(redirectUrl);
 
@@ -3587,12 +3590,23 @@ public class UserResource {
 			@QueryParam("state") String state,
 			@QueryParam("code_challenge") String codeChallenge,
 			@QueryParam("code_challenge_method") String codeChallengeMethod,
+			@QueryParam("resource") String resource,
 			@QueryParam("provider") String provider,
 			@Context HttpServletRequest request) {
 
 		try {
 			classLogger.info("MCP authorization request from client: " +
 				WebUtility.inputSanitizer(clientId));
+
+			// Validate redirect_uri is from ChatGPT
+			if (redirectUri == null ||
+				(!redirectUri.equals("https://chatgpt.com/connector_platform_oauth_redirect") &&
+				 !redirectUri.equals("https://platform.openai.com/apps-manage/oauth"))) {
+				Map<String, String> error = new HashMap<>();
+				error.put("error", "invalid_request");
+				error.put("error_description", "redirect_uri must be a valid ChatGPT callback URL");
+				return WebUtility.getResponse(error, 400);
+			}
 
 			// Validate PKCE
 			if (!"S256".equals(codeChallengeMethod)) {
@@ -3613,6 +3627,7 @@ public class UserResource {
 			mcpRequest.put("redirect_uri", redirectUri);
 			mcpRequest.put("state", state);
 			mcpRequest.put("code_challenge", codeChallenge);
+			mcpRequest.put("resource", resource); // Echo resource parameter
 			mcpRequest.put("provider", authProvider);
 			session.setAttribute("mcp_auth_request", mcpRequest);
 
@@ -3765,18 +3780,17 @@ public class UserResource {
 	@Consumes("application/x-www-form-urlencoded")
 	@Produces("application/json")
 	public Response exchangeMCPToken(
-			MultivaluedMap<String, String> formParams,
+			@FormParam("grant_type") String grantType,
+			@FormParam("code") String code,
+			@FormParam("code_verifier") String codeVerifier,
+			@FormParam("resource") String resource,
 			@Context HttpServletRequest request) {
 
 		classLogger.info(">>>>> MCP TOKEN ENDPOINT CALLED <<<<<");
+		classLogger.info("MCP token exchange request - grant_type: " + grantType + ", code: " +
+			(code != null ? "present" : "null") + ", code_verifier: " +
+			(codeVerifier != null ? "present" : "null"));
 		try {
-			String grantType = formParams.getFirst("grant_type");
-			String code = formParams.getFirst("code");
-			String codeVerifier = formParams.getFirst("code_verifier");
-
-			classLogger.info("MCP token exchange request - grant_type: " + grantType + ", code: " +
-				(code != null ? "present" : "null") + ", code_verifier: " +
-				(codeVerifier != null ? "present" : "null"));
 
 			// Validate grant type
 			if (!"authorization_code".equals(grantType)) {
@@ -3806,16 +3820,19 @@ public class UserResource {
 
 			// Get client_id and resource from auth request
 			String clientId = authCode.getAuthRequest().get("client_id");
-			String resource = formParams.getFirst("resource");
 			if (resource == null) {
 				resource = authCode.getAuthRequest().get("resource");
 			}
+
+			classLogger.info("MCP token exchange - resource parameter: " + resource);
 
 			// Generate JWT access token
 			String baseUrl = getBaseUrlForMCP(request);
 			String issuer = baseUrl + "/api/auth";
 			String audience = resource != null ? resource : baseUrl + "/api/mcp";
 			long expiresInSeconds = 3600; // 1 hour
+
+			classLogger.info("MCP token exchange - JWT audience: " + audience);
 
 			String accessToken = prerna.auth.mcp.MCPJWTHelper.createJWT(
 				authCode.getUser(),

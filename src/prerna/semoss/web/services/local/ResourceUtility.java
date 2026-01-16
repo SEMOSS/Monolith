@@ -60,6 +60,9 @@ public class ResourceUtility {
 		allowAccessWithoutLogin.add("auth/mcp/authorize");
 		allowAccessWithoutLogin.add("auth/mcp/callback");
 		allowAccessWithoutLogin.add("auth/mcp/token");
+
+		// MCP endpoints - handled by MCPOAuthFilter for JWT authentication
+		allowAccessWithoutLogin.add("ext/mcp");
 	}
 
 	/**
