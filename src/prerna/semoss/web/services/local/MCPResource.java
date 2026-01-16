@@ -105,6 +105,328 @@ public class MCPResource {
 		socialData = SocialPropertiesUtil.getInstance();
 	}
 
+	/**
+	 * Base MCP server endpoint (GET) - returns server info and capabilities.
+	 * This is called by ChatGPT after OAuth authentication to verify the MCP server.
+	 *
+	 * @param toolbox_id The toolbox/engine ID
+	 * @param request HTTP request
+	 * @return MCP server information
+	 */
+	@GET
+	@Path("/")
+	@Produces({MediaType.APPLICATION_JSON, MediaType.TEXT_PLAIN, MediaType.WILDCARD})
+	public Response getMCPServerInfo(
+			@PathParam("toolbox_id") String toolbox_id,
+			@Context HttpServletRequest request) {
+		return buildMCPServerInfoResponse(toolbox_id, request);
+	}
+
+	/**
+	 * Base MCP server endpoint (POST) - handles MCP protocol messages.
+	 * ChatGPT may POST to the base endpoint for MCP JSON-RPC style communication.
+	 *
+	 * @param toolbox_id The toolbox/engine ID
+	 * @param is Request body
+	 * @param request HTTP request
+	 * @return MCP server information or response to the posted message
+	 */
+	@POST
+	@Path("/")
+	@Consumes({MediaType.APPLICATION_JSON, MediaType.TEXT_PLAIN, MediaType.WILDCARD})
+	@Produces({MediaType.APPLICATION_JSON, MediaType.TEXT_PLAIN, MediaType.WILDCARD})
+	public Response postMCPServerInfo(
+			@PathParam("toolbox_id") String toolbox_id,
+			InputStream is,
+			@Context HttpServletRequest request) {
+
+		classLogger.info("MCP POST request received for toolbox: " + toolbox_id);
+
+		try {
+			// Read the request body
+			String requestBody = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+			classLogger.debug("MCP POST body: " + requestBody);
+
+			// If empty body, just return server info
+			if (requestBody == null || requestBody.trim().isEmpty()) {
+				return buildMCPServerInfoResponse(toolbox_id, request);
+			}
+
+			// Try to parse as JSON-RPC message
+			JSONObject jsonRequest = new JSONObject(requestBody);
+
+			// Check if this is a JSON-RPC request
+			if (jsonRequest.has("method")) {
+				String method = jsonRequest.getString("method");
+				classLogger.info("MCP JSON-RPC method: " + method);
+
+				// Handle different MCP methods
+				switch (method) {
+					case "initialize":
+					case "mcp/initialize":
+						return handleMCPInitialize(toolbox_id, jsonRequest, request);
+					case "notifications/initialized":
+					case "initialized":
+						// Notification - no response needed, return empty 200
+						return Response.ok().build();
+					case "tools/list":
+						return handleToolsList(toolbox_id, jsonRequest, request);
+					case "tools/call":
+						return handleToolsCall(toolbox_id, jsonRequest, request);
+					case "resources/list":
+						return handleResourcesList(jsonRequest);
+					case "prompts/list":
+						return handlePromptsList(jsonRequest);
+					case "ping":
+						return createJsonRpcResponse(jsonRequest, new JSONObject());
+					default:
+						// Return method not found error for unknown methods
+						classLogger.warn("Unknown MCP method: " + method);
+						return createJsonRpcError(jsonRequest, -32601, "Method not found: " + method);
+				}
+			}
+
+			// Default: return server info
+			return buildMCPServerInfoResponse(toolbox_id, request);
+
+		} catch (Exception e) {
+			classLogger.error("Error handling MCP POST request", e);
+			JSONObject error = new JSONObject();
+			error.put("jsonrpc", "2.0");
+			error.put("error", new JSONObject()
+					.put("code", -32603)
+					.put("message", "Internal error: " + e.getMessage()));
+			return Response.status(500).entity(error.toString()).type(MediaType.APPLICATION_JSON).build();
+		}
+	}
+
+	/**
+	 * Handle MCP initialize method
+	 */
+	private Response handleMCPInitialize(String toolboxId, JSONObject jsonRequest, HttpServletRequest request) {
+		try {
+			IEngine engine = getEngine(toolboxId);
+			if (engine == null) {
+				return createJsonRpcError(jsonRequest, -32602, "Toolbox not found: " + toolboxId);
+			}
+
+			// Get client's protocol version and use it (or latest supported)
+			String clientProtocolVersion = "2024-11-05";
+			JSONObject params = jsonRequest.optJSONObject("params");
+			if (params != null && params.has("protocolVersion")) {
+				clientProtocolVersion = params.getString("protocolVersion");
+			}
+
+			JSONObject result = new JSONObject();
+			result.put("protocolVersion", clientProtocolVersion);
+
+			JSONObject serverInfo = new JSONObject();
+			serverInfo.put("name", "SEMOSS MCP Server");
+			serverInfo.put("version", "1.0.0");
+			result.put("serverInfo", serverInfo);
+
+			// Capabilities - indicate we support tools
+			JSONObject capabilities = new JSONObject();
+			JSONObject toolsCapability = new JSONObject();
+			toolsCapability.put("listChanged", false);
+			capabilities.put("tools", toolsCapability);
+			result.put("capabilities", capabilities);
+
+			return createJsonRpcResponse(jsonRequest, result);
+
+		} catch (Exception e) {
+			classLogger.error("Error in MCP initialize", e);
+			return createJsonRpcError(jsonRequest, -32603, e.getMessage());
+		}
+	}
+
+	/**
+	 * Handle resources/list method - return empty resources (we don't support resources)
+	 */
+	private Response handleResourcesList(JSONObject jsonRequest) {
+		JSONObject result = new JSONObject();
+		result.put("resources", new JSONArray());
+		return createJsonRpcResponse(jsonRequest, result);
+	}
+
+	/**
+	 * Handle prompts/list method - return empty prompts (we don't support prompts)
+	 */
+	private Response handlePromptsList(JSONObject jsonRequest) {
+		JSONObject result = new JSONObject();
+		result.put("prompts", new JSONArray());
+		return createJsonRpcResponse(jsonRequest, result);
+	}
+
+	/**
+	 * Handle tools/list method
+	 */
+	private Response handleToolsList(String toolboxId, JSONObject jsonRequest, HttpServletRequest request) {
+		try {
+			IEngine engine = getEngine(toolboxId);
+			if (engine == null) {
+				return createJsonRpcError(jsonRequest, -32602, "Toolbox not found: " + toolboxId);
+			}
+
+			IMCP mcp = MCPFactory.build(engine);
+			JSONObject mcpTools = mcp.getMCPTools();
+
+			JSONObject result = new JSONObject();
+			if (mcpTools.has("tools")) {
+				result.put("tools", mcpTools.getJSONArray("tools"));
+			} else {
+				result.put("tools", new JSONArray());
+			}
+
+			return createJsonRpcResponse(jsonRequest, result);
+
+		} catch (Exception e) {
+			classLogger.error("Error in tools/list", e);
+			return createJsonRpcError(jsonRequest, -32603, e.getMessage());
+		}
+	}
+
+	/**
+	 * Handle tools/call method
+	 */
+	private Response handleToolsCall(String toolboxId, JSONObject jsonRequest, HttpServletRequest request) {
+		try {
+			IEngine engine = getEngine(toolboxId);
+			if (engine == null) {
+				return createJsonRpcError(jsonRequest, -32602, "Toolbox not found: " + toolboxId);
+			}
+
+			JSONObject params = jsonRequest.optJSONObject("params");
+			if (params == null) {
+				return createJsonRpcError(jsonRequest, -32602, "Missing params");
+			}
+
+			String toolName = params.optString("name");
+			if (toolName == null || toolName.isEmpty()) {
+				return createJsonRpcError(jsonRequest, -32602, "Missing tool name");
+			}
+
+			JSONObject arguments = params.optJSONObject("arguments");
+			if (arguments == null) {
+				arguments = new JSONObject();
+			}
+
+			// Create insight for tool execution
+			HttpSession session = request.getSession(false);
+			Insight insight = initSession(session);
+			if (insight == null) {
+				return createJsonRpcError(jsonRequest, -32603, "Failed to initialize session");
+			}
+
+			// Convert arguments to Map
+			Map<String, Object> argsMap = new HashMap<>();
+			for (String key : arguments.keySet()) {
+				argsMap.put(key, arguments.get(key));
+			}
+
+			// Execute the tool
+			IMCP mcp = MCPFactory.build(engine);
+			Object result = mcp.callTool(toolName, argsMap, insight);
+
+			// Build response
+			JSONObject resultObj = new JSONObject();
+			JSONArray content = new JSONArray();
+			JSONObject textContent = new JSONObject();
+			textContent.put("type", "text");
+			textContent.put("text", result != null ? result.toString() : "null");
+			content.put(textContent);
+			resultObj.put("content", content);
+
+			return createJsonRpcResponse(jsonRequest, resultObj);
+
+		} catch (Exception e) {
+			classLogger.error("Error in tools/call", e);
+			return createJsonRpcError(jsonRequest, -32603, e.getMessage());
+		}
+	}
+
+	/**
+	 * Create JSON-RPC 2.0 success response
+	 */
+	private Response createJsonRpcResponse(JSONObject request, JSONObject result) {
+		JSONObject response = new JSONObject();
+		response.put("jsonrpc", "2.0");
+		if (request.has("id")) {
+			response.put("id", request.get("id"));
+		}
+		response.put("result", result);
+		return Response.ok(response.toString()).type(MediaType.APPLICATION_JSON).build();
+	}
+
+	/**
+	 * Create JSON-RPC 2.0 error response
+	 */
+	private Response createJsonRpcError(JSONObject request, int code, String message) {
+		JSONObject response = new JSONObject();
+		response.put("jsonrpc", "2.0");
+		if (request != null && request.has("id")) {
+			response.put("id", request.get("id"));
+		}
+		JSONObject error = new JSONObject();
+		error.put("code", code);
+		error.put("message", message);
+		response.put("error", error);
+		return Response.status(400).entity(response.toString()).type(MediaType.APPLICATION_JSON).build();
+	}
+
+	/**
+	 * Build MCP server info response
+	 */
+	private Response buildMCPServerInfoResponse(String toolbox_id, HttpServletRequest request) {
+		classLogger.info("MCP server info requested for toolbox: " + toolbox_id);
+
+		try {
+			IEngine engine = getEngine(toolbox_id);
+			if (engine == null) {
+				Map<String, Object> ret = new HashMap<>();
+				ret.put(Constants.ERROR_MESSAGE, "Toolbox not found: " + toolbox_id);
+				return WebUtility.getResponse(ret, 404);
+			}
+
+			// Build MCP server info response
+			JSONObject serverInfo = new JSONObject();
+			serverInfo.put("name", "SEMOSS MCP Server");
+			serverInfo.put("version", "1.0.0");
+			serverInfo.put("toolbox_id", toolbox_id);
+
+			// Get available tools
+			IMCP mcp = MCPFactory.build(engine);
+			JSONObject mcpTools = mcp.getMCPTools();
+			if (mcpTools.has("tools")) {
+				serverInfo.put("tools", mcpTools.getJSONArray("tools"));
+			}
+
+			// Add capabilities
+			JSONObject capabilities = new JSONObject();
+			capabilities.put("tools", true);
+			capabilities.put("resources", false);
+			capabilities.put("prompts", false);
+			serverInfo.put("capabilities", capabilities);
+
+			// Add endpoints info
+			String baseUrl = getExternalBaseUrl(request) + "/api/ext/mcp/" + toolbox_id;
+			JSONObject endpoints = new JSONObject();
+			endpoints.put("tools_list", baseUrl + "/tools");
+			endpoints.put("tools_call", baseUrl + "/tools/call");
+			endpoints.put("openapi", baseUrl + "/openapi.json");
+			endpoints.put("health", baseUrl + "/health");
+			serverInfo.put("endpoints", endpoints);
+
+			return Response.ok(serverInfo.toString()).type(MediaType.APPLICATION_JSON).build();
+
+		} catch (Exception e) {
+			classLogger.error("Error getting MCP server info", e);
+			Map<String, Object> ret = new HashMap<>();
+			ret.put(Constants.ERROR_MESSAGE, "Failed to get server info: " + e.getMessage());
+			return WebUtility.getResponse(ret, 500);
+		}
+	}
+
 	@POST
 	@Path("/it")
 	@Consumes(MediaType.APPLICATION_JSON) // Assume JSON input
@@ -758,25 +1080,101 @@ public class MCPResource {
 	/**
 	 * Helper method to get the external base URL, handling reverse proxies and tunnels.
 	 * Checks X-Forwarded-* headers to determine the actual external URL.
+	 * Supports Cloudflare Tunnel, nginx, Apache, and other reverse proxies.
+	 *
+	 * Priority:
+	 * 1. Configured mcp_external_base_url property (most reliable)
+	 * 2. X-Forwarded-Host/X-Forwarded-Proto headers
+	 * 3. Origin/Referer headers
+	 * 4. Host header
+	 * 5. Server name (fallback)
 	 */
 	private String getExternalBaseUrl(HttpServletRequest request) {
+		// First check if external URL is explicitly configured (most reliable for tunnels)
+		String configuredUrl = socialData.getProperty("mcp_external_base_url");
+		if (configuredUrl != null && !configuredUrl.isEmpty() && !configuredUrl.startsWith("<")) {
+			// Remove trailing slash if present
+			if (configuredUrl.endsWith("/")) {
+				configuredUrl = configuredUrl.substring(0, configuredUrl.length() - 1);
+			}
+			return configuredUrl;
+		}
+
 		// Check for forwarded protocol (from reverse proxy/tunnel)
 		String scheme = request.getHeader("X-Forwarded-Proto");
 		if (scheme == null || scheme.isEmpty()) {
-			scheme = request.getScheme();
+			// Cloudflare also sends Cf-Visitor with scheme info
+			String cfVisitor = request.getHeader("Cf-Visitor");
+			if (cfVisitor != null && cfVisitor.contains("https")) {
+				scheme = "https";
+			} else {
+				scheme = request.getScheme();
+			}
 		}
 
-		// Check for forwarded host
+		// Check for forwarded host - try multiple headers used by different proxies
 		String host = request.getHeader("X-Forwarded-Host");
+
 		if (host == null || host.isEmpty()) {
-			host = request.getHeader("Host");
-			if (host == null || host.isEmpty()) {
-				host = request.getServerName();
-				int port = request.getServerPort();
-				if ((scheme.equals("http") && port != 80) || (scheme.equals("https") && port != 443)) {
-					host += ":" + port;
+			host = request.getHeader("X-Original-Host");
+		}
+
+		if (host == null || host.isEmpty()) {
+			// For Cloudflare Quick Tunnels, check Origin header
+			String origin = request.getHeader("Origin");
+			if (origin != null && !origin.isEmpty() && !origin.contains("localhost")) {
+				try {
+					java.net.URL originUrl = new java.net.URL(origin);
+					host = originUrl.getHost();
+					if (originUrl.getPort() != -1 && originUrl.getPort() != 80 && originUrl.getPort() != 443) {
+						host += ":" + originUrl.getPort();
+					}
+				} catch (Exception e) {
+					// ignore parsing errors
 				}
 			}
+		}
+
+		if (host == null || host.isEmpty()) {
+			// Try Referer header as last resort for external host
+			String referer = request.getHeader("Referer");
+			if (referer != null && !referer.isEmpty() && !referer.contains("localhost")) {
+				try {
+					java.net.URL refererUrl = new java.net.URL(referer);
+					// Only use if it seems like a tunnel URL (trycloudflare.com, ngrok, etc)
+					String refHost = refererUrl.getHost();
+					if (refHost.contains("trycloudflare.com") || refHost.contains("ngrok") ||
+						refHost.contains("tunnel") || refHost.contains("cloudflare")) {
+						host = refHost;
+						if (refererUrl.getPort() != -1 && refererUrl.getPort() != 80 && refererUrl.getPort() != 443) {
+							host += ":" + refererUrl.getPort();
+						}
+					}
+				} catch (Exception e) {
+					// ignore parsing errors
+				}
+			}
+		}
+
+		if (host == null || host.isEmpty()) {
+			// Check Host header - this is often rewritten by Cloudflare Tunnel
+			host = request.getHeader("Host");
+		}
+
+		if (host == null || host.isEmpty()) {
+			// Final fallback to server name
+			host = request.getServerName();
+			int port = request.getServerPort();
+			if ((scheme.equals("http") && port != 80) || (scheme.equals("https") && port != 443)) {
+				host += ":" + port;
+			}
+		}
+
+		// If we detected Cloudflare headers but host is still localhost, log a warning
+		String cfRay = request.getHeader("Cf-Ray");
+		if (cfRay != null && (host.contains("localhost") || host.contains("127.0.0.1"))) {
+			classLogger.warn("Request appears to be from Cloudflare (Cf-Ray: {}) but host is still local: {}. " +
+					"Configure 'mcp_external_base_url' in social.properties to fix this.", cfRay, host);
 		}
 
 		return scheme + "://" + host + request.getContextPath();
