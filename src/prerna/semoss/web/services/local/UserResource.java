@@ -3449,7 +3449,10 @@ public class UserResource {
 	 * Helper method to construct base URL for MCP OAuth
 	 */
 	private String getBaseUrlForMCP(HttpServletRequest request) {
-		String scheme = request.getScheme();
+		// Check for X-Forwarded-Proto header (set by proxies like Cloudflare)
+		String forwardedProto = request.getHeader("X-Forwarded-Proto");
+		String scheme = (forwardedProto != null) ? forwardedProto : request.getScheme();
+
 		String serverName = request.getServerName();
 		int serverPort = request.getServerPort();
 		String contextPath = request.getContextPath();
@@ -3457,8 +3460,10 @@ public class UserResource {
 		StringBuilder url = new StringBuilder();
 		url.append(scheme).append("://").append(serverName);
 
-		if ((scheme.equals("http") && serverPort != 80) ||
-			(scheme.equals("https") && serverPort != 443)) {
+		// Don't include port for standard HTTP/HTTPS ports or when behind a proxy
+		if (forwardedProto == null &&
+			((scheme.equals("http") && serverPort != 80) ||
+			(scheme.equals("https") && serverPort != 443))) {
 			url.append(":").append(serverPort);
 		}
 
@@ -3623,13 +3628,12 @@ public class UserResource {
 				return WebUtility.getResponse(error, 400);
 			}
 
-			// Return JSON with the authorization URL for ChatGPT to redirect to
-			Map<String, String> response = new HashMap<>();
-			response.put("authorization_url", authUrl);
-			response.put("provider", authProvider);
-
-			classLogger.info("Returning " + authProvider + " OAuth URL for MCP auth");
-			return WebUtility.getResponse(response, 200);
+			// Redirect (302) to the OAuth provider's authorization page
+			// This is what ChatGPT expects - a redirect, not JSON
+			classLogger.info("Redirecting to " + authProvider + " OAuth URL for MCP auth");
+			return Response.status(302)
+				.header("Location", authUrl)
+				.build();
 
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
@@ -3646,18 +3650,22 @@ public class UserResource {
 			throws UnsupportedEncodingException {
 		String prefix = provider + "_";
 		String clientId = socialData.getProperty(prefix + "client_id");
-		String oauthRedirectUri = socialData.getProperty(prefix + "redirect_uri");
 
-		if (clientId == null || oauthRedirectUri == null) {
+		if (clientId == null) {
 			return null;
 		}
+
+		// Build redirect URI using the actual base URL from the request
+		// This ensures it works with Cloudflare tunnels or any public URL
+		String baseUrl = getBaseUrlForMCP(request);
+		String oauthRedirectUri = baseUrl + "/api/auth/login/" + provider;
 
 		switch (provider) {
 			case "github":
 				String githubScope = socialData.getProperty(prefix + "scope");
 				return "https://github.com/login/oauth/authorize?" +
 					"client_id=" + clientId +
-					"&redirect_uri=" + oauthRedirectUri +
+					"&redirect_uri=" + URLEncoder.encode(oauthRedirectUri, UTF8) +
 					"&state=" + UUID.randomUUID().toString() +
 					"&allow_signup=true" +
 					"&scope=" + URLEncoder.encode(githubScope, UTF8);
@@ -3666,7 +3674,7 @@ public class UserResource {
 				String googleScope = socialData.getProperty(prefix + "scope");
 				return "https://accounts.google.com/o/oauth2/v2/auth?" +
 					"client_id=" + clientId +
-					"&redirect_uri=" + oauthRedirectUri +
+					"&redirect_uri=" + URLEncoder.encode(oauthRedirectUri, UTF8) +
 					"&response_type=code" +
 					"&scope=" + URLEncoder.encode(googleScope, UTF8) +
 					"&state=" + UUID.randomUUID().toString();
@@ -3676,7 +3684,7 @@ public class UserResource {
 				String msTenant = socialData.getProperty(prefix + "tenant", "common");
 				return "https://login.microsoftonline.com/" + msTenant + "/oauth2/v2.0/authorize?" +
 					"client_id=" + clientId +
-					"&redirect_uri=" + oauthRedirectUri +
+					"&redirect_uri=" + URLEncoder.encode(oauthRedirectUri, UTF8) +
 					"&response_type=code" +
 					"&scope=" + URLEncoder.encode(msScope, UTF8) +
 					"&state=" + UUID.randomUUID().toString();
@@ -3754,15 +3762,21 @@ public class UserResource {
 	 */
 	@POST
 	@Path("/mcp/token")
+	@Consumes("application/x-www-form-urlencoded")
 	@Produces("application/json")
 	public Response exchangeMCPToken(
 			MultivaluedMap<String, String> formParams,
 			@Context HttpServletRequest request) {
 
+		classLogger.info(">>>>> MCP TOKEN ENDPOINT CALLED <<<<<");
 		try {
 			String grantType = formParams.getFirst("grant_type");
 			String code = formParams.getFirst("code");
 			String codeVerifier = formParams.getFirst("code_verifier");
+
+			classLogger.info("MCP token exchange request - grant_type: " + grantType + ", code: " +
+				(code != null ? "present" : "null") + ", code_verifier: " +
+				(codeVerifier != null ? "present" : "null"));
 
 			// Validate grant type
 			if (!"authorization_code".equals(grantType)) {
