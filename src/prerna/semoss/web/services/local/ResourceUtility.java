@@ -51,6 +51,15 @@ public class ResourceUtility {
 		// legacy ms login
 		allowAccessWithoutLogin.add("auth/userinfo/ms");
 		allowAccessWithoutLogin.add("auth/login/ms");
+
+		// MCP OAuth discovery and token endpoints
+		allowAccessWithoutLogin.add("auth/.well-known/oauth-protected-resource");
+		allowAccessWithoutLogin.add("auth/.well-known/oauth-authorization-server");
+		allowAccessWithoutLogin.add("auth/.well-known/jwks.json");
+		allowAccessWithoutLogin.add("auth/oauth/register");
+		allowAccessWithoutLogin.add("auth/mcp/authorize");
+		allowAccessWithoutLogin.add("auth/mcp/callback");
+		allowAccessWithoutLogin.add("auth/mcp/token");
 	}
 
 	/**

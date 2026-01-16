@@ -29,11 +29,14 @@ package prerna.semoss.web.services.local;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.net.URI;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.security.Principal;
+import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
@@ -50,6 +53,7 @@ import javax.annotation.security.PermitAll;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
+import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -78,6 +82,8 @@ import prerna.auth.AuthProvider;
 import prerna.auth.SyncUserAppsThread;
 import prerna.auth.User;
 import prerna.auth.external.ExternalAuthorizationHelper;
+import prerna.auth.mcp.MCPAuthorizationCodeStore;
+import prerna.auth.mcp.MCPTokenStore;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityAPIUserUtils;
 import prerna.auth.utils.SecurityAdminUtils;
@@ -3216,7 +3222,7 @@ public class UserResource {
 
 	/**
 	 * Redirect the login back to the main app page
-	 * 
+	 *
 	 * @param response
 	 */
 	private void setMainPageRedirect(@Context HttpServletRequest request, @Context HttpServletResponse response,
@@ -3226,6 +3232,15 @@ public class UserResource {
 		// otherwise, we send them back to the FE
 		HttpSession session = request.getSession();
 		String contextPath = request.getContextPath();
+
+		// Check for MCP OAuth flow
+		@SuppressWarnings("unchecked")
+		Map<String, String> mcpRequest = (Map<String, String>) session.getAttribute("mcp_auth_request");
+		if (mcpRequest != null) {
+			// This is an MCP flow - generate authorization code and redirect to ChatGPT
+			handleMCPAuthorizationCallback(request, response, session, mcpRequest);
+			return;
+		}
 
 		boolean useCustom = customRedirect != null && !customRedirect.isEmpty();
 		boolean endpoint = session.getAttribute(Constants.ENDPOINT_REDIRECT_KEY) != null;
@@ -3252,6 +3267,52 @@ public class UserResource {
 			}
 		} catch (IOException e) {
 			classLogger.error(Constants.STACKTRACE, e);
+		}
+	}
+
+	/**
+	 * Handle MCP OAuth callback - generate authorization code and redirect to ChatGPT
+	 */
+	private void handleMCPAuthorizationCallback(HttpServletRequest request, HttpServletResponse response,
+			HttpSession session, Map<String, String> mcpRequest) {
+		try {
+			// Get authenticated user from session
+			User user = (User) session.getAttribute(Constants.SESSION_USER);
+			if (user == null) {
+				classLogger.error("MCP callback: No authenticated user in session");
+				response.sendError(500, "Authentication failed");
+				return;
+			}
+
+			// Generate authorization code
+			String authorizationCode = UUID.randomUUID().toString();
+			String chatgptRedirectUri = mcpRequest.get("redirect_uri");
+			String state = mcpRequest.get("state");
+
+			// Store authorization code with user and auth request (contains code_challenge)
+			MCPAuthorizationCodeStore.getInstance().storeCode(authorizationCode, user, mcpRequest);
+
+			// Clear MCP request from session
+			session.removeAttribute("mcp_auth_request");
+
+			// Redirect to ChatGPT's redirect_uri with code and state
+			String redirectUrl = chatgptRedirectUri +
+				(chatgptRedirectUri.contains("?") ? "&" : "?") +
+				"code=" + authorizationCode +
+				"&state=" + state;
+
+			classLogger.info("MCP callback: Redirecting to ChatGPT with authorization code for user: " +
+				user.getPrimaryLoginToken().getEmail());
+			response.setStatus(302);
+			response.sendRedirect(redirectUrl);
+
+		} catch (Exception e) {
+			classLogger.error(Constants.STACKTRACE, e);
+			try {
+				response.sendError(500, "MCP callback failed");
+			} catch (IOException ioe) {
+				classLogger.error(Constants.STACKTRACE, ioe);
+			}
 		}
 	}
 
@@ -3301,6 +3362,499 @@ public class UserResource {
 			}
 		}
 		return WebUtility.getResponse(output, 200);
+	}
+
+	//////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////
+
+	/**
+	 * MCP OAuth Discovery Endpoints
+	 * These endpoints tell ChatGPT/Claude how to authenticate with Semoss
+	 */
+
+	/**
+	 * OAuth Protected Resource Metadata - RFC 9728
+	 * Tells MCP clients this resource requires OAuth authentication
+	 */
+	@GET
+	@Path("/.well-known/oauth-protected-resource")
+	@Produces("application/json")
+	public Response getProtectedResourceMetadata(@Context HttpServletRequest request) {
+		classLogger.info(">>>>> OAuth Protected Resource Metadata endpoint called <<<<<");
+		try {
+			String baseUrl = getBaseUrlForMCP(request);
+			classLogger.info("Base URL: " + baseUrl);
+
+			Map<String, Object> metadata = new HashMap<>();
+			metadata.put("resource", baseUrl);
+			metadata.put("authorization_servers", java.util.Arrays.asList(baseUrl));
+			metadata.put("bearer_methods_supported", java.util.Arrays.asList("header"));
+			metadata.put("scopes_supported", java.util.Arrays.asList(
+				"mcp:tools:list",
+				"mcp:tools:call",
+				"mcp:prompts:list",
+				"mcp:resources:list"
+			));
+
+			classLogger.info("Returning metadata: " + metadata);
+			return WebUtility.getResponse(metadata, 200);
+		} catch (Exception e) {
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> error = new HashMap<>();
+			error.put("error", "internal_error");
+			return WebUtility.getResponse(error, 500);
+		}
+	}
+
+	/**
+	 * OAuth Authorization Server Metadata - RFC 8414
+	 * Describes the OAuth endpoints and capabilities
+	 */
+	@GET
+	@Path("/.well-known/oauth-authorization-server")
+	@Produces("application/json")
+	public Response getAuthorizationServerMetadata(@Context HttpServletRequest request) {
+		classLogger.info(">>>>> OAuth Authorization Server Metadata endpoint called <<<<<");
+		try {
+			String baseUrl = getBaseUrlForMCP(request);
+			classLogger.info("Base URL: " + baseUrl);
+
+			Map<String, Object> metadata = new HashMap<>();
+			metadata.put("issuer", baseUrl + "/api/auth");
+			metadata.put("authorization_endpoint", baseUrl + "/api/auth/mcp/authorize");
+			metadata.put("token_endpoint", baseUrl + "/api/auth/mcp/token");
+			metadata.put("registration_endpoint", baseUrl + "/api/auth/oauth/register");
+			metadata.put("jwks_uri", baseUrl + "/api/auth/.well-known/jwks.json");
+			metadata.put("response_types_supported", java.util.Arrays.asList("code"));
+			metadata.put("grant_types_supported",
+				java.util.Arrays.asList("authorization_code", "refresh_token"));
+			metadata.put("code_challenge_methods_supported", java.util.Arrays.asList("S256"));
+			metadata.put("token_endpoint_auth_methods_supported", java.util.Arrays.asList("none"));
+			metadata.put("subject_types_supported", java.util.Arrays.asList("public"));
+			metadata.put("token_endpoint_auth_signing_alg_values_supported",
+				java.util.Arrays.asList("RS256"));
+
+			classLogger.info("Returning metadata: " + metadata);
+			return WebUtility.getResponse(metadata, 200);
+		} catch (Exception e) {
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> error = new HashMap<>();
+			error.put("error", "internal_error");
+			return WebUtility.getResponse(error, 500);
+		}
+	}
+
+	/**
+	 * Helper method to construct base URL for MCP OAuth
+	 */
+	private String getBaseUrlForMCP(HttpServletRequest request) {
+		String scheme = request.getScheme();
+		String serverName = request.getServerName();
+		int serverPort = request.getServerPort();
+		String contextPath = request.getContextPath();
+
+		StringBuilder url = new StringBuilder();
+		url.append(scheme).append("://").append(serverName);
+
+		if ((scheme.equals("http") && serverPort != 80) ||
+			(scheme.equals("https") && serverPort != 443)) {
+			url.append(":").append(serverPort);
+		}
+
+		url.append(contextPath);
+		return url.toString();
+	}
+
+	/**
+	 * JWKS (JSON Web Key Set) Endpoint
+	 * Returns our public key for verifying JWT tokens
+	 */
+	@GET
+	@Path("/.well-known/jwks.json")
+	@Produces("application/json")
+	public Response getJWKS(@Context HttpServletRequest request) {
+		try {
+			Map<String, Object> jwks = prerna.auth.mcp.MCPKeyManager.getInstance().getJWKS();
+			return WebUtility.getResponse(jwks, 200);
+		} catch (Exception e) {
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> error = new HashMap<>();
+			error.put("error", "internal_error");
+			return WebUtility.getResponse(error, 500);
+		}
+	}
+
+	/**
+	 * Dynamic Client Registration (DCR) Endpoint - RFC 7591
+	 * Allows ChatGPT to automatically register as an OAuth client
+	 */
+	@POST
+	@Path("/oauth/register")
+	@Consumes("application/json")
+	@Produces("application/json")
+	public Response registerOAuthClient(String jsonBody, @Context HttpServletRequest request) {
+		try {
+			classLogger.info("OAuth Dynamic Client Registration request");
+
+			// Parse registration request
+			com.google.gson.Gson gson = new com.google.gson.Gson();
+			@SuppressWarnings("unchecked")
+			Map<String, Object> requestMap = gson.fromJson(jsonBody, Map.class);
+
+			// Extract redirect_uris
+			@SuppressWarnings("unchecked")
+			List<String> redirectUris = (List<String>) requestMap.get("redirect_uris");
+			if (redirectUris == null || redirectUris.isEmpty()) {
+				Map<String, String> error = new HashMap<>();
+				error.put("error", "invalid_redirect_uri");
+				error.put("error_description", "redirect_uris is required");
+				return WebUtility.getResponse(error, 400);
+			}
+
+			// Extract grant_types (default to authorization_code)
+			@SuppressWarnings("unchecked")
+			List<String> grantTypes = (List<String>) requestMap.get("grant_types");
+			if (grantTypes == null) {
+				grantTypes = java.util.Arrays.asList("authorization_code");
+			}
+
+			// Extract token_endpoint_auth_method (default to none for public clients)
+			String tokenAuthMethod = (String) requestMap.get("token_endpoint_auth_method");
+			if (tokenAuthMethod == null) {
+				tokenAuthMethod = "none";
+			}
+
+			// Generate client_id and client_secret
+			String clientId = java.util.UUID.randomUUID().toString();
+			String clientSecret = tokenAuthMethod.equals("none") ? null :
+				java.util.Base64.getUrlEncoder().withoutPadding()
+					.encodeToString(new java.security.SecureRandom().generateSeed(32));
+
+			// Store client registration
+			prerna.auth.mcp.MCPClientStore.ClientRegistration registration =
+				new prerna.auth.mcp.MCPClientStore.ClientRegistration(
+					clientId, clientSecret, redirectUris, grantTypes, tokenAuthMethod);
+			prerna.auth.mcp.MCPClientStore.getInstance().registerClient(clientId, registration);
+
+			classLogger.info("Registered OAuth client: " + clientId);
+
+			// Build response per RFC 7591
+			Map<String, Object> response = new HashMap<>();
+			response.put("client_id", clientId);
+			if (clientSecret != null) {
+				response.put("client_secret", clientSecret);
+			}
+			response.put("redirect_uris", redirectUris);
+			response.put("grant_types", grantTypes);
+			response.put("token_endpoint_auth_method", tokenAuthMethod);
+			response.put("client_id_issued_at", System.currentTimeMillis() / 1000);
+
+			return WebUtility.getResponse(response, 201);
+
+		} catch (Exception e) {
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> error = new HashMap<>();
+			error.put("error", "invalid_client_metadata");
+			return WebUtility.getResponse(error, 400);
+		}
+	}
+
+	//////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////
+
+	/**
+	 * MCP OAuth Authorization Flow
+	 * These endpoints handle the OAuth 2.1 authorization code flow with PKCE
+	 */
+
+	/**
+	 * MCP Authorization Endpoint - Start OAuth flow
+	 * ChatGPT redirects user here to authenticate
+	 */
+	@GET
+	@Path("/mcp/authorize")
+	@Produces("application/json")
+	public Response initiateMCPAuthorization(
+			@QueryParam("client_id") String clientId,
+			@QueryParam("redirect_uri") String redirectUri,
+			@QueryParam("state") String state,
+			@QueryParam("code_challenge") String codeChallenge,
+			@QueryParam("code_challenge_method") String codeChallengeMethod,
+			@QueryParam("provider") String provider,
+			@Context HttpServletRequest request) {
+
+		try {
+			classLogger.info("MCP authorization request from client: " +
+				WebUtility.inputSanitizer(clientId));
+
+			// Validate PKCE
+			if (!"S256".equals(codeChallengeMethod)) {
+				Map<String, String> error = new HashMap<>();
+				error.put("error", "invalid_request");
+				error.put("error_description", "code_challenge_method must be S256");
+				return WebUtility.getResponse(error, 400);
+			}
+
+			// Choose OAuth provider (default to github if not specified)
+			String authProvider = (provider != null && !provider.isEmpty()) ?
+				provider.toLowerCase() : "github";
+
+			// Store MCP request in session so /auth/login/<provider> can complete the flow
+			HttpSession session = request.getSession(true);
+			Map<String, String> mcpRequest = new HashMap<>();
+			mcpRequest.put("client_id", clientId);
+			mcpRequest.put("redirect_uri", redirectUri);
+			mcpRequest.put("state", state);
+			mcpRequest.put("code_challenge", codeChallenge);
+			mcpRequest.put("provider", authProvider);
+			session.setAttribute("mcp_auth_request", mcpRequest);
+
+			classLogger.info("Stored MCP auth request in session for provider: " + authProvider);
+
+			// Build the OAuth provider's authorization URL
+			// The OAuth provider will redirect back to our /auth/login/<provider> endpoint
+			String authUrl = getOAuthProviderUrl(authProvider, request);
+			if (authUrl == null) {
+				Map<String, String> error = new HashMap<>();
+				error.put("error", "unsupported_provider");
+				error.put("error_description", "Provider " + authProvider + " is not configured");
+				return WebUtility.getResponse(error, 400);
+			}
+
+			// Return JSON with the authorization URL for ChatGPT to redirect to
+			Map<String, String> response = new HashMap<>();
+			response.put("authorization_url", authUrl);
+			response.put("provider", authProvider);
+
+			classLogger.info("Returning " + authProvider + " OAuth URL for MCP auth");
+			return WebUtility.getResponse(response, 200);
+
+		} catch (Exception e) {
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> error = new HashMap<>();
+			error.put("error", "server_error");
+			return WebUtility.getResponse(error, 500);
+		}
+	}
+
+	/**
+	 * Get OAuth provider's authorization URL
+	 */
+	private String getOAuthProviderUrl(String provider, HttpServletRequest request)
+			throws UnsupportedEncodingException {
+		String prefix = provider + "_";
+		String clientId = socialData.getProperty(prefix + "client_id");
+		String oauthRedirectUri = socialData.getProperty(prefix + "redirect_uri");
+
+		if (clientId == null || oauthRedirectUri == null) {
+			return null;
+		}
+
+		switch (provider) {
+			case "github":
+				String githubScope = socialData.getProperty(prefix + "scope");
+				return "https://github.com/login/oauth/authorize?" +
+					"client_id=" + clientId +
+					"&redirect_uri=" + oauthRedirectUri +
+					"&state=" + UUID.randomUUID().toString() +
+					"&allow_signup=true" +
+					"&scope=" + URLEncoder.encode(githubScope, UTF8);
+
+			case "google":
+				String googleScope = socialData.getProperty(prefix + "scope");
+				return "https://accounts.google.com/o/oauth2/v2/auth?" +
+					"client_id=" + clientId +
+					"&redirect_uri=" + oauthRedirectUri +
+					"&response_type=code" +
+					"&scope=" + URLEncoder.encode(googleScope, UTF8) +
+					"&state=" + UUID.randomUUID().toString();
+
+			case "microsoft":
+				String msScope = socialData.getProperty(prefix + "scope");
+				String msTenant = socialData.getProperty(prefix + "tenant", "common");
+				return "https://login.microsoftonline.com/" + msTenant + "/oauth2/v2.0/authorize?" +
+					"client_id=" + clientId +
+					"&redirect_uri=" + oauthRedirectUri +
+					"&response_type=code" +
+					"&scope=" + URLEncoder.encode(msScope, UTF8) +
+					"&state=" + UUID.randomUUID().toString();
+
+			default:
+				return null;
+		}
+	}
+
+
+	/**
+	 * MCP Callback Endpoint - Handle return from Semoss login
+	 * User is authenticated, generate authorization code
+	 */
+	@GET
+	@Path("/mcp/callback")
+	public Response handleMCPCallback(@Context HttpServletRequest request) {
+		try {
+			HttpSession session = request.getSession(false);
+			if (session == null) {
+				classLogger.warn("MCP callback - no session");
+				Map<String, String> error = new HashMap<>();
+				error.put("error", "session_expired");
+				return WebUtility.getResponse(error, 400);
+			}
+
+			// Get user from session (set by /login or /loginLDAP)
+			User user = (User) session.getAttribute(Constants.SESSION_USER);
+			if (user == null) {
+				classLogger.warn("MCP callback - user not authenticated");
+				Map<String, String> error = new HashMap<>();
+				error.put("error", "authentication_required");
+				return WebUtility.getResponse(error, 401);
+			}
+
+			classLogger.info("MCP callback - user authenticated: " +
+				WebUtility.inputSanitizer(user.getPrimaryLogin().toString()));
+
+			// Get stored MCP request
+			@SuppressWarnings("unchecked")
+			Map<String, String> mcpRequest =
+				(Map<String, String>) session.getAttribute("mcp_auth_request");
+
+			if (mcpRequest == null) {
+				classLogger.warn("MCP callback - no stored auth request");
+				Map<String, String> error = new HashMap<>();
+				error.put("error", "invalid_request");
+				return WebUtility.getResponse(error, 400);
+			}
+
+			// Generate authorization code
+			String authCode = generateSecureCode();
+			MCPAuthorizationCodeStore.getInstance().storeCode(authCode, user, mcpRequest);
+
+			classLogger.info("MCP callback - generated auth code");
+
+			// Redirect back to ChatGPT
+			String redirectUriParam = mcpRequest.get("redirect_uri");
+			String stateParam = mcpRequest.get("state");
+			String redirectUrl = redirectUriParam + "?code=" + authCode + "&state=" + stateParam;
+
+			return Response.seeOther(URI.create(redirectUrl)).build();
+
+		} catch (Exception e) {
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> error = new HashMap<>();
+			error.put("error", "server_error");
+			return WebUtility.getResponse(error, 500);
+		}
+	}
+
+	/**
+	 * MCP Token Exchange Endpoint - Exchange authorization code for access token
+	 * ChatGPT calls this with the code to get an access token
+	 */
+	@POST
+	@Path("/mcp/token")
+	@Produces("application/json")
+	public Response exchangeMCPToken(
+			MultivaluedMap<String, String> formParams,
+			@Context HttpServletRequest request) {
+
+		try {
+			String grantType = formParams.getFirst("grant_type");
+			String code = formParams.getFirst("code");
+			String codeVerifier = formParams.getFirst("code_verifier");
+
+			// Validate grant type
+			if (!"authorization_code".equals(grantType)) {
+				Map<String, String> error = new HashMap<>();
+				error.put("error", "unsupported_grant_type");
+				return WebUtility.getResponse(error, 400);
+			}
+
+			// Consume authorization code (one-time use)
+			MCPAuthorizationCodeStore.AuthorizationCode authCode =
+				MCPAuthorizationCodeStore.getInstance().consumeCode(code);
+
+			if (authCode == null) {
+				classLogger.warn("MCP token exchange - invalid code");
+				Map<String, String> error = new HashMap<>();
+				error.put("error", "invalid_grant");
+				return WebUtility.getResponse(error, 400);
+			}
+
+			// Verify PKCE
+			if (!verifyPKCE(codeVerifier, authCode.getCodeChallenge())) {
+				classLogger.warn("MCP token exchange - PKCE verification failed");
+				Map<String, String> error = new HashMap<>();
+				error.put("error", "invalid_grant");
+				return WebUtility.getResponse(error, 400);
+			}
+
+			// Get client_id and resource from auth request
+			String clientId = authCode.getAuthRequest().get("client_id");
+			String resource = formParams.getFirst("resource");
+			if (resource == null) {
+				resource = authCode.getAuthRequest().get("resource");
+			}
+
+			// Generate JWT access token
+			String baseUrl = getBaseUrlForMCP(request);
+			String issuer = baseUrl + "/api/auth";
+			String audience = resource != null ? resource : baseUrl + "/api/mcp";
+			long expiresInSeconds = 3600; // 1 hour
+
+			String accessToken = prerna.auth.mcp.MCPJWTHelper.createJWT(
+				authCode.getUser(),
+				clientId,
+				issuer,
+				audience,
+				expiresInSeconds
+			);
+
+			// Store token for validation (JWT tokens are self-contained, but we keep a record)
+			MCPTokenStore.getInstance().storeToken(accessToken, authCode.getUser());
+
+			classLogger.info("MCP token exchange - success for user: " +
+				WebUtility.inputSanitizer(authCode.getUser().getPrimaryLogin().toString()));
+
+			Map<String, Object> response = new HashMap<>();
+			response.put("access_token", accessToken);
+			response.put("token_type", "Bearer");
+			response.put("expires_in", expiresInSeconds);
+
+			return WebUtility.getResponse(response, 200);
+
+		} catch (Exception e) {
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> error = new HashMap<>();
+			error.put("error", "server_error");
+			return WebUtility.getResponse(error, 500);
+		}
+	}
+
+	/**
+	 * Helper method to generate secure random codes/tokens
+	 */
+	private String generateSecureCode() {
+		SecureRandom random = new SecureRandom();
+		byte[] bytes = new byte[32];
+		random.nextBytes(bytes);
+		return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+	}
+
+	/**
+	 * Helper method for PKCE verification
+	 */
+	private boolean verifyPKCE(String verifier, String challenge) {
+		try {
+			MessageDigest digest = MessageDigest.getInstance("SHA-256");
+			byte[] hash = digest.digest(verifier.getBytes(StandardCharsets.US_ASCII));
+			String computed = Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
+			return computed.equals(challenge);
+		} catch (Exception e) {
+			classLogger.error(Constants.STACKTRACE, e);
+			return false;
+		}
 	}
 
 }
