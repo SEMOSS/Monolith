@@ -123,7 +123,7 @@ public class MCPResource {
 			final OutputStream os = response.getOutputStream();
 
 			// set response headers
-			response.setContentType(MediaType.SERVER_SENT_EVENTS);
+			response.setContentType(MediaType.APPLICATION_JSON);
 			response.setHeader("Cache-Control", "no-cache");
 			response.setHeader("Connection", "keep-alive");
 			response.setCharacterEncoding("UTF-8");
