@@ -158,9 +158,6 @@ public class MCPReaper implements Runnable {
 				BufferedReader streamReader = new BufferedReader(
 						new InputStreamReader(this.is, StandardCharsets.UTF_8))) {
 
-			sendSseEvent("endpoint", String
-					.format("{\"jsonrpc\":\"2.0\",\"method\":\"endpoint\",\"params\":{\"uri\":\"%s\"}}", requestUrl));
-
 			String actualContent = null;
 			// that will block every time.. we are good
 			while ((actualContent = streamReader.readLine()) != null) {
@@ -170,7 +167,7 @@ public class MCPReaper implements Runnable {
 				classLogger.info("HTTP RESPONSE :::: " + output);
 
 				if (output != null) {
-					sendSseEvent("message", output);
+					sendHttpEvent(output);
 				}
 			}
 		} catch (IOException e) {
@@ -185,16 +182,12 @@ public class MCPReaper implements Runnable {
 
 	/**
 	 * 
-	 * @param eventType
 	 * @param data
 	 * @throws IOException
 	 */
-	private void sendSseEvent(String eventType, String data) throws IOException {
-		StringBuilder sseMessage = new StringBuilder();
-		sseMessage.append("event: ").append(eventType).append("\n");
-		sseMessage.append("data: ").append(data).append("\n\n");
-
-		byte[] bytes = sseMessage.toString().getBytes(StandardCharsets.UTF_8);
+	private void sendHttpEvent(String data) throws IOException {
+		classLogger.debug("Sending data {}", data);
+		byte[] bytes = (data + "\n").getBytes(StandardCharsets.UTF_8);
 		this.os.write(bytes);
 		this.os.flush();
 	}
