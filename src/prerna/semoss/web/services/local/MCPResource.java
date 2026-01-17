@@ -183,7 +183,9 @@ public class MCPResource {
 		}
 
 		try {
-			response.setContentType(MediaType.APPLICATION_JSON);
+			response.setContentType(MediaType.SERVER_SENT_EVENTS);
+			response.setHeader("Cache-Control", "no-cache");
+			response.setHeader("Connection", "keep-alive");
 			response.setCharacterEncoding("UTF-8");
 			response.flushBuffer();
 
