@@ -50,7 +50,9 @@ public class UserAccessKeyFilter implements Filter {
 		}
 
 		String path = request.getRequestURI();
-		if (path.contains("api/model/openai") || path.contains("api/ext/")) {
+		classLogger.debug("UserAccessKeyFilter checking path: " + path);
+		if (path.contains("api/model/openai") || path.contains("api/ext/") || path.contains("api/mcp")) {
+			classLogger.debug("UserAccessKeyFilter skipping path: " + path);
 			arg2.doFilter(arg0, arg1);
 			return;
 		}

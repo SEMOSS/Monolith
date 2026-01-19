@@ -63,6 +63,7 @@ public class ResourceUtility {
 
 		// MCP endpoints - handled by MCPOAuthFilter for JWT authentication
 		allowAccessWithoutLogin.add("ext/mcp");
+		allowAccessWithoutLogin.add("mcp");  // Standard MCP endpoint for ChatGPT
 	}
 
 	/**

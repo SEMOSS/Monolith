@@ -44,7 +44,7 @@ public class MCPReaper implements Runnable {
 	private Map<String, String> log4jContextMap;
 
 	/**
-	 * 
+	 * Constructor for SSE mode
 	 * @param user
 	 * @param insight
 	 * @param sessionId
@@ -68,6 +68,41 @@ public class MCPReaper implements Runnable {
 			this.log4jContextMap = new HashMap<>();
 		} else {
 			this.log4jContextMap = log4jContextMap;
+		}
+	}
+
+	/**
+	 * Constructor for synchronous JSON mode (ChatGPT)
+	 * @param user
+	 * @param insight
+	 * @param sessionId
+	 * @param toolbox
+	 * @param log4jContextMap
+	 */
+	public MCPReaper(User user, Insight insight, String sessionId, String toolbox, Map<String, String> log4jContextMap) {
+		this.user = user;
+		this.insight = insight;
+		this.sessionId = sessionId;
+		this.toolbox = toolbox;
+
+		if (log4jContextMap == null) {
+			this.log4jContextMap = new HashMap<>();
+		} else {
+			this.log4jContextMap = log4jContextMap;
+		}
+	}
+
+	/**
+	 * Process a JSON-RPC request synchronously (for ChatGPT)
+	 * @param jsonBody
+	 * @return JSON-RPC response
+	 */
+	public String processJsonRpcRequest(String jsonBody) {
+		try (var ctx = org.apache.logging.log4j.CloseableThreadContext.putAll(this.log4jContextMap)) {
+			classLogger.info("Processing JSON-RPC request: " + jsonBody);
+			String response = generateResponse(jsonBody, sessionId, toolbox, insight);
+			classLogger.info("Generated JSON-RPC response: " + response);
+			return response;
 		}
 	}
 

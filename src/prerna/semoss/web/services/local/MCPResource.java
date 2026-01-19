@@ -74,8 +74,66 @@ public class MCPResource {
 		return Response.ok(stream).build();
 	}
 
+	/**
+	 * MCP endpoint for ChatGPT (HTTP POST with JSON response)
+	 * This endpoint handles JSON-RPC 2.0 requests from ChatGPT
+	 */
 	@POST
 	@Path("/comms")
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response commsJson(@PathParam("toolbox_id") String toolbox_id,
+			String jsonBody, @Context HttpServletRequest request) {
+		classLogger.info("MCP JSON endpoint called for toolbox: " + toolbox_id);
+		classLogger.info("MCP request body: " + jsonBody);
+
+		try {
+			HttpSession session = request.getSession(false);
+			if (session == null) {
+				classLogger.error("No session found for MCP request");
+				return Response.status(401).entity("{\"error\":\"No session\"}").build();
+			}
+
+			String sessionId = session.getId();
+			String authorization = request.getHeader("Authorization");
+
+			// Get or create insight
+			Insight insight = null;
+			if (!mcpThread.containsKey(authorization)) {
+				insight = initSession(session);
+				if (insight != null) {
+					mcpThread.put(authorization, insight);
+				}
+			} else {
+				insight = mcpThread.get(authorization);
+			}
+
+			if (insight == null) {
+				classLogger.error("Could not create insight for MCP request");
+				return Response.status(500).entity("{\"error\":\"Could not create insight\"}").build();
+			}
+
+			User user = insight.getUser();
+
+			// Process the JSON-RPC request using MCPReaper's logic
+			MCPReaper reaper = new MCPReaper(user, insight, sessionId, toolbox_id,
+					ThreadContext.getImmutableContext());
+			String responseJson = reaper.processJsonRpcRequest(jsonBody);
+
+			classLogger.info("MCP response: " + responseJson);
+			return Response.ok(responseJson).build();
+
+		} catch (Exception e) {
+			classLogger.error("Error processing MCP request", e);
+			return Response.status(500)
+				.entity("{\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{\"code\":-32603,\"message\":\"Internal error: " +
+					e.getMessage().replace("\"", "\\\"") + "\"}}")
+				.build();
+		}
+	}
+
+	@POST
+	@Path("/comms-sse")
 	@Produces(MediaType.SERVER_SENT_EVENTS)
 	public void comms(@PathParam("toolbox_id") String toolbox_id, @QueryParam("access_key") String access,
 			@Context SseEventSink eventSink, @Context Sse sse, InputStream is, @Context HttpServletRequest request) {
