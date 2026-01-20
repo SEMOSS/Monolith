@@ -47,9 +47,10 @@ import prerna.util.SocialPropertiesUtil;
 /**
  * Well-Known URIs Resource (RFC 5785)
  * Provides OAuth Protected Resource Metadata (RFC 9728) for MCP OAuth integration.
+ * This resource is mapped through WellKnownApplication at the root "/" path.
  */
 @Singleton
-@Path("/.well-known")
+@Path(".well-known")
 @PermitAll
 public class WellKnownResource {
 

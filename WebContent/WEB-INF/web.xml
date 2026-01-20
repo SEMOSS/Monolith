@@ -581,6 +581,23 @@
         <servlet-name>MainApplication</servlet-name>
         <url-pattern>/api/*</url-pattern>
     </servlet-mapping>
+    <!-- Servlet For Well-Known URIs (RFC 5785) - OAuth metadata, etc. -->
+    <servlet>
+        <servlet-name>WellKnownApplication</servlet-name>
+        <servlet-class>org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher</servlet-class>
+        <init-param>
+            <param-name>javax.ws.rs.Application</param-name>
+            <param-value>prerna.semoss.web.app.WellKnownApplication</param-value>
+        </init-param>
+        <init-param>
+            <param-name>resteasy.servlet.mapping.prefix</param-name>
+            <param-value>/</param-value>
+        </init-param>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>WellKnownApplication</servlet-name>
+        <url-pattern>/.well-known/*</url-pattern>
+    </servlet-mapping>
     <!-- Servlet For External Applications Registering a Trusted Token To Alias User -->
     <servlet>
         <servlet-name>TrustedTokenApplication</servlet-name>
