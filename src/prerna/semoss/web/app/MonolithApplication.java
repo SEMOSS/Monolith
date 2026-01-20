@@ -52,6 +52,7 @@ import prerna.semoss.web.services.local.ShareInsightResource;
 import prerna.semoss.web.services.local.StorageEngineResource;
 import prerna.semoss.web.services.local.ThemeResource;
 import prerna.semoss.web.services.local.UserResource;
+import prerna.semoss.web.services.local.WellKnownResource;
 import prerna.semoss.web.services.local.auth.AdminDatabaseAuthorizationResource;
 import prerna.semoss.web.services.local.auth.AdminDatabaseAuthorizationResource2;
 import prerna.semoss.web.services.local.auth.AdminEngineAuthorizationResource;
@@ -125,6 +126,8 @@ public class MonolithApplication extends Application {
       singletons.add(new OpenAIEndpoints());
       // MCP
       singletons.add(new MCPResource());
+      // Well-Known URIs (RFC 5785) - must be at root level
+      singletons.add(new WellKnownResource());
    }
 
    @Override
