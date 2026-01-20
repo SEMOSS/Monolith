@@ -329,7 +329,11 @@ public class MCPResource {
 
 	/**
 	 * OAuth Protected Resource Metadata (RFC 9728) - required for ChatGPT MCP OAuth.
+	 * NOTE: This endpoint has been moved to WellKnownResource to ensure it works at the root path
+	 * /.well-known/oauth-protected-resource as required by RFC 9728.
+	 * The leading slash in @Path does not reliably override the parent class path in all JAX-RS implementations.
 	 */
+	/*
 	@GET
 	@Path("/.well-known/oauth-protected-resource")
 	@Produces(MediaType.APPLICATION_JSON)
@@ -348,6 +352,7 @@ public class MCPResource {
 
 		return Response.ok(metadata.toString()).type(MediaType.APPLICATION_JSON).build();
 	}
+	*/
 
 	/**
 	 * OpenAPI specification for ChatGPT Actions.
