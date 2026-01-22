@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <web-app xmlns="https://xmlns.jcp.org/xml/ns/javaee" xmlns:web="https://xmlns.jcp.org/xml/ns/javaee/web-app_3_1.xsd" xmlns:xsi="https://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="https://xmlns.jcp.org/xml/ns/javaee" version="3.1">
-   <display-name>Monolith</display-name>
-   <welcome-file-list>
-      <welcome-file>index.html</welcome-file>
-   </welcome-file-list>
+<display-name>Monolith</display-name>
+<welcome-file-list>
+    <welcome-file>index.html</welcome-file>
+</welcome-file-list>
 
    <error-page>
      <error-code>404</error-code>
@@ -18,688 +18,701 @@
       <location>/error/error.html</location>
    </error-page>
 
-   <!-- From Tomcat -->
-   <filter>
-      <filter-name>SetCharacterEncoding</filter-name>
-      <filter-class>org.apache.catalina.filters.SetCharacterEncodingFilter</filter-class>
-      <init-param>
-         <param-name>encoding</param-name>
-         <param-value>UTF-8</param-value>
-      </init-param>
-   </filter>
-   <filter-mapping>
-      <filter-name>SetCharacterEncoding</filter-name>
-      <url-pattern>/*</url-pattern>
-   </filter-mapping>
-   <!-- 
-   <filter>
-      <filter-name>CustomRestCsrfPreventionFilter</filter-name>
-      <filter-class>prerna.web.conf.CustomRestCsrfPreventionFilter</filter-class>
-	  <init-param>
-         <param-name>denyStatus</param-name>
-         <param-value>403</param-value>
-      </init-param>
-      <init-param>
-         <param-name>pathsAcceptingParams</param-name>
-         <param-value>/*</param-value>
-	  </init-param>
-      <init-param>
-         <param-name>randomClass</param-name>
-         <param-value>java.security.SecureRandom</param-value>
-      </init-param>
-   </filter>
-   <filter-mapping>
-      <filter-name>CustomRestCsrfPreventionFilter</filter-name>
-      <url-pattern>/*</url-pattern>
-   </filter-mapping>
-   -->
-   <filter>
-      <filter-name>HeaderSecurityFilter</filter-name>
-      <filter-class>org.apache.catalina.filters.HttpHeaderSecurityFilter</filter-class>
-	  <init-param>
-         <param-name>hstsEnabled</param-name>
-         <param-value>true</param-value>
-      </init-param>
-	  <init-param>
-         <param-name>hstsMaxAgeSeconds</param-name>
-         <param-value>31536000</param-value>
-      </init-param>
-	  <init-param>
-         <param-name>hstsIncludeSubDomains</param-name>
-         <param-value>true</param-value>
-      </init-param>
-      <init-param>
-         <param-name>antiClickJackingEnabled</param-name>
-         <param-value>true</param-value>
-      </init-param>
-      <init-param>
-         <param-name>antiClickJackingOption</param-name>
-         <param-value>SAMEORIGIN</param-value>
-      </init-param>
-      <init-param>
-         <param-name>blockContentTypeSniffingEnabled</param-name>
-         <param-value>true</param-value>
-      </init-param>
-   </filter>
-  <filter-mapping>
-      <filter-name>HeaderSecurityFilter</filter-name>
-      <url-pattern>/*</url-pattern>
-   </filter-mapping>
-   <!-- CORS FILTER - MUST FILL IN cors.allowed.origins -->
-   <!-- 
-   <filter>
-      <filter-name>CorsFilter</filter-name>
-      <filter-class>org.apache.catalina.filters.CorsFilter</filter-class>
-      <init-param>
-         <param-name>cors.allowed.origins</param-name>
-         <param-value>*</param-value>
-      </init-param>
-      <init-param>
-         <param-name>cors.allowed.methods</param-name>
-         <param-value>GET,POST,OPTIONS</param-value>
-      </init-param>
-      <init-param>
-         <param-name>cors.allowed.headers</param-name>
-         <param-value>Authorization,Content-Type,X-Requested-With,accept,Origin,Access-Control-Request-Method,Access-Control-Request-Headers</param-value>
-      </init-param>
-      <init-param>
-         <param-name>cors.exposed.headers</param-name>
-         <param-value>Access-Control-Allow-Origin,Access-Control-Allow-Credentials</param-value>
-      </init-param>
-      <init-param>
-         <param-name>cors.support.credentials</param-name>
-         <param-value>false</param-value>
-      </init-param>
-      <init-param>
-         <param-name>cors.preflight.maxage</param-name>
-         <param-value>1800</param-value>
-      </init-param>
-   </filter>
-   <filter-mapping>
-      <filter-name>CorsFilter</filter-name>
-      <url-pattern>/*</url-pattern>
-   </filter-mapping>
-	-->
-   <!-- general check that the databases loaded properly -->
-   <filter>
-      <filter-name>StartUpSuccessFilter</filter-name>
-      <filter-class>prerna.web.conf.StartUpSuccessFilter</filter-class>
-   </filter>
-   <filter-mapping>
-      <filter-name>StartUpSuccessFilter</filter-name>
-      <url-pattern>/*</url-pattern>
-   </filter-mapping>
-   
-   <!-- security filters for admin page -->
-   <filter>
-      <filter-name>NoUserExistsFilter</filter-name>
-      <filter-class>prerna.web.conf.NoUserExistsFilter</filter-class>
-   </filter>
-   <filter-mapping>
-      <filter-name>NoUserExistsFilter</filter-name>
-      <url-pattern>/api/*</url-pattern>
-   </filter-mapping>
-   
-   <!-- check if we want to limit the # of concurrent sessions 
-		if you wish to not include scheduled jobs as users
-		put after the schedule filter -->
-   <filter>
-      <filter-name>SessionCounterExceededFilter</filter-name>
-      <filter-class>prerna.web.conf.SessionCounterExceededFilter</filter-class>
-	  <init-param>
-         <param-name>sessionLimit</param-name>
-		 <!-- input value > 0 if you want to activate the filter -->
-         <param-value>-1</param-value>
-      </init-param>
-   </filter>
-   <filter-mapping>
-      <filter-name>SessionCounterExceededFilter</filter-name>
-      <url-pattern>/*</url-pattern>
-   </filter-mapping>
-   
-   <!-- Memory limit per user - if there is enough space on the server -->
-   <filter>
-      <filter-name>MemoryCheckFilter</filter-name>
-      <filter-class>prerna.web.conf.MemoryCheckFilter</filter-class>
-   </filter>
-   <filter-mapping>
-      <filter-name>MemoryCheckFilter</filter-name>
-      <url-pattern>/api/*</url-pattern>
-   </filter-mapping>
+<!-- From Tomcat -->
+<filter>
+    <filter-name>SetCharacterEncoding</filter-name>
+    <filter-class>org.apache.catalina.filters.SetCharacterEncodingFilter</filter-class>
+    <init-param>
+        <param-name>encoding</param-name>
+        <param-value>UTF-8</param-value>
+    </init-param>
+</filter>
+<filter-mapping>
+    <filter-name>SetCharacterEncoding</filter-name>
+    <url-pattern>/*</url-pattern>
+</filter-mapping>
+<!--
+<filter>
+    <filter-name>CustomRestCsrfPreventionFilter</filter-name>
+    <filter-class>prerna.web.conf.CustomRestCsrfPreventionFilter</filter-class>
+    <init-param>
+        <param-name>denyStatus</param-name>
+        <param-value>403</param-value>
+    </init-param>
+    <init-param>
+        <param-name>pathsAcceptingParams</param-name>
+        <param-value>/*</param-value>
+    </init-param>
+    <init-param>
+        <param-name>randomClass</param-name>
+        <param-value>java.security.SecureRandom</param-value>
+    </init-param>
+</filter>
+<filter-mapping>
+    <filter-name>CustomRestCsrfPreventionFilter</filter-name>
+    <url-pattern>/*</url-pattern>
+</filter-mapping>
+-->
+<filter>
+    <filter-name>HeaderSecurityFilter</filter-name>
+    <filter-class>org.apache.catalina.filters.HttpHeaderSecurityFilter</filter-class>
+    <init-param>
+        <param-name>hstsEnabled</param-name>
+        <param-value>true</param-value>
+    </init-param>
+    <init-param>
+        <param-name>hstsMaxAgeSeconds</param-name>
+        <param-value>31536000</param-value>
+    </init-param>
+    <init-param>
+        <param-name>hstsIncludeSubDomains</param-name>
+        <param-value>true</param-value>
+    </init-param>
+    <init-param>
+        <param-name>antiClickJackingEnabled</param-name>
+        <param-value>true</param-value>
+    </init-param>
+    <init-param>
+        <param-name>antiClickJackingOption</param-name>
+        <param-value>SAMEORIGIN</param-value>
+    </init-param>
+    <init-param>
+        <param-name>blockContentTypeSniffingEnabled</param-name>
+        <param-value>true</param-value>
+    </init-param>
+</filter>
+<filter-mapping>
+    <filter-name>HeaderSecurityFilter</filter-name>
+    <url-pattern>/*</url-pattern>
+</filter-mapping>
+<!-- CORS FILTER - MUST FILL IN cors.allowed.origins -->
+<!--
+<filter>
+    <filter-name>CorsFilter</filter-name>
+    <filter-class>org.apache.catalina.filters.CorsFilter</filter-class>
+    <init-param>
+        <param-name>cors.allowed.origins</param-name>
+        <param-value>*</param-value>
+    </init-param>
+    <init-param>
+        <param-name>cors.allowed.methods</param-name>
+        <param-value>GET,POST,OPTIONS</param-value>
+    </init-param>
+    <init-param>
+        <param-name>cors.allowed.headers</param-name>
+        <param-value>Authorization,Content-Type,X-Requested-With,accept,Origin,Access-Control-Request-Method,Access-Control-Request-Headers</param-value>
+    </init-param>
+    <init-param>
+        <param-name>cors.exposed.headers</param-name>
+        <param-value>Access-Control-Allow-Origin,Access-Control-Allow-Credentials</param-value>
+    </init-param>
+    <init-param>
+        <param-name>cors.support.credentials</param-name>
+        <param-value>false</param-value>
+    </init-param>
+    <init-param>
+        <param-name>cors.preflight.maxage</param-name>
+        <param-value>1800</param-value>
+    </init-param>
+</filter>
+<filter-mapping>
+    <filter-name>CorsFilter</filter-name>
+    <url-pattern>/*</url-pattern>
+</filter-mapping>
+    -->
+<!-- general check that the databases loaded properly -->
+<filter>
+    <filter-name>StartUpSuccessFilter</filter-name>
+    <filter-class>prerna.web.conf.StartUpSuccessFilter</filter-class>
+</filter>
+<filter-mapping>
+    <filter-name>StartUpSuccessFilter</filter-name>
+    <url-pattern>/*</url-pattern>
+</filter-mapping>
 
-   <!-- Share Session Filter -->
-   <filter>
-      <filter-name>ShareSessionFilter</filter-name>
-      <filter-class>prerna.web.conf.ShareSessionFilter</filter-class>
-   </filter>
-   <filter-mapping>
-      <filter-name>ShareSessionFilter</filter-name>
-      <url-pattern>/*</url-pattern>
-   </filter-mapping>
-  
-   <!-- Trusted Token Filter -->
-   <filter>
-      <filter-name>TrustedTokenFilter</filter-name>
-      <filter-class>prerna.web.conf.TrustedTokenFilter</filter-class>
-   </filter>
-   <filter-mapping>
-      <filter-name>TrustedTokenFilter</filter-name>
-      <url-pattern>/*</url-pattern>
-   </filter-mapping>
-   
-   <!-- User Access Key Filter -->
-   <filter>
-      <filter-name>UserAccessKeyFilter</filter-name>
-      <filter-class>prerna.web.conf.UserAccessKeyFilter</filter-class>
-   </filter>
-   <filter-mapping>
-      <filter-name>UserAccessKeyFilter</filter-name>
-      <url-pattern>/*</url-pattern>
-   </filter-mapping>
+<!-- security filters for admin page -->
+<filter>
+    <filter-name>NoUserExistsFilter</filter-name>
+    <filter-class>prerna.web.conf.NoUserExistsFilter</filter-class>
+</filter>
+<filter-mapping>
+    <filter-name>NoUserExistsFilter</filter-name>
+    <url-pattern>/api/*</url-pattern>
+</filter-mapping>
 
-   <!-- OpenAI Filer -->
-   <filter>
-      <filter-name>OpenAIFilter</filter-name>
-      <filter-class>prerna.web.conf.OpenAIFilter</filter-class>
-   </filter>
-   <filter-mapping>
-      <filter-name>OpenAIFilter</filter-name>
-      <url-pattern>/api/model/openai/*</url-pattern>
-   </filter-mapping>
-   <filter-mapping>
-      <filter-name>OpenAIFilter</filter-name>
-      <url-pattern>/api/ext/*</url-pattern>
-   </filter-mapping>
+<!-- check if we want to limit the # of concurrent sessions
+        if you wish to not include scheduled jobs as users
+        put after the schedule filter -->
+<filter>
+    <filter-name>SessionCounterExceededFilter</filter-name>
+    <filter-class>prerna.web.conf.SessionCounterExceededFilter</filter-class>
+    <init-param>
+        <param-name>sessionLimit</param-name>
+        <!-- input value > 0 if you want to activate the filter -->
+        <param-value>-1</param-value>
+    </init-param>
+</filter>
+<filter-mapping>
+    <filter-name>SessionCounterExceededFilter</filter-name>
+    <url-pattern>/*</url-pattern>
+</filter-mapping>
 
-   <!-- scheduler filter -->
-   <filter>
-      <filter-name>SchedulerFilter</filter-name>
-      <filter-class>prerna.web.conf.SchedulerFilter</filter-class>
-   </filter>
-   <filter-mapping>
-      <filter-name>SchedulerFilter</filter-name>
-      <url-pattern>/api/schedule/*</url-pattern>
-   </filter-mapping>
-   
-   <!-- Generate API User -->
-   <filter>
-      <filter-name>APIFilter</filter-name>
-      <filter-class>prerna.web.conf.APIFilter</filter-class>
-   </filter>
-   <filter-mapping>
-      <filter-name>APIFilter</filter-name>
-      <url-pattern>/data/*</url-pattern>
-   </filter-mapping>
-   
-   <!-- SSO Filter for SAML -->
-   <!--
-   <filter>
-      <filter-name>SSOFilter</filter-name>
-      <filter-class>prerna.web.conf.SSOFilter</filter-class>
-      <init-param>
-			<param-name>countUserEntry</param-name>
-			<param-value>false</param-value>
-	  </init-param>
-	  <init-param>
-			<param-name>countUserEntryDb</param-name>
-			<param-value>9809c0f7-04c6-43d8-87aa-2553b4a7832a</param-value>
-	  </init-param>
-	  <init-param>
-			<param-name>logUserInfo</param-name>
-			<param-value>false</param-value>
-	  </init-param>
-	  <init-param>
-			<param-name>logUserInfoPath</param-name>
-			<param-value></param-value>
-	  </init-param>
-	  <init-param>
-			<param-name>logUserInfoSep</param-name>
-			<param-value>,</param-value>
-	  </init-param>
-	  <init-param>
-			<param-name>customDomain</param-name>
-			<param-value>health.mil</param-value>
-	  </init-param>
-	  <init-param>
-			<param-name>loginPath</param-name>
-			<param-value>/samlLogin/</param-value>
-	  </init-param>
-	  <init-param>
-			<param-name>loginUrl</param-name>
-			<param-value></param-value>
-	  </init-param>
-   </filter>
-   <filter-mapping>
-      <filter-name>SSOFilter</filter-name>
-      <url-pattern>/api/*</url-pattern>
-   </filter-mapping>
-   -->
-   
-   <!-- <filter>
-      <filter-name>SPSSOFilter</filter-name>
-      <filter-class>prerna.web.conf.SSOFilter</filter-class>
-      <init-param>
-			<param-name>countUserEntry</param-name>
-			<param-value>false</param-value>
-	  </init-param>
-	  <init-param>
-			<param-name>logUserInfo</param-name>
-			<param-value>false</param-value>
-	  </init-param>
-	  <init-param>
-			<param-name>loginPath</param-name>
-			<param-value>/samlSPLogin/</param-value>
-	  </init-param>
-   </filter>
-   <filter-mapping>
-      <filter-name>SPSSOFilter</filter-name>
-      <url-pattern>/api/*</url-pattern>
-   </filter-mapping> -->
-   
-   <!--  allow anonymous users -->
-   <!-- 
-   <filter>
-      <filter-name>AnonymousUserFilter</filter-name>
-      <filter-class>prerna.web.conf.AnonymousUserFilter</filter-class>
-   </filter>
-   <filter-mapping>
-      <filter-name>AnonymousUserFilter</filter-name>
-      <url-pattern>/api/*</url-pattern>
-   </filter-mapping>
-   -->
-   
-   <!-- CAC FILTER -->
-   <!--  
-   <filter>
-      <filter-name>CACFilter</filter-name>
-      <filter-class>prerna.web.conf.CACFilter</filter-class>
-      <init-param>
-			<param-name>autoAdd</param-name>
-			<param-value>true</param-value>
-	  </init-param>
-	  <init-param>
-			<param-name>updateUserInfo</param-name>
-			<param-value>false</param-value>
-	  </init-param>
-	  <init-param>
-			<param-name>countUserEntry</param-name>
-			<param-value>false</param-value>
-	  </init-param>
-	  <init-param>
-			<param-name>countUserEntryDb</param-name>
-			<param-value>9809c0f7-04c6-43d8-87aa-2553b4a7832a</param-value>
-	  </init-param>
-	  <init-param>
-			<param-name>logUserInfo</param-name>
-			<param-value>false</param-value>
-	  </init-param>
-	  <init-param>
-			<param-name>logUserInfoPath</param-name>
-			<param-value></param-value>
-	  </init-param>
-	  <init-param>
-			<param-name>logUserInfoSep</param-name>
-			<param-value>,</param-value>
-	  </init-param>
-   </filter>
-   <filter-mapping>
-      <filter-name>CACFilter</filter-name>
-      <url-pattern>/api/*</url-pattern>
-   </filter-mapping>
-   -->
-   
-   <!-- PIV FILTER -->
-   <!--  
-   <filter>
-      <filter-name>PIVFilter</filter-name>
-      <filter-class>prerna.web.conf.PIVFilter</filter-class>
-      <init-param>
-			<param-name>autoAdd</param-name>
-			<param-value>true</param-value>
-	  </init-param>
-	  <init-param>
-			<param-name>updateUserInfo</param-name>
-			<param-value>false</param-value>
-	  </init-param>
-	  <init-param>
-			<param-name>countUserEntry</param-name>
-			<param-value>false</param-value>
-	  </init-param>
-	  <init-param>
-			<param-name>countUserEntryDb</param-name>
-			<param-value>9809c0f7-04c6-43d8-87aa-2553b4a7832a</param-value>
-	  </init-param>
-	  <init-param>
-			<param-name>logUserInfo</param-name>
-			<param-value>false</param-value>
-	  </init-param>
-	  <init-param>
-			<param-name>logUserInfoPath</param-name>
-			<param-value></param-value>
-	  </init-param>
-	  <init-param>
-			<param-name>logUserInfoSep</param-name>
-			<param-value>,</param-value>
-	  </init-param>
-   </filter>
-   <filter-mapping>
-      <filter-name>PIVFilter</filter-name>
-      <url-pattern>/api/*</url-pattern>
-   </filter-mapping>
-   --> 
-   
-   <!-- WAFFLE IT -->
-   <!-- 
-   <filter>
-      <filter-name>SecurityFilter</filter-name>
-      <filter-class>prerna.web.conf.SemossNegotiateSecurityFilter</filter-class>
-      <init-param>
-         <param-name>principalFormat</param-name>
-         <param-value>fqn</param-value>
-      </init-param>
-      <init-param>
-         <param-name>roleFormat</param-name>
-         <param-value>both</param-value>
-      </init-param>
-      <init-param>
-         <param-name>allowGuestLogin</param-name>
-         <param-value>true</param-value>
-      </init-param>
-      <init-param>
-         <param-name>impersonate</param-name>
-         <param-value>false</param-value>
-      </init-param>
-      <init-param>
-         <param-name>securityFilterProviders</param-name>
-         <param-value>
+<!-- Memory limit per user - if there is enough space on the server -->
+<filter>
+    <filter-name>MemoryCheckFilter</filter-name>
+    <filter-class>prerna.web.conf.MemoryCheckFilter</filter-class>
+</filter>
+<filter-mapping>
+    <filter-name>MemoryCheckFilter</filter-name>
+    <url-pattern>/api/*</url-pattern>
+</filter-mapping>
+
+<!-- Share Session Filter -->
+<filter>
+    <filter-name>ShareSessionFilter</filter-name>
+    <filter-class>prerna.web.conf.ShareSessionFilter</filter-class>
+</filter>
+<filter-mapping>
+    <filter-name>ShareSessionFilter</filter-name>
+    <url-pattern>/*</url-pattern>
+</filter-mapping>
+
+<!-- Trusted Token Filter -->
+<filter>
+    <filter-name>TrustedTokenFilter</filter-name>
+    <filter-class>prerna.web.conf.TrustedTokenFilter</filter-class>
+</filter>
+<filter-mapping>
+    <filter-name>TrustedTokenFilter</filter-name>
+    <url-pattern>/*</url-pattern>
+</filter-mapping>
+
+
+<!-- MCP Project Auth Filter - validates JWT for project-specific MCP endpoints -->
+<!-- Validates JWT with project-specific audience for /api/mcp/{project_id} -->
+<filter>
+    <filter-name>MCPProjectAuthFilter</filter-name>
+    <filter-class>prerna.web.conf.MCPProjectAuthFilter</filter-class>
+</filter>
+<filter-mapping>
+    <filter-name>MCPProjectAuthFilter</filter-name>
+    <url-pattern>/api/mcp/*</url-pattern>
+</filter-mapping>
+
+<!-- User Access Key Filter -->
+<filter>
+    <filter-name>UserAccessKeyFilter</filter-name>
+    <filter-class>prerna.web.conf.UserAccessKeyFilter</filter-class>
+</filter>
+<filter-mapping>
+    <filter-name>UserAccessKeyFilter</filter-name>
+    <url-pattern>/*</url-pattern>
+</filter-mapping>
+
+<!-- OpenAI Filer -->
+<filter>
+    <filter-name>OpenAIFilter</filter-name>
+    <filter-class>prerna.web.conf.OpenAIFilter</filter-class>
+</filter>
+<filter-mapping>
+    <filter-name>OpenAIFilter</filter-name>
+    <url-pattern>/api/model/openai/*</url-pattern>
+</filter-mapping>
+<filter-mapping>
+    <filter-name>OpenAIFilter</filter-name>
+    <url-pattern>/api/ext/*</url-pattern>
+</filter-mapping>
+
+<!-- scheduler filter -->
+<filter>
+    <filter-name>SchedulerFilter</filter-name>
+    <filter-class>prerna.web.conf.SchedulerFilter</filter-class>
+</filter>
+<filter-mapping>
+    <filter-name>SchedulerFilter</filter-name>
+    <url-pattern>/api/schedule/*</url-pattern>
+</filter-mapping>
+
+<!-- Generate API User -->
+<filter>
+    <filter-name>APIFilter</filter-name>
+    <filter-class>prerna.web.conf.APIFilter</filter-class>
+</filter>
+<filter-mapping>
+    <filter-name>APIFilter</filter-name>
+    <url-pattern>/data/*</url-pattern>
+</filter-mapping>
+
+<!-- SSO Filter for SAML -->
+<!--
+<filter>
+    <filter-name>SSOFilter</filter-name>
+    <filter-class>prerna.web.conf.SSOFilter</filter-class>
+    <init-param>
+            <param-name>countUserEntry</param-name>
+            <param-value>false</param-value>
+    </init-param>
+    <init-param>
+            <param-name>countUserEntryDb</param-name>
+            <param-value>9809c0f7-04c6-43d8-87aa-2553b4a7832a</param-value>
+    </init-param>
+    <init-param>
+            <param-name>logUserInfo</param-name>
+            <param-value>false</param-value>
+    </init-param>
+    <init-param>
+            <param-name>logUserInfoPath</param-name>
+            <param-value></param-value>
+    </init-param>
+    <init-param>
+            <param-name>logUserInfoSep</param-name>
+            <param-value>,</param-value>
+    </init-param>
+    <init-param>
+            <param-name>customDomain</param-name>
+            <param-value>health.mil</param-value>
+    </init-param>
+    <init-param>
+            <param-name>loginPath</param-name>
+            <param-value>/samlLogin/</param-value>
+    </init-param>
+    <init-param>
+            <param-name>loginUrl</param-name>
+            <param-value></param-value>
+    </init-param>
+</filter>
+<filter-mapping>
+    <filter-name>SSOFilter</filter-name>
+    <url-pattern>/api/*</url-pattern>
+</filter-mapping>
+-->
+
+<!-- <filter>
+    <filter-name>SPSSOFilter</filter-name>
+    <filter-class>prerna.web.conf.SSOFilter</filter-class>
+    <init-param>
+            <param-name>countUserEntry</param-name>
+            <param-value>false</param-value>
+    </init-param>
+    <init-param>
+            <param-name>logUserInfo</param-name>
+            <param-value>false</param-value>
+    </init-param>
+    <init-param>
+            <param-name>loginPath</param-name>
+            <param-value>/samlSPLogin/</param-value>
+    </init-param>
+</filter>
+<filter-mapping>
+    <filter-name>SPSSOFilter</filter-name>
+    <url-pattern>/api/*</url-pattern>
+</filter-mapping> -->
+
+<!--  allow anonymous users -->
+<!--
+<filter>
+    <filter-name>AnonymousUserFilter</filter-name>
+    <filter-class>prerna.web.conf.AnonymousUserFilter</filter-class>
+</filter>
+<filter-mapping>
+    <filter-name>AnonymousUserFilter</filter-name>
+    <url-pattern>/api/*</url-pattern>
+</filter-mapping>
+-->
+
+<!-- CAC FILTER -->
+<!--
+<filter>
+    <filter-name>CACFilter</filter-name>
+    <filter-class>prerna.web.conf.CACFilter</filter-class>
+    <init-param>
+            <param-name>autoAdd</param-name>
+            <param-value>true</param-value>
+    </init-param>
+    <init-param>
+            <param-name>updateUserInfo</param-name>
+            <param-value>false</param-value>
+    </init-param>
+    <init-param>
+            <param-name>countUserEntry</param-name>
+            <param-value>false</param-value>
+    </init-param>
+    <init-param>
+            <param-name>countUserEntryDb</param-name>
+            <param-value>9809c0f7-04c6-43d8-87aa-2553b4a7832a</param-value>
+    </init-param>
+    <init-param>
+            <param-name>logUserInfo</param-name>
+            <param-value>false</param-value>
+    </init-param>
+    <init-param>
+            <param-name>logUserInfoPath</param-name>
+            <param-value></param-value>
+    </init-param>
+    <init-param>
+            <param-name>logUserInfoSep</param-name>
+            <param-value>,</param-value>
+    </init-param>
+</filter>
+<filter-mapping>
+    <filter-name>CACFilter</filter-name>
+    <url-pattern>/api/*</url-pattern>
+</filter-mapping>
+-->
+
+<!-- PIV FILTER -->
+<!--
+<filter>
+    <filter-name>PIVFilter</filter-name>
+    <filter-class>prerna.web.conf.PIVFilter</filter-class>
+    <init-param>
+            <param-name>autoAdd</param-name>
+            <param-value>true</param-value>
+    </init-param>
+    <init-param>
+            <param-name>updateUserInfo</param-name>
+            <param-value>false</param-value>
+    </init-param>
+    <init-param>
+            <param-name>countUserEntry</param-name>
+            <param-value>false</param-value>
+    </init-param>
+    <init-param>
+            <param-name>countUserEntryDb</param-name>
+            <param-value>9809c0f7-04c6-43d8-87aa-2553b4a7832a</param-value>
+    </init-param>
+    <init-param>
+            <param-name>logUserInfo</param-name>
+            <param-value>false</param-value>
+    </init-param>
+    <init-param>
+            <param-name>logUserInfoPath</param-name>
+            <param-value></param-value>
+    </init-param>
+    <init-param>
+            <param-name>logUserInfoSep</param-name>
+            <param-value>,</param-value>
+    </init-param>
+</filter>
+<filter-mapping>
+    <filter-name>PIVFilter</filter-name>
+    <url-pattern>/api/*</url-pattern>
+</filter-mapping>
+-->
+
+<!-- WAFFLE IT -->
+<!--
+<filter>
+    <filter-name>SecurityFilter</filter-name>
+    <filter-class>prerna.web.conf.SemossNegotiateSecurityFilter</filter-class>
+    <init-param>
+        <param-name>principalFormat</param-name>
+        <param-value>fqn</param-value>
+    </init-param>
+    <init-param>
+        <param-name>roleFormat</param-name>
+        <param-value>both</param-value>
+    </init-param>
+    <init-param>
+        <param-name>allowGuestLogin</param-name>
+        <param-value>true</param-value>
+    </init-param>
+    <init-param>
+        <param-name>impersonate</param-name>
+        <param-value>false</param-value>
+    </init-param>
+    <init-param>
+        <param-name>securityFilterProviders</param-name>
+        <param-value>
             waffle.servlet.spi.BasicSecurityFilterProvider
             waffle.servlet.spi.NegotiateSecurityFilterProvider
-         </param-value>
-      </init-param>
-      <init-param>
-         <param-name>securityFilterProviders</param-name>
-         <param-value>
+        </param-value>
+    </init-param>
+    <init-param>
+        <param-name>securityFilterProviders</param-name>
+        <param-value>
             waffle.servlet.spi.BasicSecurityFilterProvider
             waffle.servlet.spi.NegotiateSecurityFilterProvider
-         </param-value>
-      </init-param>
-      <init-param>
-         <param-name>waffle.servlet.spi.NegotiateSecurityFilterProvider/protocols
-         </param-name>
-         <param-value>
+        </param-value>
+    </init-param>
+    <init-param>
+        <param-name>waffle.servlet.spi.NegotiateSecurityFilterProvider/protocols
+        </param-name>
+        <param-value>
             Negotiate
             NTLM
-         </param-value>
-      </init-param>
-   </filter>
-   <filter-mapping>
-      <filter-name>SecurityFilter</filter-name>
-      <url-pattern>/api/*</url-pattern>
-   </filter-mapping>
-   <filter>
-      <filter-name>WaffleFilter</filter-name>
-      <filter-class>prerna.web.conf.WaffleFilter</filter-class>
-      <init-param>
-			<param-name>autoAdd</param-name>
-			<param-value>true</param-value>
-	  </init-param>
-	  <init-param>
-			<param-name>logUserInfo</param-name>
-			<param-value>true</param-value>
-	  </init-param>
-	  <init-param>
-			<param-name>logUserInfoPath</param-name>
-			<param-value></param-value>
-	  </init-param>
-	  <init-param>
-			<param-name>logUserInfoSep</param-name>
-			<param-value>,</param-value>
-	  </init-param>
-   </filter>
-   <filter-mapping>
-      <filter-name>WaffleFilter</filter-name>
-      <url-pattern>/api/*</url-pattern>
-   </filter-mapping>
-   -->
-   <!-- End Waffle -->
-   
-   <!-- Allow Token Filter -->
-   <filter>
-      <filter-name>NoUserInSessionTrustedTokenFilter</filter-name>
-      <filter-class>prerna.web.conf.NoUserInSessionTrustedTokenFilter</filter-class>
-	  <init-param>
-			<param-name>trustedTokenPrefix</param-name>
-			<param-value>sencha</param-value>
-	  </init-param>
-	  <init-param>
-			<param-name>trustedTokenDomain</param-name>
-			<param-value>*</param-value>
-	  </init-param>
-   </filter>
-   <filter-mapping>
-      <filter-name>NoUserInSessionTrustedTokenFilter</filter-name>
-      <url-pattern>/api/*</url-pattern>
-   </filter-mapping>
-   <!-- This is the main filter for security -->
-   <filter>
-      <filter-name>NoUserInSessionFilter</filter-name>
-      <filter-class>prerna.web.conf.NoUserInSessionFilter</filter-class>
-   </filter>
-   <filter-mapping>
-      <filter-name>NoUserInSessionFilter</filter-name>
-      <url-pattern>/api/*</url-pattern>
-   </filter-mapping>
-   <!-- filter on the admin servlet -->
-   <filter>
-      <filter-name>AdminStartupFilter</filter-name>
-      <filter-class>prerna.web.conf.AdminStartupFilter</filter-class>
-   </filter>
-   <filter-mapping>
-      <filter-name>AdminStartupFilter</filter-name>
-      <url-pattern>/adminconfig/*</url-pattern>
-   </filter-mapping>
-   
-   <!-- IF YOU WANT THE ADMIN TO ADD EVERY USER, UNCOMMENT BELOW --> 
-   <!-- 
-   <filter>
-      <filter-name>UserExistsFilter</filter-name>
-      <filter-class>prerna.web.conf.UserExistsFilter</filter-class>
-      <init-param>
-         <param-name>useSAMLGroupWhitelist</param-name>
-         <param-value>false</param-value>
-      </init-param>
-   </filter>
-   <filter-mapping>
-      <filter-name>UserExistsFilter</filter-name>
-      <url-pattern>/api/*</url-pattern>
-   </filter-mapping>
-   -->
-   
-   <!-- Do you want a different timeout for the admin user -->
-   <!-- 
-   <filter>
-      <filter-name>SetAdminSessionTimeoutFilter</filter-name>
-      <filter-class>prerna.web.conf.SetAdminSessionTimeoutFilter</filter-class>
-      <init-param>
-         <param-name>timeout</param-name>
-         <param-value>120</param-value>
-      </init-param>
-   </filter>
-   <filter-mapping>
-      <filter-name>SetAdminSessionTimeoutFilter</filter-name>
-      <url-pattern>/api/*</url-pattern>
-   </filter-mapping>
-   -->
-   
-   <filter>
-      <filter-name>PublicHomeCheckFilter</filter-name>
-      <filter-class>prerna.web.conf.PublicHomeCheckFilter</filter-class>
-   </filter>
-   <filter-mapping>
-      <filter-name>PublicHomeCheckFilter</filter-name>
-      <url-pattern>/public_home/*</url-pattern>
-   </filter-mapping>
-   
-   <!--
-   <filter>
-      <filter-name>FilespaceAccessFilter</filter-name>
-      <filter-class>prerna.web.conf.FilespaceAccessFilter</filter-class>
-   </filter>
-   <filter-mapping>
-      <filter-name>FilespaceAccessFilter</filter-name>
-      <url-pattern>/public_home/*</url-pattern>
-   </filter-mapping>
-   -->
-   
-   <!-- servlets -->
-   <!-- Servlet For SEMOSS UI - SEMOSS BE communication -->
-   <servlet>
-      <servlet-name>MainApplication</servlet-name>
-      <servlet-class>org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher</servlet-class>
-      <init-param>
-         <param-name>javax.ws.rs.Application</param-name>
-         <param-value>prerna.semoss.web.app.MonolithApplication</param-value>
-      </init-param>
-      <init-param>
-	     <param-name>resteasy.servlet.mapping.prefix</param-name>
-	     <param-value>/api</param-value>
-	  </init-param>
-   </servlet>
-   <servlet-mapping>
-      <servlet-name>MainApplication</servlet-name>
-      <url-pattern>/api/*</url-pattern>
-   </servlet-mapping>
-   <!-- Servlet For External Applications Registering a Trusted Token To Alias User -->
-   <servlet>
-      <servlet-name>TrustedTokenApplication</servlet-name>
-      <servlet-class>org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher</servlet-class>
-      <init-param>
-         <param-name>javax.ws.rs.Application</param-name>
-         <param-value>prerna.semoss.web.app.TrustedTokenApplication</param-value>
-      </init-param>
-      <init-param>
-	     <param-name>resteasy.servlet.mapping.prefix</param-name>
-	     <param-value>/token</param-value>
-	  </init-param>
-   </servlet>
-   <servlet-mapping>
-      <servlet-name>TrustedTokenApplication</servlet-name>
-      <url-pattern>/token/*</url-pattern>
-   </servlet-mapping>
-   <!-- Servlet For External Applications Registering an API User -->
-   <servlet>
-      <servlet-name>APIApplication</servlet-name>
-      <servlet-class>org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher</servlet-class>
-      <init-param>
-         <param-name>javax.ws.rs.Application</param-name>
-         <param-value>prerna.semoss.web.app.APIApplication</param-value>
-      </init-param>
-      <init-param>
-	     <param-name>resteasy.servlet.mapping.prefix</param-name>
-	     <param-value>/token</param-value>
-	  </init-param>
-   </servlet>
-   <servlet-mapping>
-      <servlet-name>APIApplication</servlet-name>
-      <url-pattern>/data/*</url-pattern>
-   </servlet-mapping>
-   <!-- SAML Response Handler -->
-   <servlet>
-      <servlet-name>SamlVerifierServlet</servlet-name>
-      <servlet-class>prerna.semoss.web.services.saml.SamlVerifierServlet</servlet-class>
-      <init-param>
-         <param-name>useSAMLGroupWhitelist</param-name>
-         <param-value>false</param-value>
-      </init-param>
-      <init-param>
-         <param-name>useSAMLAttributeWhitelist</param-name>
-         <param-value>false</param-value>
-      </init-param>
-   </servlet>
-   <servlet-mapping>
-      <servlet-name>SamlVerifierServlet</servlet-name>
-      <url-pattern>/saml/config/fedletapplication</url-pattern>
-   </servlet-mapping>
-   <!-- ADMIN SERVLET ONLY USED TO DEFINE THE INITIAL SEMOSS ADMIN -->
-   <servlet>
-      <servlet-name>AdminApplication</servlet-name>
-      <servlet-class>org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher</servlet-class>
-      <init-param>
-         <param-name>javax.ws.rs.Application</param-name>
-         <param-value>prerna.semoss.web.app.AdminApplication</param-value>
-      </init-param>
-      <init-param>
-	     <param-name>resteasy.servlet.mapping.prefix</param-name>
-	     <param-value>/adminconfig</param-value>
-	  </init-param>
-   </servlet>
-   <servlet-mapping>
-      <servlet-name>AdminApplication</servlet-name>
-      <url-pattern>/adminconfig/*</url-pattern>
-   </servlet-mapping>
+        </param-value>
+    </init-param>
+</filter>
+<filter-mapping>
+    <filter-name>SecurityFilter</filter-name>
+    <url-pattern>/api/*</url-pattern>
+</filter-mapping>
+<filter>
+    <filter-name>WaffleFilter</filter-name>
+    <filter-class>prerna.web.conf.WaffleFilter</filter-class>
+    <init-param>
+            <param-name>autoAdd</param-name>
+            <param-value>true</param-value>
+    </init-param>
+    <init-param>
+            <param-name>logUserInfo</param-name>
+            <param-value>true</param-value>
+    </init-param>
+    <init-param>
+            <param-name>logUserInfoPath</param-name>
+            <param-value></param-value>
+    </init-param>
+    <init-param>
+            <param-name>logUserInfoSep</param-name>
+            <param-value>,</param-value>
+    </init-param>
+</filter>
+<filter-mapping>
+    <filter-name>WaffleFilter</filter-name>
+    <url-pattern>/api/*</url-pattern>
+</filter-mapping>
+-->
+<!-- End Waffle -->
 
-   <!-- context params -->
-   <context-param>
-      <param-name>isLog4jAutoInitializationDisabled</param-name>
-      <param-value>false</param-value>
-   </context-param>
-   <context-param>
-	   <param-name>log4jConfiguration</param-name>
-	   <param-value>file:///C:/workspace/Semoss/log4j2.xml</param-value>
-   </context-param>
-   <context-param>
-      <param-name>admin-set-publisher</param-name>
-      <param-value>false</param-value>
-   </context-param>
-   <context-param>
-      <param-name>anonymous-users-allowed</param-name>
-      <param-value>false</param-value>
-   </context-param>
-      <context-param>
-      <param-name>anonymous-users-upload-data</param-name>
-      <param-value>false</param-value>
-   </context-param>
-   <context-param>
-      <param-name>use-logout-page</param-name>
-      <param-value>false</param-value>
-   </context-param>
-   <!-- requires use-logout-page to be true -->
-   <context-param>
-      <param-name>custom-logout-url</param-name>
-      <param-value></param-value>
-   </context-param>
-   <context-param>
-      <description>Location to store uploaded file</description>
-      <param-name>file-upload</param-name>
-      <param-value>C:\\workspace\\Semoss\\</param-value>
-   </context-param>
-   <context-param>
-      <description>Temporary - Location to store uploaded file</description>
-      <param-name>temp-file-upload</param-name>
-      <param-value>C:\\Temp</param-value>
-   </context-param>
-   <context-param>
-      <description>The place where the core RDF Map gets picked from</description>
-      <param-name>RDF-MAP</param-name>
-      <param-value>C:/workspace/Semoss/RDF_Map.prop</param-value>
-   </context-param>  
-   <!-- listeners -->
-   <listener>
-      <listener-class>prerna.web.conf.DBLoader</listener-class>
-   </listener>
-   <listener>
-      <listener-class>prerna.web.conf.UserDBLoader</listener-class>
-   </listener>
-   <listener>
-      <listener-class>prerna.web.conf.NoUserInSessionTrustedTokenListener</listener-class>
-   </listener>
-   <session-config>
-      <session-timeout>120</session-timeout>
-      <cookie-config>
-         <name>monolith</name>
-         <http-only>false</http-only>
-         <secure>false</secure>
-	  </cookie-config>
-   </session-config>
+<!-- Allow Token Filter -->
+<filter>
+    <filter-name>NoUserInSessionTrustedTokenFilter</filter-name>
+    <filter-class>prerna.web.conf.NoUserInSessionTrustedTokenFilter</filter-class>
+    <init-param>
+        <param-name>trustedTokenPrefix</param-name>
+        <param-value>sencha</param-value>
+    </init-param>
+    <init-param>
+        <param-name>trustedTokenDomain</param-name>
+        <param-value>*</param-value>
+    </init-param>
+</filter>
+<filter-mapping>
+    <filter-name>NoUserInSessionTrustedTokenFilter</filter-name>
+    <url-pattern>/api/*</url-pattern>
+</filter-mapping>
+<!-- This is the main filter for security -->
+<filter>
+    <filter-name>NoUserInSessionFilter</filter-name>
+    <filter-class>prerna.web.conf.NoUserInSessionFilter</filter-class>
+</filter>
+<filter-mapping>
+    <filter-name>NoUserInSessionFilter</filter-name>
+    <url-pattern>/api/*</url-pattern>
+</filter-mapping>
+<!-- filter on the admin servlet -->
+<filter>
+    <filter-name>AdminStartupFilter</filter-name>
+    <filter-class>prerna.web.conf.AdminStartupFilter</filter-class>
+</filter>
+<filter-mapping>
+    <filter-name>AdminStartupFilter</filter-name>
+    <url-pattern>/adminconfig/*</url-pattern>
+</filter-mapping>
+
+<!-- IF YOU WANT THE ADMIN TO ADD EVERY USER, UNCOMMENT BELOW -->
+<!--
+<filter>
+    <filter-name>UserExistsFilter</filter-name>
+    <filter-class>prerna.web.conf.UserExistsFilter</filter-class>
+    <init-param>
+        <param-name>useSAMLGroupWhitelist</param-name>
+        <param-value>false</param-value>
+    </init-param>
+</filter>
+<filter-mapping>
+    <filter-name>UserExistsFilter</filter-name>
+    <url-pattern>/api/*</url-pattern>
+</filter-mapping>
+-->
+
+<!-- Do you want a different timeout for the admin user -->
+<!--
+<filter>
+    <filter-name>SetAdminSessionTimeoutFilter</filter-name>
+    <filter-class>prerna.web.conf.SetAdminSessionTimeoutFilter</filter-class>
+    <init-param>
+        <param-name>timeout</param-name>
+        <param-value>120</param-value>
+    </init-param>
+</filter>
+<filter-mapping>
+    <filter-name>SetAdminSessionTimeoutFilter</filter-name>
+    <url-pattern>/api/*</url-pattern>
+</filter-mapping>
+-->
+
+<filter>
+    <filter-name>PublicHomeCheckFilter</filter-name>
+    <filter-class>prerna.web.conf.PublicHomeCheckFilter</filter-class>
+</filter>
+<filter-mapping>
+    <filter-name>PublicHomeCheckFilter</filter-name>
+    <url-pattern>/public_home/*</url-pattern>
+</filter-mapping>
+
+<!--
+<filter>
+    <filter-name>FilespaceAccessFilter</filter-name>
+    <filter-class>prerna.web.conf.FilespaceAccessFilter</filter-class>
+</filter>
+<filter-mapping>
+    <filter-name>FilespaceAccessFilter</filter-name>
+    <url-pattern>/public_home/*</url-pattern>
+</filter-mapping>
+-->
+
+<!-- servlets -->
+<!-- Servlet For SEMOSS UI - SEMOSS BE communication -->
+<servlet>
+    <servlet-name>MainApplication</servlet-name>
+    <servlet-class>org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher</servlet-class>
+    <init-param>
+        <param-name>javax.ws.rs.Application</param-name>
+        <param-value>prerna.semoss.web.app.MonolithApplication</param-value>
+    </init-param>
+    <init-param>
+        <param-name>resteasy.servlet.mapping.prefix</param-name>
+        <param-value>/api</param-value>
+    </init-param>
+</servlet>
+<servlet-mapping>
+    <servlet-name>MainApplication</servlet-name>
+    <url-pattern>/api/*</url-pattern>
+</servlet-mapping>
+<!-- Servlet For External Applications Registering a Trusted Token To Alias User -->
+<servlet>
+    <servlet-name>TrustedTokenApplication</servlet-name>
+    <servlet-class>org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher</servlet-class>
+    <init-param>
+        <param-name>javax.ws.rs.Application</param-name>
+        <param-value>prerna.semoss.web.app.TrustedTokenApplication</param-value>
+    </init-param>
+    <init-param>
+        <param-name>resteasy.servlet.mapping.prefix</param-name>
+        <param-value>/token</param-value>
+    </init-param>
+</servlet>
+<servlet-mapping>
+    <servlet-name>TrustedTokenApplication</servlet-name>
+    <url-pattern>/token/*</url-pattern>
+</servlet-mapping>
+<!-- Servlet For External Applications Registering an API User -->
+<servlet>
+    <servlet-name>APIApplication</servlet-name>
+    <servlet-class>org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher</servlet-class>
+    <init-param>
+        <param-name>javax.ws.rs.Application</param-name>
+        <param-value>prerna.semoss.web.app.APIApplication</param-value>
+    </init-param>
+    <init-param>
+        <param-name>resteasy.servlet.mapping.prefix</param-name>
+        <param-value>/token</param-value>
+    </init-param>
+</servlet>
+<servlet-mapping>
+    <servlet-name>APIApplication</servlet-name>
+    <url-pattern>/data/*</url-pattern>
+</servlet-mapping>
+<!-- SAML Response Handler -->
+<servlet>
+    <servlet-name>SamlVerifierServlet</servlet-name>
+    <servlet-class>prerna.semoss.web.services.saml.SamlVerifierServlet</servlet-class>
+    <init-param>
+        <param-name>useSAMLGroupWhitelist</param-name>
+        <param-value>false</param-value>
+    </init-param>
+    <init-param>
+        <param-name>useSAMLAttributeWhitelist</param-name>
+        <param-value>false</param-value>
+    </init-param>
+</servlet>
+<servlet-mapping>
+    <servlet-name>SamlVerifierServlet</servlet-name>
+    <url-pattern>/saml/config/fedletapplication</url-pattern>
+</servlet-mapping>
+<!-- ADMIN SERVLET ONLY USED TO DEFINE THE INITIAL SEMOSS ADMIN -->
+<servlet>
+    <servlet-name>AdminApplication</servlet-name>
+    <servlet-class>org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher</servlet-class>
+    <init-param>
+        <param-name>javax.ws.rs.Application</param-name>
+        <param-value>prerna.semoss.web.app.AdminApplication</param-value>
+    </init-param>
+    <init-param>
+        <param-name>resteasy.servlet.mapping.prefix</param-name>
+        <param-value>/adminconfig</param-value>
+    </init-param>
+</servlet>
+<servlet-mapping>
+    <servlet-name>AdminApplication</servlet-name>
+    <url-pattern>/adminconfig/*</url-pattern>
+</servlet-mapping>
+
+<!-- context params -->
+<context-param>
+    <param-name>isLog4jAutoInitializationDisabled</param-name>
+    <param-value>false</param-value>
+</context-param>
+<context-param>
+    <param-name>log4jConfiguration</param-name>
+    <param-value>file:////Users/ntarek/Documents/SEMOSS/workspace/Semoss/log4j2.xml</param-value>
+</context-param>
+<context-param>
+    <param-name>admin-set-publisher</param-name>
+    <param-value>false</param-value>
+</context-param>
+<context-param>
+    <param-name>anonymous-users-allowed</param-name>
+    <param-value>false</param-value>
+</context-param>
+<context-param>
+    <param-name>anonymous-users-upload-data</param-name>
+    <param-value>false</param-value>
+</context-param>
+<context-param>
+    <param-name>use-logout-page</param-name>
+    <param-value>false</param-value>
+</context-param>
+<!-- requires use-logout-page to be true -->
+<context-param>
+    <param-name>custom-logout-url</param-name>
+    <param-value></param-value>
+</context-param>
+<context-param>
+    <description>Location to store uploaded file</description>
+    <param-name>file-upload</param-name>
+    <param-value>/Users/ntarek/Documents/SEMOSS/workspace/Semoss/</param-value>
+</context-param>
+<context-param>
+    <description>Temporary - Location to store uploaded file</description>
+    <param-name>temp-file-upload</param-name>
+    <param-value>/tmp</param-value>
+</context-param>
+<context-param>
+    <description>The place where the core RDF Map gets picked from</description>
+    <param-name>RDF-MAP</param-name>
+    <param-value>/Users/ntarek/Documents/SEMOSS/workspace/Semoss/RDF_Map.prop</param-value>
+</context-param>
+<!-- listeners -->
+<listener>
+    <listener-class>prerna.web.conf.DBLoader</listener-class>
+</listener>
+<listener>
+    <listener-class>prerna.web.conf.UserDBLoader</listener-class>
+</listener>
+<listener>
+    <listener-class>prerna.web.conf.NoUserInSessionTrustedTokenListener</listener-class>
+</listener>
+<session-config>
+    <session-timeout>120</session-timeout>
+    <cookie-config>
+        <name>monolith</name>
+        <http-only>false</http-only>
+        <secure>false</secure>
+    </cookie-config>
+</session-config>
 </web-app>
+
 

@@ -52,18 +52,19 @@ public class ResourceUtility {
 		allowAccessWithoutLogin.add("auth/userinfo/ms");
 		allowAccessWithoutLogin.add("auth/login/ms");
 
-		// MCP OAuth discovery and token endpoints
-		allowAccessWithoutLogin.add("auth/.well-known/oauth-protected-resource");
-		allowAccessWithoutLogin.add("auth/.well-known/oauth-authorization-server");
-		allowAccessWithoutLogin.add("auth/.well-known/jwks.json");
-		allowAccessWithoutLogin.add("auth/oauth/register");
-		allowAccessWithoutLogin.add("auth/mcp/authorize");
-		allowAccessWithoutLogin.add("auth/mcp/callback");
-		allowAccessWithoutLogin.add("auth/mcp/token");
+		// MCP OAuth token endpoints and JWKS (at /api/auth)
+		allowAccessWithoutLogin.add("auth/.well-known/jwks.json");  // Public key for JWT verification
+		allowAccessWithoutLogin.add("auth/oauth/register");  // Dynamic client registration
+		allowAccessWithoutLogin.add("auth/mcp/authorize");  // OAuth authorization endpoint
+		allowAccessWithoutLogin.add("auth/mcp/callback");  // OAuth callback
+		allowAccessWithoutLogin.add("auth/mcp/token");  // Token exchange endpoint
 
-		// MCP endpoints - handled by MCPOAuthFilter for JWT authentication
-		allowAccessWithoutLogin.add("ext/mcp");
-		allowAccessWithoutLogin.add("mcp");  // Standard MCP endpoint for ChatGPT
+		// MCP server endpoints (at /api/mcp) - OAuth metadata and JSON-RPC
+		allowAccessWithoutLogin.add("ext/mcp");  // Legacy MCP endpoint
+		allowAccessWithoutLogin.add("mcp");  // Standard MCP endpoint for ChatGPT (JSON-RPC + JWT auth)
+		allowAccessWithoutLogin.add("mcp/.well-known/oauth-authorization-server");  // OAuth discovery
+		allowAccessWithoutLogin.add("mcp/.well-known/openid-configuration");  // OAuth discovery (OpenID alias)
+		allowAccessWithoutLogin.add("mcp/.well-known/oauth-protected-resource");  // Protected resource metadata (RFC 9728)
 	}
 
 	/**
@@ -116,7 +117,7 @@ public class ResourceUtility {
 
 	/**
 	 * Need to ignore some URLs
-	 * 
+	 *
 	 * @param fullUrl
 	 * @return
 	 */

@@ -3372,106 +3372,64 @@ public class UserResource {
 	//////////////////////////////////////////////////////////////////////
 
 	/**
-	 * MCP OAuth Discovery Endpoints
-	 * These endpoints tell ChatGPT/Claude how to authenticate with Semoss
-	 */
-
-	/**
-	 * OAuth Protected Resource Metadata - RFC 9728
-	 * Tells MCP clients this resource requires OAuth authentication
-	 */
-	@GET
-	@Path("/.well-known/oauth-protected-resource")
-	@Produces("application/json")
-	public Response getProtectedResourceMetadata(@Context HttpServletRequest request) {
-		classLogger.info(">>>>> OAuth Protected Resource Metadata endpoint called <<<<<");
-		try {
-			String baseUrl = getBaseUrlForMCP(request);
-			classLogger.info("Base URL: " + baseUrl);
-
-			Map<String, Object> metadata = new HashMap<>();
-			metadata.put("resource", baseUrl);
-			metadata.put("authorization_servers", java.util.Arrays.asList(baseUrl));
-			metadata.put("bearer_methods_supported", java.util.Arrays.asList("header"));
-			metadata.put("scopes_supported", java.util.Arrays.asList(
-				"mcp:tools:list",
-				"mcp:tools:call",
-				"mcp:prompts:list",
-				"mcp:resources:list"
-			));
-
-			classLogger.info("Returning metadata: " + metadata);
-			return WebUtility.getResponse(metadata, 200);
-		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
-			Map<String, String> error = new HashMap<>();
-			error.put("error", "internal_error");
-			return WebUtility.getResponse(error, 500);
-		}
-	}
-
-	/**
-	 * OAuth Authorization Server Metadata - RFC 8414
-	 * Describes the OAuth endpoints and capabilities
-	 */
-	@GET
-	@Path("/.well-known/oauth-authorization-server")
-	@Produces("application/json")
-	public Response getAuthorizationServerMetadata(@Context HttpServletRequest request) {
-		classLogger.info(">>>>> OAuth Authorization Server Metadata endpoint called <<<<<");
-		try {
-			String baseUrl = getBaseUrlForMCP(request);
-			classLogger.info("Base URL: " + baseUrl);
-
-			Map<String, Object> metadata = new HashMap<>();
-			metadata.put("issuer", baseUrl + "/api/auth");
-			metadata.put("authorization_endpoint", baseUrl + "/api/auth/mcp/authorize");
-			metadata.put("token_endpoint", baseUrl + "/api/auth/mcp/token");
-			metadata.put("registration_endpoint", baseUrl + "/api/auth/oauth/register");
-			metadata.put("jwks_uri", baseUrl + "/api/auth/.well-known/jwks.json");
-			metadata.put("response_types_supported", java.util.Arrays.asList("code"));
-			metadata.put("grant_types_supported",
-				java.util.Arrays.asList("authorization_code", "refresh_token"));
-			metadata.put("code_challenge_methods_supported", java.util.Arrays.asList("S256"));
-			metadata.put("token_endpoint_auth_methods_supported", java.util.Arrays.asList("none"));
-			metadata.put("subject_types_supported", java.util.Arrays.asList("public"));
-			metadata.put("token_endpoint_auth_signing_alg_values_supported",
-				java.util.Arrays.asList("RS256"));
-
-			classLogger.info("Returning metadata: " + metadata);
-			return WebUtility.getResponse(metadata, 200);
-		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
-			Map<String, String> error = new HashMap<>();
-			error.put("error", "internal_error");
-			return WebUtility.getResponse(error, 500);
-		}
-	}
-
-	/**
 	 * Helper method to construct base URL for MCP OAuth
 	 */
 	private String getBaseUrlForMCP(HttpServletRequest request) {
-		// Check for X-Forwarded-Proto header (set by proxies like Cloudflare)
+		// Check for proxy headers (set by ngrok, cloudflare, etc.)
 		String forwardedProto = request.getHeader("X-Forwarded-Proto");
-		String scheme = (forwardedProto != null) ? forwardedProto : request.getScheme();
+		String forwardedHost = request.getHeader("X-Forwarded-Host");
+		String host = request.getHeader("Host");
 
+		classLogger.info("Base URL detection - X-Forwarded-Proto: " + forwardedProto +
+			", X-Forwarded-Host: " + forwardedHost + ", Host: " + host);
+
+		// Determine scheme
+		String scheme = request.getScheme();
+		if (forwardedProto != null) {
+			scheme = forwardedProto;
+		} else if (host != null && (host.contains(".trycloudflare.com") ||
+			host.contains(".ngrok.app") || host.contains(".ngrok.io") ||
+			host.contains(".loca.lt") || host.contains(".serveo.net"))) {
+			// Tunnel services always use HTTPS
+			scheme = "https";
+		}
+
+		// Determine server name: prefer X-Forwarded-Host, then Host header, then request server name
 		String serverName = request.getServerName();
+		if (forwardedHost != null) {
+			serverName = forwardedHost;
+		} else if (host != null) {
+			// Host header includes port, so we need to extract just the hostname
+			serverName = host.contains(":") ? host.substring(0, host.indexOf(":")) : host;
+		}
+
 		int serverPort = request.getServerPort();
 		String contextPath = request.getContextPath();
 
 		StringBuilder url = new StringBuilder();
 		url.append(scheme).append("://").append(serverName);
 
-		// Don't include port for standard HTTP/HTTPS ports or when behind a proxy
-		if (forwardedProto == null &&
-			((scheme.equals("http") && serverPort != 80) ||
-			(scheme.equals("https") && serverPort != 443))) {
+		// Don't include port if:
+		// 1. Using a proxy (forwardedHost or forwardedProto is set), OR
+		// 2. Using standard HTTP/HTTPS ports, OR
+		// 3. Host header already includes port, OR
+		// 4. Using a tunnel service
+		boolean isTunnel = host != null && (host.contains(".trycloudflare.com") ||
+			host.contains(".ngrok.app") || host.contains(".ngrok.io"));
+		boolean shouldSkipPort = forwardedHost != null || forwardedProto != null || isTunnel ||
+			(host != null && host.contains(":")) ||
+			(scheme.equals("http") && serverPort == 80) ||
+			(scheme.equals("https") && serverPort == 443);
+
+		if (!shouldSkipPort) {
 			url.append(":").append(serverPort);
 		}
 
 		url.append(contextPath);
-		return url.toString();
+
+		String finalUrl = url.toString();
+		classLogger.info("Constructed base URL: " + finalUrl);
+		return finalUrl;
 	}
 
 	/**
@@ -3828,10 +3786,11 @@ public class UserResource {
 
 			// Generate JWT access token
 			String baseUrl = getBaseUrlForMCP(request);
-			String issuer = baseUrl + "/api/auth";
+			String issuer = baseUrl + "/api/mcp";  // Issuer matches the MCP server endpoint
 			String audience = resource != null ? resource : baseUrl + "/api/mcp";
 			long expiresInSeconds = 3600; // 1 hour
 
+			classLogger.info("MCP token exchange - JWT issuer: " + issuer);
 			classLogger.info("MCP token exchange - JWT audience: " + audience);
 
 			String accessToken = prerna.auth.mcp.MCPJWTHelper.createJWT(

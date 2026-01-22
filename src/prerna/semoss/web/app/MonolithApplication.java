@@ -43,6 +43,7 @@ import prerna.semoss.web.services.local.ExecuteInsightResource;
 import prerna.semoss.web.services.local.LegacyAppResource;
 import prerna.semoss.web.services.local.MCPResource;
 import prerna.semoss.web.services.local.ModelEngineResource;
+import prerna.semoss.web.services.local.StandardMCPResource;
 import prerna.semoss.web.services.local.NameServer;
 import prerna.semoss.web.services.local.OpenAIEndpoints;
 import prerna.semoss.web.services.local.ProjectResource;
@@ -125,6 +126,7 @@ public class MonolithApplication extends Application {
       singletons.add(new OpenAIEndpoints());
       // MCP
       singletons.add(new MCPResource());
+      singletons.add(new StandardMCPResource());
    }
 
    @Override

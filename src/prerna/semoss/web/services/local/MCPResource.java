@@ -17,6 +17,7 @@ import javax.inject.Singleton;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 import javax.ws.rs.Consumes;
+import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
@@ -39,6 +40,7 @@ import prerna.mcp.MCPReaper;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.util.Constants;
+import prerna.util.MCP.MCPUrlUtility;
 import prerna.util.Utility;
 
 @Singleton
@@ -132,37 +134,9 @@ public class MCPResource {
 		}
 	}
 
-	@POST
-	@Path("/comms-sse")
-	@Produces(MediaType.SERVER_SENT_EVENTS)
-	public void comms(@PathParam("toolbox_id") String toolbox_id, @QueryParam("access_key") String access,
-			@Context SseEventSink eventSink, @Context Sse sse, InputStream is, @Context HttpServletRequest request) {
-		classLogger.debug("Runing tool.. " + toolbox_id);
-		// initialize session
-		String authorization = request.getHeader("Authorization");
-		HttpSession session = request.getSession(false);
-		String sessionId = session.getId();
-		Insight insight = null;
-		User user = null;
-		BufferedReader reader = new BufferedReader(new InputStreamReader(is));
-
-		if (!mcpThread.containsKey(authorization)) {
-			insight = initSession(session);
-			user = insight.getUser();
-			mcpThread.put(authorization, insight);
-		} else {
-			insight = mcpThread.get(authorization);
-			user = insight.getUser();
-
-		}
-		MCPReaper reaper = new MCPReaper(user, insight, sessionId, reader, eventSink, sse, toolbox_id,
-				ThreadContext.getImmutableContext());
-		Thread t = new Thread(reaper);
-		t.start();
-	}
 
 	/**
-	 * 
+	 *
 	 * @param session
 	 * @return
 	 */
@@ -200,5 +174,4 @@ public class MCPResource {
 		}
 		return null;
 	}
-
 }
