@@ -374,7 +374,9 @@ public class AnthropicEndpoints {
 												Map<String, Object> functionMap = (Map<String, Object>) streamData.get("function");
 												if (functionMap != null) {
 													toolName = (String) functionMap.get("name");
-													String args = (String) functionMap.get("arguments");
+													Object argsObj = functionMap.get("arguments");
+													String args = argsObj instanceof String ? 
+															(String) argsObj : new Gson().toJson(argsObj);
 													
 													if (toolId != null && toolName != null) {
 														AnthropicMessagesHelper.writeToolUseContentBlockStart(
