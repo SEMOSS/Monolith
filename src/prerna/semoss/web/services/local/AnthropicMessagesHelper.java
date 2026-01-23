@@ -282,14 +282,12 @@ public final class AnthropicMessagesHelper {
 	public static List<Map<String, Object>> normalizeMessages(Object messages, Object systemPrompt) {
 		List<Map<String, Object>> normalizedMessages = new ArrayList<>();
 
-		// Add system prompt as first message if present
 		if (systemPrompt != null) {
 			Map<String, Object> systemMessage = new HashMap<>();
 			systemMessage.put("role", "system");
 			if (systemPrompt instanceof String) {
 				systemMessage.put("content", systemPrompt);
 			} else if (systemPrompt instanceof List) {
-				// System can be array of text blocks
 				List<Map<String, Object>> systemBlocks = (List<Map<String, Object>>) systemPrompt;
 				StringBuilder systemText = new StringBuilder();
 				for (Map<String, Object> block : systemBlocks) {
@@ -316,10 +314,8 @@ public final class AnthropicMessagesHelper {
 
 			Object content = message.get("content");
 			if (content instanceof String) {
-				// Simple string content
 				normalizedMsg.put("content", content);
 			} else if (content instanceof List) {
-				// Content is array of content blocks
 				List<Map<String, Object>> contentBlocks = (List<Map<String, Object>>) content;
 				StringBuilder textContent = new StringBuilder();
 				List<Map<String, Object>> toolResults = new ArrayList<>();
@@ -333,7 +329,6 @@ public final class AnthropicMessagesHelper {
 						}
 						textContent.append(block.get("text").toString());
 					} else if ("tool_use".equals(type)) {
-						// Convert Anthropic tool_use to OpenAI tool_calls format
 						Map<String, Object> toolCall = new HashMap<>();
 						toolCall.put("id", block.get("id"));
 						toolCall.put("type", "function");
@@ -344,7 +339,6 @@ public final class AnthropicMessagesHelper {
 						toolCall.put("function", function);
 						toolCalls.add(toolCall);
 					} else if ("tool_result".equals(type)) {
-						// Convert Anthropic tool_result to OpenAI tool message format
 						Map<String, Object> toolResult = new HashMap<>();
 						toolResult.put("tool_call_id", block.get("tool_use_id"));
 						toolResult.put("content", block.get("content"));
@@ -359,21 +353,18 @@ public final class AnthropicMessagesHelper {
 					}
 				}
 
-				// If we have tool calls, this is an assistant message with tool calls
 				if (!toolCalls.isEmpty()) {
 					normalizedMsg.put("tool_calls", toolCalls);
 					if (textContent.length() > 0) {
 						normalizedMsg.put("content", textContent.toString());
 					}
 				}
-				// If we have tool results, create separate tool messages
+
 				else if (!toolResults.isEmpty()) {
-					// Add text content message first if present
 					if (textContent.length() > 0) {
 						normalizedMsg.put("content", textContent.toString());
 						normalizedMessages.add(normalizedMsg);
 					}
-					// Add each tool result as a separate message
 					for (Map<String, Object> toolResult : toolResults) {
 						Map<String, Object> toolMsg = new HashMap<>();
 						toolMsg.put("role", "tool");
@@ -381,7 +372,7 @@ public final class AnthropicMessagesHelper {
 						toolMsg.put("content", toolResult.get("content"));
 						normalizedMessages.add(toolMsg);
 					}
-					continue; // Skip adding normalizedMsg at the end
+					continue;
 				} else {
 					normalizedMsg.put("content", textContent.toString());
 				}
@@ -419,7 +410,6 @@ public final class AnthropicMessagesHelper {
 			function.put("name", tool.get("name"));
 			function.put("description", tool.get("description"));
 			
-			// input_schema in Anthropic -> parameters in OpenAI
 			Object inputSchema = tool.get("input_schema");
 			if (inputSchema != null) {
 				function.put("parameters", inputSchema);
@@ -450,10 +440,8 @@ public final class AnthropicMessagesHelper {
 		responseMap.put("role", "assistant");
 		responseMap.put("model", engineId);
 
-		// Build content array
 		List<Map<String, Object>> content = new ArrayList<>();
 
-		// Check if this is a tool response
 		if (AskModelEngineResponse.TOOL.equals(llmResponse.getMessageType())) {
 			AskToolModelEngineResponse toolResponse = (AskToolModelEngineResponse) llmResponse;
 			List<ToolResponse> tools = toolResponse.getTools();
@@ -469,7 +457,6 @@ public final class AnthropicMessagesHelper {
 
 			responseMap.put("stop_reason", "tool_use");
 		} else {
-			// Regular text response
 			String response = llmResponse.getStringResponse();
 
 			Map<String, Object> textContent = new HashMap<>();
@@ -480,19 +467,16 @@ public final class AnthropicMessagesHelper {
 			responseMap.put("stop_reason", "end_turn");
 		}
 
-		// Add thinking content if present
 		if (llmResponse.getThinking() != null && !llmResponse.getThinking().isEmpty()) {
 			Map<String, Object> thinkingContent = new HashMap<>();
 			thinkingContent.put("type", "thinking");
 			thinkingContent.put("thinking", llmResponse.getThinking());
-			// Thinking typically comes before the main response
 			content.add(0, thinkingContent);
 		}
 
 		responseMap.put("content", content);
 		responseMap.put("stop_sequence", null);
 
-		// Usage object
 		Map<String, Object> usage = new HashMap<>();
 		if (promptTokens != null) {
 			usage.put("input_tokens", promptTokens);
@@ -556,6 +540,5 @@ public final class AnthropicMessagesHelper {
 	}
 
 	private AnthropicMessagesHelper() {
-		// Private constructor to prevent instantiation
 	}
 }
