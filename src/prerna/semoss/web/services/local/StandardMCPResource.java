@@ -176,7 +176,6 @@ public class StandardMCPResource {
 			metadata.put("authorization_endpoint", baseUrl + "/api/auth/mcp/authorize");
 			metadata.put("token_endpoint", baseUrl + "/api/auth/mcp/token");
 			metadata.put("registration_endpoint", baseUrl + "/api/auth/oauth/register");
-			metadata.put("jwks_uri", baseUrl + "/api/auth/.well-known/jwks.json");
 			metadata.put("response_types_supported", java.util.Arrays.asList("code"));
 			metadata.put("grant_types_supported",
 				java.util.Arrays.asList("authorization_code", "refresh_token"));

@@ -52,8 +52,7 @@ public class ResourceUtility {
 		allowAccessWithoutLogin.add("auth/userinfo/ms");
 		allowAccessWithoutLogin.add("auth/login/ms");
 
-		// MCP OAuth token endpoints and JWKS (at /api/auth)
-		allowAccessWithoutLogin.add("auth/.well-known/jwks.json");  // Public key for JWT verification
+		// MCP OAuth token endpoints (at /api/auth)
 		allowAccessWithoutLogin.add("auth/oauth/register");  // Dynamic client registration
 		allowAccessWithoutLogin.add("auth/mcp/authorize");  // OAuth authorization endpoint
 		allowAccessWithoutLogin.add("auth/mcp/callback");  // OAuth callback

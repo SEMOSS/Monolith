@@ -3433,25 +3433,6 @@ public class UserResource {
 	}
 
 	/**
-	 * JWKS (JSON Web Key Set) Endpoint
-	 * Returns our public key for verifying JWT tokens
-	 */
-	@GET
-	@Path("/.well-known/jwks.json")
-	@Produces("application/json")
-	public Response getJWKS(@Context HttpServletRequest request) {
-		try {
-			Map<String, Object> jwks = prerna.auth.mcp.MCPKeyManager.getInstance().getJWKS();
-			return WebUtility.getResponse(jwks, 200);
-		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
-			Map<String, String> error = new HashMap<>();
-			error.put("error", "internal_error");
-			return WebUtility.getResponse(error, 500);
-		}
-	}
-
-	/**
 	 * Dynamic Client Registration (DCR) Endpoint - RFC 7591
 	 * Allows ChatGPT to automatically register as an OAuth client
 	 */
