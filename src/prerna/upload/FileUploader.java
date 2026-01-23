@@ -79,6 +79,7 @@ import prerna.util.AssetUtility;
 import prerna.util.Constants;
 import prerna.util.EngineUtility;
 import prerna.util.Utility;
+import prerna.util.ZipUtils;
 import prerna.web.services.util.WebUtility;
 
 @Path("/uploadFile")
@@ -676,6 +677,27 @@ public class FileUploader extends Uploader {
 				// we will do what a normal OS system does
 				writeFile(fi, file);
 
+				// After Writing the file we need to check if its a zip and unzip the file
+				if (fileExtension != null && fileExtension.equalsIgnoreCase("zip")) {
+					try {
+						unzipFile(file);
+						classLogger.info(Utility.cleanLogString("Unzipped file: " + file.getAbsolutePath()));
+					} catch (IOException e) {
+						classLogger.error("Error unzipping file: " + file.getAbsolutePath(), e);
+						// Delete the zip file since unzipping it failed
+						if (file.exists()) {
+							boolean deleted = file.delete();
+							if (deleted) {
+								classLogger.info(Utility.cleanLogString("Deleted failed zip file: " + file.getAbsolutePath()));
+							} else {
+								classLogger.warn(Utility.cleanLogString("Could not delete failed zip file: " + file.getAbsolutePath()));
+							}
+						}
+						// Re-throw the exception to fail the upload
+						throw new IOException("Failed to extract zip file: " + e.getMessage(), e);
+					}
+				}
+
 				String savedName = FilenameUtils.getName(fileLocation);
 				Map<String, String> fileMap = new HashMap<String, String>();
 				fileMap.put("fileName", savedName);
@@ -748,6 +770,30 @@ public class FileUploader extends Uploader {
 				classLogger.error("Could not read file item for virus scanning", e);
 				throw new IllegalArgumentException("Could not read file item for virus scanning.");
 			}
+		}
+	}
+
+	/**
+	 * Unzips a zip file
+	 * 
+	 * @param zipFile The zip file to extract.
+	 * @throws IOException if an error occurs while extracting the file.
+	 */
+	private void unzipFile(File zipFile) throws IOException {
+		if (zipFile == null || !zipFile.exists() || !zipFile.isFile()) {
+			throw new IllegalArgumentException("Invalid zip file: " + 
+				(zipFile != null ? zipFile.getAbsolutePath() : "null"));
+		}
+
+		String zipFileLocation = zipFile.getAbsolutePath();
+		String extractLocation = zipFile.getParent();
+
+		try {
+			ZipUtils.unzip(zipFileLocation, extractLocation);
+			classLogger.info(Utility.cleanLogString("Successfully extracted zip file to: " + extractLocation));
+		} catch (IOException e) {
+			classLogger.error("Failed to unzip file: " + Utility.cleanLogString(zipFileLocation), e);
+			throw new IOException("Unable to unzip file. Detailed error = " + e.getMessage(), e);
 		}
 	}
 }
