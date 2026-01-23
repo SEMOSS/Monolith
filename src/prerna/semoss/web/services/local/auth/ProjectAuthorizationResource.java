@@ -1,6 +1,32 @@
+/*******************************************************************************
+ * Copyright 2015 Defense Health Agency (DHA)
+ *
+ * If your use of this software does not include any GPLv2 components:
+ * 	Licensed under the Apache License, Version 2.0 (the "License");
+ * 	you may not use this file except in compliance with the License.
+ * 	You may obtain a copy of the License at
+ *
+ * 	  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * 	Unless required by applicable law or agreed to in writing, software
+ * 	distributed under the License is distributed on an "AS IS" BASIS,
+ * 	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * 	See the License for the specific language governing permissions and
+ * 	limitations under the License.
+ * ----------------------------------------------------------------------------
+ * If your use of this software includes any GPLv2 components:
+ * 	This program is free software; you can redistribute it and/or
+ * 	modify it under the terms of the GNU General Public License
+ * 	as published by the Free Software Foundation; either version 2
+ * 	of the License, or (at your option) any later version.
+ *
+ * 	This program is distributed in the hope that it will be useful,
+ * 	but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * 	GNU General Public License for more details.
+ *******************************************************************************/
 package prerna.semoss.web.services.local.auth;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,13 +50,11 @@ import org.apache.logging.log4j.Logger;
 
 import com.google.gson.Gson;
 
-import prerna.auth.AccessPermissionEnum;
 import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityAdminUtils;
-import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityProjectUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
@@ -455,12 +479,13 @@ public class ProjectAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		Map<String, Object> responses = SecurityProjectUtils.propagateProjectPermission(requester, projectId, newUserId, newUserType, requestedPermission, 
-				 endDate, usageRestriction, usageFrequency, maxTokens, maxResponseTime);
-		
+		Map<String, Object> responses = SecurityProjectUtils.propagateProjectPermission(requester, projectId, newUserId,
+				newUserType, requestedPermission, endDate, usageRestriction, usageFrequency, maxTokens,
+				maxResponseTime);
+
 		return WebUtility.getResponse(responses, 200);
 	}
-	
+
 	/**
 	 * Propagate project dependent permissions
 	 * 
@@ -490,9 +515,8 @@ public class ProjectAuthorizationResource {
 
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
-		
-		List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 
+		List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 
 		// Determine if admin right are required to add users and, if so, if requester
 		// has those rights.
@@ -502,25 +526,21 @@ public class ProjectAuthorizationResource {
 			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		Map<String, Object> userRet = new HashMap<String, Object>();
-		
+
 		for (Map<String, String> userRequest : requests) {
 			String newUserId = userRequest.get("userid");
 			String newUserType = userRequest.get("type");
 			String requestedPermission = userRequest.get("permission");
-			String usageRestriction = userRequest.containsKey("usageRestriction")
-					? userRequest.get("usageRestriction")
+			String usageRestriction = userRequest.containsKey("usageRestriction") ? userRequest.get("usageRestriction")
 					: null;
-			String usageFrequency = userRequest.containsKey("usageFrequency")
-					? userRequest.get("usageFrequency")
+			String usageFrequency = userRequest.containsKey("usageFrequency") ? userRequest.get("usageFrequency")
 					: null;
 			int maxTokens = 0;
-			
-			String maxTokensStr = userRequest.containsKey("maxTokens")
-					? userRequest.get("maxTokens")
-					: null;
-	
+
+			String maxTokensStr = userRequest.containsKey("maxTokens") ? userRequest.get("maxTokens") : null;
+
 			if (maxTokensStr != null && !(maxTokensStr = maxTokensStr.trim()).isEmpty()) {
 				// must be a valid integer
 				try {
@@ -532,8 +552,7 @@ public class ProjectAuthorizationResource {
 				}
 			}
 			double maxResponseTime = 0.0;
-			String maxResponseTimeStr = userRequest.containsKey("maxResponseTime")
-					? userRequest.get("maxResponseTime")
+			String maxResponseTimeStr = userRequest.containsKey("maxResponseTime") ? userRequest.get("maxResponseTime")
 					: null;
 			if (maxResponseTimeStr != null && !(maxResponseTimeStr = maxResponseTimeStr.trim()).isEmpty()) {
 				// must be a valid double
@@ -545,14 +564,15 @@ public class ProjectAuthorizationResource {
 					return WebUtility.getResponse(ret, 400);
 				}
 			}
-			Map<String, Object> responses = SecurityProjectUtils.propagateProjectPermission(requester, projectId, newUserId, newUserType, requestedPermission, 
-				 endDate, usageRestriction, usageFrequency, maxTokens, maxResponseTime);
+			Map<String, Object> responses = SecurityProjectUtils.propagateProjectPermission(requester, projectId,
+					newUserId, newUserType, requestedPermission, endDate, usageRestriction, usageFrequency, maxTokens,
+					maxResponseTime);
 			userRet.put(newUserId, responses);
 		}
-		
+
 		ret.put("success", true);
 		ret.put("users", userRet);
-		
+
 		return WebUtility.getResponse(ret, 200);
 	}
 
