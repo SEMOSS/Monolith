@@ -45,6 +45,7 @@ import prerna.semoss.web.services.local.MCPResource;
 import prerna.semoss.web.services.local.ModelEngineResource;
 import prerna.semoss.web.services.local.NameServer;
 import prerna.semoss.web.services.local.OpenAIEndpoints;
+import prerna.semoss.web.services.local.AnthropicEndpoints;
 import prerna.semoss.web.services.local.ProjectResource;
 import prerna.semoss.web.services.local.SchedulerResource;
 import prerna.semoss.web.services.local.SessionResource;
@@ -123,6 +124,7 @@ public class MonolithApplication extends Application {
       
       // openai endpoints for CFG AI Model Inference
       singletons.add(new OpenAIEndpoints());
+      singletons.add(new AnthropicEndpoints());
       // MCP
       singletons.add(new MCPResource());
    }
