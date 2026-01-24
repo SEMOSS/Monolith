@@ -36,9 +36,10 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 import java.time.ZoneId;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import javax.annotation.security.PermitAll;
 import javax.inject.Singleton;
@@ -76,7 +77,9 @@ import prerna.util.Utility;
 public class MCPResource {
 
 	private static final Logger classLogger = LogManager.getLogger(MCPResource.class);
-	private Map<String, Insight> mcpThread = new HashMap<>();
+
+	public static final String MCP_AUTH_KEY = "MCP_AUTH_KEY";
+	private static final Map<String, Insight> INSIGHT_MAP = new ConcurrentHashMap<>();
 
 	@POST
 	@Path("/it")
@@ -131,16 +134,10 @@ public class MCPResource {
 
 			// Initialize session
 			String authorization = request.getHeader("Authorization");
-			HttpSession session = request.getSession(false);
+			HttpSession session = request.getSession();
+			addAuthKeyToSession(session, authorization);
 			String sessionId = session.getId();
-			Insight insight = null;
-
-			if (!mcpThread.containsKey(authorization)) {
-				insight = initSession(session);
-				mcpThread.put(authorization, insight);
-			} else {
-				insight = mcpThread.get(authorization);
-			}
+			Insight insight = getInsight(session, authorization);
 
 			MCPReaper reaper = new MCPReaper(insight, sessionId, is, os, toolbox_id, request.getRequestURL().toString(),
 					ThreadContext.getImmutableContext());
@@ -171,16 +168,10 @@ public class MCPResource {
 
 		// Initialize session
 		String authorization = request.getHeader("Authorization");
-		HttpSession session = request.getSession(false);
+		HttpSession session = request.getSession();
+		addAuthKeyToSession(session, authorization);
 		String sessionId = session.getId();
-		Insight insight = null;
-
-		if (!mcpThread.containsKey(authorization)) {
-			insight = initSession(session);
-			mcpThread.put(authorization, insight);
-		} else {
-			insight = mcpThread.get(authorization);
-		}
+		Insight insight = getInsight(session, authorization);
 
 		try {
 			response.setContentType(MediaType.SERVER_SENT_EVENTS);
@@ -200,43 +191,83 @@ public class MCPResource {
 	}
 
 	/**
+	 * Adds the authorization key to a set in the session in a thread-safe manner.
+	 * 
+	 * @param session       The user's HttpSession
+	 * @param authorization The authorization key to add
+	 */
+	private static void addAuthKeyToSession(HttpSession session, String authorization) {
+		if (authorization != null) {
+			synchronized (session) {
+				Set<String> mcpKeys = (Set<String>) session.getAttribute(MCP_AUTH_KEY);
+				if (mcpKeys == null) {
+					mcpKeys = new HashSet<>();
+					session.setAttribute(MCP_AUTH_KEY, mcpKeys);
+				}
+				mcpKeys.add(authorization);
+			}
+		}
+	}
+
+	/**
+	 * Remove a key from the mcpThread cache
+	 * 
+	 * @param authorization
+	 */
+	public static void clearInsight(String authorization) {
+		if (authorization != null) {
+			Insight removedInsight = INSIGHT_MAP.remove(authorization);
+			if (removedInsight != null) {
+				classLogger.info("Removed cached insight from MCP thread for auth key");
+			}
+		}
+	}
+
+	/**
+	 * 
+	 * @param session
+	 * @param authorization
+	 * @return
+	 */
+	private Insight getInsight(HttpSession session, String authorization) {
+		return INSIGHT_MAP.computeIfAbsent(authorization, key -> initSession(session));
+	}
+
+	/**
 	 *
 	 * @param session
 	 * @return
 	 */
 	private Insight initSession(HttpSession session) {
-		if (session != null) {
-			User user = (User) session.getAttribute(Constants.SESSION_USER);
-			String insightId = (String) session.getAttribute(Constants.INSIGHT);
-			String sessionId = session.getId();
-			Insight insight = null;
-			// insight id could be null
-			if (insightId == null) {
-				Set<String> sessionInsights = InsightStore.getInstance().getInsightIDsForSession(sessionId);
-				if (sessionInsights == null || sessionInsights.isEmpty()) {
-					// need to make a new insight here
-					insight = new Insight();
-					InsightStore.getInstance().put(insight);
-					insightId = insight.getInsightId();
-					InsightStore.getInstance().addToSessionHash(sessionId, insightId);
-				} else {
-					// pull the insight id from the session set
-					insightId = sessionInsights.iterator().next();
-					insight = InsightStore.getInstance().get(insightId);
-				}
-				// get the zone id
-				ZoneId zoneId = ZoneId.of(Utility.getApplicationZoneId());
-				user.setZoneId(zoneId);
-				session.setAttribute(Constants.INSIGHT, insightId);
+		User user = (User) session.getAttribute(Constants.SESSION_USER);
+		String insightId = (String) session.getAttribute(Constants.INSIGHT);
+		String sessionId = session.getId();
+		Insight insight = null;
+		// insight id could be null
+		if (insightId == null) {
+			Set<String> sessionInsights = InsightStore.getInstance().getInsightIDsForSession(sessionId);
+			if (sessionInsights == null || sessionInsights.isEmpty()) {
+				// need to make a new insight here
+				insight = new Insight();
+				InsightStore.getInstance().put(insight);
+				insightId = insight.getInsightId();
+				InsightStore.getInstance().addToSessionHash(sessionId, insightId);
 			} else {
+				// pull the insight id from the session set
+				insightId = sessionInsights.iterator().next();
 				insight = InsightStore.getInstance().get(insightId);
 			}
-
-			// set the user
-			insight.setUser(user);
-			return insight;
+			// get the zone id
+			ZoneId zoneId = ZoneId.of(Utility.getApplicationZoneId());
+			user.setZoneId(zoneId);
+			session.setAttribute(Constants.INSIGHT, insightId);
+		} else {
+			insight = InsightStore.getInstance().get(insightId);
 		}
-		return null;
+
+		// set the user
+		insight.setUser(user);
+		return insight;
 	}
 
 }
