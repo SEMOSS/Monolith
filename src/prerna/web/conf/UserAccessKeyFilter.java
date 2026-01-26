@@ -77,7 +77,7 @@ public class UserAccessKeyFilter implements Filter {
 		}
 
 		String path = request.getRequestURI();
-		if (path.contains("api/model/openai") || path.contains("api/ext/")) {
+		if (path.contains("api/model/openai") || path.contains("api/model/anthropic") || path.contains("api/ext/")) {
 			arg2.doFilter(arg0, arg1);
 			return;
 		}

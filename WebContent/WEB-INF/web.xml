@@ -210,6 +210,10 @@
       <filter-name>OpenAIFilter</filter-name>
       <url-pattern>/api/ext/*</url-pattern>
    </filter-mapping>
+   <filter-mapping>
+      <filter-name>OpenAIFilter</filter-name>
+      <url-pattern>/api/model/anthropic/*</url-pattern>
+   </filter-mapping>
 
    <!-- scheduler filter -->
    <filter>
