@@ -51,6 +51,7 @@ import prerna.engine.impl.r.IRUserConnection;
 import prerna.om.ClientProcessWrapper;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
+import prerna.semoss.web.services.local.MCPResource;
 import prerna.usertracking.UserTrackingUtils;
 import prerna.util.Constants;
 import prerna.util.FileSystemUtil;
@@ -68,11 +69,12 @@ public class UserSessionLoader implements HttpSessionListener {
 
 	@Override
 	public void sessionCreated(HttpSessionEvent sessionEvent) {
-
+		// nothing to do
 	}
 
 	@Override
 	public void sessionDestroyed(HttpSessionEvent sessionEvent) {
+		classLogger.info("Starting logout");
 		HttpSession session = sessionEvent.getSession();
 		String sessionId = session.getId();
 
@@ -81,16 +83,15 @@ public class UserSessionLoader implements HttpSessionListener {
 			// no need to log a new session that is auto dropped
 			// this just keeps writing to the log
 			if (!session.isNew()) {
-				classLogger.info(sessionId + " >>> Unknown user ending session");
+				classLogger.info("Unknown user ending session");
 			}
 		} else {
 			boolean isUserLogout = Boolean.parseBoolean(session.getAttribute(UserSessionLoader.IS_USER_LOGOUT) + "");
 			if (isUserLogout) {
-				classLogger.info(sessionId + " >>> User " + User.getSingleLogginName(thisUser)
-						+ " has logged out to end session");
+				classLogger.info("User " + User.getSingleLogginName(thisUser) + " has logged out to end session");
 			} else {
-				classLogger.info(sessionId + " >>> User " + User.getSingleLogginName(thisUser)
-						+ " is ending session from non-logout event");
+				classLogger.info(
+						"User " + User.getSingleLogginName(thisUser) + " is ending session from non-logout event");
 			}
 			// remove the user memory
 			thisUser.removeUserMemory();
@@ -99,7 +100,7 @@ public class UserSessionLoader implements HttpSessionListener {
 		try {
 			SyncUserAppsThread.execute(session);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Error during session cleanup while backing up user apps", e);
 		}
 
 		// clear up insight store
@@ -112,15 +113,15 @@ public class UserSessionLoader implements HttpSessionListener {
 				if (insight == null) {
 					continue;
 				}
-				classLogger.info(sessionId + " >>> Trying to drop insight " + insightId);
+				classLogger.info("Trying to drop insight {}", insightId);
 				try {
 					InsightUtility.dropInsight(insight);
-					classLogger.info(sessionId + " >>> Dropped insight " + insightId);
+					classLogger.info("Dropped insight {}", insightId);
 				} catch (Exception e) {
-					classLogger.error(Constants.STACKTRACE, e);
+					classLogger.error("Error dropping insight {}", insightId, e);
 				}
 			}
-			classLogger.info(sessionId + " >>> Successfully removed insight information from session");
+			classLogger.info("Successfully removed insight information from session");
 
 			// clear the current session store
 			insightIDs.removeAll(copy);
@@ -132,7 +133,18 @@ public class UserSessionLoader implements HttpSessionListener {
 			String sessionStorage = Utility.getInsightCacheDir() + DIR_SEPARATOR + sessionId;
 			FileSystemUtil.deleteFolderIfExists(sessionStorage);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Error deleting user session cache folder", e);
+		}
+
+		// clear from the mcp thread
+		Object mcpKeysObj = session.getAttribute(MCPResource.MCP_AUTH_KEY);
+		if (mcpKeysObj instanceof Set) {
+			Set<String> mcpKeys = (Set<String>) mcpKeysObj;
+			if (mcpKeys != null) {
+				for (String authKey : mcpKeys) {
+					MCPResource.clearInsight(authKey);
+				}
+			}
 		}
 
 		// drop the r thread if not netty
@@ -140,7 +152,7 @@ public class UserSessionLoader implements HttpSessionListener {
 			if (thisUser != null) {
 				IRUserConnection rserve = thisUser.getRcon();
 				if (rserve != null && !rserve.isStopped()) {
-					classLogger.info(sessionId + " >>> Dropping user r serve");
+					classLogger.info("Dropping user r serve");
 					ExecutorService executor = Executors.newSingleThreadExecutor();
 					try {
 						executor.submit(new Callable<Void>() {
@@ -148,9 +160,9 @@ public class UserSessionLoader implements HttpSessionListener {
 							public Void call() throws Exception {
 								try {
 									rserve.stopR();
-									classLogger.info(sessionId + " >>> Successfully dropped user r serve");
+									classLogger.info("Successfully dropped user r serve");
 								} catch (Exception e) {
-									classLogger.warn(sessionId + " >>> Unable to drop user r serve");
+									classLogger.warn("Unable to drop user r serve");
 								}
 								return null;
 							}
@@ -161,7 +173,7 @@ public class UserSessionLoader implements HttpSessionListener {
 				}
 			}
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Error during session cleanup while dropping R connection", e);
 		}
 
 		try {
@@ -173,7 +185,7 @@ public class UserSessionLoader implements HttpSessionListener {
 				}
 			}
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Error during session cleanup while shutting down client process wrapper", e);
 		}
 
 		// remove the mounts if chroot enabled
@@ -187,7 +199,7 @@ public class UserSessionLoader implements HttpSessionListener {
 				}
 			}
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Error during session cleanup while removing chroot folder", e);
 		}
 
 		// if cloud sync enabled, push and clear the rooms
@@ -206,7 +218,7 @@ public class UserSessionLoader implements HttpSessionListener {
 								room = (Room) roomObj;
 								roomFolderPath = room.getRoomFolderPath();
 							} catch (Exception e) {
-								classLogger.warn("Could not get room folder path for room: " + roomId, e);
+								classLogger.warn("Could not get room folder path for room {}", roomId, e);
 							}
 						}
 						if (roomFolderPath != null) {
@@ -215,22 +227,22 @@ public class UserSessionLoader implements HttpSessionListener {
 								// Push to cloud (placeholder, implement as needed)
 								try {
 									ClusterUtil.pushRoom(roomId);
-									classLogger.info(sessionId + " >>> Pushed room " + roomId + " to cloud");
+									classLogger.info("Pushed room {} to cloud", roomId);
 								} catch (Exception e) {
-									classLogger.error("Failed to push room " + roomId + " to cloud", e);
+									classLogger.error("Failed to push room {} to cloud", roomId, e);
 								}
 							}
 							// Remove local folder
 							try {
 								FileSystemUtil.deleteFolderIfExists(roomFolderPath);
-								classLogger.info(sessionId + " >>> Deleted local room folder for room " + roomId);
+								classLogger.info("Deleted local room folder for room {}", roomId);
 							} catch (Exception e) {
-								classLogger.error("Failed to delete local room folder for room " + roomId, e);
+								classLogger.error("Failed to delete local room folder for room {}", roomId, e);
 							}
 
 						}
 					} catch (Exception e) {
-						classLogger.error("Error processing room " + roomId, e);
+						classLogger.error("Error processing room {} on logout", roomId, e);
 					}
 				}
 			}
@@ -238,6 +250,7 @@ public class UserSessionLoader implements HttpSessionListener {
 
 		// register the successful logout
 		UserTrackingUtils.registerLogout(sessionId);
+		classLogger.info("Finished logout");
 	}
 
 }
