@@ -143,17 +143,19 @@ public class MCPReaper implements Runnable {
 
 	/**
 	 * Constructor for synchronous JSON mode (ChatGPT)
-	 * @param user
-	 * @param insight
+	 *
+	 * @param user The authenticated user
+	 * @param insight The insight with user already set
 	 * @param sessionId
 	 * @param toolbox
 	 * @param log4jContextMap
 	 */
 	public MCPReaper(User user, Insight insight, String sessionId, String toolbox, Map<String, String> log4jContextMap) {
-		this.user = user;
+		this.mode = null; // Not used for synchronous JSON-RPC mode
 		this.insight = insight;
 		this.sessionId = sessionId;
 		this.toolbox = toolbox;
+		this.requestUrl = null; // Not used for synchronous JSON-RPC mode
 
 		if (log4jContextMap == null) {
 			this.log4jContextMap = new HashMap<>();
@@ -178,6 +180,11 @@ public class MCPReaper implements Runnable {
 
 	@Override
 	public void run() {
+		if (this.mode == null) {
+			// JSON-RPC mode doesn't use run() - use processJsonRpcRequest() instead
+			classLogger.error("run() called on JSON-RPC mode MCPReaper - use processJsonRpcRequest() instead");
+			return;
+		}
 		if (this.mode == Mode.HTTP_STREAM) {
 			runHttp();
 		} else {
