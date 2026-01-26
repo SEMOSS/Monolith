@@ -1,10 +1,6 @@
 package prerna.web.conf;
 
 import java.io.IOException;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -22,25 +18,21 @@ import javax.servlet.http.HttpSession;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import prerna.auth.AccessToken;
-import prerna.auth.AuthProvider;
 import prerna.auth.User;
-import prerna.io.connector.IAccessTokenFiller;
-import prerna.semoss.web.services.local.UserResource;
 import prerna.util.Constants;
 import prerna.util.MCP.MCPUrlUtility;
-import prerna.util.SocialPropertiesUtil;
-import prerna.web.services.util.WebUtility;
 
 /**
- * Filter to handle MCP OAuth Bearer token authentication for project-specific endpoints.
- * Validates OAuth provider tokens (GitHub, Google, etc.) for /api/mcp/{project_id} endpoints.
+ * Filter to handle MCP authentication for project-specific endpoints.
  *
- * This filter uses the same authentication approach as UserAccessKeyFilter:
- * 1. Extracts Bearer token from Authorization header
- * 2. Gets provider from Bearer-Provider header (or defaults to configured provider)
- * 3. Validates token with the OAuth provider's API
- * 4. Creates user session for the authenticated user
+ * This filter runs AFTER UserAccessKeyFilter, which handles the actual
+ * Bearer token validation with the OAuth provider. This filter:
+ * 1. Checks if user was authenticated by UserAccessKeyFilter
+ * 2. Sends OAuth-compliant 401 responses if not authenticated
+ * 3. Extracts project ID from URL and sets it in request attributes
+ *
+ * The 401 response includes WWW-Authenticate header per RFC 6750,
+ * which MCP clients (like ChatGPT) need for OAuth discovery.
  */
 public class MCPProjectAuthFilter implements Filter {
 
@@ -58,9 +50,6 @@ public class MCPProjectAuthFilter implements Filter {
 		String method = httpRequest.getMethod();
 		classLogger.info(">>>>> MCPProjectAuthFilter - " + method + " " + uri);
 
-		// Extract project ID from URL
-		String projectId = extractProjectId(uri);
-
 		// Skip OAuth discovery endpoints (they don't need authentication)
 		if (uri.contains("/.well-known/")) {
 			classLogger.info("MCPProjectAuthFilter - OAuth discovery endpoint, skipping auth");
@@ -68,7 +57,10 @@ public class MCPProjectAuthFilter implements Filter {
 			return;
 		}
 
-		// Only authenticate if project ID is present
+		// Extract project ID from URL
+		String projectId = extractProjectId(uri);
+
+		// Only require authentication if project ID is present
 		if (projectId == null) {
 			classLogger.info("MCPProjectAuthFilter - no project ID in URL, skipping auth");
 			chain.doFilter(request, response);
@@ -77,59 +69,23 @@ public class MCPProjectAuthFilter implements Filter {
 
 		classLogger.info("MCPProjectAuthFilter - extracted project ID: " + projectId);
 
-		// Check if user already authenticated in session
+		// Check if user was authenticated by UserAccessKeyFilter
 		HttpSession session = httpRequest.getSession(false);
 		User user = null;
 		if (session != null) {
 			user = (User) session.getAttribute(Constants.SESSION_USER);
 		}
 
-		if (user != null) {
-			classLogger.info("MCPProjectAuthFilter - user already authenticated: " + user.getPrimaryLogin());
-			httpRequest.setAttribute("mcp_project_id", projectId);
-			chain.doFilter(request, response);
-			return;
-		}
-
-		// Extract Bearer token
-		String authHeader = httpRequest.getHeader("Authorization");
-		if (authHeader == null) {
-			authHeader = httpRequest.getHeader("authorization");
-		}
-		if (authHeader == null || (!authHeader.startsWith("Bearer ") && !authHeader.startsWith("bearer "))) {
-			classLogger.warn("MCPProjectAuthFilter - no Bearer token, sending 401");
+		if (user == null) {
+			// No authenticated user - send OAuth-compliant 401
+			classLogger.warn("MCPProjectAuthFilter - no authenticated user, sending 401");
 			send401(httpRequest, httpResponse, "invalid_token", "Bearer token required");
 			return;
 		}
 
-		String bearerToken = authHeader.substring("Bearer ".length()).trim();
-		classLogger.info("MCPProjectAuthFilter - validating OAuth provider token");
+		classLogger.info("MCPProjectAuthFilter - user authenticated: " + user.getPrimaryLogin());
 
-		// Get the OAuth provider from header
-		String provider = WebUtility.inputSanitizer(httpRequest.getHeader("Bearer-Provider"));
-		if (provider == null || provider.isEmpty()) {
-			// Try to guess the provider from available logins
-			provider = guessOAuthProvider();
-			if (provider == null) {
-				classLogger.warn("MCPProjectAuthFilter - no Bearer-Provider header and cannot determine provider");
-				send401(httpRequest, httpResponse, "invalid_request", "Bearer-Provider header required");
-				return;
-			}
-			classLogger.info("MCPProjectAuthFilter - guessed provider: " + provider);
-		}
-
-		// Validate the OAuth token with the provider
-		user = validateOAuthToken(bearerToken, provider, httpRequest);
-
-		if (user == null) {
-			classLogger.warn("MCPProjectAuthFilter - OAuth token validation failed");
-			send401(httpRequest, httpResponse, "invalid_token", "Invalid or expired Bearer token");
-			return;
-		}
-
-		classLogger.info("MCPProjectAuthFilter - OAuth token valid, user: " + user.getPrimaryLogin());
-
-		// Store project ID in request attribute
+		// Store project ID in request attributes for downstream use
 		httpRequest.setAttribute("mcp_project_id", projectId);
 		httpRequest.setAttribute("mcp_authenticated_user", user);
 
@@ -152,102 +108,8 @@ public class MCPProjectAuthFilter implements Filter {
 	}
 
 	/**
-	 * Try to guess the OAuth provider from available logins
-	 */
-	private String guessOAuthProvider() {
-		try {
-			List<Map<String, Object>> loginsMap = SocialPropertiesUtil.getInstance().getAvailableProviders();
-			Set<String> allowedLogins = new HashSet<>();
-			for (Map<String, Object> loginInfo : loginsMap) {
-				if ((boolean) loginInfo.get("isOauth")) {
-					allowedLogins.add((String) loginInfo.get("label"));
-				}
-			}
-			if (allowedLogins.size() == 1) {
-				return allowedLogins.iterator().next();
-			}
-		} catch (Exception e) {
-			classLogger.error("Error guessing OAuth provider", e);
-		}
-		return null;
-	}
-
-	/**
-	 * Validate OAuth token with the provider's API
-	 * Uses the same approach as UserAccessKeyFilter
-	 */
-	private User validateOAuthToken(String bearerToken, String provider, HttpServletRequest request) {
-		try {
-			SocialPropertiesUtil socialData = SocialPropertiesUtil.getInstance();
-
-			// Check if provider is allowed
-			Map<String, Boolean> loginsMap = socialData.getLoginsAllowed();
-			Boolean providerLogin = loginsMap.get(provider.toLowerCase());
-			if (providerLogin == null || !providerLogin) {
-				classLogger.warn("User is attempting to login using bearer token for provider '" + provider
-						+ "' but provider either does not exist or login is not allowed");
-				return null;
-			}
-
-			// Get the auth provider enum
-			AuthProvider thisProvider = AuthProvider.valueOf(provider.toUpperCase());
-			String tokenFillerClass = thisProvider.getTokenFillerClass();
-			if (tokenFillerClass == null) {
-				classLogger.warn(
-						"Attempting to login using access token but this functionality is not implemented for auth provider "
-								+ thisProvider.getLabel());
-				return null;
-			}
-
-			// Create token filler and validate token with provider's API
-			IAccessTokenFiller thisTokenFiller = (IAccessTokenFiller) Class.forName(tokenFillerClass).newInstance();
-
-			String prefix = thisProvider.getLabel().toLowerCase() + "_";
-			String userInfoURL = socialData.getProperty(prefix + "userinfo_url");
-			String beanProps = socialData.getProperty(prefix + "beanProps");
-			String[] beanPropsArr = null;
-			if (beanProps != null) {
-				beanPropsArr = beanProps.split(",", -1);
-			}
-			String jsonPattern = socialData.getProperty(prefix + "jsonPattern");
-			boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
-			boolean sanitizeResponse = Boolean.parseBoolean(socialData.getProperty(prefix + "sanitizeUserResponse"));
-
-			// Create access token and fill it by calling provider's API
-			AccessToken accessToken = new AccessToken();
-			accessToken.setProvider(thisProvider);
-			accessToken.setAccess_token(bearerToken);
-
-			// This calls the provider's API (e.g., GitHub's /user endpoint) to validate
-			thisTokenFiller.fillAccessToken(accessToken, userInfoURL, jsonPattern, beanPropsArr, null, sanitizeResponse);
-
-			// Check if we got valid user info
-			if (accessToken.getId() == null || accessToken.getId().isEmpty()) {
-				classLogger.warn("OAuth token validation failed - no user ID returned from provider");
-				return null;
-			}
-
-			classLogger.info("OAuth token validated successfully for user: " + accessToken.getId());
-
-			// Add the access token and create user session (same as normal login)
-			UserResource.addAccessToken(accessToken, request, autoAdd);
-
-			// Return the user from session
-			HttpSession session = request.getSession(false);
-			if (session != null) {
-				return (User) session.getAttribute(Constants.SESSION_USER);
-			}
-
-			return null;
-
-		} catch (Exception e) {
-			classLogger.error("Error validating OAuth token", e);
-			return null;
-		}
-	}
-
-	/**
-	 * Send 401 Unauthorized response with WWW-Authenticate header per RFC 6750
+	 * Send 401 Unauthorized response with WWW-Authenticate header per RFC 6750.
+	 * MCP clients need this header for OAuth discovery.
 	 */
 	private void send401(HttpServletRequest request, HttpServletResponse response,
 			String error, String errorDescription) throws IOException {
@@ -272,7 +134,7 @@ public class MCPProjectAuthFilter implements Filter {
 
 	@Override
 	public void init(FilterConfig config) throws ServletException {
-		classLogger.info(">>>>> MCPProjectAuthFilter INITIALIZED - OAuth token validation for /api/mcp/*");
+		classLogger.info(">>>>> MCPProjectAuthFilter INITIALIZED - MCP auth check for /api/mcp/*");
 	}
 
 	@Override

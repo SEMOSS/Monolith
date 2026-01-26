@@ -188,18 +188,7 @@
 </filter-mapping>
 
 
-<!-- MCP Project Auth Filter - validates JWT for project-specific MCP endpoints -->
-<!-- Validates JWT with project-specific audience for /api/mcp/{project_id} -->
-<filter>
-    <filter-name>MCPProjectAuthFilter</filter-name>
-    <filter-class>prerna.web.conf.MCPProjectAuthFilter</filter-class>
-</filter>
-<filter-mapping>
-    <filter-name>MCPProjectAuthFilter</filter-name>
-    <url-pattern>/api/mcp/*</url-pattern>
-</filter-mapping>
-
-<!-- User Access Key Filter -->
+<!-- User Access Key Filter - validates Bearer tokens with OAuth providers -->
 <filter>
     <filter-name>UserAccessKeyFilter</filter-name>
     <filter-class>prerna.web.conf.UserAccessKeyFilter</filter-class>
@@ -207,6 +196,17 @@
 <filter-mapping>
     <filter-name>UserAccessKeyFilter</filter-name>
     <url-pattern>/*</url-pattern>
+</filter-mapping>
+
+<!-- MCP Project Auth Filter - checks session and sends OAuth-compliant 401 -->
+<!-- Must run AFTER UserAccessKeyFilter which validates the Bearer token -->
+<filter>
+    <filter-name>MCPProjectAuthFilter</filter-name>
+    <filter-class>prerna.web.conf.MCPProjectAuthFilter</filter-class>
+</filter>
+<filter-mapping>
+    <filter-name>MCPProjectAuthFilter</filter-name>
+    <url-pattern>/api/mcp/*</url-pattern>
 </filter-mapping>
 
 <!-- OpenAI Filer -->
