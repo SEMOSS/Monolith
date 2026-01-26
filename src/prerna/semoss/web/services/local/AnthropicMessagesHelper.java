@@ -77,14 +77,6 @@ public final class AnthropicMessagesHelper {
 		writer.flush();
 	}
 
-	/**
-	 * Writes a ping event to keep the connection alive.
-	 */
-	public static void writePingEvent(Writer writer) throws IOException {
-		Map<String, Object> pingData = new HashMap<>();
-		pingData.put("type", "ping");
-		writeSSEEvent("ping", pingData, writer);
-	}
 
 	// ==================== Message Start/Stop Events ====================
 
