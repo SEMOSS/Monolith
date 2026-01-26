@@ -84,7 +84,6 @@ import prerna.auth.SyncUserAppsThread;
 import prerna.auth.User;
 import prerna.auth.external.ExternalAuthorizationHelper;
 import prerna.auth.mcp.MCPAuthorizationCodeStore;
-import prerna.auth.mcp.MCPTokenStore;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityAPIUserUtils;
 import prerna.auth.utils.SecurityAdminUtils;
@@ -3765,33 +3764,32 @@ public class UserResource {
 
 			classLogger.info("MCP token exchange - resource parameter: " + resource);
 
-			// Generate JWT access token
-			String baseUrl = getBaseUrlForMCP(request);
-			String issuer = baseUrl + "/api/mcp";  // Issuer matches the MCP server endpoint
-			String audience = resource != null ? resource : baseUrl + "/api/mcp";
-			long expiresInSeconds = 3600; // 1 hour
+			// Get the OAuth provider access token from the user
+			// This is the original token from GitHub/Google/etc that was used to authenticate
+			User user = authCode.getUser();
+			prerna.auth.AccessToken primaryToken = user.getPrimaryLoginToken();
+			String oauthAccessToken = primaryToken.getAccess_token();
+			String provider = user.getPrimaryLogin().name().toLowerCase();
 
-			classLogger.info("MCP token exchange - JWT issuer: " + issuer);
-			classLogger.info("MCP token exchange - JWT audience: " + audience);
+			if (oauthAccessToken == null || oauthAccessToken.isEmpty()) {
+				classLogger.error("MCP token exchange - no OAuth access token found for user");
+				Map<String, String> error = new HashMap<>();
+				error.put("error", "server_error");
+				error.put("error_description", "No OAuth access token available");
+				return WebUtility.getResponse(error, 500);
+			}
 
-			String accessToken = prerna.auth.mcp.MCPJWTHelper.createJWT(
-				authCode.getUser(),
-				clientId,
-				issuer,
-				audience,
-				expiresInSeconds
-			);
-
-			// Store token for validation (JWT tokens are self-contained, but we keep a record)
-			MCPTokenStore.getInstance().storeToken(accessToken, authCode.getUser());
-
+			classLogger.info("MCP token exchange - returning OAuth provider token for provider: " + provider);
 			classLogger.info("MCP token exchange - success for user: " +
-				WebUtility.inputSanitizer(authCode.getUser().getPrimaryLogin().toString()));
+				WebUtility.inputSanitizer(user.getPrimaryLogin().toString()));
 
+			// Return the original OAuth provider token
+			// ChatGPT will send this with Bearer-Provider header for validation
 			Map<String, Object> response = new HashMap<>();
-			response.put("access_token", accessToken);
+			response.put("access_token", oauthAccessToken);
 			response.put("token_type", "Bearer");
-			response.put("expires_in", expiresInSeconds);
+			response.put("expires_in", 3600);  // Note: actual expiration depends on OAuth provider
+			response.put("provider", provider);  // Tell ChatGPT which provider to use
 
 			return WebUtility.getResponse(response, 200);
 
