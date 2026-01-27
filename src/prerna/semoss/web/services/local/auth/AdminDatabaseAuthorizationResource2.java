@@ -1,3 +1,30 @@
+/*******************************************************************************
+ * Copyright 2015 Defense Health Agency (DHA)
+ *
+ * If your use of this software does not include any GPLv2 components:
+ * 	Licensed under the Apache License, Version 2.0 (the "License");
+ * 	you may not use this file except in compliance with the License.
+ * 	You may obtain a copy of the License at
+ *
+ * 	  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * 	Unless required by applicable law or agreed to in writing, software
+ * 	distributed under the License is distributed on an "AS IS" BASIS,
+ * 	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * 	See the License for the specific language governing permissions and
+ * 	limitations under the License.
+ * ----------------------------------------------------------------------------
+ * If your use of this software includes any GPLv2 components:
+ * 	This program is free software; you can redistribute it and/or
+ * 	modify it under the terms of the GNU General Public License
+ * 	as published by the Free Software Foundation; either version 2
+ * 	of the License, or (at your option) any later version.
+ *
+ * 	This program is distributed in the hope that it will be useful,
+ * 	but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * 	GNU General Public License for more details.
+ *******************************************************************************/
 package prerna.semoss.web.services.local.auth;
 
 import java.util.ArrayList;
@@ -231,7 +258,7 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 		String searchParam = searchTerm != null ? searchTerm : userId;
 		List<Map<String, Object>> members = adminUtils.getEngineUsers(databaseId, searchParam, permission, limit,
 				offset);
-		long totalMembers = SecurityAdminUtils.getEngineUsersCount(databaseId, searchParam, permission);
+		long totalMembers = adminUtils.getEngineUsersCount(databaseId, searchParam, permission);
 		ret.put("totalMembers", totalMembers);
 		ret.put("members", members);
 
@@ -452,10 +479,11 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 				"CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/editEngineUserPermissions with PARAM engineId");
 
 		User user = null;
+		SecurityAdminUtils adminUtils = null;
 		String databaseId = WebUtility.inputSanitizer(form.getFirst("databaseId"));
 		try {
 			user = ResourceUtility.getUser(request);
-			performAdminCheck(request, user);
+			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			classLogger.warn(
@@ -467,7 +495,7 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 
 		List<Map<String, Object>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
-			SecurityAdminUtils.editEngineUserPermissions(databaseId, requests, user);
+			adminUtils.editEngineUserPermissions(databaseId, requests, user);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();

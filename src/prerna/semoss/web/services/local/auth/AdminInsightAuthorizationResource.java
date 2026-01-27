@@ -1,3 +1,30 @@
+/*******************************************************************************
+ * Copyright 2015 Defense Health Agency (DHA)
+ *
+ * If your use of this software does not include any GPLv2 components:
+ * 	Licensed under the Apache License, Version 2.0 (the "License");
+ * 	you may not use this file except in compliance with the License.
+ * 	You may obtain a copy of the License at
+ *
+ * 	  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * 	Unless required by applicable law or agreed to in writing, software
+ * 	distributed under the License is distributed on an "AS IS" BASIS,
+ * 	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * 	See the License for the specific language governing permissions and
+ * 	limitations under the License.
+ * ----------------------------------------------------------------------------
+ * If your use of this software includes any GPLv2 components:
+ * 	This program is free software; you can redistribute it and/or
+ * 	modify it under the terms of the GNU General Public License
+ * 	as published by the Free Software Foundation; either version 2
+ * 	of the License, or (at your option) any later version.
+ *
+ * 	This program is distributed in the hope that it will be useful,
+ * 	but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * 	GNU General Public License for more details.
+ *******************************************************************************/
 package prerna.semoss.web.services.local.auth;
 
 import java.util.ArrayList;
@@ -225,7 +252,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		Map<String, Object> ret = new HashMap<String, Object>();
 		List<Map<String, Object>> members = adminUtils.getInsightUsers(projectId, insightId, userId, permission, limit,
 				offset);
-		long totalMembers = SecurityAdminUtils.getInsightUsersCount(projectId, insightId, userId, permission);
+		long totalMembers = adminUtils.getInsightUsersCount(projectId, insightId, userId, permission);
 		ret.put("totalMembers", totalMembers);
 		ret.put("members", members);
 
@@ -484,12 +511,13 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	public Response editInsightUserPermissions(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		User user = null;
+		SecurityAdminUtils adminUtils = null;
 		String projectId = WebUtility.inputSQLSanitizer(form.getFirst("projectId"));
 		String insightId = WebUtility.inputSQLSanitizer(form.getFirst("insightId"));
 		String endDate = null; // form.getFirst("endDate");
 		try {
 			user = ResourceUtility.getUser(request);
-			performAdminCheck(request, user);
+			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			classLogger.warn(
@@ -501,7 +529,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 
 		List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
-			SecurityAdminUtils.editInsightUserPermissions(projectId, insightId, requests, user, endDate);
+			adminUtils.editInsightUserPermissions(projectId, insightId, requests, user, endDate);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<String, String>();

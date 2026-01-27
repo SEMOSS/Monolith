@@ -118,6 +118,7 @@ public class NameServer {
 
 	private static final String ERROR_TYPE = "errorType";
 	private static final String INSIGHT_NOT_FOUND = "INSIGHT_NOT_FOUND";
+	private static final String EXPRESSION_NOT_FOUND = "EXPRESSION_NOT_FOUND";
 	// base URL for the requests on this server instance
 	private static String baseURL = null;
 
@@ -395,7 +396,7 @@ public class NameServer {
 		if (expression == null || (expression = expression.trim()).isEmpty()) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Must pass in 'expression' key containing the pixel to execute");
-			errorMap.put(ERROR_TYPE, INSIGHT_NOT_FOUND);
+			errorMap.put(ERROR_TYPE, EXPRESSION_NOT_FOUND);
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		if (!expression.endsWith(";")) {
@@ -754,6 +755,14 @@ public class NameServer {
 					.header("Cache-Control",
 							"no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0")
 					.header("Pragma", "no-cache").build();
+		} catch (Exception e) {
+			Map<String, Object> error = new HashMap<>();
+			error.put(ERROR_TYPE, "unknown");
+			error.put("message", e.getMessage());
+			return Response.status(500).entity(error)
+					.header("Cache-Control",
+							"no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0")
+					.header("Pragma", "no-cache").build();
 		} finally {
 			// there are times when we spin up
 			// other runPixel requests on the same
@@ -900,7 +909,7 @@ public class NameServer {
 		if (expression == null || (expression = expression.trim()).isEmpty()) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Must pass in 'expression' key containing the pixel to execute");
-			errorMap.put(ERROR_TYPE, INSIGHT_NOT_FOUND);
+			errorMap.put(ERROR_TYPE, EXPRESSION_NOT_FOUND);
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		if (!expression.endsWith(";")) {

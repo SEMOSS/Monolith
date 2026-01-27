@@ -1,3 +1,30 @@
+/*******************************************************************************
+ * Copyright 2015 Defense Health Agency (DHA)
+ *
+ * If your use of this software does not include any GPLv2 components:
+ * 	Licensed under the Apache License, Version 2.0 (the "License");
+ * 	you may not use this file except in compliance with the License.
+ * 	You may obtain a copy of the License at
+ *
+ * 	  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * 	Unless required by applicable law or agreed to in writing, software
+ * 	distributed under the License is distributed on an "AS IS" BASIS,
+ * 	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * 	See the License for the specific language governing permissions and
+ * 	limitations under the License.
+ * ----------------------------------------------------------------------------
+ * If your use of this software includes any GPLv2 components:
+ * 	This program is free software; you can redistribute it and/or
+ * 	modify it under the terms of the GNU General Public License
+ * 	as published by the Free Software Foundation; either version 2
+ * 	of the License, or (at your option) any later version.
+ *
+ * 	This program is distributed in the hope that it will be useful,
+ * 	but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * 	GNU General Public License for more details.
+ *******************************************************************************/
 package prerna.graph.utility;
 
 import java.util.ArrayList;
@@ -27,13 +54,13 @@ import prerna.util.Constants;
 import prerna.util.SocialPropertiesUtil;
 
 public class MsGraphUtility {
-	
+
 	private static final Logger classLogger = LogManager.getLogger(MsGraphUtility.class);
-	
+
 	private static String prefix = "nld_"; // for next link data
 	private static String projectPrefix = prefix + "p_";
 	private static String enginePrefix = prefix + "e_";
-	
+
 	/**
 	 * 
 	 * @param request
@@ -45,35 +72,35 @@ public class MsGraphUtility {
 	 * @return
 	 * @throws IllegalAccessException
 	 */
-	public static List<Map<String, Object>> getProjectUsers(
-			HttpServletRequest request, 
-			User user, 
-			String projectId,
-			String searchTerm,
-			String groupId,
-			long limit, 
-			long offset) throws IllegalAccessException {
-		
-		boolean graphApiUsingSystemCredentials = Boolean.parseBoolean("" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_application_credentials"));
+	public static List<Map<String, Object>> getProjectUsers(HttpServletRequest request, User user, String projectId,
+			String searchTerm, String groupId, long limit, long offset) throws IllegalAccessException {
 
-		if(!graphApiUsingSystemCredentials) {
-			if (user.getAccessToken(AuthProvider.MICROSOFT) == null ) {
+		boolean graphApiUsingSystemCredentials = Boolean.parseBoolean(
+				"" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_application_credentials"));
+
+		if (!graphApiUsingSystemCredentials) {
+			if (user.getAccessToken(AuthProvider.MICROSOFT) == null) {
 				throw new IllegalAccessException("Must be logged into your microsoft login to search for users");
 			}
 		}
-		
+
 		HttpSession session = request.getSession(false);
 		String sessionKey = MsGraphUtility.projectPrefix + projectId + "_" + searchTerm;
 
 		// Initialize or retrieve session data
 		Map<String, Object> sessionData = (Map<String, Object>) session.getAttribute(sessionKey);
-		if (sessionData == null) {
-			sessionData = new HashMap<>(); // Create new session data map if not already in session
+		// New search if:
+		// 1. No session data exists (first time searching this term), OR
+		// 2. Offset is 0 (user is restarting the search)
+		if (sessionData == null || offset == 0) {
+			// Clear any existing data and start fresh
+			sessionData = new HashMap<>();
 			session.setAttribute(sessionKey, sessionData);
 		}
 
 		// Step 1: get the list of current users
-		List<Map<String, Object>> currentUsers = SecurityProjectUtils.getProjectUsers(user, projectId, searchTerm, "", -1, -1);
+		List<Map<String, Object>> currentUsers = SecurityProjectUtils.getProjectUsers(user, projectId, searchTerm, "",
+				-1, -1);
 
 		final List<Map<String, Object>> finalDbUsers = currentUsers;
 		String nextLink = (String) sessionData.get("nextLinkData");
@@ -88,7 +115,8 @@ public class MsGraphUtility {
 			// to Graph API
 			if (nextLink == null || offset == 0) {
 				// Make a new API call to GraphAPI if nextLink is not in the session
-				String msUsers = msGraphApi.getUserDetails(user.getAccessToken(AuthProvider.MICROSOFT), groupId, searchTerm, null);
+				String msUsers = msGraphApi.getUserDetails(user.getAccessToken(AuthProvider.MICROSOFT), groupId,
+						searchTerm, null);
 				JSONObject jsonObject = new JSONObject(msUsers);
 				JSONArray jsonArray = jsonObject.getJSONArray(Constants.MS_GRAPH_VALUE);
 				msGraphUsers = gson.fromJson(jsonArray.toString(), List.class);
@@ -100,7 +128,8 @@ public class MsGraphUtility {
 				}
 			} else {
 				// Fetch data from GraphAPI using nextLink
-				String msUsers = msGraphApi.getUserDetails(user.getAccessToken(AuthProvider.MICROSOFT),groupId, searchTerm, nextLink);
+				String msUsers = msGraphApi.getUserDetails(user.getAccessToken(AuthProvider.MICROSOFT), groupId,
+						searchTerm, nextLink);
 				JSONObject jsonObject = new JSONObject(msUsers);
 				JSONArray jsonArray = jsonObject.getJSONArray(Constants.MS_GRAPH_VALUE);
 				msGraphUsers = gson.fromJson(jsonArray.toString(), List.class);
@@ -114,47 +143,48 @@ public class MsGraphUtility {
 				}
 			}
 
-	        // Load the JSON pattern from the properties file if we want custom mapping
-            String jsonPattern = SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_jsonPattern");
-            final Map<String, String> mapping;
-            if (jsonPattern != null && !jsonPattern.isEmpty()) {
-                mapping = gson.fromJson(jsonPattern, new TypeToken<Map<String, String>>() {}.getType());
-            } else {
-                mapping = null;
-            }
-            
+			// Load the JSON pattern from the properties file if we want custom mapping
+			String jsonPattern = SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_jsonPattern");
+			final Map<String, String> mapping;
+			if (jsonPattern != null && !jsonPattern.isEmpty()) {
+				mapping = gson.fromJson(jsonPattern, new TypeToken<Map<String, String>>() {
+				}.getType());
+			} else {
+				mapping = null;
+			}
+
 			do {
 				// Step 4: Compare database users with GraphAPI users and apply necessary
 				// filters
 				filteredUsers = msGraphUsers.stream().filter(msUser -> finalDbUsers.stream().noneMatch(dbUser -> dbUser
 						.get(Constants.SMSS_USER_EMAIL).equals(msUser.get(Constants.MS_GRAPH_EMAIL))
-							|| dbUser.get(Constants.SMSS_USER_NAME).equals(msUser.get(Constants.MS_GRAPH_DISPLAY_NAME))))
+						|| dbUser.get(Constants.SMSS_USER_NAME).equals(msUser.get(Constants.MS_GRAPH_DISPLAY_NAME))))
 						.map(msUser -> {
-							
-							 Map<String, Object> userMap = new HashMap<>();
-	                            
-	                            // Use the mapping pattern if it exists, otherwise use default mapping
-	                            // Use the mapping pattern if it exists, otherwise use default mapping
-	                            if (mapping != null && !mapping.isEmpty()) {
-	                                mapping.forEach((userMapKey, msGraphKey) -> {
-	                                    userMap.put(userMapKey, msUser.get(msGraphKey));
-	                                    userMap.put(Constants.USER_MAP_TYPE, AuthProvider.MICROSOFT);
-	                                });
-	                            } else {
-	                                // Default mapping if no pattern exists
-	                                userMap.put(Constants.USER_MAP_NAME, msUser.get(Constants.MS_GRAPH_DISPLAY_NAME));
-	                                userMap.put(Constants.USER_MAP_ID, msUser.get(Constants.MS_GRAPH_ID));
-	                                userMap.put(Constants.USER_MAP_TYPE, AuthProvider.MICROSOFT);
-	                                userMap.put(Constants.USER_MAP_EMAIL, msUser.get(Constants.MS_GRAPH_EMAIL));
-	                                userMap.put(Constants.USER_MAP_USERNAME, msUser.get(Constants.MS_GRAPH_USER_PRINCIPAL_NAME));
-	                            }
-	                            
-	                            return userMap;
+
+							Map<String, Object> userMap = new HashMap<>();
+
+							// Use the mapping pattern if it exists, otherwise use default mapping
+							// Use the mapping pattern if it exists, otherwise use default mapping
+							if (mapping != null && !mapping.isEmpty()) {
+								mapping.forEach((userMapKey, msGraphKey) -> {
+									userMap.put(userMapKey, msUser.get(msGraphKey));
+									userMap.put(Constants.USER_MAP_TYPE, AuthProvider.MICROSOFT);
+								});
+							} else {
+								// Default mapping if no pattern exists
+								userMap.put(Constants.USER_MAP_NAME, msUser.get(Constants.MS_GRAPH_DISPLAY_NAME));
+								userMap.put(Constants.USER_MAP_ID, msUser.get(Constants.MS_GRAPH_ID));
+								userMap.put(Constants.USER_MAP_TYPE, AuthProvider.MICROSOFT);
+								userMap.put(Constants.USER_MAP_EMAIL, msUser.get(Constants.MS_GRAPH_EMAIL));
+								userMap.put(Constants.USER_MAP_USERNAME,
+										msUser.get(Constants.MS_GRAPH_USER_PRINCIPAL_NAME));
+							}
+
+							return userMap;
 						}).collect(Collectors.toList());
 
 				long currentCount = filteredUsers.size();
 				if (currentCount < limit && nextLink != null) {
-					long limitCount = limit - currentCount;
 					List<Map<String, Object>> moreUsers = fetchMsGraphUsers(user, searchTerm, groupId, sessionData);
 					filteredUsers.addAll(moreUsers);
 				}
@@ -165,7 +195,8 @@ public class MsGraphUtility {
 
 				if (filteredUsers.size() < limit && nextLink != null) {
 					long limitCount = limit - filteredUsers.size();
-					List<Map<String, Object>> moreUsers = SecurityProjectUtils.getProjectUsers(user, projectId, searchTerm, "", limitCount, offset);
+					List<Map<String, Object>> moreUsers = SecurityProjectUtils.getProjectUsers(user, projectId,
+							searchTerm, "", limitCount, offset);
 					filteredUsers.addAll(moreUsers);
 				}
 
@@ -178,8 +209,6 @@ public class MsGraphUtility {
 
 		return filteredUsers;
 	}
-	
-	
 
 	/**
 	 * 
@@ -190,40 +219,38 @@ public class MsGraphUtility {
 	 * @param limit
 	 * @param offset
 	 * @return
-	 * @throws IllegalAccessException 
+	 * @throws IllegalAccessException
 	 */
-	public static List<Map<String, Object>> getEngineUsers(
-			HttpServletRequest request, 
-			User user, 
-			String engineId,
-			String searchTerm,
-			String groupId,
-			long limit, 
-			long offset,
-			boolean isAdmin) throws IllegalAccessException {
-		
-		boolean graphApiUsingSystemCredentials = Boolean.parseBoolean("" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_application_credentials"));
+	public static List<Map<String, Object>> getEngineUsers(HttpServletRequest request, User user, String engineId,
+			String searchTerm, String groupId, long limit, long offset, boolean isAdmin) throws IllegalAccessException {
 
-		if(!graphApiUsingSystemCredentials) {
-			if (user.getAccessToken(AuthProvider.MICROSOFT) == null ) {
+		boolean graphApiUsingSystemCredentials = Boolean.parseBoolean(
+				"" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_application_credentials"));
+
+		if (!graphApiUsingSystemCredentials) {
+			if (user.getAccessToken(AuthProvider.MICROSOFT) == null) {
 				throw new IllegalAccessException("Must be logged into your microsoft login to search for users");
 			}
 		}
-		
+
 		// Create a session and define a single session key to store everything
 		HttpSession session = request.getSession(false);
 		String sessionKey = enginePrefix + engineId + "_" + searchTerm;
 
 		// Initialize or retrieve session data
 		Map<String, Object> sessionData = (Map<String, Object>) session.getAttribute(sessionKey);
-		if (sessionData == null) {
-			sessionData = new HashMap<>(); // Create new session data map if not already in session
+		// New search if:
+		// 1. No session data exists (first time searching this term), OR
+		// 2. Offset is 0 (user is restarting the search)
+		if (sessionData == null || offset == 0) {
+			// Clear any existing data and start fresh
+			sessionData = new HashMap<>();
 			session.setAttribute(sessionKey, sessionData);
 		}
 
 		// Step 1: Retrieve database users from session or load from DB if not available
 		List<Map<String, Object>> currentUsers = null;
-		if(isAdmin) {
+		if (isAdmin) {
 			currentUsers = SecurityAdminUtils.getInstance(user).getEngineUsers(engineId, searchTerm, "", -1, -1);
 		} else {
 			currentUsers = SecurityEngineUtils.getEngineUsers(user, engineId, searchTerm, "", -1, -1);
@@ -242,7 +269,8 @@ public class MsGraphUtility {
 			// to Graph API
 			if (nextLink == null || offset == 0) {
 				// Make a new API call to GraphAPI if nextLink is not in the session
-				String msUsers = msGraphApi.getUserDetails(user.getAccessToken(AuthProvider.MICROSOFT), groupId, searchTerm, null);
+				String msUsers = msGraphApi.getUserDetails(user.getAccessToken(AuthProvider.MICROSOFT), groupId,
+						searchTerm, null);
 				JSONObject jsonObject = new JSONObject(msUsers);
 				JSONArray jsonArray = jsonObject.getJSONArray(Constants.MS_GRAPH_VALUE);
 				msGraphUsers = gson.fromJson(jsonArray.toString(), List.class);
@@ -254,7 +282,8 @@ public class MsGraphUtility {
 				}
 			} else {
 				// Fetch data from GraphAPI using nextLink
-				String msUsers = msGraphApi.getUserDetails(user.getAccessToken(AuthProvider.MICROSOFT), groupId, searchTerm, nextLink);
+				String msUsers = msGraphApi.getUserDetails(user.getAccessToken(AuthProvider.MICROSOFT), groupId,
+						searchTerm, nextLink);
 				JSONObject jsonObject = new JSONObject(msUsers);
 				JSONArray jsonArray = jsonObject.getJSONArray(Constants.MS_GRAPH_VALUE);
 				msGraphUsers = gson.fromJson(jsonArray.toString(), List.class);
@@ -268,16 +297,16 @@ public class MsGraphUtility {
 				}
 			}
 
+			// Load the JSON pattern from the properties file if we want custom mapping
+			String jsonPattern = SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_jsonPattern");
+			final Map<String, String> mapping;
+			if (jsonPattern != null && !jsonPattern.isEmpty()) {
+				mapping = gson.fromJson(jsonPattern, new TypeToken<Map<String, String>>() {
+				}.getType());
+			} else {
+				mapping = null;
+			}
 
-            // Load the JSON pattern from the properties file if we want custom mapping
-            String jsonPattern = SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_jsonPattern");
-            final Map<String, String> mapping;
-            if (jsonPattern != null && !jsonPattern.isEmpty()) {
-                mapping = gson.fromJson(jsonPattern, new TypeToken<Map<String, String>>() {}.getType());
-            } else {
-                mapping = null;
-            }
-            
 			do {
 				// Step 4: Compare database users with GraphAPI users and apply necessary
 				// filters
@@ -286,30 +315,31 @@ public class MsGraphUtility {
 						|| dbUser.get(Constants.SMSS_USER_NAME).equals(msUser.get(Constants.MS_GRAPH_DISPLAY_NAME))))
 						.map(msUser -> {
 
-                            Map<String, Object> userMap = new HashMap<>();
-                            
-                            // Use the mapping pattern if it exists, otherwise use default mapping
-                            // Use the mapping pattern if it exists, otherwise use default mapping
-                            if (mapping != null && !mapping.isEmpty()) {
-                                mapping.forEach((userMapKey, msGraphKey) -> {
-                                    userMap.put(userMapKey, msUser.get(msGraphKey));
-                                });
-                                userMap.put(Constants.USER_MAP_TYPE, AuthProvider.MICROSOFT);
-                            } else {
-                                // Default mapping if no pattern exists
-                                userMap.put(Constants.USER_MAP_NAME, msUser.get(Constants.MS_GRAPH_DISPLAY_NAME));
-                                userMap.put(Constants.USER_MAP_ID, msUser.get(Constants.MS_GRAPH_ID));
-                                userMap.put(Constants.USER_MAP_TYPE, AuthProvider.MICROSOFT);
-                                userMap.put(Constants.USER_MAP_EMAIL, msUser.get(Constants.MS_GRAPH_EMAIL));
-                                userMap.put(Constants.USER_MAP_USERNAME, msUser.get(Constants.MS_GRAPH_USER_PRINCIPAL_NAME));
-                            }
-                            
-                            return userMap;
+							Map<String, Object> userMap = new HashMap<>();
+
+							// Use the mapping pattern if it exists, otherwise use default mapping
+							// Use the mapping pattern if it exists, otherwise use default mapping
+							if (mapping != null && !mapping.isEmpty()) {
+								mapping.forEach((userMapKey, msGraphKey) -> {
+									userMap.put(userMapKey, msUser.get(msGraphKey));
+								});
+								userMap.put(Constants.USER_MAP_TYPE, AuthProvider.MICROSOFT);
+							} else {
+								// Default mapping if no pattern exists
+								userMap.put(Constants.USER_MAP_NAME, msUser.get(Constants.MS_GRAPH_DISPLAY_NAME));
+								userMap.put(Constants.USER_MAP_ID, msUser.get(Constants.MS_GRAPH_ID));
+								userMap.put(Constants.USER_MAP_TYPE, AuthProvider.MICROSOFT);
+								userMap.put(Constants.USER_MAP_EMAIL, msUser.get(Constants.MS_GRAPH_EMAIL));
+								userMap.put(Constants.USER_MAP_USERNAME,
+										msUser.get(Constants.MS_GRAPH_USER_PRINCIPAL_NAME));
+							}
+
+							return userMap;
 						}).collect(Collectors.toList());
-			   // step 5: If nextLink was used and limitCount > 0, append the specified limitCount data
+				// step 5: If nextLink was used and limitCount > 0, append the specified
+				// limitCount data
 				long currentCount = filteredUsers.size();
 				if (currentCount < limit && nextLink != null) {
-					long limitCount = limit - currentCount;
 					List<Map<String, Object>> moreUsers = fetchMsGraphUsers(user, searchTerm, groupId, sessionData);
 					filteredUsers.addAll(moreUsers);
 				}
@@ -317,10 +347,12 @@ public class MsGraphUtility {
 				if (filteredUsers.size() >= limit || nextLink == null) {
 					return filteredUsers.subList(0, (int) Math.min(limit, filteredUsers.size()));
 				}
-				// Step 7: If the limit is not reached, calculate difference and use nextLink to get more data
+				// Step 7: If the limit is not reached, calculate difference and use nextLink to
+				// get more data
 				if (filteredUsers.size() < limit && nextLink != null) {
 					long limitCount = limit - filteredUsers.size();
-					List<Map<String, Object>> moreUsers = SecurityEngineUtils.getEngineUsers(user, engineId, searchTerm, "", limitCount, offset);
+					List<Map<String, Object>> moreUsers = SecurityEngineUtils.getEngineUsers(user, engineId, searchTerm,
+							"", limitCount, offset);
 					filteredUsers.addAll(moreUsers);
 				}
 
@@ -356,7 +388,8 @@ public class MsGraphUtility {
 			msUsers = msGraphApi.getUserDetails(user.getAccessToken(AuthProvider.MICROSOFT), groupId, searchTerm, null);
 		} else {
 			// Subsequent call using nextLink
-			msUsers = msGraphApi.getUserDetails(user.getAccessToken(AuthProvider.MICROSOFT),groupId, searchTerm, nextLink);
+			msUsers = msGraphApi.getUserDetails(user.getAccessToken(AuthProvider.MICROSOFT), groupId, searchTerm,
+					nextLink);
 		}
 
 		// Parse the response
@@ -374,5 +407,5 @@ public class MsGraphUtility {
 
 		return msGraphUsers;
 	}
-	
+
 }

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright 2015 SEMOSS.ORG
+ * Copyright 2015 Defense Health Agency (DHA)
  *
  * If your use of this software does not include any GPLv2 components:
  * 	Licensed under the Apache License, Version 2.0 (the "License");
@@ -96,6 +96,7 @@ import prerna.auth.utils.SecurityAPIUserUtils;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityNativeUserUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
+import prerna.auth.utils.SecurityUserUtils;
 import prerna.cluster.util.ClusterUtil;
 import prerna.engine.api.IRDBMSEngine;
 import prerna.engine.impl.rdbms.RDBMSNativeEngine;
@@ -305,6 +306,10 @@ public class UserResource {
 		}
 		semossUser.setAccessToken(token);
 		semossUser.setAnonymous(false);
+
+		// also set the user metadata
+		SecurityUserUtils.loadUserMetadata(token);
+
 		session.setAttribute(Constants.SESSION_USER, semossUser);
 		WebUtility.loggingContextLoginEvent(session);
 
