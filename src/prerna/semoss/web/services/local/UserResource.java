@@ -1007,7 +1007,7 @@ public class UserResource {
 
 		            IRDBMSEngine servicenowDB = (RDBMSNativeEngine) Utility.getDatabase(Constants.SECURITY_DB);
 		            String query = "SELECT INSTANCEURL, CLIENTID, CLIENTSECRET, REDIRECTURI FROM SERVICENOW_CREDENTIALS WHERE ID = ?";
-		            try (Connection conn = servicenowDB.makeConnection(); PreparedStatement pstmt = conn.prepareStatement(query)){
+		            try (Connection conn = servicenowDB.getConnection(); PreparedStatement pstmt = conn.prepareStatement(query)){
 		            	pstmt.setString(1, uuid);
 		            	try (ResultSet rs = pstmt.executeQuery()) {
 		            		if (rs.next()) {
@@ -1091,7 +1091,7 @@ public class UserResource {
 
 	    IRDBMSEngine servicenowDB = (RDBMSNativeEngine) Utility.getDatabase(Constants.SECURITY_DB);
         String query = "SELECT INSTANCEURL, CLIENTID, REDIRECTURI FROM SERVICENOW_CREDENTIALS WHERE ID = ?";
-        try (Connection conn = servicenowDB.makeConnection(); PreparedStatement pstmt = conn.prepareStatement(query)){
+        try (Connection conn = servicenowDB.getConnection(); PreparedStatement pstmt = conn.prepareStatement(query)){
         	pstmt.setString(1, uuid);
         	try (ResultSet rs = pstmt.executeQuery()) {
         		if (rs.next()) {
