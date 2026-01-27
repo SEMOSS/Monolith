@@ -3554,9 +3554,23 @@ public class UserResource {
 				return WebUtility.getResponse(error, 400);
 			}
 
-			// Choose OAuth provider (default to github if not specified)
-			String authProvider = (provider != null && !provider.isEmpty()) ?
-				provider.toLowerCase() : "github";
+			// Choose OAuth provider
+			// First, check if provider was explicitly specified in the request
+			// Otherwise, try to auto-detect if there's only one OAuth provider configured
+			String authProvider = null;
+			if (provider != null && !provider.isEmpty()) {
+				authProvider = provider.toLowerCase();
+			} else {
+				authProvider = detectDefaultOAuthProvider();
+				if (authProvider == null) {
+					Map<String, String> error = new HashMap<>();
+					error.put("error", "invalid_request");
+					error.put("error_description", "Multiple OAuth providers configured. Please specify 'provider' parameter (e.g., provider=github)");
+					return WebUtility.getResponse(error, 400);
+				}
+			// Convert to lowercase for consistency with social.properties prefixes
+			authProvider = authProvider.toLowerCase();
+			}
 
 			// Store MCP request in session so /auth/login/<provider> can complete the flow
 			HttpSession session = request.getSession(true);
@@ -3823,6 +3837,40 @@ public class UserResource {
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			return false;
+		}
+	}
+
+	/**
+	 * Detect the default OAuth provider to use for MCP authentication.
+	 *
+	 * @return The default provider name, or null if ambiguous
+	 */
+	private String detectDefaultOAuthProvider() {
+		try {
+			List<Map<String, Object>> loginsMap = socialData.getAvailableProviders();
+			Set<String> allowedOAuthProviders = new HashSet<>();
+
+			for (Map<String, Object> loginInfo : loginsMap) {
+				// Check if this is OAuth
+				if ((boolean) loginInfo.get("isOauth")) {
+					allowedOAuthProviders.add((String) loginInfo.get("label"));
+				}
+			}
+
+			// Only return a default if there's exactly one OAuth provider
+			if (allowedOAuthProviders.size() == 1) {
+				String provider = allowedOAuthProviders.iterator().next();
+				classLogger.info("Detected single OAuth provider: " + provider);
+				return provider;
+			}
+
+			classLogger.warn("Multiple OAuth providers configured (" + allowedOAuthProviders.size() +
+				"), cannot auto-detect default: " + allowedOAuthProviders);
+			return null;
+
+		} catch (Exception e) {
+			classLogger.error("Error detecting default OAuth provider", e);
+			return null;
 		}
 	}
 
