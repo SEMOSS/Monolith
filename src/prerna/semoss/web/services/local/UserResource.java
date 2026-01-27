@@ -432,7 +432,7 @@ public class UserResource {
 		String jsonPattern = "[name, picture]";
 		String accessString = null;
 		try {
-			AccessToken googleToken = semossUser.getAccessToken(AuthProvider.GOOGLE);
+			AccessToken googleToken = semossUser.getAvailableAccessToken(AuthProvider.GOOGLE);
 			accessString = googleToken.getAccess_token();
 		} catch (Exception e) {
 			ret.put(Constants.ERROR_MESSAGE, "Log into your Google account");
@@ -500,7 +500,7 @@ public class UserResource {
 
 		String accessString = null;
 		try {
-			AccessToken msToken = semossUser.getAccessToken(AuthProvider.MICROSOFT);
+			AccessToken msToken = semossUser.getAvailableAccessToken(AuthProvider.MICROSOFT);
 			accessString = msToken.getAccess_token();
 			String url = "https://graph.microsoft.com/v1.0/me/";
 			String output = HttpHelperUtility.makeGetCall(url, accessString, null, true);
@@ -552,7 +552,7 @@ public class UserResource {
 
 		String accessString = null;
 		try {
-			AccessToken adfsToken = semossUser.getAccessToken(AuthProvider.ADFS);
+			AccessToken adfsToken = semossUser.getAvailableAccessToken(AuthProvider.ADFS);
 			accessString = adfsToken.getAccess_token();
 			String json = decodeTokenPayload(adfsToken.getAccess_token());
 			adfsToken = (AccessToken) BeanFiller.fillFromJson(json, jsonPattern, beanPropsArr, adfsToken);
@@ -598,7 +598,7 @@ public class UserResource {
 		String jsonPattern = "[name.display_name, profile_photo_url]";
 		String accessString = null;
 		try {
-			AccessToken dropToken = semossUser.getAccessToken(AuthProvider.DROPBOX);
+			AccessToken dropToken = semossUser.getAvailableAccessToken(AuthProvider.DROPBOX);
 			accessString = dropToken.getAccess_token();
 		} catch (Exception e) {
 			ret.put(Constants.ERROR_MESSAGE, "Log into your DropBox account");
@@ -656,7 +656,7 @@ public class UserResource {
 
 		String accessString = null;
 		try {
-			AccessToken gitToken = semossUser.getAccessToken(AuthProvider.GITHUB);
+			AccessToken gitToken = semossUser.getAvailableAccessToken(AuthProvider.GITHUB);
 			accessString = gitToken.getAccess_token();
 		} catch (Exception e) {
 			ret.put(Constants.ERROR_MESSAGE, "Log into your Github account");
@@ -708,7 +708,7 @@ public class UserResource {
 
 		String accessString = null;
 		try {
-			AccessToken accessToken = semossUser.getAccessToken(AuthProvider.OKTA);
+			AccessToken accessToken = semossUser.getAvailableAccessToken(AuthProvider.OKTA);
 			accessString = accessToken.getAccess_token();
 			String userInfoURL = socialData.getProperty(prefix + "userinfo_url");
 			String socialBeanProps = socialData.getProperty(prefix + "beanProps");
@@ -777,7 +777,7 @@ public class UserResource {
 
 		String accessString = null;
 		try {
-			AccessToken genericToken = semossUser.getAccessToken(providerEnum);
+			AccessToken genericToken = semossUser.getAvailableAccessToken(providerEnum);
 			accessString = genericToken.getAccess_token();
 			// String url = "https://graph.microsoft.com/v1.0/me/";
 			String output = HttpHelperUtility.makeGetCall(userInfoURL, accessString, null, true);
@@ -846,7 +846,7 @@ public class UserResource {
 		}
 		String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
 		if (queryString != null && queryString.contains("code")) {
-			if (userObj == null || userObj.getAccessToken(AuthProvider.SALESFORCE) == null) {
+			if (userObj == null || (userObj.getAccessToken(AuthProvider.SALESFORCE) == null && userObj.getResourceAccessToken(AuthProvider.SALESFORCE) == null)) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				// oauth code should match [ -~]+ (1 or more ascii)
@@ -897,7 +897,7 @@ public class UserResource {
 		if (session != null || (session = request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
-		if (userObj == null || userObj.getAccessToken(AuthProvider.SALESFORCE) == null) {
+		if (userObj == null || (userObj.getAccessToken(AuthProvider.SALESFORCE) == null && userObj.getResourceAccessToken(AuthProvider.SALESFORCE) == null)) {
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(getSalesforceRedirect(request));
@@ -966,7 +966,7 @@ public class UserResource {
 		}
 		String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
 		if (queryString != null && queryString.contains("code")) {
-			if (userObj == null || userObj.getAccessToken(AuthProvider.SURVEYMONKEY) == null) {
+			if (userObj == null || (userObj.getAccessToken(AuthProvider.SURVEYMONKEY) == null && userObj.getResourceAccessToken(AuthProvider.SURVEYMONKEY) == null)) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				// oauth code should match [ -~]+ (1 or more ascii)
@@ -1019,7 +1019,7 @@ public class UserResource {
 		if (session != null || (session = request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
-		if (userObj == null || userObj.getAccessToken(AuthProvider.SURVEYMONKEY) == null) {
+		if (userObj == null || (userObj.getAccessToken(AuthProvider.SURVEYMONKEY) == null && userObj.getResourceAccessToken(AuthProvider.SURVEYMONKEY) == null)) {
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(getSurveyMonkeyRedirect(request));
@@ -1088,7 +1088,7 @@ public class UserResource {
 
 		String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
 		if (queryString != null && queryString.contains("code")) {
-			if (userObj == null || userObj.getAccessToken(AuthProvider.GITHUB) == null) {
+			if (userObj == null || (userObj.getAccessToken(AuthProvider.GITHUB) == null && userObj.getResourceAccessToken(AuthProvider.GITHUB) == null)) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				// oauth code and state should match [ -~]+ (1 or more ascii)
@@ -1149,7 +1149,7 @@ public class UserResource {
 		if (session != null || (session = request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
-		if (userObj == null || userObj.getAccessToken(AuthProvider.GITHUB) == null) {
+		if (userObj == null || (userObj.getAccessToken(AuthProvider.GITHUB) == null && userObj.getResourceAccessToken(AuthProvider.GITHUB) == null)) {
 			// not authenticated
 			try {
 				GitRepoUtils.addCertForDomain("https://github.com");
@@ -1228,7 +1228,7 @@ public class UserResource {
 		String prefix = "gitlab_";
 
 		if (queryString != null && queryString.contains("code")) {
-			if (userObj == null || userObj.getAccessToken(AuthProvider.GITLAB) == null) {
+			if (userObj == null || (userObj.getAccessToken(AuthProvider.GITLAB) == null && userObj.getResourceAccessToken(AuthProvider.GITLAB) == null)) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				// oauth code and state should match [ -~]+ (1 or more ascii)
@@ -1291,7 +1291,7 @@ public class UserResource {
 		if (session != null || (session = request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
-		if (userObj == null || userObj.getAccessToken(AuthProvider.GITLAB) == null) {
+		if (userObj == null || (userObj.getAccessToken(AuthProvider.GITLAB) == null && userObj.getResourceAccessToken(AuthProvider.GITLAB) == null)) {
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(getGitlabRedirect(request));
@@ -1302,7 +1302,7 @@ public class UserResource {
 			// get groups
 			String group_url = socialData.getProperty(prefix + "group_url");
 			String groupsJson = HttpHelperUtility.makeGetCall(group_url,
-					userObj.getAccessToken(AuthProvider.GITLAB).getAccess_token());
+					userObj.getAvailableAccessToken(AuthProvider.GITLAB).getAccess_token());
 			System.out.println(groupsJson);
 			String groupJsonPattern = socialData.getProperty(prefix + "groupJsonPattern");
 			// String beanProps = socialData.getProperty(prefix + "groupBeanProps");
@@ -1318,8 +1318,8 @@ public class UserResource {
 				userGroups.add(thisInput);
 			}
 
-			userObj.getAccessToken(AuthProvider.GITLAB).setUserGroups(userGroups);
-			userObj.getAccessToken(AuthProvider.GITLAB).setUserGroupType(AuthProvider.GITLAB.toString());
+			userObj.getAvailableAccessToken(AuthProvider.GITLAB).setUserGroups(userGroups);
+			userObj.getAvailableAccessToken(AuthProvider.GITLAB).setUserGroupType(AuthProvider.GITLAB.toString());
 		}
 		
 		setMainPageRedirect(request, response);
@@ -1397,7 +1397,7 @@ public class UserResource {
 		}
 		String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
 		if (queryString != null && queryString.contains("code")) {
-			if (userObj == null || userObj.getAccessToken(AuthProvider.MICROSOFT) == null) {
+			if (userObj == null || (userObj.getAccessToken(AuthProvider.MICROSOFT) == null && userObj.getResourceAccessToken(AuthProvider.MICROSOFT) == null)) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				// oauth code should match [ -~]+ (1 or more ascii)
@@ -1466,7 +1466,7 @@ public class UserResource {
 		if (session != null || (session = request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
-		if (userObj == null || userObj.getAccessToken(AuthProvider.MICROSOFT) == null) {
+		if (userObj == null || (userObj.getAccessToken(AuthProvider.MICROSOFT) == null && userObj.getResourceAccessToken(AuthProvider.MICROSOFT) == null)) {
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(getMicrosoftRedirect(request));
@@ -1544,7 +1544,7 @@ public class UserResource {
 
 		String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
 		if (queryString != null && queryString.contains("code")) {
-			if (userObj == null || userObj.getAccessToken(AuthProvider.ADFS) == null) {
+			if (userObj == null || (userObj.getAccessToken(AuthProvider.ADFS) == null && userObj.getResourceAccessToken(AuthProvider.ADFS) == null)) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				// oauth code should match [ -~]+ (1 or more ascii)
@@ -1608,7 +1608,7 @@ public class UserResource {
 		if (session != null || (session = request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
-		if (userObj == null || userObj.getAccessToken(AuthProvider.ADFS) == null) {
+		if (userObj == null || (userObj.getAccessToken(AuthProvider.ADFS) == null && userObj.getResourceAccessToken(AuthProvider.ADFS) == null)) {
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(getADFSRedirect(request));
@@ -1700,7 +1700,7 @@ public class UserResource {
 		}
 		String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
 		if (queryString != null && queryString.contains("code")) {
-			if (userObj == null || userObj.getAccessToken(AuthProvider.OKTA) == null) {
+			if (userObj == null || (userObj.getAccessToken(AuthProvider.OKTA) == null && userObj.getResourceAccessToken(AuthProvider.OKTA) == null)) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				// oauth code should match [ -~]+ (1 or more ascii)
@@ -1762,7 +1762,7 @@ public class UserResource {
 		if (session != null || (session = request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
-		if (userObj == null || userObj.getAccessToken(AuthProvider.OKTA) == null) {
+		if (userObj == null || (userObj.getAccessToken(AuthProvider.OKTA) == null && userObj.getResourceAccessToken(AuthProvider.OKTA) == null)) {
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(getOktaRedirect(request));
@@ -1836,7 +1836,7 @@ public class UserResource {
 
 		String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
 		if (queryString != null && queryString.contains("code")) {
-			if (userObj == null || userObj.getAccessToken(AuthProvider.SITEMINDER) == null) {
+			if (userObj == null || (userObj.getAccessToken(AuthProvider.SITEMINDER) == null && userObj.getResourceAccessToken(AuthProvider.SITEMINDER) == null)) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				// oauth code should match [ -~]+ (1 or more ascii)
@@ -1893,7 +1893,7 @@ public class UserResource {
 		if (session != null || (session = request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
-		if (userObj == null || userObj.getAccessToken(AuthProvider.SITEMINDER) == null) {
+		if (userObj == null || (userObj.getAccessToken(AuthProvider.SITEMINDER) == null && userObj.getResourceAccessToken(AuthProvider.SITEMINDER) == null)) {
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(getSiteminderRedirect(request));
@@ -1971,7 +1971,7 @@ public class UserResource {
 
 		String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
 		if (queryString != null && queryString.contains("code")) {
-			if (userObj == null || userObj.getAccessToken(AuthProvider.DROPBOX) == null) {
+			if (userObj == null || (userObj.getAccessToken(AuthProvider.DROPBOX) == null && userObj.getResourceAccessToken(AuthProvider.DROPBOX) == null)) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				// oauth code should match [ -~]+ (1 or more ascii)
@@ -2023,7 +2023,7 @@ public class UserResource {
 		if (session != null || (session = request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
-		if (userObj == null || userObj.getAccessToken(AuthProvider.DROPBOX) == null) {
+		if (userObj == null || (userObj.getAccessToken(AuthProvider.DROPBOX) == null && userObj.getResourceAccessToken(AuthProvider.DROPBOX) == null)) {
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(getDBRedirect(request));
@@ -2095,7 +2095,7 @@ public class UserResource {
 
 		String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
 		if (queryString != null && queryString.contains("code")) {
-			if (userObj == null || userObj.getAccessToken(AuthProvider.GOOGLE) == null) {
+			if (userObj == null || (userObj.getAccessToken(AuthProvider.GOOGLE) == null && userObj.getResourceAccessToken(AuthProvider.GOOGLE) == null)) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				// oauth code should match [ -~]+ (1 or more ascii)
@@ -2155,7 +2155,7 @@ public class UserResource {
 		if (session != null || (session = request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
-		if (userObj == null || userObj.getAccessToken(AuthProvider.GOOGLE) == null) {
+		if (userObj == null || (userObj.getAccessToken(AuthProvider.GOOGLE) == null && userObj.getResourceAccessToken(AuthProvider.GOOGLE) == null)) {
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(getGoogleRedirect(request));
@@ -2283,7 +2283,7 @@ public class UserResource {
 
 		String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
 		if (queryString != null && queryString.contains("code")) {
-			if (userObj == null || userObj.getAccessToken(AuthProvider.PRODUCT_HUNT) == null) {
+			if (userObj == null || (userObj.getAccessToken(AuthProvider.PRODUCT_HUNT) == null && userObj.getResourceAccessToken(AuthProvider.PRODUCT_HUNT) == null)) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				// oauth code should match [ -~]+ (1 or more ascii)
@@ -2335,7 +2335,7 @@ public class UserResource {
 		if (session != null || (session = request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
-		if (userObj == null || userObj.getAccessToken(AuthProvider.PRODUCT_HUNT) == null) {
+		if (userObj == null || (userObj.getAccessToken(AuthProvider.PRODUCT_HUNT) == null && userObj.getResourceAccessToken(AuthProvider.PRODUCT_HUNT) == null)) {
 			response.setStatus(302);
 			response.sendRedirect(getProducthuntRedirect(request));
 			return null;
@@ -2407,7 +2407,7 @@ public class UserResource {
 
 		String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
 		if (queryString != null && queryString.contains("code")) {
-			if (userObj == null || userObj.getAccessToken(AuthProvider.LINKEDIN) == null) {
+			if (userObj == null || (userObj.getAccessToken(AuthProvider.LINKEDIN) == null && userObj.getResourceAccessToken(AuthProvider.LINKEDIN) == null)) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				// oauth code should match [ -~]+ (1 or more ascii)
@@ -2459,7 +2459,7 @@ public class UserResource {
 		if (session != null || (session = request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
-		if (userObj == null || userObj.getAccessToken(AuthProvider.LINKEDIN) == null) {
+		if (userObj == null || (userObj.getAccessToken(AuthProvider.LINKEDIN) == null && userObj.getResourceAccessToken(AuthProvider.LINKEDIN) == null)) {
 			response.setStatus(302);
 			response.sendRedirect(getLinkedinRedirect(request));
 			return null;
@@ -2537,7 +2537,7 @@ public class UserResource {
 
 		String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
 		if (queryString != null && queryString.contains("code")) {
-			if (userObj == null || userObj.getAccessToken(AuthProvider.TWITTER) == null) {
+			if (userObj == null || (userObj.getAccessToken(AuthProvider.TWITTER) == null && userObj.getResourceAccessToken(AuthProvider.TWITTER) == null)) {
 
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 				// oauth code and state should match [ -~]+ (1 or more ascii)
@@ -2592,7 +2592,7 @@ public class UserResource {
 		if (session != null || (session = request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
-		if (userObj == null || userObj.getAccessToken(AuthProvider.TWITTER) == null) {
+		if (userObj == null || (userObj.getAccessToken(AuthProvider.TWITTER) == null && userObj.getResourceAccessToken(AuthProvider.TWITTER) == null)) {
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(getTwitterRedirect(request));
@@ -2685,7 +2685,7 @@ public class UserResource {
 
 		String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
 		if (queryString != null && queryString.contains("code")) {
-			if (userObj == null || userObj.getAccessToken(providerEnum) == null) {
+			if (userObj == null || (userObj.getAccessToken(providerEnum) == null && userObj.getResourceAccessToken(providerEnum) == null)) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				// oauth code should match [ -~]+ (1 or more ascii)
@@ -2830,7 +2830,7 @@ public class UserResource {
 		if (session != null || (session = request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
-		if (userObj == null || userObj.getAccessToken(providerEnum) == null) {
+		if (userObj == null || (userObj.getAccessToken(providerEnum) == null && userObj.getResourceAccessToken(providerEnum) == null)) {
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(getGenericRedirect(provider, request));
@@ -3586,7 +3586,7 @@ public class UserResource {
 			if (session != null) {
 				User user = (User) session.getAttribute(Constants.SESSION_USER);
 				if (user != null) {
-					AccessToken token = user.getAccessToken(user.getPrimaryLogin());
+					AccessToken token = user.getResourceAccessToken(user.getPrimaryLogin());
 					output.put("name", token.getId());
 					output.put("warning", "null principal - grab from user");
 				}
