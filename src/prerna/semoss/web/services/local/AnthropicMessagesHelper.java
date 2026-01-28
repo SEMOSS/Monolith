@@ -29,7 +29,6 @@ package prerna.semoss.web.services.local;
 
 import java.io.IOException;
 import java.io.Writer;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -270,110 +269,236 @@ public final class AnthropicMessagesHelper {
 	 * - system message as first message with role "system"
 	 * - tools in OpenAI format
 	 */
+	/**
+	 * Normalizes Anthropic Messages API format to internal SEMOSS/ML format.
+	 * 
+	 * IMPORTANT: Each Anthropic message must map to internal messages while preserving
+	 * the message boundary so that when Python rebuilds messages for Anthropic, the
+	 * user/assistant alternation is maintained.
+	 * 
+	 * Strategy:
+	 * - User messages with text/image -> single INPUT_TEXT message (with mediaInputs if images present)
+	 * - User messages with tool_result -> one INPUT_TOOL_EXEC per tool_result  
+	 * - Assistant messages with text -> single RESPONSE_TEXT message
+	 * - Assistant messages with tool_use -> single RESPONSE_TOOL message (all tool_uses grouped)
+	 */
 	@SuppressWarnings("unchecked")
 	public static List<Map<String, Object>> normalizeMessages(Object messages, Object systemPrompt) {
-		List<Map<String, Object>> normalizedMessages = new ArrayList<>();
+	    List<Map<String, Object>> normalizedMessages = new ArrayList<>();
 
-		if (systemPrompt != null) {
-			Map<String, Object> systemMessage = new HashMap<>();
-			systemMessage.put("role", "system");
-			if (systemPrompt instanceof String) {
-				systemMessage.put("content", systemPrompt);
-			} else if (systemPrompt instanceof List) {
-				List<Map<String, Object>> systemBlocks = (List<Map<String, Object>>) systemPrompt;
-				StringBuilder systemText = new StringBuilder();
-				for (Map<String, Object> block : systemBlocks) {
-					if ("text".equals(block.get("type")) && block.containsKey("text")) {
-						if (systemText.length() > 0) {
-							systemText.append("\n");
-						}
-						systemText.append(block.get("text").toString());
-					}
-				}
-				systemMessage.put("content", systemText.toString());
-			}
-			normalizedMessages.add(systemMessage);
-		}
+	    // 1. Handle System Prompt
+	    if (systemPrompt != null) {
+	        Map<String, Object> systemMessage = new HashMap<>();
+	        systemMessage.put("role", "system");
+	        if (systemPrompt instanceof String) {
+	            systemMessage.put("content", systemPrompt);
+	        } else if (systemPrompt instanceof List) {
+	            List<Map<String, Object>> systemBlocks = (List<Map<String, Object>>) systemPrompt;
+	            StringBuilder systemText = new StringBuilder();
+	            for (Map<String, Object> block : systemBlocks) {
+	                if ("text".equals(block.get("type")) && block.containsKey("text")) {
+	                    if (systemText.length() > 0) systemText.append("\n");
+	                    systemText.append(block.get("text").toString());
+	                }
+	            }
+	            systemMessage.put("content", systemText.toString());
+	        }
+	        normalizedMessages.add(systemMessage);
+	    }
 
-		if (!(messages instanceof List)) {
-			return normalizedMessages;
-		}
+	    if (!(messages instanceof List)) {
+	        return normalizedMessages;
+	    }
 
-		List<Map<String, Object>> messageList = (List<Map<String, Object>>) messages;
-		for (Map<String, Object> message : messageList) {
-			Map<String, Object> normalizedMsg = new HashMap<>();
-			normalizedMsg.put("role", message.get("role"));
+	    // 2. Process Message List - each Anthropic message becomes one or more internal messages
+	    // but we must be careful to maintain proper alternation
+	    List<Map<String, Object>> messageList = (List<Map<String, Object>>) messages;
+	    for (Map<String, Object> message : messageList) {
+	        String role = (String) message.get("role");
+	        Object content = message.get("content");
 
-			Object content = message.get("content");
-			if (content instanceof String) {
-				normalizedMsg.put("content", content);
-			} else if (content instanceof List) {
-				List<Map<String, Object>> contentBlocks = (List<Map<String, Object>>) content;
-				StringBuilder textContent = new StringBuilder();
-				List<Map<String, Object>> toolResults = new ArrayList<>();
-				List<Map<String, Object>> toolCalls = new ArrayList<>();
+	        // If content is a simple string, map it directly
+	        if (content instanceof String) {
+	            String textContent = (String) content;
+	            if (textContent != null && !textContent.trim().isEmpty()) {
+	                Map<String, Object> normalizedMsg = new HashMap<>();
+	                normalizedMsg.put("role", role);
+	                normalizedMsg.put("type", role.equals("user") ? "INPUT_TEXT" : "RESPONSE_TEXT");
+	                normalizedMsg.put("content", textContent);
+	                if (role.equals("user")) {
+	                    normalizedMsg.put("inputPrompt", textContent);
+	                    normalizedMsg.put("inputUIPrompt", textContent);
+	                }
+	                normalizedMessages.add(normalizedMsg);
+	            }
+	            continue;
+	        }
 
-				for (Map<String, Object> block : contentBlocks) {
-					String type = (String) block.get("type");
-					if ("text".equals(type)) {
-						if (textContent.length() > 0) {
-							textContent.append("\n");
-						}
-						textContent.append(block.get("text").toString());
-					} else if ("tool_use".equals(type)) {
-						Map<String, Object> toolCall = new HashMap<>();
-						toolCall.put("id", block.get("id"));
-						toolCall.put("type", "function");
-						Map<String, Object> function = new HashMap<>();
-						function.put("name", block.get("name"));
-						Object input = block.get("input");
-						function.put("arguments", input != null ? GSON.toJson(input) : "{}");
-						toolCall.put("function", function);
-						toolCalls.add(toolCall);
-					} else if ("tool_result".equals(type)) {
-						Map<String, Object> toolResult = new HashMap<>();
-						toolResult.put("tool_call_id", block.get("tool_use_id"));
-						toolResult.put("content", block.get("content"));
-						toolResults.add(toolResult);
-					} else if ("image".equals(type)) {
-						// Handle image content - pass through for now
-						// Could be enhanced to handle base64 images
-						if (textContent.length() > 0) {
-							textContent.append("\n");
-						}
-						textContent.append("[Image content]");
-					}
-				}
+	        // If content is a list (Anthropic Block Format)
+	        if (content instanceof List) {
+	            List<Map<String, Object>> contentBlocks = (List<Map<String, Object>>) content;
+	            
+	            // Categorize blocks
+	            List<Map<String, Object>> textBlocks = new ArrayList<>();
+	            List<Map<String, Object>> imageBlocks = new ArrayList<>();
+	            List<Map<String, Object>> toolUseBlocks = new ArrayList<>();
+	            List<Map<String, Object>> toolResultBlocks = new ArrayList<>();
+	            String thinkingContent = null;
+	            String thinkingSignature = null;
+	            
+	            for (Map<String, Object> block : contentBlocks) {
+	                String type = (String) block.get("type");
+	                if ("text".equals(type)) {
+	                    String text = (String) block.get("text");
+	                    if (text != null && !text.trim().isEmpty()) {
+	                        textBlocks.add(block);
+	                    }
+	                } else if ("image".equals(type)) {
+	                    imageBlocks.add(block);
+	                } else if ("tool_use".equals(type)) {
+	                    toolUseBlocks.add(block);
+	                } else if ("tool_result".equals(type)) {
+	                    toolResultBlocks.add(block);
+	                } else if ("thinking".equals(type)) {
+	                    thinkingContent = (String) block.get("thinking");
+	                    thinkingSignature = (String) block.get("signature");
+	                }
+	            }
+	            
+	            // Process based on role
+	            if ("user".equals(role)) {
+	                // For user messages: combine text+images into one INPUT_TEXT message
+	                // Tool results become separate INPUT_TOOL_EXEC messages
+	                
+	                // First, handle text + images together
+	                if (!textBlocks.isEmpty() || !imageBlocks.isEmpty()) {
+	                    Map<String, Object> userMsg = new HashMap<>();
+	                    userMsg.put("role", "user");
+	                    userMsg.put("type", !imageBlocks.isEmpty() ? "INPUT_MEDIA" : "INPUT_TEXT");
+	                    
+	                    // Combine all text
+	                    StringBuilder textContent = new StringBuilder();
+	                    for (Map<String, Object> textBlock : textBlocks) {
+	                        if (textContent.length() > 0) textContent.append("\n");
+	                        textContent.append(textBlock.get("text"));
+	                    }
+	                    String finalText = textContent.toString();
+	                    userMsg.put("content", finalText);
+	                    userMsg.put("inputPrompt", finalText);
+	                    userMsg.put("inputUIPrompt", finalText);
+	                    
+	                    // Add images as mediaInputs
+	                    if (!imageBlocks.isEmpty()) {
+	                        List<Map<String, Object>> mediaInputs = new ArrayList<>();
+	                        for (Map<String, Object> imageBlock : imageBlocks) {
+	                            mediaInputs.add(extractMediaInput(imageBlock));
+	                        }
+	                        userMsg.put("mediaInputs", mediaInputs);
+	                    }
+	                    
+	                    normalizedMessages.add(userMsg);
+	                }
+	                
+	                // Then, handle each tool_result as separate INPUT_TOOL_EXEC
+	                for (Map<String, Object> toolResultBlock : toolResultBlocks) {
+	                    Map<String, Object> toolExecMsg = new HashMap<>();
+	                    toolExecMsg.put("role", "user");
+	                    toolExecMsg.put("type", "INPUT_TOOL_EXEC");
+	                    toolExecMsg.put("tool_call_id", toolResultBlock.get("tool_use_id"));
+	                    
+	                    Object toolContent = toolResultBlock.get("content");
+	                    List<Map<String, Object>> mediaInputs = new ArrayList<>();
+	                    StringBuilder textAggregator = new StringBuilder();
 
-				if (!toolCalls.isEmpty()) {
-					normalizedMsg.put("tool_calls", toolCalls);
-					if (textContent.length() > 0) {
-						normalizedMsg.put("content", textContent.toString());
-					}
-				}
+	                    if (toolContent instanceof List) {
+	                        for (Map<String, Object> innerBlock : (List<Map<String, Object>>) toolContent) {
+	                            String innerType = (String) innerBlock.get("type");
+	                            if ("text".equals(innerType)) {
+	                                textAggregator.append(innerBlock.get("text"));
+	                            } else if ("image".equals(innerType)) {
+	                                mediaInputs.add(extractMediaInput(innerBlock));
+	                            }
+	                        }
+	                    } else if (toolContent instanceof String) {
+	                        textAggregator.append(toolContent);
+	                    }
 
-				else if (!toolResults.isEmpty()) {
-					if (textContent.length() > 0) {
-						normalizedMsg.put("content", textContent.toString());
-						normalizedMessages.add(normalizedMsg);
-					}
-					for (Map<String, Object> toolResult : toolResults) {
-						Map<String, Object> toolMsg = new HashMap<>();
-						toolMsg.put("role", "tool");
-						toolMsg.put("tool_call_id", toolResult.get("tool_call_id"));
-						toolMsg.put("content", toolResult.get("content"));
-						normalizedMessages.add(toolMsg);
-					}
-					continue;
-				} else {
-					normalizedMsg.put("content", textContent.toString());
-				}
-			}
+	                    String resultText = textAggregator.toString();
+	                    toolExecMsg.put("content", resultText);
+	                    toolExecMsg.put("inputUIPrompt", resultText);
+	                    if (!mediaInputs.isEmpty()) {
+	                        toolExecMsg.put("mediaInputs", mediaInputs);
+	                    }
+	                    normalizedMessages.add(toolExecMsg);
+	                }
+	            } else if ("assistant".equals(role)) {
+	                // For assistant messages: 
+	                // - Text becomes RESPONSE_TEXT
+	                // - Tool uses become single RESPONSE_TOOL with all tools
+	                
+	                // Handle text response
+	                if (!textBlocks.isEmpty()) {
+	                    Map<String, Object> assistantMsg = new HashMap<>();
+	                    assistantMsg.put("role", "assistant");
+	                    assistantMsg.put("type", "RESPONSE_TEXT");
+	                    
+	                    StringBuilder textContent = new StringBuilder();
+	                    for (Map<String, Object> textBlock : textBlocks) {
+	                        if (textContent.length() > 0) textContent.append("\n");
+	                        textContent.append(textBlock.get("text"));
+	                    }
+	                    assistantMsg.put("content", textContent.toString());
+	                    normalizedMessages.add(assistantMsg);
+	                }
+	                
+	                // Handle tool uses - group ALL into ONE RESPONSE_TOOL message
+	                if (!toolUseBlocks.isEmpty()) {
+	                    Map<String, Object> toolMsg = new HashMap<>();
+	                    toolMsg.put("role", "assistant");
+	                    toolMsg.put("type", "RESPONSE_TOOL");
+	                    
+	                    List<Map<String, Object>> toolResponses = new ArrayList<>();
+	                    for (Map<String, Object> toolBlock : toolUseBlocks) {
+	                        Map<String, Object> toolResponse = new HashMap<>();
+	                        toolResponse.put("id", toolBlock.get("id"));
+	                        toolResponse.put("name", toolBlock.get("name"));
+	                        toolResponse.put("arguments", GSON.toJson(toolBlock.get("input")));
+	                        toolResponses.add(toolResponse);
+	                    }
+	                    toolMsg.put("tool_responses", toolResponses);
+	                    
+	                    // Include thinking content if present
+	                    if (thinkingContent != null) {
+	                        toolMsg.put("thinking", thinkingContent);
+	                    }
+	                    if (thinkingSignature != null) {
+	                        toolMsg.put("thinking_signature", thinkingSignature);
+	                    }
+	                    
+	                    normalizedMessages.add(toolMsg);
+	                }
+	            }
+	        }
+	    }
+	    return normalizedMessages;
+	}
 
-			normalizedMessages.add(normalizedMsg);
-		}
-
-		return normalizedMessages;
+	/**
+	 * Helper to extract Anthropic image source into SEMOSS mediaInput format
+	 */
+	private static Map<String, Object> extractMediaInput(Map<String, Object> block) {
+	    Map<String, Object> mediaInput = new HashMap<>();
+	    Map<String, Object> source = (Map<String, Object>) block.get("source");
+	    if (source != null) {
+	        String sourceType = (String) source.get("type");
+	        mediaInput.put("mimeType", source.get("media_type"));
+	        if ("base64".equals(sourceType)) {
+	            mediaInput.put("base64Data", source.get("data"));
+	        } else if ("url".equals(sourceType)) {
+	            mediaInput.put("sourceUrl", source.get("url"));
+	        }
+	    }
+	    return mediaInput;
 	}
 
 	/**
