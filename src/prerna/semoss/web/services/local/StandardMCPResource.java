@@ -1,3 +1,30 @@
+/*******************************************************************************
+ * Copyright 2015 Defense Health Agency (DHA)
+ *
+ * If your use of this software does not include any GPLv2 components:
+ * 	Licensed under the Apache License, Version 2.0 (the "License");
+ * 	you may not use this file except in compliance with the License.
+ * 	You may obtain a copy of the License at
+ *
+ * 	  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * 	Unless required by applicable law or agreed to in writing, software
+ * 	distributed under the License is distributed on an "AS IS" BASIS,
+ * 	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * 	See the License for the specific language governing permissions and
+ * 	limitations under the License.
+ * ----------------------------------------------------------------------------
+ * If your use of this software includes any GPLv2 components:
+ * 	This program is free software; you can redistribute it and/or
+ * 	modify it under the terms of the GNU General Public License
+ * 	as published by the Free Software Foundation; either version 2
+ * 	of the License, or (at your option) any later version.
+ *
+ * 	This program is distributed in the hope that it will be useful,
+ * 	but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * 	GNU General Public License for more details.
+ *******************************************************************************/
 package prerna.semoss.web.services.local;
 
 import java.io.InputStream;
@@ -26,6 +53,7 @@ import prerna.mcp.MCPReaper;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.util.Constants;
+import prerna.util.SocialPropertiesUtil;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
@@ -160,7 +188,8 @@ public class StandardMCPResource {
 
 	/**
 	 * OAuth Authorization Server Metadata
-	 * ChatGPT discovers OAuth by requesting this endpoint
+	 * ChatGPT discovers OAuth by requesting this endpoint.
+	 * We redirect to Keycloak's metadata endpoint since Keycloak is the authorization server.
 	 */
 	@GET
 	@Path("/.well-known/oauth-authorization-server")
@@ -168,26 +197,14 @@ public class StandardMCPResource {
 	public Response getAuthorizationServerMetadata(@Context HttpServletRequest request) {
 		classLogger.info(">>>>> MCP OAuth Authorization Server Metadata endpoint called <<<<<");
 		try {
-			String baseUrl = getBaseUrlForMCP(request);
-			classLogger.info("MCP Base URL: " + baseUrl);
+			// Redirect ChatGPT to Keycloak's OpenID configuration
+			String keycloakRealmUrl = getKeycloakRealmUrl();
+			String keycloakMetadataUrl = keycloakRealmUrl + "/.well-known/openid-configuration";
+			classLogger.info("Redirecting to Keycloak metadata: " + keycloakMetadataUrl);
 
-			Map<String, Object> metadata = new HashMap<>();
-			metadata.put("issuer", baseUrl + "/api/mcp");
-			metadata.put("authorization_endpoint", baseUrl + "/api/auth/mcp/authorize");
-			metadata.put("token_endpoint", baseUrl + "/api/auth/mcp/token");
-			metadata.put("registration_endpoint", baseUrl + "/api/auth/oauth/register");
-			metadata.put("response_types_supported", java.util.Arrays.asList("code"));
-			metadata.put("grant_types_supported",
-				java.util.Arrays.asList("authorization_code", "refresh_token"));
-			metadata.put("code_challenge_methods_supported", java.util.Arrays.asList("S256"));
-			metadata.put("token_endpoint_auth_methods_supported", java.util.Arrays.asList("none"));
-			metadata.put("subject_types_supported", java.util.Arrays.asList("public"));
-			metadata.put("token_endpoint_auth_signing_alg_values_supported",
-				java.util.Arrays.asList("RS256"));
-			metadata.put("scopes_supported", java.util.Arrays.asList("mcp.read", "mcp.write", "projects.read"));
-
-			classLogger.info("Returning MCP OAuth metadata: " + metadata);
-			return WebUtility.getResponse(metadata, 200);
+			return Response.status(307) // 307 Temporary Redirect (preserves method)
+				.location(java.net.URI.create(keycloakMetadataUrl))
+				.build();
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> error = new HashMap<>();
@@ -198,18 +215,20 @@ public class StandardMCPResource {
 
 	/**
 	 * OpenID Configuration (alias for oauth-authorization-server)
-	 * Some clients request this instead
+	 * Some clients request this instead - redirect to Keycloak
 	 */
 	@GET
 	@Path("/.well-known/openid-configuration")
 	@Produces("application/json")
 	public Response getOpenIDConfiguration(@Context HttpServletRequest request) {
+		classLogger.info(">>>>> MCP OpenID Configuration endpoint called <<<<<");
 		return getAuthorizationServerMetadata(request);
 	}
 
 	/**
 	 * OAuth Authorization Server Metadata with project ID in path
 	 * ChatGPT appends /.well-known/oauth-authorization-server to the MCP server URL
+	 * Redirect to Keycloak regardless of project ID
 	 */
 	@GET
 	@Path("/{project_id}/.well-known/oauth-authorization-server")
@@ -221,7 +240,7 @@ public class StandardMCPResource {
 	}
 
 	/**
-	 * OpenID Configuration with project ID in path
+	 * OpenID Configuration with project ID in path - redirect to Keycloak
 	 */
 	@GET
 	@Path("/{project_id}/.well-known/openid-configuration")
@@ -246,12 +265,16 @@ public class StandardMCPResource {
 			String mcpResourceUrl = baseUrl + "/api/mcp";
 			classLogger.info("MCP Resource URL: " + mcpResourceUrl);
 
+			// Point to Keycloak as the authorization server (not SEMOSS)
+			String keycloakRealmUrl = getKeycloakRealmUrl();
+			classLogger.info("Keycloak Realm URL: " + keycloakRealmUrl);
+
 			Map<String, Object> metadata = new HashMap<>();
 			metadata.put("resource", mcpResourceUrl);
-			metadata.put("authorization_servers", java.util.Arrays.asList(mcpResourceUrl));
-			metadata.put("scopes_supported", java.util.Arrays.asList("mcp.read", "mcp.write", "projects.read"));
+			metadata.put("authorization_servers", java.util.Arrays.asList(keycloakRealmUrl));
+			metadata.put("scopes_supported", java.util.Arrays.asList("openid", "profile", "email", "offline_access"));
 			metadata.put("resource_documentation", baseUrl + "/docs/mcp");
-			metadata.put("token_endpoint_auth_methods_supported", java.util.Arrays.asList("none"));
+			metadata.put("bearer_methods_supported", java.util.Arrays.asList("header"));
 
 			classLogger.info("Returning MCP Protected Resource metadata: " + metadata);
 			return WebUtility.getResponse(metadata, 200);
@@ -261,6 +284,24 @@ public class StandardMCPResource {
 			error.put("error", "internal_error");
 			return WebUtility.getResponse(error, 500);
 		}
+	}
+
+	/**
+	 * Get the Keycloak realm URL from social.properties
+	 */
+	private String getKeycloakRealmUrl() {
+		SocialPropertiesUtil socialData = SocialPropertiesUtil.getInstance();
+		String keycloakRealmUrl = socialData.getProperty("keycloak_realm_url");
+		if (keycloakRealmUrl == null || keycloakRealmUrl.isEmpty() || keycloakRealmUrl.startsWith("<")) {
+			// Fall back to generic OAuth configuration
+			String genericAuthUrl = socialData.getProperty("generic_auth_url");
+			if (genericAuthUrl != null && genericAuthUrl.contains("/protocol/openid-connect")) {
+				keycloakRealmUrl = genericAuthUrl.substring(0, genericAuthUrl.indexOf("/protocol/openid-connect"));
+			} else {
+				keycloakRealmUrl = "https://sso.semoss.org/realms/dev";
+			}
+		}
+		return keycloakRealmUrl;
 	}
 
 	/**
