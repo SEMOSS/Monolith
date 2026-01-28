@@ -82,6 +82,10 @@ public class ResourceUtility {
 		// MCP OAuth token endpoints (at /api/auth)
 		allowAccessWithoutLogin.add("auth/oauth/register");  // Dynamic client registration
 		allowAccessWithoutLogin.add("auth/mcp/authorize");  // OAuth authorization endpoint
+		// Add MCP OAuth callback for each provider
+		for (AuthProvider v : AuthProvider.values()) {
+			allowAccessWithoutLogin.add("auth/mcp/oauth/callback/" + v.toString().toLowerCase());
+		}
 		allowAccessWithoutLogin.add("auth/mcp/callback");  // OAuth callback
 		allowAccessWithoutLogin.add("auth/mcp/token");  // Token exchange endpoint
 

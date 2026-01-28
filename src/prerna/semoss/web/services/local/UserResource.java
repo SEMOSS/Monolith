@@ -3533,8 +3533,14 @@ public class UserResource {
 			@Context HttpServletRequest request) {
 
 		try {
-			classLogger.info("MCP authorization request from client: " +
-				WebUtility.inputSanitizer(clientId));
+			classLogger.info(">>>>> MCP AUTHORIZE - REQUEST <<<<<");
+			classLogger.info("client_id: {}", clientId);
+			classLogger.info("redirect_uri: {}", redirectUri);
+			classLogger.info("state: {}", state);
+			classLogger.info("code_challenge: {}", codeChallenge != null ? "present" : "null");
+			classLogger.info("code_challenge_method: {}", codeChallengeMethod);
+			classLogger.info("resource: {}", resource);
+			classLogger.info("provider: {}", provider);
 
 			// Validate redirect_uri is from ChatGPT
 			if (redirectUri == null ||
@@ -3597,7 +3603,8 @@ public class UserResource {
 
 			// Redirect (302) to the OAuth provider's authorization page
 			// This is what ChatGPT expects - a redirect, not JSON
-			classLogger.info("Redirecting to " + authProvider + " OAuth URL for MCP auth");
+			classLogger.info(">>>>> MCP AUTHORIZE - RESPONSE: 302 Redirect <<<<<");
+			classLogger.info("Location: {}", authUrl);
 			return Response.status(302)
 				.header("Location", authUrl)
 				.build();
@@ -3608,6 +3615,143 @@ public class UserResource {
 			error.put("error", "server_error");
 			return WebUtility.getResponse(error, 500);
 		}
+	}
+
+	/**
+	 * MCP OAuth Callback - Handle OAuth code from provider (Keycloak, GitHub, etc.)
+	 * This endpoint receives the OAuth authorization code, exchanges it for an access token,
+	 * and creates a user session before completing the MCP flow.
+	 */
+	@GET
+	@Path("/mcp/oauth/callback/{provider}")
+	public Response handleMCPOAuthCallback(
+			@PathParam("provider") String provider,
+			@QueryParam("code") String code,
+			@QueryParam("state") String state,
+			@QueryParam("error") String error,
+			@Context HttpServletRequest request) {
+
+		try {
+			provider = WebUtility.inputSanitizer(provider);
+
+			classLogger.info(">>>>> MCP OAUTH CALLBACK - REQUEST <<<<<");
+			classLogger.info("provider: {}", provider);
+			classLogger.info("code: {}", code != null ? "present" : "null");
+			classLogger.info("state: {}", state);
+			classLogger.info("error: {}", error);
+
+			if (error != null && !error.isEmpty()) {
+				classLogger.error("MCP OAuth error from {}: {}", provider, error);
+				Map<String, String> errorResponse = new HashMap<>();
+				errorResponse.put("error", error);
+				errorResponse.put("error_description", "OAuth provider returned an error");
+				return WebUtility.getResponse(errorResponse, 400);
+			}
+
+			if (code == null || code.isEmpty()) {
+				Map<String, String> errorResponse = new HashMap<>();
+				errorResponse.put("error", "invalid_request");
+				errorResponse.put("error_description", "Missing authorization code");
+				return WebUtility.getResponse(errorResponse, 400);
+			}
+
+			classLogger.info("MCP OAuth callback from {}, exchanging code for token", provider);
+
+			// Exchange OAuth code for access token
+			AccessToken accessToken = exchangeOAuthCodeForToken(provider, code, request);
+			if (accessToken == null) {
+				classLogger.error("Failed to exchange OAuth code for access token with {}", provider);
+				Map<String, String> errorResponse = new HashMap<>();
+				errorResponse.put("error", "access_denied");
+				errorResponse.put("error_description", "Failed to obtain access token");
+				return WebUtility.getResponse(errorResponse, 401);
+			}
+
+			// Create or update user session with the access token
+			addAccessToken(accessToken, request, true);
+
+			classLogger.info("MCP OAuth: User authenticated via {}: {}", provider, accessToken.getId());
+
+			// Verify session and user before redirect
+			HttpSession session = request.getSession(false);
+			if (session != null) {
+				User user = (User) session.getAttribute(Constants.SESSION_USER);
+				classLogger.info("Session ID before redirect: {}", session.getId());
+				classLogger.info("User in session before redirect: {}", user != null ? user.getPrimaryLogin() : "NULL");
+
+				// Verify MCP auth request is still in session
+				Map<String, String> mcpRequest = (Map<String, String>) session.getAttribute("mcp_auth_request");
+				classLogger.info("mcp_auth_request in session: {}", mcpRequest != null ? "present" : "NULL");
+			} else {
+				classLogger.warn("Session is NULL before redirect!");
+			}
+
+			// Now redirect to the MCP callback endpoint which will generate the authorization code
+			// The session now has both the authenticated user AND the mcp_auth_request
+			String baseUrl = getBaseUrlForMCP(request);
+			String mcpCallbackUrl = baseUrl + "/api/auth/mcp/callback";
+
+			classLogger.info(">>>>> MCP OAUTH CALLBACK - RESPONSE: 302 Redirect <<<<<");
+			classLogger.info("Location: {}", mcpCallbackUrl);
+			return Response.status(302).location(URI.create(mcpCallbackUrl)).build();
+
+		} catch (Exception e) {
+			classLogger.error("Error in MCP OAuth callback", e);
+			Map<String, String> errorResponse = new HashMap<>();
+			errorResponse.put("error", "server_error");
+			errorResponse.put("error_description", e.getMessage());
+			return WebUtility.getResponse(errorResponse, 500);
+		}
+	}
+
+	/**
+	 * Exchange OAuth authorization code for access token.
+	 * Supports generic (Keycloak), GitHub, Google, Microsoft, etc.
+	 */
+	private AccessToken exchangeOAuthCodeForToken(String provider, String code, HttpServletRequest request) {
+		String prefix = provider.toLowerCase() + "_";
+		String clientId = socialData.getProperty(prefix + "client_id");
+		String clientSecret = socialData.getProperty(prefix + "secret_key");
+		String tokenUrl = socialData.getProperty(prefix + "token_url");
+
+		if (tokenUrl == null || tokenUrl.isEmpty()) {
+			classLogger.error("Token URL not configured for provider: {}", provider);
+			return null;
+		}
+
+		// Build redirect_uri to match what was sent to OAuth provider
+		String baseUrl = getBaseUrlForMCP(request);
+		String redirectUri = baseUrl + "/api/auth/mcp/oauth/callback/" + provider;
+
+		// Build token exchange parameters
+		Map<String, String> params = new HashMap<>();
+		params.put("client_id", clientId);
+		params.put("redirect_uri", redirectUri);
+		params.put("code", code);
+		params.put("grant_type", "authorization_code");
+		params.put("client_secret", clientSecret);
+
+		// Exchange code for token
+		AccessToken accessToken = HttpHelperUtility.getAccessToken(tokenUrl, params, true, true);
+		if (accessToken == null) {
+			return null;
+		}
+
+		// Set provider
+		AuthProvider providerEnum = AuthProvider.getProviderFromString(provider.toUpperCase());
+		accessToken.setProvider(providerEnum);
+
+		// Fill user info from userinfo endpoint
+		String userInfoURL = socialData.getProperty(prefix + "userinfo_url");
+		String beanProps = socialData.getProperty(prefix + "beanProps");
+		String[] beanPropsArr = beanProps != null ? beanProps.split(",", -1) : new String[0];
+		String jsonPattern = socialData.getProperty(prefix + "jsonPattern");
+		boolean sanitizeResponse = Boolean.parseBoolean(socialData.getProperty(prefix + "sanitizeUserResponse"));
+
+		GenericTokenFiller profiler = new GenericTokenFiller();
+		profiler.fillAccessToken(accessToken, userInfoURL, jsonPattern, beanPropsArr, null, sanitizeResponse);
+
+		return accessToken;
 	}
 
 	/**
@@ -3622,10 +3766,10 @@ public class UserResource {
 			return null;
 		}
 
-		// Build redirect URI using the actual base URL from the request
-		// This ensures it works with Cloudflare tunnels or any public URL
+		// Build redirect URI to MCP OAuth callback endpoint
+		// This ensures the MCP session context is preserved
 		String baseUrl = getBaseUrlForMCP(request);
-		String oauthRedirectUri = baseUrl + "/api/auth/login/" + provider;
+		String oauthRedirectUri = baseUrl + "/api/auth/mcp/oauth/callback/" + provider;
 
 		switch (provider) {
 			case "github":
@@ -3656,6 +3800,23 @@ public class UserResource {
 					"&scope=" + URLEncoder.encode(msScope, UTF8) +
 					"&state=" + UUID.randomUUID().toString();
 
+			case "generic":
+				// Generic OAuth provider (like Keycloak)
+				String genericScope = socialData.getProperty(prefix + "scope");
+				String authUrl = socialData.getProperty(prefix + "auth_url");
+
+				if (authUrl == null || authUrl.isEmpty()) {
+					return null;
+				}
+
+				String separator = authUrl.contains("?") ? "&" : "?";
+				return authUrl + separator +
+					"client_id=" + clientId +
+					"&redirect_uri=" + URLEncoder.encode(oauthRedirectUri, UTF8) +
+					"&response_type=code" +
+					"&scope=" + URLEncoder.encode(genericScope, UTF8) +
+					"&state=" + UUID.randomUUID().toString();
+
 			default:
 				return null;
 		}
@@ -3670,6 +3831,10 @@ public class UserResource {
 	@Path("/mcp/callback")
 	public Response handleMCPCallback(@Context HttpServletRequest request) {
 		try {
+			classLogger.info(">>>>> MCP CALLBACK - REQUEST <<<<<");
+			classLogger.info("Request URL: {}", request.getRequestURL());
+			classLogger.info("Query String: {}", request.getQueryString());
+
 			HttpSession session = request.getSession(false);
 			if (session == null) {
 				classLogger.warn("MCP callback - no session");
@@ -3677,6 +3842,8 @@ public class UserResource {
 				error.put("error", "session_expired");
 				return WebUtility.getResponse(error, 400);
 			}
+
+			classLogger.info("MCP callback - Session ID: {}", session.getId());
 
 			// Get user from session (set by /login or /loginLDAP)
 			User user = (User) session.getAttribute(Constants.SESSION_USER);
@@ -3713,6 +3880,11 @@ public class UserResource {
 			String stateParam = mcpRequest.get("state");
 			String redirectUrl = redirectUriParam + "?code=" + authCode + "&state=" + stateParam;
 
+			classLogger.info(">>>>> MCP CALLBACK - RESPONSE: 303 Redirect <<<<<");
+			classLogger.info("Location: {}", redirectUrl);
+			classLogger.info("code: present");
+			classLogger.info("state: {}", stateParam);
+
 			return Response.seeOther(URI.create(redirectUrl)).build();
 
 		} catch (Exception e) {
@@ -3738,10 +3910,11 @@ public class UserResource {
 			@FormParam("resource") String resource,
 			@Context HttpServletRequest request) {
 
-		classLogger.info(">>>>> MCP TOKEN ENDPOINT CALLED <<<<<");
-		classLogger.info("MCP token exchange request - grant_type: " + grantType + ", code: " +
-			(code != null ? "present" : "null") + ", code_verifier: " +
-			(codeVerifier != null ? "present" : "null"));
+		classLogger.info(">>>>> MCP TOKEN ENDPOINT - REQUEST <<<<<");
+		classLogger.info("grant_type: {}", grantType);
+		classLogger.info("code: {}", code != null ? "present" : "null");
+		classLogger.info("code_verifier: {}", codeVerifier != null ? "present" : "null");
+		classLogger.info("resource: {}", resource);
 		try {
 
 			// Validate grant type
@@ -3804,6 +3977,12 @@ public class UserResource {
 			response.put("token_type", "Bearer");
 			response.put("expires_in", 3600);  // Note: actual expiration depends on OAuth provider
 			response.put("provider", provider);  // Tell ChatGPT which provider to use
+
+			classLogger.info(">>>>> MCP TOKEN ENDPOINT - RESPONSE: 200 OK <<<<<");
+			classLogger.info("token_type: Bearer");
+			classLogger.info("provider: {}", provider);
+			classLogger.info("expires_in: 3600");
+			classLogger.info("access_token: present");
 
 			return WebUtility.getResponse(response, 200);
 
