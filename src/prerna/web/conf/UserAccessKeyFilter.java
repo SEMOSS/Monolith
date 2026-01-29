@@ -159,7 +159,7 @@ public class UserAccessKeyFilter implements Filter {
 					String beanProps = socialData.getProperty(prefix + "beanProps");
 					String[] beanPropsArr = null;
 					if (beanProps != null) {
-						beanProps.split(",", -1);
+						beanPropsArr = beanProps.split(",", -1);
 					}
 					String jsonPattern = socialData.getProperty(prefix + "jsonPattern");
 					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));

@@ -3560,6 +3560,7 @@ public class UserResource {
 			String authProvider = null;
 			if (provider != null && !provider.isEmpty()) {
 				authProvider = provider.toLowerCase();
+				classLogger.info("MCP authorize: Provider explicitly specified: " + authProvider);
 			} else {
 				authProvider = detectDefaultOAuthProvider();
 				if (authProvider == null) {
@@ -3568,6 +3569,7 @@ public class UserResource {
 					error.put("error_description", "Multiple OAuth providers configured. Please specify 'provider' parameter (e.g., provider=github)");
 					return WebUtility.getResponse(error, 400);
 				}
+				classLogger.info("MCP authorize: Auto-detected provider: " + authProvider);
 			// Convert to lowercase for consistency with social.properties prefixes
 			authProvider = authProvider.toLowerCase();
 			}
@@ -3654,6 +3656,20 @@ public class UserResource {
 					"&redirect_uri=" + URLEncoder.encode(oauthRedirectUri, UTF8) +
 					"&response_type=code" +
 					"&scope=" + URLEncoder.encode(msScope, UTF8) +
+					"&state=" + UUID.randomUUID().toString();
+
+			case "generic":
+				// Generic OAuth (typically Keycloak)
+				String genericAuthUrl = socialData.getProperty(prefix + "auth_url");
+				String genericScope = socialData.getProperty(prefix + "scope");
+				if (genericAuthUrl == null || genericAuthUrl.isEmpty()) {
+					return null;
+				}
+				return genericAuthUrl + "?" +
+					"client_id=" + clientId +
+					"&redirect_uri=" + URLEncoder.encode(oauthRedirectUri, UTF8) +
+					"&response_type=code" +
+					"&scope=" + URLEncoder.encode(genericScope, UTF8) +
 					"&state=" + UUID.randomUUID().toString();
 
 			default:
