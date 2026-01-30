@@ -59,6 +59,8 @@ import prerna.web.services.util.WebUtility;
 
 import java.time.ZoneId;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -287,21 +289,97 @@ public class StandardMCPResource {
 	}
 
 	/**
-	 * Get the Keycloak realm URL from social.properties
+	 * Detect the OAuth provider to use for MCP authentication
+	 * Uses same logic as UserAccessKeyFilter
+	 * Returns the provider name (e.g., "keycloak", "google")
+	 */
+	private String detectOAuthProvider() {
+		try {
+			SocialPropertiesUtil socialData = SocialPropertiesUtil.getInstance();
+			List<Map<String, Object>> loginsMap = socialData.getAvailableProviders();
+			Set<String> allowedOAuthProviders = new HashSet<>();
+
+			for (Map<String, Object> loginInfo : loginsMap) {
+				// Check if this is OAuth
+				if ((boolean) loginInfo.get("isOauth")) {
+					allowedOAuthProviders.add((String) loginInfo.get("label"));
+				}
+			}
+
+			// If exactly one OAuth provider configured, use it
+			if (allowedOAuthProviders.size() == 1) {
+				String provider = allowedOAuthProviders.iterator().next();
+				classLogger.info("Auto-detected OAuth provider for MCP: " + provider);
+				return provider;
+			}
+
+			// Multiple providers - prefer keycloak if configured
+			if (allowedOAuthProviders.contains("keycloak")) {
+				classLogger.info("Multiple OAuth providers found, using keycloak");
+				return "keycloak";
+			}
+
+			// Otherwise return first provider
+			if (!allowedOAuthProviders.isEmpty()) {
+				String provider = allowedOAuthProviders.iterator().next();
+				classLogger.info("Multiple OAuth providers found, using first: " + provider);
+				return provider;
+			}
+
+			classLogger.warn("No OAuth providers configured for MCP");
+			return null;
+
+		} catch (Exception e) {
+			classLogger.error(Constants.STACKTRACE, e);
+			return null;
+		}
+	}
+
+	/**
+	 * Get the OAuth provider's issuer URL (realm URL for OIDC providers)
+	 * This is the base URL that contains /.well-known/openid-configuration
 	 */
 	private String getKeycloakRealmUrl() {
 		SocialPropertiesUtil socialData = SocialPropertiesUtil.getInstance();
-		String keycloakRealmUrl = socialData.getProperty("keycloak_realm_url");
-		if (keycloakRealmUrl == null || keycloakRealmUrl.isEmpty() || keycloakRealmUrl.startsWith("<")) {
-			// Fall back to generic OAuth configuration
-			String genericAuthUrl = socialData.getProperty("generic_auth_url");
-			if (genericAuthUrl != null && genericAuthUrl.contains("/protocol/openid-connect")) {
-				keycloakRealmUrl = genericAuthUrl.substring(0, genericAuthUrl.indexOf("/protocol/openid-connect"));
-			} else {
-				keycloakRealmUrl = "https://sso.semoss.org/realms/dev";
+		String provider = detectOAuthProvider();
+
+		if (provider == null) {
+			classLogger.warn("No provider detected, falling back to default");
+			return "https://sso.semoss.org/realms/dev";
+		}
+
+		String prefix = provider.toLowerCase() + "_";
+		classLogger.info("Getting OAuth issuer URL for provider: " + provider);
+
+		// 1. Try issuer_url (standard OIDC property)
+		String issuerUrl = socialData.getProperty(prefix + "issuer_url");
+		if (issuerUrl != null && !issuerUrl.isEmpty() && !issuerUrl.startsWith("<")) {
+			classLogger.info("Using " + prefix + "issuer_url: " + issuerUrl);
+			return issuerUrl;
+		}
+
+		// 2. Extract from auth_url (remove path after realm/tenant)
+		String authUrl = socialData.getProperty(prefix + "auth_url");
+		if (authUrl != null && !authUrl.isEmpty()) {
+			// Find common OIDC endpoint patterns and extract base
+			int idx = -1;
+			if (authUrl.contains("/protocol/openid-connect")) {
+				idx = authUrl.indexOf("/protocol/openid-connect");
+			} else if (authUrl.contains("/oauth2/v2.0")) {
+				idx = authUrl.indexOf("/oauth2/v2.0");
+			} else if (authUrl.contains("/o/oauth2")) {
+				idx = authUrl.indexOf("/o/oauth2");
+			}
+
+			if (idx > 0) {
+				String extracted = authUrl.substring(0, idx);
+				classLogger.info("Extracted issuer from " + prefix + "auth_url: " + extracted);
+				return extracted;
 			}
 		}
-		return keycloakRealmUrl;
+
+		classLogger.warn("Could not determine issuer URL for " + provider + ", using default");
+		return "https://sso.semoss.org/realms/dev";
 	}
 
 	/**
@@ -318,11 +396,21 @@ public class StandardMCPResource {
 
 	/**
 	 * Helper method to construct base URL for MCP OAuth
-	 * Used by OAuth metadata endpoints
+	 * Prefers configured URL over dynamic detection for production/cluster deployments
 	 */
 	private String getBaseUrlForMCP(HttpServletRequest request) {
+		SocialPropertiesUtil socialData = SocialPropertiesUtil.getInstance();
+
+		// 1. Try configured base URL (for production/clusters)
+		String configuredUrl = socialData.getProperty("mcp_base_url");
+		if (configuredUrl != null && !configuredUrl.isEmpty() && !configuredUrl.startsWith("<")) {
+			classLogger.info("Using configured mcp_base_url: " + configuredUrl);
+			return configuredUrl;
+		}
+
+		// 2. Fallback to dynamic detection from request headers
 		String baseUrl = MCPUrlUtility.getExternalBaseUrl(request);
-		classLogger.info("Base URL for MCP: " + baseUrl);
+		classLogger.info("Using dynamic base URL for MCP: " + baseUrl);
 		return baseUrl;
 	}
 }
