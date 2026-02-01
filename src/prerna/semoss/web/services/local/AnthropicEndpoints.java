@@ -36,6 +36,8 @@ import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -82,10 +84,11 @@ import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.util.Constants;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
+import prerna.engine.impl.model.inferencetracking.ModelInferenceLogsUtils;
 
 /**
- * Anthropic Messages API compatible endpoints.
- * Allows connections from Claude Code and other Anthropic SDK clients.
+ * Anthropic Messages API compatible endpoints. Allows connections from Claude
+ * Code and other Anthropic SDK clients.
  * 
  * Endpoint: /model/anthropic/v1/messages
  * 
@@ -102,22 +105,185 @@ public class AnthropicEndpoints {
 	private static final String INSIGHT_NOT_FOUND = "INSIGHT_NOT_FOUND";
 
 	private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
-	
+
+//	/**
+//	 * Main Messages API endpoint - handles both streaming and non-streaming requests.
+//	 * Compatible with Anthropic's /v1/messages endpoint.
+//	 * 
+//	 * Request format:
+//	 * {
+//	 *   "model": "engine-id",
+//	 *   "max_tokens": 1024,
+//	 *   "messages": [{"role": "user", "content": "Hello"}],
+//	 *   "system": "optional system prompt",
+//	 *   "stream": false,
+//	 *   "tools": [...],
+//	 *   "temperature": 0.7
+//	 * }
+//	 */
+//	@POST
+//	@Path("/v1/messages")
+//	@Consumes({ "application/json" })
+//	@Produces({ "application/json;charset=utf-8", "text/event-stream" })
+//	public Response createMessage(@Context HttpServletRequest request) {
+//		HttpSession session = request.getSession(false);
+//		User user = null;
+//
+//		if (session != null) {
+//			user = (User) session.getAttribute(Constants.SESSION_USER);
+//		}
+//		
+//		if (user == null) {
+//			Map<String, Object> errorMap = AnthropicMessagesHelper.createErrorResponse(
+//					"authentication_error", "User is not authenticated");
+//			return WebUtility.getResponse(errorMap, 401);
+//		}
+//
+//		final String SESSION_ID = session.getId();
+//		final String JOB_ID = GUID.v7().toUUID().toString();
+//		Insight insight = null;
+//		Room room = null;
+//		ObjectMapper objectMapper = new ObjectMapper();
+//
+//		// Set the user timezone
+//		ZoneId zoneId = null;
+//		String strTz = WebUtility.inputSanitizer(request.getParameter("tz"));
+//		if (strTz == null || (strTz = strTz.trim()).isEmpty()) {
+//			zoneId = ZoneId.systemDefault();
+//		} else {
+//			try {
+//				zoneId = ZoneId.of(strTz);
+//			} catch (Exception e) {
+//				classLogger.warn("Invalid timezone provided: " + strTz + ", using system default");
+//				zoneId = ZoneId.systemDefault();
+//			}
+//		}
+//		if (user != null) {
+//			user.setZoneId(zoneId);
+//		}
+//
+//		StringBuilder requestData = new StringBuilder();
+//		try (BufferedReader reader = new BufferedReader(new InputStreamReader(request.getInputStream()))) {
+//			String line;
+//			while ((line = reader.readLine()) != null) {
+//				requestData.append(line);
+//			}
+//		} catch (IOException e) {
+//			classLogger.error("Error reading request body", e);
+//			Map<String, Object> errorMap = AnthropicMessagesHelper.createErrorResponse(
+//					"invalid_request_error", "Failed to read request body");
+//			return WebUtility.getResponse(errorMap, 400);
+//		}
+//
+//		classLogger.info("Anthropic Messages API request: " + requestData.toString());
+//
+//		TypeReference<Map<String, Object>> mapType = new TypeReference<Map<String, Object>>() {};
+//		Map<String, Object> dataMap;
+//		try {
+//			dataMap = objectMapper.readValue(requestData.toString(), mapType);
+//		} catch (JsonProcessingException e) {
+//			classLogger.error("Error parsing request JSON", e);
+//			Map<String, Object> errorMap = AnthropicMessagesHelper.createErrorResponse(
+//					"invalid_request_error", "Invalid JSON in request body");
+//			return WebUtility.getResponse(errorMap, 400);
+//		}
+//		
+//		String engineId = WebUtility.inputSanitizer((String) dataMap.remove("model"));
+//		if (engineId == null || engineId.isEmpty()) {
+//			Map<String, Object> errorMap = AnthropicMessagesHelper.createErrorResponse(
+//					"invalid_request_error", "model is required");
+//			return WebUtility.getResponse(errorMap, 400);
+//		}
+//
+//		if (!SecurityEngineUtils.userCanViewEngine(user, engineId)) {
+//			Map<String, Object> errorMap = AnthropicMessagesHelper.createErrorResponse(
+//					"permission_error", "User does not have access to model: " + engineId);
+//			return WebUtility.getResponse(errorMap, 403);
+//		}
+//
+//		IModelEngine engine = Utility.getModel(engineId);
+//		if (engine == null) {
+//			Map<String, Object> errorMap = AnthropicMessagesHelper.createErrorResponse(
+//					"not_found_error", "Model not found: " + engineId);
+//			return WebUtility.getResponse(errorMap, 404);
+//		}
+//		
+//		// ROOM STUFF HERE
+//		String insightId = WebUtility.inputSanitizer((String) dataMap.remove("insight_id"));
+//		if (insightId == null) {
+//			insight = new Insight();
+//			InsightStore.getInstance().put(insight);
+//			insightId = insight.getInsightId();
+//		} else {
+//			insight = InsightStore.getInstance().get(insightId);
+//		}
+//
+//		if (insight == null) {
+//			Map<String, Object> errorMap = AnthropicMessagesHelper.createErrorResponse(
+//					"invalid_request_error", "Invalid insight_id provided");
+//			errorMap.put(ERROR_TYPE, INSIGHT_NOT_FOUND);
+//			return WebUtility.getResponse(errorMap, 400);
+//		}
+//		insight.setUser(user);
+//
+//		String roomId = WebUtility.inputSanitizer((String) dataMap.remove("room_id"));
+//		room = RoomUtils.createRoomIfNotExists(roomId, insight, engine, null);
+//
+//		Object messages = dataMap.remove("messages");
+//		Object systemPrompt = dataMap.remove("system");
+//		
+//		String ryanSystemPrompt = AnthropicMessagesHelper.getSystemMessage(systemPrompt);
+//		
+//		if (messages == null) {
+//			Map<String, Object> errorMap = AnthropicMessagesHelper.createErrorResponse(
+//					"invalid_request_error", "messages is required");
+//			return WebUtility.getResponse(errorMap, 400);
+//		}
+//
+//		List<Map<String, Object>> normalizedMessages = AnthropicMessagesHelper.normalizeMessages(messages, systemPrompt, room, insight);
+//
+//		Object tools = dataMap.remove("tools");
+//		if (tools != null) {
+//			List<Map<String, Object>> normalizedTools = AnthropicMessagesHelper.normalizeTools(tools);
+//			if (normalizedTools != null && !normalizedTools.isEmpty()) {
+//				dataMap.put("tools", normalizedTools);
+//			}
+//		}
+//
+//		boolean isStreamingRequest = Boolean.parseBoolean(dataMap.getOrDefault("stream", false).toString());
+//		dataMap.remove("stream");
+//
+//
+//
+//		ThreadStore.setInsightId(insight.getInsightId());
+//		ThreadStore.setSessionId(SESSION_ID);
+//		ThreadStore.setJobId(JOB_ID);
+//		ThreadStore.setUser(insight.getUser());
+//
+//		// Process images from normalized messages like AskPlaygroundReactor does
+////		processImagesInMessages(normalizedMessages, room, insight);
+//
+//		dataMap.put(AbstractModelEngine.FULL_PROMPT, normalizedMessages);
+//		
+//		classLogger.info("dataMap: {}", GSON.toJson(dataMap));
+//
+//		final Insight finalInsight = insight;
+//		final Room finalRoom = room;
+//
+//		if (!isStreamingRequest) {
+//			return handleNonStreamingRequest(engine, finalInsight, finalRoom, dataMap, engineId);
+//		} else {
+//			return handleStreamingRequest(engine, finalInsight, finalRoom, dataMap, SESSION_ID, JOB_ID, engineId);
+//		}
+//	}
 
 	/**
-	 * Main Messages API endpoint - handles both streaming and non-streaming requests.
-	 * Compatible with Anthropic's /v1/messages endpoint.
+	 * Main Messages API endpoint - handles both streaming and non-streaming
+	 * requests. Compatible with Anthropic's /v1/messages endpoint.
 	 * 
-	 * Request format:
-	 * {
-	 *   "model": "engine-id",
-	 *   "max_tokens": 1024,
-	 *   "messages": [{"role": "user", "content": "Hello"}],
-	 *   "system": "optional system prompt",
-	 *   "stream": false,
-	 *   "tools": [...],
-	 *   "temperature": 0.7
-	 * }
+	 * Request format: { "model": "engine-id", "max_tokens": 1024, "messages":
+	 * [{"role": "user", "content": "Hello"}], "system": "optional system prompt",
+	 * "stream": false, "tools": [...], "temperature": 0.7 }
 	 */
 	@POST
 	@Path("/v1/messages")
@@ -130,10 +296,10 @@ public class AnthropicEndpoints {
 		if (session != null) {
 			user = (User) session.getAttribute(Constants.SESSION_USER);
 		}
-		
+
 		if (user == null) {
-			Map<String, Object> errorMap = AnthropicMessagesHelper.createErrorResponse(
-					"authentication_error", "User is not authenticated");
+			Map<String, Object> errorMap = AnthropicMessagesHelper.createErrorResponse("authentication_error",
+					"User is not authenticated");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
@@ -168,54 +334,93 @@ public class AnthropicEndpoints {
 			}
 		} catch (IOException e) {
 			classLogger.error("Error reading request body", e);
-			Map<String, Object> errorMap = AnthropicMessagesHelper.createErrorResponse(
-					"invalid_request_error", "Failed to read request body");
+			Map<String, Object> errorMap = AnthropicMessagesHelper.createErrorResponse("invalid_request_error",
+					"Failed to read request body");
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		classLogger.info("Anthropic Messages API request: " + requestData.toString());
 
-		TypeReference<Map<String, Object>> mapType = new TypeReference<Map<String, Object>>() {};
+		TypeReference<Map<String, Object>> mapType = new TypeReference<Map<String, Object>>() {
+		};
 		Map<String, Object> dataMap;
 		try {
 			dataMap = objectMapper.readValue(requestData.toString(), mapType);
 		} catch (JsonProcessingException e) {
 			classLogger.error("Error parsing request JSON", e);
-			Map<String, Object> errorMap = AnthropicMessagesHelper.createErrorResponse(
-					"invalid_request_error", "Invalid JSON in request body");
+			Map<String, Object> errorMap = AnthropicMessagesHelper.createErrorResponse("invalid_request_error",
+					"Invalid JSON in request body");
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		String engineId = WebUtility.inputSanitizer((String) dataMap.remove("model"));
 		if (engineId == null || engineId.isEmpty()) {
-			Map<String, Object> errorMap = AnthropicMessagesHelper.createErrorResponse(
-					"invalid_request_error", "model is required");
+			Map<String, Object> errorMap = AnthropicMessagesHelper.createErrorResponse("invalid_request_error",
+					"model is required");
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		if (!SecurityEngineUtils.userCanViewEngine(user, engineId)) {
-			Map<String, Object> errorMap = AnthropicMessagesHelper.createErrorResponse(
-					"permission_error", "User does not have access to model: " + engineId);
+			Map<String, Object> errorMap = AnthropicMessagesHelper.createErrorResponse("permission_error",
+					"User does not have access to model: " + engineId);
 			return WebUtility.getResponse(errorMap, 403);
 		}
 
 		IModelEngine engine = Utility.getModel(engineId);
 		if (engine == null) {
-			Map<String, Object> errorMap = AnthropicMessagesHelper.createErrorResponse(
-					"not_found_error", "Model not found: " + engineId);
+			Map<String, Object> errorMap = AnthropicMessagesHelper.createErrorResponse("not_found_error",
+					"Model not found: " + engineId);
 			return WebUtility.getResponse(errorMap, 404);
 		}
+		
+		// ROOM & INSIGHT LOGIC START ---------
+		String insightId = WebUtility.inputSanitizer((String) dataMap.remove("insight_id"));
+		String roomId = WebUtility.inputSanitizer((String) dataMap.remove("room_id"));
+
+		if (roomId != null && insightId == null) {
+			String userId = user.getPrimaryLoginToken().getId();
+			Room existingRoom = ModelInferenceLogsUtils.getRoomById(roomId, userId);
+			if (existingRoom != null) {
+				Insight existingInsight = existingRoom.getInsight();
+				if (existingInsight != null ) {
+					insightId = existingInsight.getInsightId();
+				}
+			}
+		}
+
+		if (insightId == null) {
+			insight = new Insight();
+			InsightStore.getInstance().put(insight);
+			insightId = insight.getInsightId();
+		} else {
+			insight = InsightStore.getInstance().get(insightId);
+			if (insight == null) {
+				insight = new Insight();
+				insight.setInsightId(insightId);
+				InsightStore.getInstance().put(insight);
+			}
+		}
+		insight.setUser(user);
+		room = RoomUtils.createRoomIfNotExists(roomId, insight, engine, null);
+		// ROOM & INSIGHT LOGIC END ---------
+		
+		Object systemPromptBlock = dataMap.remove("system");
+		String systemPromptString = AnthropicMessagesHelper.getSystemMessage(systemPromptBlock);
 
 		Object messages = dataMap.remove("messages");
-		Object systemPrompt = dataMap.remove("system");
-		
 		if (messages == null) {
-			Map<String, Object> errorMap = AnthropicMessagesHelper.createErrorResponse(
-					"invalid_request_error", "messages is required");
+			Map<String, Object> errorMap = AnthropicMessagesHelper.createErrorResponse("invalid_request_error",
+					"messages is required");
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
-		List<Map<String, Object>> normalizedMessages = AnthropicMessagesHelper.normalizeMessages(messages, systemPrompt);
+		List<Map<String, Object>> messagesList = (List<Map<String, Object>>) messages;
+		Map<String, Object> latestMessage = messagesList.get(0);
+		Map<String, Object> normalizedMessage = AnthropicMessagesHelper.normalizeMessage(latestMessage, room, insight);
+
+		String question = (String) normalizedMessage.get("question");
+		List<String> copiedImages = (List<String>) normalizedMessage.get("images");
+		Map<String, Object> toolResults = (Map<String, Object>) normalizedMessage.get("tool_exec");
 
 		Object tools = dataMap.remove("tools");
 		if (tools != null) {
@@ -228,38 +433,32 @@ public class AnthropicEndpoints {
 		boolean isStreamingRequest = Boolean.parseBoolean(dataMap.getOrDefault("stream", false).toString());
 		dataMap.remove("stream");
 
-		String insightId = WebUtility.inputSanitizer((String) dataMap.remove("insight_id"));
-		if (insightId == null) {
-			insight = new Insight();
-			InsightStore.getInstance().put(insight);
-			insightId = insight.getInsightId();
-		} else {
-			insight = InsightStore.getInstance().get(insightId);
-		}
-
-		if (insight == null) {
-			Map<String, Object> errorMap = AnthropicMessagesHelper.createErrorResponse(
-					"invalid_request_error", "Invalid insight_id provided");
-			errorMap.put(ERROR_TYPE, INSIGHT_NOT_FOUND);
-			return WebUtility.getResponse(errorMap, 400);
-		}
-		insight.setUser(user);
-
-		String roomId = WebUtility.inputSanitizer((String) dataMap.remove("room_id"));
-		room = RoomUtils.createRoomIfNotExists(roomId, insight, engine, null);
-
 		ThreadStore.setInsightId(insight.getInsightId());
 		ThreadStore.setSessionId(SESSION_ID);
 		ThreadStore.setJobId(JOB_ID);
 		ThreadStore.setUser(insight.getUser());
 
-		dataMap.put(AbstractModelEngine.FULL_PROMPT, normalizedMessages);
+//		dataMap.put(AbstractModelEngine.FULL_PROMPT, normalizedMessages);
 
 		final Insight finalInsight = insight;
 		final Room finalRoom = room;
 
+//		Map<String, Object> finalDataMap = new HashMap<>();
+//		
+//		finalDataMap.put("question", question);
+//		finalDataMap.put("system", systemPromptString);
+//		finalDataMap.put("images", copiedImages);
+//		finalDataMap.put("tool_results", toolResults);
+//		
+//		classLogger.info("finalDataMap: {}", GSON.toJson(finalDataMap));
+
+		InputMessage msg = InputMessage.builder(room).withSystemPrompt(systemPromptString).withInputUIPrompt(question)
+				.withInputPrompt(question).withModelType(engine.getModelType()).withMediaInputs(copiedImages, room)
+				.withParamMap(dataMap)
+				.build();
+
 		if (!isStreamingRequest) {
-			return handleNonStreamingRequest(engine, finalInsight, finalRoom, dataMap, engineId);
+			return handleNonStreamingRequest(engine, finalInsight, finalRoom, msg, engineId);
 		} else {
 			return handleStreamingRequest(engine, finalInsight, finalRoom, dataMap, SESSION_ID, JOB_ID, engineId);
 		}
@@ -268,20 +467,16 @@ public class AnthropicEndpoints {
 	/**
 	 * Handle non-streaming message request.
 	 */
-	private Response handleNonStreamingRequest(IModelEngine engine, Insight insight, Room room,
-			Map<String, Object> dataMap, String engineId) {
+	private Response handleNonStreamingRequest(IModelEngine engine, Insight insight, Room room, InputMessage msg,
+			String engineId) {
 		AskModelEngineResponse llmResponse;
 		try {
-			InputMessage msg = InputMessage.builder(room)
-					.withModelType(engine.getModelType())
-					.withParamMap(dataMap)
-					.build();
 			ResponseMessage response = room.ask(msg, engine);
 			llmResponse = response.getModelEngineResponse();
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
-			Map<String, Object> errorMap = AnthropicMessagesHelper.createErrorResponse(
-					"api_error", "Error processing request: " + e.getMessage());
+			Map<String, Object> errorMap = AnthropicMessagesHelper.createErrorResponse("api_error",
+					"Error processing request: " + e.getMessage());
 			return WebUtility.getResponse(errorMap, 500);
 		}
 
@@ -289,20 +484,41 @@ public class AnthropicEndpoints {
 		return WebUtility.getResponse(responseMap, 200);
 	}
 
+//	/**
+//	 * Handle non-streaming message request.
+//	 */
+//	private Response handleNonStreamingRequest(IModelEngine engine, Insight insight, Room room,
+//			Map<String, Object> dataMap, String engineId) {
+//		AskModelEngineResponse llmResponse;
+//		try {
+//			InputMessage msg = InputMessage.builder(room)
+//					.withModelType(engine.getModelType())
+//					.withParamMap(dataMap)
+//					.build();
+//			ResponseMessage response = room.ask(msg, engine);
+//			llmResponse = response.getModelEngineResponse();
+//		} catch (Exception e) {
+//			classLogger.error(Constants.STACKTRACE, e);
+//			Map<String, Object> errorMap = AnthropicMessagesHelper.createErrorResponse(
+//					"api_error", "Error processing request: " + e.getMessage());
+//			return WebUtility.getResponse(errorMap, 500);
+//		}
+//
+//		Map<String, Object> responseMap = AnthropicMessagesHelper.processAskModelEngineResponse(engineId, llmResponse);
+//		return WebUtility.getResponse(responseMap, 200);
+//	}
+
 	/**
-	 * Handle streaming message request.
-	 * Returns SSE stream with Anthropic-compatible events.
+	 * Handle streaming message request. Returns SSE stream with
+	 * Anthropic-compatible events.
 	 */
 	private Response handleStreamingRequest(IModelEngine engine, Insight finalInsight, Room finalRoom,
 			Map<String, Object> dataMap, String sessionId, String jobId, String engineId) {
 
 		classLogger.info("Starting Anthropic streaming response for engine: " + engineId);
 
-		return Response.ok()
-				.header("Content-Type", "text/event-stream")
-				.header("Cache-Control", "no-cache")
-				.header("Connection", "keep-alive")
-				.header("X-Content-Type-Options", "nosniff")
+		return Response.ok().header("Content-Type", "text/event-stream").header("Cache-Control", "no-cache")
+				.header("Connection", "keep-alive").header("X-Content-Type-Options", "nosniff")
 				.entity(new StreamingOutput() {
 					@Override
 					@SuppressWarnings("unchecked")
@@ -310,7 +526,8 @@ public class AnthropicEndpoints {
 						String messageId = "msg_" + GUID.v7().toUUID().toString().replace("-", "");
 						String asyncJobId = null;
 
-						try (Writer writer = new BufferedWriter(new OutputStreamWriter(output, StandardCharsets.UTF_8))) {
+						try (Writer writer = new BufferedWriter(
+								new OutputStreamWriter(output, StandardCharsets.UTF_8))) {
 							asyncJobId = startAsyncModelRequest(engine, finalInsight, finalRoom, dataMap, sessionId);
 
 							boolean started = false;
@@ -331,11 +548,12 @@ public class AnthropicEndpoints {
 										if ("content".equalsIgnoreCase(streamType)) {
 											if (streamData.containsKey("finish_reason")) {
 												String finishReason = (String) streamData.get("finish_reason");
-												
+
 												if (started) {
-													AnthropicMessagesHelper.writeContentBlockStop(contentBlockIndex, writer);
+													AnthropicMessagesHelper.writeContentBlockStop(contentBlockIndex,
+															writer);
 												}
-												
+
 												String stopReason = mapFinishReasonToStopReason(finishReason);
 												AnthropicMessagesHelper.writeMessageDelta(stopReason, null, writer);
 												AnthropicMessagesHelper.writeMessageStop(writer);
@@ -344,47 +562,53 @@ public class AnthropicEndpoints {
 												String newContent = (String) streamData.get("content");
 												if (newContent != null && !newContent.isEmpty()) {
 													if (!started) {
-														AnthropicMessagesHelper.writeMessageStart(messageId, engineId, 0, writer);
-														AnthropicMessagesHelper.writeTextContentBlockStart(contentBlockIndex, writer);
+														AnthropicMessagesHelper.writeMessageStart(messageId, engineId,
+																0, writer);
+														AnthropicMessagesHelper
+																.writeTextContentBlockStart(contentBlockIndex, writer);
 														started = true;
 													}
-													AnthropicMessagesHelper.writeTextDelta(contentBlockIndex, newContent, writer);
+													AnthropicMessagesHelper.writeTextDelta(contentBlockIndex,
+															newContent, writer);
 												}
 											}
 										} else {
 											if (streamData.containsKey("finish_reason")) {
 												String finishReason = (String) streamData.get("finish_reason");
-												
+
 												if (started) {
-													AnthropicMessagesHelper.writeContentBlockStop(contentBlockIndex, writer);
+													AnthropicMessagesHelper.writeContentBlockStop(contentBlockIndex,
+															writer);
 												}
-												
+
 												String stopReason = mapFinishReasonToStopReason(finishReason);
 												AnthropicMessagesHelper.writeMessageDelta(stopReason, null, writer);
 												AnthropicMessagesHelper.writeMessageStop(writer);
 												break STREAM_COMPLETE_LOOP;
 											} else {
 												if (!started) {
-													AnthropicMessagesHelper.writeMessageStart(messageId, engineId, 0, writer);
+													AnthropicMessagesHelper.writeMessageStart(messageId, engineId, 0,
+															writer);
 													started = true;
 												}
-												
+
 												String toolId = (String) streamData.get("id");
 												String toolName = null;
-												Map<String, Object> functionMap = (Map<String, Object>) streamData.get("function");
+												Map<String, Object> functionMap = (Map<String, Object>) streamData
+														.get("function");
 												if (functionMap != null) {
 													toolName = (String) functionMap.get("name");
 													Object argsObj = functionMap.get("arguments");
-													String args = argsObj instanceof String ? 
-															(String) argsObj : new Gson().toJson(argsObj);
-													
+													String args = argsObj instanceof String ? (String) argsObj
+															: new Gson().toJson(argsObj);
+
 													if (toolId != null && toolName != null) {
 														AnthropicMessagesHelper.writeToolUseContentBlockStart(
 																contentBlockIndex, toolId, toolName, writer);
 													}
 													if (args != null && !args.isEmpty()) {
-														AnthropicMessagesHelper.writeInputJsonDelta(
-																contentBlockIndex, args, writer);
+														AnthropicMessagesHelper.writeInputJsonDelta(contentBlockIndex,
+																args, writer);
 													}
 												}
 											}
@@ -401,7 +625,7 @@ public class AnthropicEndpoints {
 									PixelRunner finalOutput = PixelJobManager.getManager().getOutput(asyncJobId);
 									NounMetadata finalNoun = finalOutput.getResults().get(0);
 									Object finalObject = finalNoun.getValue();
-									
+
 									String messageType = null;
 									Map<String, Object> resultOutput = null;
 									if (finalObject instanceof Map) {
@@ -412,26 +636,28 @@ public class AnthropicEndpoints {
 									AnthropicMessagesHelper.writeMessageStart(messageId, engineId, 0, writer);
 
 									if ("TOOL".equals(messageType)) {
-										List<Map<String, Object>> toolResponses = (List<Map<String, Object>>) resultOutput.get("response");
+										List<Map<String, Object>> toolResponses = (List<Map<String, Object>>) resultOutput
+												.get("response");
 										if (toolResponses != null) {
 											for (int i = 0; i < toolResponses.size(); i++) {
 												Map<String, Object> toolResp = toolResponses.get(i);
 												String toolId = (String) toolResp.get("id");
 												String toolName = (String) toolResp.get("name");
 												Object toolArgs = toolResp.get("arguments");
-												String argsJson = toolArgs instanceof String ? 
-														(String) toolArgs : GSON.toJson(toolArgs);
-												
-												AnthropicMessagesHelper.writeToolUseContentBlockStart(i, toolId, toolName, writer);
+												String argsJson = toolArgs instanceof String ? (String) toolArgs
+														: GSON.toJson(toolArgs);
+
+												AnthropicMessagesHelper.writeToolUseContentBlockStart(i, toolId,
+														toolName, writer);
 												AnthropicMessagesHelper.writeInputJsonDelta(i, argsJson, writer);
 												AnthropicMessagesHelper.writeContentBlockStop(i, writer);
 											}
 										}
 										AnthropicMessagesHelper.writeMessageDelta("tool_use", null, writer);
 									} else {
-										String content = resultOutput != null ? 
-												(String) resultOutput.get("response") : "";
-										
+										String content = resultOutput != null ? (String) resultOutput.get("response")
+												: "";
+
 										AnthropicMessagesHelper.writeTextContentBlockStart(0, writer);
 										if (content != null && !content.isEmpty()) {
 											AnthropicMessagesHelper.writeTextDelta(0, content, writer);
@@ -472,32 +698,31 @@ public class AnthropicEndpoints {
 			return "end_turn";
 		}
 		switch (finishReason) {
-			case "stop":
-				return "end_turn";
-			case "tool_calls":
-				return "tool_use";
-			case "length":
-				return "max_tokens";
-			case "content_filter":
-				return "end_turn"; // Anthropic doesn't have content_filter, map to end_turn
-			default:
-				return "end_turn";
+		case "stop":
+			return "end_turn";
+		case "tool_calls":
+			return "tool_use";
+		case "length":
+			return "max_tokens";
+		case "content_filter":
+			return "end_turn"; // Anthropic doesn't have content_filter, map to end_turn
+		default:
+			return "end_turn";
 		}
 	}
 
 	/**
 	 * Start an asynchronous model request and return the job ID.
 	 */
-	private String startAsyncModelRequest(IModelEngine engine, Insight insight, Room room, 
-			Map<String, Object> dataMap, String sessionId) {
+	private String startAsyncModelRequest(IModelEngine engine, Insight insight, Room room, Map<String, Object> dataMap,
+			String sessionId) {
 		try {
 			PixelJobManager manager = PixelJobManager.getManager();
 			PixelJobThread jt = manager.makeJob(insight, sessionId, null);
 			String jobId = jt.getJobId();
 
 			String modelPixel = "LLM(engine='" + engine.getEngineId() + "',roomId='" + room.getId()
-					+ "',command='<encode>ignore</encode>'"
-					+ ",paramValues=[" + GSON.toJson(dataMap) + "]);";
+					+ "',command='<encode>ignore</encode>'" + ",paramValues=[" + GSON.toJson(dataMap) + "]);";
 			classLogger.info(modelPixel);
 			jt.addPixel(modelPixel);
 			jt.start();
@@ -506,6 +731,60 @@ public class AnthropicEndpoints {
 			classLogger.warn("Failed to start async job");
 			classLogger.error(Constants.STACKTRACE, e);
 			throw new IllegalArgumentException(e.getMessage());
+		}
+	}
+
+	/**
+	 * Process images in normalized messages. Parses data URIs directly and sets
+	 * base64Data for Python consumption.
+	 */
+	@SuppressWarnings("unchecked")
+	private void processImagesInMessages(List<Map<String, Object>> normalizedMessages, Room room, Insight insight) {
+		for (Map<String, Object> message : normalizedMessages) {
+			Object imageDataUrisObj = message.remove("imageDataUris");
+			if (imageDataUrisObj instanceof List) {
+				List<String> imageDataUris = (List<String>) imageDataUrisObj;
+				if (!imageDataUris.isEmpty()) {
+					List<Map<String, Object>> mediaInputs = new ArrayList<>();
+
+					for (String dataUri : imageDataUris) {
+						// Handle data URIs: data:<mimeType>;base64,<data>
+						if (dataUri != null && dataUri.startsWith("data:") && dataUri.contains(";base64,")) {
+							int commaIdx = dataUri.indexOf(',');
+							if (commaIdx > 0) {
+								String meta = dataUri.substring(0, commaIdx); // data:image/jpeg;base64
+								String base64 = dataUri.substring(commaIdx + 1);
+
+								// Extract mime type: data:image/jpeg;base64 -> image/jpeg
+								int colonIdx = meta.indexOf(':');
+								int semiIdx = meta.indexOf(';');
+								if (colonIdx > 0 && semiIdx > colonIdx) {
+									String mimeType = meta.substring(colonIdx + 1, semiIdx);
+
+									Map<String, Object> mediaInfo = new HashMap<>();
+									mediaInfo.put("base64Data", base64);
+									mediaInfo.put("mimeType", mimeType);
+									// DO NOT set sourceUrl - Python checks sourceUrl first!
+									mediaInputs.add(mediaInfo);
+								}
+							}
+						} else if (dataUri != null
+								&& (dataUri.startsWith("http://") || dataUri.startsWith("https://"))) {
+							// Handle actual URLs
+							Map<String, Object> mediaInfo = new HashMap<>();
+							mediaInfo.put("sourceUrl", dataUri);
+							mediaInputs.add(mediaInfo);
+						}
+					}
+
+					if (!mediaInputs.isEmpty()) {
+						message.put("mediaInputs", mediaInputs);
+						if ("INPUT_TEXT".equals(message.get("type"))) {
+							message.put("type", "INPUT_MEDIA");
+						}
+					}
+				}
+			}
 		}
 	}
 
