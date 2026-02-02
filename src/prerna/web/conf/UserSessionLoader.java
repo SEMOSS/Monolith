@@ -52,6 +52,7 @@ import prerna.om.ClientProcessWrapper;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.semoss.web.services.local.MCPResource;
+import prerna.semoss.web.services.local.StandardMCPResource;
 import prerna.usertracking.UserTrackingUtils;
 import prerna.util.Constants;
 import prerna.util.FileSystemUtil;
@@ -143,6 +144,7 @@ public class UserSessionLoader implements HttpSessionListener {
 			if (mcpKeys != null) {
 				for (String authKey : mcpKeys) {
 					MCPResource.clearInsight(authKey);
+					StandardMCPResource.clearInsightsByAuthorization(authKey);
 				}
 			}
 		}

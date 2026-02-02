@@ -63,6 +63,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 /**
  * Standard MCP endpoint at /mcp for ChatGPT compatibility
@@ -74,7 +76,7 @@ import java.util.Set;
 public class StandardMCPResource {
 
 	private static final Logger classLogger = LogManager.getLogger(StandardMCPResource.class);
-	private Map<String, Insight> mcpThread = new HashMap<>();
+	private static final Map<String, Insight> MCP_MAP = new ConcurrentHashMap<>();
 
 	/**
 	 * Standard MCP endpoint for ChatGPT with project ID
@@ -108,16 +110,22 @@ public class StandardMCPResource {
 			classLogger.info("User from session: " + user.getPrimaryLogin());
 			String sessionId = session.getId();
 
-			// Get or create insight (cache per session + project)
+			// Get authorization header for token-based caching and cleanup
+			String authorization = request.getHeader("Authorization");
+
+			// Track authorization token in session for cleanup
+			addAuthKeyToSession(session, authorization);
+
+			// Get or create insight (cache per authorization + project)
 			Insight insight = null;
-			String cacheKey = sessionId + "_" + projectId;
-			if (!mcpThread.containsKey(cacheKey)) {
+			String cacheKey = authorization + "_" + projectId;
+			if (!MCP_MAP.containsKey(cacheKey)) {
 				insight = initSession(session);
 				if (insight != null) {
-					mcpThread.put(cacheKey, insight);
+					MCP_MAP.put(cacheKey, insight);
 				}
 			} else {
-				insight = mcpThread.get(cacheKey);
+				insight = MCP_MAP.get(cacheKey);
 			}
 
 			if (insight == null) {
@@ -189,69 +197,111 @@ public class StandardMCPResource {
 	}
 
 	/**
-	 * OAuth Authorization Server Metadata
-	 * ChatGPT discovers OAuth by requesting this endpoint.
-	 * We redirect to Keycloak's metadata endpoint since Keycloak is the authorization server.
+	 * Adds the authorization key to a set in the session in a thread-safe manner.
+	 * Same approach as MCPResource for consistent cleanup behavior.
+	 *
+	 * @param session       The user's HttpSession
+	 * @param authorization The authorization key to add
 	 */
-	@GET
-	@Path("/.well-known/oauth-authorization-server")
-	@Produces("application/json")
-	public Response getAuthorizationServerMetadata(@Context HttpServletRequest request) {
-		classLogger.info(">>>>> MCP OAuth Authorization Server Metadata endpoint called <<<<<");
-		try {
-			// Redirect ChatGPT to Keycloak's OpenID configuration
-			String keycloakRealmUrl = getKeycloakRealmUrl();
-			String keycloakMetadataUrl = keycloakRealmUrl + "/.well-known/openid-configuration";
-			classLogger.info("Redirecting to Keycloak metadata: " + keycloakMetadataUrl);
-
-			return Response.status(307) // 307 Temporary Redirect (preserves method)
-				.location(java.net.URI.create(keycloakMetadataUrl))
-				.build();
-		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
-			Map<String, String> error = new HashMap<>();
-			error.put("error", "internal_error");
-			return WebUtility.getResponse(error, 500);
+	private static void addAuthKeyToSession(HttpSession session, String authorization) {
+		if (authorization != null) {
+			synchronized (session) {
+				Set<String> mcpKeys = (Set<String>) session.getAttribute(MCPResource.MCP_AUTH_KEY);
+				if (mcpKeys == null) {
+					mcpKeys = new HashSet<>();
+					session.setAttribute(MCPResource.MCP_AUTH_KEY, mcpKeys);
+				}
+				mcpKeys.add(authorization);
+			}
 		}
 	}
 
 	/**
-	 * OpenID Configuration (alias for oauth-authorization-server)
-	 * Some clients request this instead - redirect to Keycloak
+	 * Remove all insights cached for a given authorization token (across all projects).
+	 * Called during session cleanup to prevent memory leaks.
+	 *
+	 * @param authorization The authorization token
 	 */
-	@GET
-	@Path("/.well-known/openid-configuration")
-	@Produces("application/json")
-	public Response getOpenIDConfiguration(@Context HttpServletRequest request) {
-		classLogger.info(">>>>> MCP OpenID Configuration endpoint called <<<<<");
-		return getAuthorizationServerMetadata(request);
+	public static void clearInsightsByAuthorization(String authorization) {
+		if (authorization != null) {
+			// Find all cache keys starting with this authorization token
+			Set<String> keysToRemove = MCP_MAP.keySet().stream()
+				.filter(key -> key.startsWith(authorization + "_"))
+				.collect(Collectors.toSet());
+
+			for (String key : keysToRemove) {
+				Insight removedInsight = MCP_MAP.remove(key);
+				if (removedInsight != null) {
+					classLogger.info("Removed cached insight from StandardMCP thread for auth key: {}", key);
+				}
+			}
+		}
 	}
 
-	/**
-	 * OAuth Authorization Server Metadata with project ID in path
-	 * ChatGPT appends /.well-known/oauth-authorization-server to the MCP server URL
-	 * Redirect to Keycloak regardless of project ID
-	 */
-	@GET
-	@Path("/{project_id}/.well-known/oauth-authorization-server")
-	@Produces("application/json")
-	public Response getAuthorizationServerMetadataWithProject(@PathParam("project_id") String projectId,
-			@Context HttpServletRequest request) {
-		classLogger.info(">>>>> MCP OAuth Authorization Server Metadata endpoint called for project: " + projectId + " <<<<<");
-		return getAuthorizationServerMetadata(request);
-	}
+//	/**
+//	 * OAuth Authorization Server Metadata
+//	 * ChatGPT discovers OAuth by requesting this endpoint.
+//	 * We redirect to Keycloak's metadata endpoint since Keycloak is the authorization server.
+//	 */
+//	@GET
+//	@Path("/.well-known/oauth-authorization-server")
+//	@Produces("application/json")
+//	public Response getAuthorizationServerMetadata(@Context HttpServletRequest request) {
+//		classLogger.info(">>>>> MCP OAuth Authorization Server Metadata endpoint called <<<<<");
+//		try {
+//			// Redirect ChatGPT to Keycloak's OpenID configuration
+//			String keycloakRealmUrl = getKeycloakRealmUrl();
+//			String keycloakMetadataUrl = keycloakRealmUrl + "/.well-known/openid-configuration";
+//			classLogger.info("Redirecting to Keycloak metadata: " + keycloakMetadataUrl);
+//
+//			return Response.status(307) // 307 Temporary Redirect (preserves method)
+//				.location(java.net.URI.create(keycloakMetadataUrl))
+//				.build();
+//		} catch (Exception e) {
+//			classLogger.error(Constants.STACKTRACE, e);
+//			Map<String, String> error = new HashMap<>();
+//			error.put("error", "internal_error");
+//			return WebUtility.getResponse(error, 500);
+//		}
+//	}
 
-	/**
-	 * OpenID Configuration with project ID in path - redirect to Keycloak
-	 */
-	@GET
-	@Path("/{project_id}/.well-known/openid-configuration")
-	@Produces("application/json")
-	public Response getOpenIDConfigurationWithProject(@PathParam("project_id") String projectId,
-			@Context HttpServletRequest request) {
-		classLogger.info(">>>>> MCP OpenID Configuration endpoint called for project: " + projectId + " <<<<<");
-		return getAuthorizationServerMetadata(request);
-	}
+//	/**
+//	 * OpenID Configuration (alias for oauth-authorization-server)
+//	 * Some clients request this instead - redirect to Keycloak
+//	 */
+//	@GET
+//	@Path("/.well-known/openid-configuration")
+//	@Produces("application/json")
+//	public Response getOpenIDConfiguration(@Context HttpServletRequest request) {
+//		classLogger.info(">>>>> MCP OpenID Configuration endpoint called <<<<<");
+//		return getAuthorizationServerMetadata(request);
+//	}
+
+//	/**
+//	 * OAuth Authorization Server Metadata with project ID in path
+//	 * ChatGPT appends /.well-known/oauth-authorization-server to the MCP server URL
+//	 * Redirect to Keycloak regardless of project ID
+//	 */
+//	@GET
+//	@Path("/{project_id}/.well-known/oauth-authorization-server")
+//	@Produces("application/json")
+//	public Response getAuthorizationServerMetadataWithProject(@PathParam("project_id") String projectId,
+//			@Context HttpServletRequest request) {
+//		classLogger.info(">>>>> MCP OAuth Authorization Server Metadata endpoint called for project: " + projectId + " <<<<<");
+//		return getAuthorizationServerMetadata(request);
+//	}
+//
+//	/**
+//	 * OpenID Configuration with project ID in path - redirect to Keycloak
+//	 */
+//	@GET
+//	@Path("/{project_id}/.well-known/openid-configuration")
+//	@Produces("application/json")
+//	public Response getOpenIDConfigurationWithProject(@PathParam("project_id") String projectId,
+//			@Context HttpServletRequest request) {
+//		classLogger.info(">>>>> MCP OpenID Configuration endpoint called for project: " + projectId + " <<<<<");
+//		return getAuthorizationServerMetadata(request);
+//	}
 
 	/**
 	 * Protected Resource Metadata (RFC 9728)
@@ -267,7 +317,7 @@ public class StandardMCPResource {
 			String mcpResourceUrl = baseUrl + "/api/mcp";
 			classLogger.info("MCP Resource URL: " + mcpResourceUrl);
 
-			// Point to Keycloak as the authorization server (not SEMOSS)
+			// Point to Keycloak as the authorization server
 			String keycloakRealmUrl = getKeycloakRealmUrl();
 			classLogger.info("Keycloak Realm URL: " + keycloakRealmUrl);
 
@@ -382,17 +432,17 @@ public class StandardMCPResource {
 		return "https://sso.semoss.org/realms/dev";
 	}
 
-	/**
-	 * Protected Resource Metadata with project ID in path
-	 */
-	@GET
-	@Path("/{project_id}/.well-known/oauth-protected-resource")
-	@Produces("application/json")
-	public Response getProtectedResourceMetadataWithProject(@PathParam("project_id") String projectId,
-			@Context HttpServletRequest request) {
-		classLogger.info(">>>>> MCP OAuth Protected Resource Metadata endpoint called for project: " + projectId + " <<<<<");
-		return getProtectedResourceMetadata(request);
-	}
+//	/**
+//	 * Protected Resource Metadata with project ID in path
+//	 */
+//	@GET
+//	@Path("/{project_id}/.well-known/oauth-protected-resource")
+//	@Produces("application/json")
+//	public Response getProtectedResourceMetadataWithProject(@PathParam("project_id") String projectId,
+//			@Context HttpServletRequest request) {
+//		classLogger.info(">>>>> MCP OAuth Protected Resource Metadata endpoint called for project: " + projectId + " <<<<<");
+//		return getProtectedResourceMetadata(request);
+//	}
 
 	/**
 	 * Helper method to construct base URL for MCP OAuth
