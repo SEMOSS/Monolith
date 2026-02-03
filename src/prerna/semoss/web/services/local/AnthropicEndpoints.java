@@ -165,7 +165,7 @@ public class AnthropicEndpoints {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
-		classLogger.info("Anthropic Messages API request: " + requestData.toString());
+		classLogger.info("Initial Unaltered Anthropic Messages API request: " + requestData.toString());
 
 		TypeReference<Map<String, Object>> mapType = new TypeReference<Map<String, Object>>() {
 		};
@@ -534,7 +534,7 @@ public class AnthropicEndpoints {
 
 			String modelPixel = "LLM(engine='" + engine.getEngineId() + "',roomId='" + room.getId()
 					+ "',command='<encode>ignore</encode>'" + ",paramValues=[" + GSON.toJson(dataMap) + "]);";
-			classLogger.info(modelPixel);
+			classLogger.info("Anthropic API Streaming Model Pixel Call" + modelPixel);
 			jt.addPixel(modelPixel);
 			jt.start();
 			return jobId;
