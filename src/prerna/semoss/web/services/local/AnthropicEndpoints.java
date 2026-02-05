@@ -255,47 +255,55 @@ public class AnthropicEndpoints {
 
 		// HANDLE NON-STREAMING REQUESTS THROUGH askRoom
 		if (!isStreamingRequest) {
-			Map<String, Object> normalizedMessage = AnthropicMessagesHelper.normalizeMessageForAskRoom(latestMessage,
-					room, insight);
-			String question = (String) normalizedMessage.get("question");
-			List<String> copiedImages = (List<String>) normalizedMessage.get("images");
-			Map<String, Object> toolResults = (Map<String, Object>) normalizedMessage.get("tool_exec");
+		    Map<String, Object> normalizedLatest = AnthropicMessagesHelper.normalizeMessageForAskRoom(latestMessage,
+		            room, insight);
+		    String question = (String) normalizedLatest.get("question");
+		    List<String> copiedImages = (List<String>) normalizedLatest.get("images");
 
-			if (tools != null) {
-				List<Map<String, Object>> normalizedTools = AnthropicMessagesHelper.normalizeTools(tools);
-				if (normalizedTools != null && !normalizedTools.isEmpty()) {
-					dataMap.put("tools", normalizedTools);
-				}
-			}
+		    Map<String, Object> openAIFormat = AnthropicMessagesHelper
+		            .normalizeAllAnthropicMessagesToOpenAI(messagesList, systemPromptString, tools);
+		    
+		    List<Map<String, Object>> openAIMessages = (List<Map<String, Object>>) openAIFormat.get("messages");
+		    dataMap.put(AbstractModelEngine.FULL_PROMPT, openAIMessages);
+		    dataMap.put("append_full_prompt", true);
 
-			final Insight finalInsight = insight;
-			final Room finalRoom = room;
-			// NEED TO UPDATE THIS TO INCLUDE THE TOOLS IN THE ROOM!!
-			InputMessage msg = InputMessage.builder(room).withSystemPrompt(systemPromptString)
-					.withInputUIPrompt(question).withInputPrompt(question).withModelType(engine.getModelType())
-					.withMediaInputs(copiedImages, room).withParamMap(dataMap).build();
+		    if (openAIFormat.containsKey("tools")) {
+		        dataMap.put("tools", openAIFormat.get("tools"));
+		    }
 
-			return handleNonStreamingRequest(engine, finalInsight, finalRoom, msg, engineId);
+		    final Insight finalInsight = insight;
+		    final Room finalRoom = room;
+		    
+		    InputMessage msg = InputMessage.builder(room)
+		            .withSystemPrompt(systemPromptString)
+		            .withInputUIPrompt(question)
+		            .withInputPrompt(question)
+		            .withModelType(engine.getModelType())
+		            .withMediaInputs(copiedImages, room)
+		            .withParamMap(dataMap)
+		            .build();
+
+		    return handleNonStreamingRequest(engine, finalInsight, finalRoom, msg, engineId);
 		} else {
+			
+		    final Insight finalInsight = insight;
+		    final Room finalRoom = room;
 
-			final Insight finalInsight = insight;
-			final Room finalRoom = room;
+		    Map<String, Object> openAIFormat = AnthropicMessagesHelper
+		            .normalizeAllAnthropicMessagesToOpenAI(messagesList, systemPromptString, tools);
 
-			Map<String, Object> openAIFormat = AnthropicMessagesHelper
-					.normalizeAnthropicMessagestoOpenAIMessages(latestMessage, systemPromptString, tools);
+		    List<Map<String, Object>> openAIMessages = (List<Map<String, Object>>) openAIFormat.get("messages");
+		    dataMap.put(AbstractModelEngine.FULL_PROMPT, openAIMessages);
 
-			List<Map<String, Object>> openAIMessages = (List<Map<String, Object>>) openAIFormat.get("messages");
-			dataMap.put(AbstractModelEngine.FULL_PROMPT, openAIMessages);
+		    if (openAIFormat.containsKey("tools")) {
+		        dataMap.put("tools", openAIFormat.get("tools"));
+		    }
 
-			if (openAIFormat.containsKey("tools")) {
-				dataMap.put("tools", openAIFormat.get("tools"));
-			}
+		    classLogger.info("finalDataMap: {}", GSON.toJson(dataMap));
 
-			classLogger.info("finalDataMap: {}", GSON.toJson(dataMap));
+		    dataMap.put("append_full_prompt", true);
 
-			dataMap.put("append_full_prompt", true);
-
-			return handleStreamingRequest(engine, finalInsight, finalRoom, dataMap, SESSION_ID, JOB_ID, engineId);
+		    return handleStreamingRequest(engine, finalInsight, finalRoom, dataMap, SESSION_ID, JOB_ID, engineId);
 		}
 	}
 
