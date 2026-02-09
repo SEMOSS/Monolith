@@ -186,7 +186,7 @@ public class UserResource {
 			Map<String, Object> ret = new HashMap<>();
 			ret.put("success", false);
 			ret.put(Constants.ERROR_MESSAGE, "No user is currently logged in the session");
-			return WebUtility.getResponse(ret, 401);
+			return WebUtility.getResponse(ret, 400);
 		}
 
 		// log the user logout
@@ -3437,3 +3437,4 @@ public class UserResource {
 	}
 
 }
+
