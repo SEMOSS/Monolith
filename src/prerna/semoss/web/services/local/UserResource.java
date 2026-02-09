@@ -387,12 +387,15 @@ public class UserResource {
 	 * @param token
 	 * @param request
 	 */
-	public static void addResourceAccessToken(AccessToken token, HttpServletRequest request, boolean autoAdd) {
+	public static void addResourceAccessToken(AccessToken token, HttpServletRequest request) {
 		HttpSession session = request.getSession();
 		User semossUser = (User) session.getAttribute(Constants.SESSION_USER);
-		if (autoAdd) {
-			SecurityUpdateUtils.addOAuthUser(token);
+		if (semossUser == null) {
+			classLogger.error("No user found in session when trying to add resource access token");
+			return;
 		}
+
+		// add new resource access token to the user
 		semossUser.setResourceAccessToken(token);
 		semossUser.setAnonymous(false);
 		session.setAttribute(Constants.SESSION_USER, semossUser);
@@ -1932,6 +1935,7 @@ public class UserResource {
 		return redirectUrl;
 	}
 
+	
 	/**
 	 * Logs user in through google or connects google for resource access
 	 * https://developers.google.com/api-client-library/java/google-api-java-client/oauth2
@@ -1946,38 +1950,31 @@ public class UserResource {
 		boolean connectAllowed = socialData.getConnectionsAllowed().get("google") != null
 				&& socialData.getConnectionsAllowed().get("google");
 
+		// At least one operation must be allowed login/connect
 		if (!loginAllowed && !connectAllowed) {
 			Map<String, Object> ret = new HashMap<>();
 			ret.put(Constants.ERROR_MESSAGE, "Google login/connection is not allowed");
 			return WebUtility.getResponse(ret, 400);
 		}
-		/*
-		 * Determine operation type: login vs connect - Login: User has no existing
-		 * session or no existing logins - Connect: User is already logged in with
-		 * another provider and wants to add Google for resource access
-		 */
+
+		// Determine operation type based on flag values
+		boolean isLoginOperation = loginAllowed;
+		boolean isConnectOperation = connectAllowed;
+
+		// For connect operations, user must already be logged in
 		HttpSession session = request.getSession(false);
 		User userObj = null;
 		if (session != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
-		// check if user is already logged in
-		boolean userAlreadyLoggedIn = userObj != null && !userObj.getLogins().isEmpty();
-		// if user is already logged in, and connect is allowed, then it's a connect
-		// operation
-		boolean isConnectOperation = userAlreadyLoggedIn && connectAllowed;
+		
+		// A user must be already logged in before we can connect
+		if (isConnectOperation && (userObj == null || userObj.getLogins().isEmpty())) {
+			Map<String, Object> ret = new HashMap<>();
+			ret.put(Constants.ERROR_MESSAGE, "User must be logged in to connect Google account");
+			return WebUtility.getResponse(ret, 401);
+		}
 
-		// Validate the operation is allowed based on user state
-		if (!userAlreadyLoggedIn && !loginAllowed) {
-			Map<String, Object> ret = new HashMap<>();
-			ret.put(Constants.ERROR_MESSAGE, "Google login is not allowed");
-			return WebUtility.getResponse(ret, 400);
-		}
-		if (userAlreadyLoggedIn && !connectAllowed) {
-			Map<String, Object> ret = new HashMap<>();
-			ret.put(Constants.ERROR_MESSAGE, "Google connection is not allowed");
-			return WebUtility.getResponse(ret, 400);
-		}
 		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
 		if (customRedirect != null && !customRedirect.isEmpty()) {
 			if (session == null) {
@@ -1985,26 +1982,19 @@ public class UserResource {
 			}
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
 		}
+		
+		boolean loginComplete = (userObj != null && userObj.getAccessToken(AuthProvider.GOOGLE) != null);
+		boolean connectComplete = (userObj != null && userObj.getResourceAccessToken(AuthProvider.GOOGLE) != null);
 
+		// Process OAuth callback if code is present
 		String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
 		if (queryString != null && queryString.contains("code")) {
-			// Determine if we need to process the OAuth code
-			// For connect operation: userObj is guaranteed non-null due to earlier check
-			// For login operation: userObj might be null
-			boolean needsProcessing;
-			if (isConnectOperation) {
-				// userObj is guaranteed non-null here
-				needsProcessing = userObj.getResourceAccessToken(AuthProvider.GOOGLE) == null;
-			} else {
-				// need to check if userObj is null
-				needsProcessing = (userObj == null || userObj.getAccessToken(AuthProvider.GOOGLE) == null);
-			}
-			if (needsProcessing) {
+			if (!loginComplete || !connectComplete) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
+				String code = URLDecoder.decode(outputs[0]);
 
 				// oauth code should match [ -~]+ (1 or more ascii)
 				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
-				String code = URLDecoder.decode(outputs[0]);
 				if (code.matches("[ -~]+")) {
 					String prefix = "google_";
 					String clientId = socialData.getProperty(prefix + "client_id");
@@ -2013,12 +2003,9 @@ public class UserResource {
 					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
 
 					if (classLogger.isDebugEnabled()) {
-						classLogger.debug(
-								"Processing Google OAuth code for " + (isConnectOperation ? "connection" : "login"));
+						classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
 					}
 
-					// I need to decode the return code from google since the default param's are
-					// encoded on the post of getAccessToken
 					Map<String, String> params = new HashMap<>();
 					params.put("client_id", clientId);
 					params.put("redirect_uri", redirectUri);
@@ -2029,11 +2016,10 @@ public class UserResource {
 					String url = "https://www.googleapis.com/oauth2/v4/token";
 
 					try {
-						// https://developers.google.com/api-client-library/java/google-api-java-client/oauth2
+						// Get access token from Google (same for both operations)
 						AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, true, true);
 						if (accessToken == null) {
 							classLogger.error("Failed to obtain access token from Google");
-							// Redirect back to start OAuth flow again
 							response.setStatus(302);
 							response.sendRedirect(getGoogleRedirect(request));
 							return null;
@@ -2044,14 +2030,15 @@ public class UserResource {
 						GoogleTokenFiller profiler = new GoogleTokenFiller();
 						profiler.fillAccessToken(accessToken, null, null, null, null);
 
-						if (isConnectOperation) {
-							// User is already logged in, add as resource access token for data integration
-							addResourceAccessToken(accessToken, request, autoAdd);
-							classLogger.info("User connected Google account for resource access");
-						} else {
-							// User is not logged in, add as login access token
+						// Add token based on which operations are allowed
+						if (isLoginOperation) {
 							addAccessToken(accessToken, request, autoAdd);
 							classLogger.info("User logged in with Google");
+						}
+
+						if (isConnectOperation) {
+							addResourceAccessToken(accessToken, request);
+							classLogger.info("User connected Google account for resource access");
 						}
 
 						if (classLogger.isDebugEnabled()) {
@@ -2067,24 +2054,13 @@ public class UserResource {
 			}
 		}
 
-		// grab the user again
+		// Refresh user object from session
 		if (session != null || (session = request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
 
-		// Check authentication status based on operation type
-		boolean isAuthenticated;
-		if (isConnectOperation) {
-			// For connect operations, userObj should never be null at this point
-			// but check defensively
-			isAuthenticated = (userObj != null && userObj.getResourceAccessToken(AuthProvider.GOOGLE) != null);
-		} else {
-			// For login operations
-			isAuthenticated = (userObj != null && userObj.getAccessToken(AuthProvider.GOOGLE) != null);
-		}
-
-		if (!isAuthenticated) {
-			// Not authenticated/connected yet, redirect to start OAuth flow
+		if (!loginComplete || !connectComplete) {
+			// Start OAuth flow
 			response.setStatus(302);
 			response.sendRedirect(getGoogleRedirect(request));
 			return null;
