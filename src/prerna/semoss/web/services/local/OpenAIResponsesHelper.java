@@ -190,6 +190,15 @@ public final class OpenAIResponsesHelper {
 	 */
     @SuppressWarnings("unchecked")
     public static Object normalizeMessages(Object input) {
+        if (input instanceof String) {
+            // Convert a single string input into a standard messages list
+            List<Map<String, Object>> messages = new ArrayList<>();
+            Map<String, Object> userMessage = new HashMap<>();
+            userMessage.put("role", "user");
+            userMessage.put("content", (String) input);
+            messages.add(userMessage);
+            return messages;
+        }
         if (!(input instanceof List)) {
             return input;
         }
