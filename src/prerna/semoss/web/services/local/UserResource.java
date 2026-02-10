@@ -50,8 +50,6 @@ import javax.annotation.security.PermitAll;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.FormParam;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -97,7 +95,6 @@ import prerna.sablecc2.om.execptions.SemossPixelException;
 import prerna.security.HttpHelperUtility;
 import prerna.usertracking.UserTrackingUtils;
 import prerna.util.BeanFiller;
-import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
 import prerna.util.SocialPropertiesUtil;
 import prerna.util.Utility;
@@ -3305,4 +3302,5 @@ public class UserResource {
 		}
 		return WebUtility.getResponse(output, 200);
 	}
+	
 }
