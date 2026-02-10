@@ -80,10 +80,7 @@ public class ResourceUtility {
 		allowAccessWithoutLogin.add("auth/login/ms");
 
 		// MCP server endpoints (at /api/mcp) - OAuth metadata and JSON-RPC
-		allowAccessWithoutLogin.add("ext/mcp");  // Legacy MCP endpoint
 		allowAccessWithoutLogin.add("mcp");  // Standard MCP endpoint for ChatGPT (JSON-RPC + JWT auth)
-		allowAccessWithoutLogin.add("mcp/.well-known/oauth-authorization-server");  // OAuth discovery
-		allowAccessWithoutLogin.add("mcp/.well-known/openid-configuration");  // OAuth discovery (OpenID alias)
 		allowAccessWithoutLogin.add("mcp/.well-known/oauth-protected-resource");  // Protected resource metadata (RFC 9728)
 	}
 
