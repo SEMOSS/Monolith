@@ -165,16 +165,13 @@ public class MCPReaper implements Runnable {
 	}
 
 	/**
-	 * Process a JSON-RPC request synchronously (for ChatGPT)
+	 * Process a JSON-RPC request synchronously
 	 * @param jsonBody
 	 * @return JSON-RPC response
 	 */
 	public String processJsonRpcRequest(String jsonBody) {
 		try (var ctx = org.apache.logging.log4j.CloseableThreadContext.putAll(this.log4jContextMap)) {
-			classLogger.info("Processing JSON-RPC request: " + jsonBody);
-			String response = generateResponse(jsonBody, sessionId, toolbox, insight);
-			classLogger.info("Generated JSON-RPC response: " + response);
-			return response;
+			return generateResponse(jsonBody, sessionId, toolbox, insight);
 		}
 	}
 

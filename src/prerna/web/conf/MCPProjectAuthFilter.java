@@ -20,8 +20,6 @@ import org.apache.logging.log4j.Logger;
 
 import prerna.auth.User;
 import prerna.util.Constants;
-import prerna.util.MCP.MCPUrlUtility;
-
 /**
  * Filter to handle MCP authentication for project-specific endpoints.
  *
@@ -48,11 +46,11 @@ public class MCPProjectAuthFilter implements Filter {
 
 		String uri = httpRequest.getRequestURI();
 		String method = httpRequest.getMethod();
-		classLogger.info(">>>>> MCPProjectAuthFilter - " + method + " " + uri);
+		classLogger.debug("MCPProjectAuthFilter - " + method + " " + uri);
 
 		// Skip OAuth discovery endpoints (they don't need authentication)
 		if (uri.contains("/.well-known/")) {
-			classLogger.info("MCPProjectAuthFilter - OAuth discovery endpoint, skipping auth");
+			classLogger.debug("MCPProjectAuthFilter - OAuth discovery endpoint, skipping auth");
 			chain.doFilter(request, response);
 			return;
 		}
@@ -62,12 +60,10 @@ public class MCPProjectAuthFilter implements Filter {
 
 		// Only require authentication if project ID is present
 		if (projectId == null) {
-			classLogger.info("MCPProjectAuthFilter - no project ID in URL, skipping auth");
+			classLogger.debug("MCPProjectAuthFilter - no project ID in URL, skipping auth");
 			chain.doFilter(request, response);
 			return;
 		}
-
-		classLogger.info("MCPProjectAuthFilter - extracted project ID: " + projectId);
 
 		// Check if user was authenticated by UserAccessKeyFilter
 		HttpSession session = httpRequest.getSession(false);
@@ -83,13 +79,13 @@ public class MCPProjectAuthFilter implements Filter {
 			return;
 		}
 
-		classLogger.info("MCPProjectAuthFilter - user authenticated: " + user.getPrimaryLogin());
+		classLogger.debug("MCPProjectAuthFilter - user authenticated: " + user.getPrimaryLogin());
 
 		// Store project ID in request attributes for downstream use
 		httpRequest.setAttribute("mcp_project_id", projectId);
 		httpRequest.setAttribute("mcp_authenticated_user", user);
 
-		classLogger.info("MCPProjectAuthFilter - SUCCESS! User authenticated for project " + projectId);
+		classLogger.debug("MCPProjectAuthFilter - SUCCESS! User authenticated for project " + projectId);
 
 		// Wrap the request to allow subsequent reading and continue filter chain
 		HttpServletRequestWrapper requestWrapper = new HttpServletRequestWrapper(httpRequest);
@@ -114,7 +110,7 @@ public class MCPProjectAuthFilter implements Filter {
 	private void send401(HttpServletRequest request, HttpServletResponse response,
 			String error, String errorDescription) throws IOException {
 
-		String baseUrl = MCPUrlUtility.getExternalBaseUrl(request);
+		String baseUrl = request.getScheme() + "://" + request.getServerName() + request.getContextPath();
 		String resourceMetadataUrl = baseUrl + "/api/mcp/.well-known/oauth-protected-resource";
 
 		String wwwAuthenticate = String.format(
@@ -129,16 +125,6 @@ public class MCPProjectAuthFilter implements Filter {
 			"{\"error\":\"" + error + "\",\"error_description\":\"" + errorDescription + "\"}"
 		);
 
-		classLogger.info("Sent 401 with WWW-Authenticate: " + wwwAuthenticate);
-	}
-
-	@Override
-	public void init(FilterConfig config) throws ServletException {
-		classLogger.info(">>>>> MCPProjectAuthFilter INITIALIZED - MCP auth check for /api/mcp/*");
-	}
-
-	@Override
-	public void destroy() {
-		classLogger.info("MCPProjectAuthFilter DESTROYED");
+		classLogger.debug("Sent 401 with WWW-Authenticate: " + wwwAuthenticate);
 	}
 }

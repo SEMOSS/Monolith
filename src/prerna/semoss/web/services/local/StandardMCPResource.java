@@ -27,8 +27,6 @@
  *******************************************************************************/
 package prerna.semoss.web.services.local;
 
-import java.io.InputStream;
-
 import javax.annotation.security.PermitAll;
 import javax.inject.Singleton;
 import javax.servlet.http.HttpServletRequest;
@@ -42,8 +40,6 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import prerna.util.MCP.MCPUrlUtility;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.ThreadContext;
@@ -151,8 +147,7 @@ public class StandardMCPResource {
 		} catch (Exception e) {
 			classLogger.error("Error processing MCP request", e);
 			return Response.status(500)
-				.entity("{\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{\"code\":-32603,\"message\":\"Internal error: " +
-					e.getMessage().replace("\"", "\\\"") + "\"}}")
+				.entity("{\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{\"code\":-32603,\"message\":\"Internal server error\"}}")
 				.build();
 		}
 	}
@@ -238,71 +233,6 @@ public class StandardMCPResource {
 		}
 	}
 
-//	/**
-//	 * OAuth Authorization Server Metadata
-//	 * ChatGPT discovers OAuth by requesting this endpoint.
-//	 * We redirect to Keycloak's metadata endpoint since Keycloak is the authorization server.
-//	 */
-//	@GET
-//	@Path("/.well-known/oauth-authorization-server")
-//	@Produces("application/json")
-//	public Response getAuthorizationServerMetadata(@Context HttpServletRequest request) {
-//		classLogger.info(">>>>> MCP OAuth Authorization Server Metadata endpoint called <<<<<");
-//		try {
-//			// Redirect ChatGPT to Keycloak's OpenID configuration
-//			String keycloakRealmUrl = getKeycloakRealmUrl();
-//			String keycloakMetadataUrl = keycloakRealmUrl + "/.well-known/openid-configuration";
-//			classLogger.info("Redirecting to Keycloak metadata: " + keycloakMetadataUrl);
-//
-//			return Response.status(307) // 307 Temporary Redirect (preserves method)
-//				.location(java.net.URI.create(keycloakMetadataUrl))
-//				.build();
-//		} catch (Exception e) {
-//			classLogger.error(Constants.STACKTRACE, e);
-//			Map<String, String> error = new HashMap<>();
-//			error.put("error", "internal_error");
-//			return WebUtility.getResponse(error, 500);
-//		}
-//	}
-
-//	/**
-//	 * OpenID Configuration (alias for oauth-authorization-server)
-//	 * Some clients request this instead - redirect to Keycloak
-//	 */
-//	@GET
-//	@Path("/.well-known/openid-configuration")
-//	@Produces("application/json")
-//	public Response getOpenIDConfiguration(@Context HttpServletRequest request) {
-//		classLogger.info(">>>>> MCP OpenID Configuration endpoint called <<<<<");
-//		return getAuthorizationServerMetadata(request);
-//	}
-
-//	/**
-//	 * OAuth Authorization Server Metadata with project ID in path
-//	 * ChatGPT appends /.well-known/oauth-authorization-server to the MCP server URL
-//	 * Redirect to Keycloak regardless of project ID
-//	 */
-//	@GET
-//	@Path("/{project_id}/.well-known/oauth-authorization-server")
-//	@Produces("application/json")
-//	public Response getAuthorizationServerMetadataWithProject(@PathParam("project_id") String projectId,
-//			@Context HttpServletRequest request) {
-//		classLogger.info(">>>>> MCP OAuth Authorization Server Metadata endpoint called for project: " + projectId + " <<<<<");
-//		return getAuthorizationServerMetadata(request);
-//	}
-//
-//	/**
-//	 * OpenID Configuration with project ID in path - redirect to Keycloak
-//	 */
-//	@GET
-//	@Path("/{project_id}/.well-known/openid-configuration")
-//	@Produces("application/json")
-//	public Response getOpenIDConfigurationWithProject(@PathParam("project_id") String projectId,
-//			@Context HttpServletRequest request) {
-//		classLogger.info(">>>>> MCP OpenID Configuration endpoint called for project: " + projectId + " <<<<<");
-//		return getAuthorizationServerMetadata(request);
-//	}
-
 	/**
 	 * Protected Resource Metadata (RFC 9728)
 	 * Required by MCP spec for ChatGPT to discover the resource server configuration
@@ -311,24 +241,21 @@ public class StandardMCPResource {
 	@Path("/.well-known/oauth-protected-resource")
 	@Produces("application/json")
 	public Response getProtectedResourceMetadata(@Context HttpServletRequest request) {
-		classLogger.info(">>>>> MCP OAuth Protected Resource Metadata endpoint called <<<<<");
 		try {
 			String baseUrl = getBaseUrlForMCP(request);
 			String mcpResourceUrl = baseUrl + "/api/mcp";
-			classLogger.info("MCP Resource URL: " + mcpResourceUrl);
 
 			// Point to Keycloak as the authorization server
-			String keycloakRealmUrl = getKeycloakRealmUrl();
-			classLogger.info("Keycloak Realm URL: " + keycloakRealmUrl);
+			String issuerUrl = getOAuthIssuerUrl();
 
 			Map<String, Object> metadata = new HashMap<>();
 			metadata.put("resource", mcpResourceUrl);
-			metadata.put("authorization_servers", java.util.Arrays.asList(keycloakRealmUrl));
+			metadata.put("authorization_servers", java.util.Arrays.asList(issuerUrl));
 			metadata.put("scopes_supported", java.util.Arrays.asList("openid", "profile", "email", "offline_access"));
 			metadata.put("resource_documentation", baseUrl + "/docs/mcp");
 			metadata.put("bearer_methods_supported", java.util.Arrays.asList("header"));
 
-			classLogger.info("Returning MCP Protected Resource metadata: " + metadata);
+			classLogger.debug("Returning MCP Protected Resource metadata: " + metadata);
 			return WebUtility.getResponse(metadata, 200);
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
@@ -358,21 +285,19 @@ public class StandardMCPResource {
 
 			// If exactly one OAuth provider configured, use it
 			if (allowedOAuthProviders.size() == 1) {
-				String provider = allowedOAuthProviders.iterator().next();
-				classLogger.info("Auto-detected OAuth provider for MCP: " + provider);
-				return provider;
+				return allowedOAuthProviders.iterator().next();
 			}
 
 			// Multiple providers - prefer keycloak if configured
 			if (allowedOAuthProviders.contains("keycloak")) {
-				classLogger.info("Multiple OAuth providers found, using keycloak");
+				classLogger.debug("Multiple OAuth providers found, using keycloak");
 				return "keycloak";
 			}
 
 			// Otherwise return first provider
 			if (!allowedOAuthProviders.isEmpty()) {
 				String provider = allowedOAuthProviders.iterator().next();
-				classLogger.info("Multiple OAuth providers found, using first: " + provider);
+				classLogger.debug("Multiple OAuth providers found, using first: " + provider);
 				return provider;
 			}
 
@@ -386,25 +311,24 @@ public class StandardMCPResource {
 	}
 
 	/**
-	 * Get the OAuth provider's issuer URL (realm URL for OIDC providers)
+	 * Get the OAuth provider's issuer URL.
 	 * This is the base URL that contains /.well-known/openid-configuration
 	 */
-	private String getKeycloakRealmUrl() {
+	private String getOAuthIssuerUrl() {
 		SocialPropertiesUtil socialData = SocialPropertiesUtil.getInstance();
 		String provider = detectOAuthProvider();
 
 		if (provider == null) {
-			classLogger.warn("No provider detected, falling back to default");
-			return "https://sso.semoss.org/realms/dev";
+			throw new IllegalStateException("No OAuth provider configured for MCP. "
+				+ "At least one OAuth provider must be configured in social properties.");
 		}
 
 		String prefix = provider.toLowerCase() + "_";
-		classLogger.info("Getting OAuth issuer URL for provider: " + provider);
+		classLogger.debug("Getting OAuth issuer URL for provider: " + provider);
 
 		// 1. Try issuer_url (standard OIDC property)
 		String issuerUrl = socialData.getProperty(prefix + "issuer_url");
 		if (issuerUrl != null && !issuerUrl.isEmpty() && !issuerUrl.startsWith("<")) {
-			classLogger.info("Using " + prefix + "issuer_url: " + issuerUrl);
 			return issuerUrl;
 		}
 
@@ -423,26 +347,14 @@ public class StandardMCPResource {
 
 			if (idx > 0) {
 				String extracted = authUrl.substring(0, idx);
-				classLogger.info("Extracted issuer from " + prefix + "auth_url: " + extracted);
+				classLogger.debug("Extracted issuer from " + prefix + "auth_url: " + extracted);
 				return extracted;
 			}
 		}
 
-		classLogger.warn("Could not determine issuer URL for " + provider + ", using default");
-		return "https://sso.semoss.org/realms/dev";
+		throw new IllegalStateException("Could not determine issuer URL for provider '" + provider + "'. "
+			+ "Configure " + provider.toLowerCase() + "_issuer_url or " + provider.toLowerCase() + "_auth_url in social properties.");
 	}
-
-//	/**
-//	 * Protected Resource Metadata with project ID in path
-//	 */
-//	@GET
-//	@Path("/{project_id}/.well-known/oauth-protected-resource")
-//	@Produces("application/json")
-//	public Response getProtectedResourceMetadataWithProject(@PathParam("project_id") String projectId,
-//			@Context HttpServletRequest request) {
-//		classLogger.info(">>>>> MCP OAuth Protected Resource Metadata endpoint called for project: " + projectId + " <<<<<");
-//		return getProtectedResourceMetadata(request);
-//	}
 
 	/**
 	 * Helper method to construct base URL for MCP OAuth
@@ -454,13 +366,13 @@ public class StandardMCPResource {
 		// 1. Try configured base URL (for production/clusters)
 		String configuredUrl = socialData.getProperty("mcp_base_url");
 		if (configuredUrl != null && !configuredUrl.isEmpty() && !configuredUrl.startsWith("<")) {
-			classLogger.info("Using configured mcp_base_url: " + configuredUrl);
+			classLogger.debug("Using configured mcp_base_url: " + configuredUrl);
 			return configuredUrl;
 		}
 
-		// 2. Fallback to dynamic detection from request headers
-		String baseUrl = MCPUrlUtility.getExternalBaseUrl(request);
-		classLogger.info("Using dynamic base URL for MCP: " + baseUrl);
+		// 2. Fallback to request-based URL construction
+		String baseUrl = request.getScheme() + "://" + request.getServerName() + request.getContextPath();
+		classLogger.debug("Using request-based base URL for MCP: " + baseUrl);
 		return baseUrl;
 	}
 }
