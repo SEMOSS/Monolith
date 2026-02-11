@@ -352,6 +352,12 @@ public class AnthropicEndpoints {
 							boolean started = false;
 							int contentBlockIndex = 0;
 
+							// Track tool data across chunks
+							Map<Integer, String> pendingToolIds = new HashMap<>();
+							Map<Integer, String> pendingToolNames = new HashMap<>();
+							Map<Integer, StringBuilder> pendingToolArgs = new HashMap<>();
+							Map<Integer, Boolean> toolBlockStarted = new HashMap<>();
+
 							STREAM_COMPLETE_LOOP: while (true) {
 								PixelJobThread jt = PixelJobManager.getManager().getJob(asyncJobId);
 								List<Map<String, Object>> partialResponseContent = PixelJobManager.getManager()
@@ -368,7 +374,13 @@ public class AnthropicEndpoints {
 											if (streamData.containsKey("finish_reason")) {
 												String finishReason = (String) streamData.get("finish_reason");
 
-												if (started) {
+												for (Integer idx : toolBlockStarted.keySet()) {
+													if (toolBlockStarted.get(idx)) {
+														AnthropicMessagesHelper.writeContentBlockStop(idx, writer);
+													}
+												}
+
+												if (started && toolBlockStarted.isEmpty()) {
 													AnthropicMessagesHelper.writeContentBlockStop(contentBlockIndex,
 															writer);
 												}
@@ -392,10 +404,17 @@ public class AnthropicEndpoints {
 												}
 											}
 										} else {
+											// Tool streaming
 											if (streamData.containsKey("finish_reason")) {
 												String finishReason = (String) streamData.get("finish_reason");
 
-												if (started) {
+												for (Integer idx : toolBlockStarted.keySet()) {
+													if (toolBlockStarted.get(idx)) {
+														AnthropicMessagesHelper.writeContentBlockStop(idx, writer);
+													}
+												}
+
+												if (started && toolBlockStarted.isEmpty()) {
 													AnthropicMessagesHelper.writeContentBlockStop(contentBlockIndex,
 															writer);
 												}
@@ -411,23 +430,54 @@ public class AnthropicEndpoints {
 													started = true;
 												}
 
-												String toolId = (String) streamData.get("id");
-												String toolName = null;
+												Integer toolIndex = streamData.get("index") != null
+														? ((Number) streamData.get("index")).intValue()
+														: 0;
+
+												if (streamData.containsKey("id")) {
+													pendingToolIds.put(toolIndex, (String) streamData.get("id"));
+												}
+
 												Map<String, Object> functionMap = (Map<String, Object>) streamData
 														.get("function");
 												if (functionMap != null) {
-													toolName = (String) functionMap.get("name");
-													Object argsObj = functionMap.get("arguments");
-													String args = argsObj instanceof String ? (String) argsObj
-															: new Gson().toJson(argsObj);
-
-													if (toolId != null && toolName != null) {
-														AnthropicMessagesHelper.writeToolUseContentBlockStart(
-																contentBlockIndex, toolId, toolName, writer);
+													if (functionMap.containsKey("name")) {
+														pendingToolNames.put(toolIndex,
+																(String) functionMap.get("name"));
 													}
-													if (args != null && !args.isEmpty()) {
-														AnthropicMessagesHelper.writeInputJsonDelta(contentBlockIndex,
-																args, writer);
+													if (functionMap.containsKey("arguments")) {
+														Object argsObj = functionMap.get("arguments");
+														String argsChunk = argsObj instanceof String ? (String) argsObj
+																: GSON.toJson(argsObj);
+														pendingToolArgs
+																.computeIfAbsent(toolIndex, k -> new StringBuilder())
+																.append(argsChunk);
+													}
+												}
+
+												String toolId = pendingToolIds.get(toolIndex);
+												String toolName = pendingToolNames.get(toolIndex);
+
+												if (toolId != null && toolName != null
+												        && !toolBlockStarted.getOrDefault(toolIndex, false)) {
+												    AnthropicMessagesHelper.writeToolUseContentBlockStart(toolIndex,
+												            toolId, toolName, writer);
+												    toolBlockStarted.put(toolIndex, true);
+
+												    StringBuilder accumulatedArgs = pendingToolArgs.get(toolIndex);
+												    if (accumulatedArgs != null && accumulatedArgs.length() > 0) {
+												        AnthropicMessagesHelper.writeInputJsonDelta(toolIndex, 
+												            accumulatedArgs.toString(), writer);
+												    }
+												} else if (toolBlockStarted.getOrDefault(toolIndex, false)
+														&& functionMap != null
+														&& functionMap.containsKey("arguments")) {
+													Object argsObj = functionMap.get("arguments");
+													String argsChunk = argsObj instanceof String ? (String) argsObj
+															: GSON.toJson(argsObj);
+													if (argsChunk != null && !argsChunk.isEmpty()) {
+														AnthropicMessagesHelper.writeInputJsonDelta(toolIndex,
+																argsChunk, writer);
 													}
 												}
 											}
@@ -436,8 +486,18 @@ public class AnthropicEndpoints {
 								}
 
 								if (jobStatus == PixelJobStatus.PROGRESS_COMPLETE && started) {
-									AnthropicMessagesHelper.writeContentBlockStop(contentBlockIndex, writer);
-									AnthropicMessagesHelper.writeMessageDelta("end_turn", null, writer);
+									for (Integer idx : toolBlockStarted.keySet()) {
+										if (toolBlockStarted.get(idx)) {
+											AnthropicMessagesHelper.writeContentBlockStop(idx, writer);
+										}
+									}
+
+									if (toolBlockStarted.isEmpty()) {
+										AnthropicMessagesHelper.writeContentBlockStop(contentBlockIndex, writer);
+									}
+
+									String stopReason = toolBlockStarted.isEmpty() ? "end_turn" : "tool_use";
+									AnthropicMessagesHelper.writeMessageDelta(stopReason, null, writer);
 									AnthropicMessagesHelper.writeMessageStop(writer);
 									break STREAM_COMPLETE_LOOP;
 								} else if (jobStatus == PixelJobStatus.PROGRESS_COMPLETE && !started) {
@@ -465,6 +525,10 @@ public class AnthropicEndpoints {
 												Object toolArgs = toolResp.get("arguments");
 												String argsJson = toolArgs instanceof String ? (String) toolArgs
 														: GSON.toJson(toolArgs);
+												
+												if (argsJson == null || argsJson.isEmpty()) {
+													argsJson = "{}";
+												}
 
 												AnthropicMessagesHelper.writeToolUseContentBlockStart(i, toolId,
 														toolName, writer);
@@ -508,7 +572,7 @@ public class AnthropicEndpoints {
 					}
 				}).build();
 	}
-
+	
 	/**
 	 * Map OpenAI finish reasons to Anthropic stop reasons.
 	 */
