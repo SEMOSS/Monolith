@@ -203,63 +203,34 @@ public class UserResource {
 			removed = true;
 			noUser = true;
 		} else {
-			AuthProvider token = null;
-			try {
-				token = AuthProvider.valueOf(provider.toUpperCase());
-			} catch (IllegalArgumentException e) {
-				classLogger.error("Invalid provider: " + provider, e);
-				Map<String, Object> ret = new HashMap<>();
-				ret.put("success", false);
-				ret.put(Constants.ERROR_MESSAGE, "Invalid provider: " + provider);
-				return WebUtility.getResponse(ret, 400);
-			}
-
-			// Check if this is a login token or a resource access token
+			AuthProvider token = AuthProvider.valueOf(provider.toUpperCase());
 			boolean isLoginToken = thisUser.getAccessToken(token) != null;
-			boolean isResourceToken = thisUser.getResourceAccessToken(token) != null;
-
-			if (!isLoginToken && !isResourceToken) {
-				// Provider not found in either login or resource tokens
-				Map<String, Object> ret = new HashMap<>();
-				ret.put("success", false);
-				ret.put(Constants.ERROR_MESSAGE, "Provider " + provider + " is not associated with this user");
-				return WebUtility.getResponse(ret, 400);
-			}
+			boolean isResourceToken = thisUser.getResourceToken(token) != null;
 			
-			// Handle resource token removal (takes precedence as it's safer)
-			if (isResourceToken && !isLoginToken) {
-				// This is ONLY a resource access token (for data integrations), just remove it
-				removed = thisUser.dropResourceAccessToken(token);
-				classLogger.info("User disconnected from resource provider " + provider);
-			} else if (isLoginToken) {
-				// This is a login token (may also have resource token)
-				// Remove both login and resource tokens if both exist
+			if (isResourceToken) {
+				thisUser.dropResourceAccessToken(token);
+			}
+			if (isLoginToken) {
 				String assetEngineId = null;
 				String workspaceEngineId = null;
-
-				// Capture workspace/asset IDs before dropping if this is the last login
+	
+				// TODO: what does this part do?
+				// TODO: feel like when logout need to adjust the asset id
 				if (thisUser.getLogins().size() == 1) {
-					assetEngineId = thisUser.getAssetProjectId(token);
-					workspaceEngineId = thisUser.getWorkspaceProjectId(token);
+					thisUser.getAssetProjectId(token);
+					thisUser.getWorkspaceProjectId(token);
 				}
 				removed = thisUser.dropAccessToken(token);
-				
-				// Also remove resource token if it exists
-				if (isResourceToken) {
-					thisUser.dropResourceAccessToken(token);
-					classLogger.info("Removed both login and resource tokens for provider " + provider);
-				}
-				
 				if (thisUser.getLogins().isEmpty()) {
 					noUser = true;
 				} else {
-					session.setAttribute(Constants.SESSION_USER, thisUser);
-
+					request.getSession().setAttribute(Constants.SESSION_USER, thisUser);
+	
 					SyncUserAppsThread sync = new SyncUserAppsThread(workspaceEngineId, assetEngineId);
 					Thread t = new Thread(sync);
 					t.start();
-
-					// Update the workspace and asset maps
+	
+					// put the new map for the user space
 					session.setAttribute(Constants.USER_WORKSPACE_IDS, thisUser.getWorkspaceEngineMap());
 					session.setAttribute(Constants.USER_ASSET_IDS, thisUser.getAssetEngineMap());
 				}
@@ -1935,7 +1906,6 @@ public class UserResource {
 		return redirectUrl;
 	}
 
-	
 	/**
 	 * Logs user in through google or connects google for resource access
 	 * https://developers.google.com/api-client-library/java/google-api-java-client/oauth2
@@ -1944,130 +1914,126 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("/login/google")
 	public Response loginGoogle(@Context HttpServletRequest request, @Context HttpServletResponse response)
-			throws IOException {
-		boolean loginAllowed = socialData.getLoginsAllowed().get("google") != null
-				&& socialData.getLoginsAllowed().get("google");
-		boolean connectAllowed = socialData.getConnectionsAllowed().get("google") != null
-				&& socialData.getConnectionsAllowed().get("google");
+	        throws IOException {
+		// Get allowed operation
+	    boolean loginAllowed = socialData.getLoginsAllowed().get("google") != null && socialData.getLoginsAllowed().get("google");
+	    boolean connectAllowed = socialData.getConnectionsAllowed().get("google") != null && socialData.getConnectionsAllowed().get("google");
 
-		// At least one operation must be allowed login/connect
-		if (!loginAllowed && !connectAllowed) {
-			Map<String, Object> ret = new HashMap<>();
-			ret.put(Constants.ERROR_MESSAGE, "Google login/connection is not allowed");
-			return WebUtility.getResponse(ret, 400);
-		}
+		// Check atleast one of the operation should be allowed
+	    if (!loginAllowed && !connectAllowed) {
+	        Map<String, Object> ret = new HashMap<>();
+	        ret.put(Constants.ERROR_MESSAGE, "Google login/connection is not allowed");
+	        return WebUtility.getResponse(ret, 400);
+	    }
+	
+	    // Get session and user
+	    HttpSession session = request.getSession(false);
+	    User userObj = null;
+	    if (session != null) {
+	        userObj = (User) session.getAttribute(Constants.SESSION_USER);
+	    }
+	
+	    // Handle custom redirect
+	    String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
+	    if (customRedirect != null && !customRedirect.isEmpty()) {
+	        if (session == null) {
+	            session = request.getSession();
+	        }
+	        session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
+	    }
 
-		// Determine operation type based on flag values
-		boolean isLoginOperation = loginAllowed;
-		boolean isConnectOperation = connectAllowed;
+		// Check if login not allowed and connection is allowed
+		// A user should be logged if connection allowed
+		if (connectAllowed && !loginAllowed && (userObj == null || userObj.getLogins().isEmpty())) {
+	        Map<String, Object> ret = new HashMap<>();
+	        ret.put(Constants.ERROR_MESSAGE, "User must be logged in to connect Google account");
+	        return WebUtility.getResponse(ret, 401);
+	    }
 
-		// For connect operations, user must already be logged in
-		HttpSession session = request.getSession(false);
-		User userObj = null;
-		if (session != null) {
-			userObj = (User) session.getAttribute(Constants.SESSION_USER);
-		}
-		
-		// A user must be already logged in before we can connect
-		if (isConnectOperation && (userObj == null || userObj.getLogins().isEmpty())) {
-			Map<String, Object> ret = new HashMap<>();
-			ret.put(Constants.ERROR_MESSAGE, "User must be logged in to connect Google account");
-			return WebUtility.getResponse(ret, 401);
-		}
+		// Check completion status of both the operations
+	    boolean loginComplete = (userObj != null && userObj.getAccessToken(AuthProvider.GOOGLE) != null);
+	    boolean connectComplete = (userObj != null && userObj.getResourceAccessToken(AuthProvider.GOOGLE) != null);
+	
+	    // Determine what needs to be done
+	    boolean needsLogin = loginAllowed && !loginComplete;
+	    boolean needsConnect = connectAllowed && !connectComplete;
+	
+	    // Process OAuth callback if code is present
+	    String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
+	    if (queryString != null && queryString.contains("code")) {
+	        if (needsLogin || needsConnect) {
+	            String[] outputs = HttpHelperUtility.getCodes(queryString);
+	            String code = URLDecoder.decode(outputs[0]);
+	
+	            // oauth code should match [ -~]+ (1 or more ascii)
+	            // https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
+	            if (code.matches("[ -~]+")) {
+	                String prefix = "google_";
+	                String clientId = socialData.getProperty(prefix + "client_id");
+	                String clientSecret = socialData.getProperty(prefix + "secret_key");
+	                String redirectUri = socialData.getProperty(prefix + "redirect_uri");
+	                boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
+	
+	                if (classLogger.isDebugEnabled()) {
+	                    classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
+	                }
+	
+	                Map<String, String> params = new HashMap<>();
+	                params.put("client_id", clientId);
+	                params.put("redirect_uri", redirectUri);
+	                params.put("code", code);
+	                params.put("grant_type", "authorization_code");
+	                params.put("client_secret", clientSecret);
+	
+	                String url = "https://www.googleapis.com/oauth2/v4/token";
 
-		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
-		if (customRedirect != null && !customRedirect.isEmpty()) {
-			if (session == null) {
-				session = request.getSession();
-			}
-			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
-		}
-		
-		boolean loginComplete = (userObj != null && userObj.getAccessToken(AuthProvider.GOOGLE) != null);
-		boolean connectComplete = (userObj != null && userObj.getResourceAccessToken(AuthProvider.GOOGLE) != null);
+					// https://developers.google.com/api-client-library/java/google-api-java-client/oauth2
+					AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, true, true);
+					if (accessToken == null) {
+						classLogger.error("Failed to obtain access token from Google");
+						response.setStatus(302);
+						response.sendRedirect(getGoogleRedirect(request));
+						return null;
+					}
+					accessToken.setProvider(AuthProvider.GOOGLE);
 
-		// Process OAuth callback if code is present
-		String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
-		if (queryString != null && queryString.contains("code")) {
-			if (!loginComplete || !connectComplete) {
-				String[] outputs = HttpHelperUtility.getCodes(queryString);
-				String code = URLDecoder.decode(outputs[0]);
+					// Fill the access token with user profile information
+					GoogleTokenFiller profiler = new GoogleTokenFiller();
+					profiler.fillAccessToken(accessToken, null, null, null, null);
 
-				// oauth code should match [ -~]+ (1 or more ascii)
-				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
-				if (code.matches("[ -~]+")) {
-					String prefix = "google_";
-					String clientId = socialData.getProperty(prefix + "client_id");
-					String clientSecret = socialData.getProperty(prefix + "secret_key");
-					String redirectUri = socialData.getProperty(prefix + "redirect_uri");
-					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
+					// Add to login if allowed and needed
+					if (loginAllowed) {
+						addAccessToken(accessToken, request, autoAdd);
+						classLogger.info("User logged in with Google");
+					}
+
+					// Add to resource if allowed and needed
+					if (connectAllowed) {
+						addResourceAccessToken(accessToken, request);
+						classLogger.info("User connected Google account for resource access");
+					}
 
 					if (classLogger.isDebugEnabled()) {
-						classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
+						classLogger.debug("Successfully processed Google OAuth token");
 					}
+	            }
+	        }
+	    }
 
-					Map<String, String> params = new HashMap<>();
-					params.put("client_id", clientId);
-					params.put("redirect_uri", redirectUri);
-					params.put("code", code);
-					params.put("grant_type", "authorization_code");
-					params.put("client_secret", clientSecret);
-
-					String url = "https://www.googleapis.com/oauth2/v4/token";
-
-					try {
-						// Get access token from Google (same for both operations)
-						AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, true, true);
-						if (accessToken == null) {
-							classLogger.error("Failed to obtain access token from Google");
-							response.setStatus(302);
-							response.sendRedirect(getGoogleRedirect(request));
-							return null;
-						}
-						accessToken.setProvider(AuthProvider.GOOGLE);
-
-						// Fill the access token with user profile information
-						GoogleTokenFiller profiler = new GoogleTokenFiller();
-						profiler.fillAccessToken(accessToken, null, null, null, null);
-
-						// Add token based on which operations are allowed
-						if (isLoginOperation) {
-							addAccessToken(accessToken, request, autoAdd);
-							classLogger.info("User logged in with Google");
-						}
-
-						if (isConnectOperation) {
-							addResourceAccessToken(accessToken, request);
-							classLogger.info("User connected Google account for resource access");
-						}
-
-						if (classLogger.isDebugEnabled()) {
-							classLogger.debug("Successfully processed Google OAuth token");
-						}
-					} catch (Exception e) {
-						classLogger.error("Error during Google OAuth token exchange", e);
-						Map<String, Object> ret = new HashMap<>();
-						ret.put(Constants.ERROR_MESSAGE, "Failed to authenticate with Google: " + e.getMessage());
-						return WebUtility.getResponse(ret, 500);
-					}
-				}
-			}
-		}
-
-		// Refresh user object from session
+		// grab the user again
 		if (session != null || (session = request.getSession(false)) != null) {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
 
-		if (!loginComplete || !connectComplete) {
-			// Start OAuth flow
-			response.setStatus(302);
-			response.sendRedirect(getGoogleRedirect(request));
-			return null;
-		}
-
-		setMainPageRedirect(request, response);
-		return null;
+	     if (needsLogin || needsConnect) {
+	        // not authenticated
+	        response.setStatus(302);
+	        response.sendRedirect(getGoogleRedirect(request));
+	        return null;
+	    }
+	
+	    setMainPageRedirect(request, response);
+	    return null;
 	}
 
 	private String getGoogleRedirect(HttpServletRequest request) throws UnsupportedEncodingException {
@@ -3437,4 +3403,5 @@ public class UserResource {
 	}
 
 }
+
 
