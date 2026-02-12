@@ -1001,12 +1001,13 @@ public class UserResource {
 		            String instanceUrl = null;
 		            String clientId = null;
 		            String clientSecret = null;
-		            String redirectUri = null;
-		            String uuid = request.getParameter("uuid");
+		            String redirectUri = "http://localhost:9090/Monolith/api/auth/login2/servicenow";
+		            String uuid = request.getParameter("state");
 		            boolean autoAdd = true;
+		            String userInfoUrl = null; //to pass to fillAccessToken method
 
 		            IRDBMSEngine servicenowDB = (RDBMSNativeEngine) Utility.getDatabase(Constants.SECURITY_DB);
-		            String query = "SELECT INSTANCEURL, CLIENTID, CLIENTSECRET, REDIRECTURI FROM SERVICENOW_CREDENTIALS WHERE ID = ?";
+		            String query = "SELECT INSTANCEURL, CLIENTID, CLIENTSECRET, USERPROFILEURL FROM SERVICENOW_CONNECTIONS WHERE ID = ?";
 		            try (Connection conn = servicenowDB.getConnection(); PreparedStatement pstmt = conn.prepareStatement(query)){
 		            	pstmt.setString(1, uuid);
 		            	try (ResultSet rs = pstmt.executeQuery()) {
@@ -1014,7 +1015,7 @@ public class UserResource {
 		            			instanceUrl = rs.getString("INSTANCEURL");
 		                        clientId = rs.getString("CLIENTID");
 		                        clientSecret = rs.getString("CLIENTSECRET");
-		                        redirectUri = rs.getString("REDIRECTURI");
+		                        userInfoUrl = rs.getString("USERPROFILEURL");
 		            		}
 		            	}
 		            } catch (Exception e) {
@@ -1052,7 +1053,8 @@ public class UserResource {
 
 					// fill the access token with the other properties so we can properly create the user
 					ServiceNowTokenFiller profiler = new ServiceNowTokenFiller();
-					profiler.fillAccessToken(accessToken, null, null, null, null);
+					profiler.fillAccessToken(accessToken, userInfoUrl, null, null, null);
+					
 					addAccessToken(accessToken, request, autoAdd);
 
 					if(classLogger.isDebugEnabled()) {
@@ -1080,24 +1082,22 @@ public class UserResource {
 	private String getServiceNowRedirectDb(HttpServletRequest request, @Context HttpServletResponse response) throws UnsupportedEncodingException, IOException {
 		String instanceUrl = null;
 		String clientId = null;
-	    String redirectUri = null;
-	    String state = UUID.randomUUID().toString();
-	    String uuid = request.getParameter("uuid");
+		String redirectUri = "http://localhost:9090/Monolith/api/auth/login2/servicenow";
+	    String uuid = request.getParameter("state");
 	    if (uuid == null || uuid.isEmpty()) {
 	        response.setStatus(400);
-	        response.getWriter().write("Missing required parameter: uuid");
+	        response.getWriter().write("Missing required parameter: state");
 	        return null;
 	    }
 
 	    IRDBMSEngine servicenowDB = (RDBMSNativeEngine) Utility.getDatabase(Constants.SECURITY_DB);
-        String query = "SELECT INSTANCEURL, CLIENTID, REDIRECTURI FROM SERVICENOW_CREDENTIALS WHERE ID = ?";
+        String query = "SELECT INSTANCEURL, CLIENTID FROM SERVICENOW_CONNECTIONS WHERE ID = ?";
         try (Connection conn = servicenowDB.getConnection(); PreparedStatement pstmt = conn.prepareStatement(query)){
         	pstmt.setString(1, uuid);
         	try (ResultSet rs = pstmt.executeQuery()) {
         		if (rs.next()) {
         			instanceUrl = rs.getString("INSTANCEURL");
                     clientId = rs.getString("CLIENTID");
-                    redirectUri = rs.getString("REDIRECTURI");
         		}
         	}
         } catch (Exception e) {
@@ -1107,7 +1107,7 @@ public class UserResource {
 
         String redirectUrl = instanceUrl + "/oauth_auth.do?" + "client_id=" + URLEncoder.encode(clientId, "UTF-8")
 				+ "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8") + "&state="
-				+ state;
+				+ URLEncoder.encode(uuid, "UTF-8");
 
 		if(classLogger.isDebugEnabled()) {
 			classLogger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
@@ -1144,7 +1144,7 @@ public class UserResource {
 		}
 
 		String[] beanProps = { "name" };
-		String jsonPattern = "[name]";
+		String jsonPattern = "[result.name]";
 
 		String accessString = null;
 		try {
