@@ -1,5 +1,5 @@
-FROM quay.io/semoss/semoss-dev:5.0.0-alpha-SNAPSHOT-ubuntu22-latest
-#FROM quay.io/semoss/semoss-dev:5.0.0-alpha-SNAPSHOT-ubi8-latest
+FROM quay.io/semoss/semoss-dev:5.1.0-SNAPSHOT-ubuntu22-latest
+#FROM quay.io/semoss/semoss-dev:5.1.0-SNAPSHOT-ubi8-latest
 
 USER root
 
