@@ -304,7 +304,7 @@ public class EngineRouteResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		String engineName = SecurityEngineUtils.getEngineAliasForId(engineId);
+		String engineName = SecurityEngineUtils.getEngineNameForId(engineId);
 		String engineNameAndId = SmssUtilities.getUniqueName(engineName, engineId);
 
 		// will define these here up front

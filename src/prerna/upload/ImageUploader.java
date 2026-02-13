@@ -145,7 +145,7 @@ public class ImageUploader extends Uploader {
 			return WebUtility.getResponse(returnMap, 400);
 		}
 
-		String engineName = SecurityEngineUtils.getEngineAliasForId(engineId);
+		String engineName = SecurityEngineUtils.getEngineNameForId(engineId);
 		String engineNameAndId = SmssUtilities.getUniqueName(engineName, engineId);
 
 		Object[] engineTypeAndSubtype = SecurityEngineUtils.getEngineTypeAndSubtype(engineId);
@@ -308,7 +308,7 @@ public class ImageUploader extends Uploader {
 			return WebUtility.getResponse(returnMap, 400);
 		}
 
-		String engineName = SecurityEngineUtils.getEngineAliasForId(engineId);
+		String engineName = SecurityEngineUtils.getEngineNameForId(engineId);
 		String engineNameAndId = SmssUtilities.getUniqueName(engineName, engineId);
 
 		Object[] engineTypeAndSubtype = SecurityEngineUtils.getEngineTypeAndSubtype(engineId);
@@ -992,7 +992,7 @@ public class ImageUploader extends Uploader {
 			return WebUtility.getResponse(returnMap, 400);
 		}
 
-		String engineName = SecurityEngineUtils.getEngineAliasForId(engineId);
+		String engineName = SecurityEngineUtils.getEngineNameForId(engineId);
 		String engineNameAndId = SmssUtilities.getUniqueName(engineName, engineId);
 
 		Object[] engineTypeAndSubtype = SecurityEngineUtils.getEngineTypeAndSubtype(engineId);
@@ -1163,7 +1163,7 @@ public class ImageUploader extends Uploader {
 			return WebUtility.getResponse(returnMap, 400);
 		}
 
-		String engineName = SecurityEngineUtils.getEngineAliasForId(engineId);
+		String engineName = SecurityEngineUtils.getEngineNameForId(engineId);
 		String engineNameAndId = SmssUtilities.getUniqueName(engineName, engineId);
 
 		Object[] engineTypeAndSubtype = SecurityEngineUtils.getEngineTypeAndSubtype(engineId);

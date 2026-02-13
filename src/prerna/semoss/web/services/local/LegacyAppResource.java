@@ -311,7 +311,7 @@ public class LegacyAppResource {
 			return ClusterUtil.getEngineAndProjectImage(databaseId, IEngine.CATALOG_TYPE.DATABASE);
 		}
 
-		String databaseName = SecurityEngineUtils.getEngineAliasForId(databaseId);
+		String databaseName = SecurityEngineUtils.getEngineNameForId(databaseId);
 		if (databaseName == null) {
 			String imageDir = Utility.getBaseFolder() + "/images/stock/";
 			return new File(imageDir + "color-logo.png");
