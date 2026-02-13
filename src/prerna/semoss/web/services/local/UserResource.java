@@ -31,20 +31,13 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.security.Principal;
-import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
@@ -68,7 +61,6 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
-import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.NewCookie;
 import javax.ws.rs.core.Response;
@@ -76,7 +68,6 @@ import javax.ws.rs.core.Response;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.json.JSONObject;
 import org.owasp.encoder.Encode;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -131,6 +122,7 @@ public class UserResource {
 	private static final Logger classLogger = LogManager.getLogger(UserResource.class);
 
 	private static final String CUSTOM_REDIRECT_SESSION_KEY = "custom_redirect";
+	private static final String HOSTED_URL = "http://localhost:9090";
 
 	private static SocialPropertiesUtil socialData = null;
 	static {
@@ -1001,7 +993,7 @@ public class UserResource {
 		            String instanceUrl = null;
 		            String clientId = null;
 		            String clientSecret = null;
-		            String redirectUri = "http://localhost:9090/Monolith/api/auth/login2/servicenow";
+		            String redirectUri = HOSTED_URL + "/Monolith/api/auth/login2/servicenow";
 		            String uuid = request.getParameter("state");
 		            boolean autoAdd = true;
 		            String userInfoUrl = null; //to pass to fillAccessToken method
@@ -1082,7 +1074,7 @@ public class UserResource {
 	private String getServiceNowRedirectDb(HttpServletRequest request, @Context HttpServletResponse response) throws UnsupportedEncodingException, IOException {
 		String instanceUrl = null;
 		String clientId = null;
-		String redirectUri = "http://localhost:9090/Monolith/api/auth/login2/servicenow";
+		String redirectUri = HOSTED_URL + "/Monolith/api/auth/login2/servicenow";
 	    String uuid = request.getParameter("state");
 	    if (uuid == null || uuid.isEmpty()) {
 	        response.setStatus(400);
