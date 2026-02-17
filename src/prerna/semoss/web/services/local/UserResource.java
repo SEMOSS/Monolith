@@ -2442,7 +2442,7 @@ public class UserResource {
 
 		String redirectUrl = "https://accounts.google.com/o/oauth2/v2/auth?" + "client_id=" + clientId
 				+ "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, UTF8) + "&access_type="
-				+ accessType + "&scope=" + URLEncoder.encode(scope, UTF8) + "&state=" + state;
+				+ accessType + "prompt=consent" + "&scope=" + URLEncoder.encode(scope, UTF8) + "&state=" + state;
 
 		if (classLogger.isDebugEnabled()) {
 			classLogger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
