@@ -205,7 +205,7 @@ public class UserResource {
 		} else {
 			AuthProvider token = AuthProvider.valueOf(provider.toUpperCase());
 			boolean isLoginToken = thisUser.getAccessToken(token) != null;
-			boolean isResourceToken = thisUser.getResourceToken(token) != null;
+			boolean isResourceToken = thisUser.getResourceAccessToken(token) != null;
 			
 			if (isResourceToken) {
 				thisUser.dropResourceAccessToken(token);
@@ -3403,5 +3403,6 @@ public class UserResource {
 	}
 
 }
+
 
 
