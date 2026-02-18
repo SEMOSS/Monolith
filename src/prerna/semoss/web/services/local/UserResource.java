@@ -2400,14 +2400,18 @@ public class UserResource {
 					profiler.fillAccessToken(accessToken, null, null, null, null);
 
 					// Add to login if allowed and needed
+					// needs logins change to false
 					if (loginAllowed) {
 						addAccessToken(accessToken, request, autoAdd);
+						needsLogin = false;
 						classLogger.info("User logged in with Google");
 					}
 
 					// Add to resource if allowed and needed
+					// needs connect change to false
 					if (connectAllowed) {
 						addResourceAccessToken(accessToken, request);
+						needsConnect = false;
 						classLogger.info("User connected Google account for resource access");
 					}
 
@@ -2423,8 +2427,7 @@ public class UserResource {
 			userObj = (User) session.getAttribute(Constants.SESSION_USER);
 		}
 
-	     if (needsLogin || needsConnect) {
-	        // not authenticated
+	    if (needsLogin || needsConnect) {
 	        response.setStatus(302);
 	        response.sendRedirect(getGoogleRedirect(request));
 	        return null;
@@ -3801,6 +3804,7 @@ public class UserResource {
 	}
 
 }
+
 
 
 
