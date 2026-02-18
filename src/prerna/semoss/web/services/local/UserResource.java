@@ -1006,12 +1006,14 @@ public class UserResource {
 					// Add to login if allowed and needed
 					if (loginAllowed) {
 						addAccessToken(accessToken, request, autoAdd);
+						needsLogin = false;
 						classLogger.info("User logged in with ServiceNow");
 					}
 
 					// Add to resource if allowed and needed
 					if (connectAllowed) {
 						addResourceAccessToken(accessToken, request);
+						needsConnect = false;
 						classLogger.info("User connected ServiceNow account for resource access");
 					}
 
