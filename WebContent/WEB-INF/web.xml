@@ -215,6 +215,24 @@
       <url-pattern>/api/model/anthropic/*</url-pattern>
    </filter-mapping>
 
+   <!-- Code Assistant Filer -->
+   <filter>
+      <filter-name>CodeAssistantFilter</filter-name>
+      <filter-class>prerna.web.conf.CodeAssistantFilter</filter-class>
+   </filter>
+   <filter-mapping>
+      <filter-name>CodeAssistantFilter</filter-name>
+      <url-pattern>/api/model/openai/*</url-pattern>
+   </filter-mapping>
+   <filter-mapping>
+      <filter-name>CodeAssistantFilter</filter-name>
+      <url-pattern>/api/ext/*</url-pattern>
+   </filter-mapping>
+   <filter-mapping>
+      <filter-name>CodeAssistantFilter</filter-name>
+      <url-pattern>/api/model/anthropic/*</url-pattern>
+   </filter-mapping>
+
    <!-- scheduler filter -->
    <filter>
       <filter-name>SchedulerFilter</filter-name>
