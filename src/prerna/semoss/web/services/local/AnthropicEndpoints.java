@@ -53,6 +53,7 @@ import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
+import javax.ws.rs.PathParam;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -103,6 +104,202 @@ public class AnthropicEndpoints {
 
 	private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
 
+	@POST
+	@Path("/{room_id}/v1/messages")
+	@Consumes({ "application/json" })
+	@Produces({ "application/json;charset=utf-8", "text/event-stream" })
+	public Response createMessageForRoom(
+	    @Context HttpServletRequest request,
+	    @PathParam("room_id") String roomId
+	) {
+	    HttpSession session = request.getSession(false);
+	    User user = null;
+	    
+		if (session != null) {
+			user = (User) session.getAttribute(Constants.SESSION_USER);
+		}
+
+		if (user == null) {
+			Map<String, Object> errorMap = AnthropicMessagesHelper.createErrorResponse("authentication_error",
+					"User is not authenticated");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		final String SESSION_ID = session.getId();
+		final String JOB_ID = GUID.v7().toUUID().toString();
+		Insight insight = null;
+		Room room = null;
+		ObjectMapper objectMapper = new ObjectMapper();
+
+		// Set the user timezone
+		ZoneId zoneId = null;
+		String strTz = WebUtility.inputSanitizer(request.getParameter("tz"));
+		if (strTz == null || (strTz = strTz.trim()).isEmpty()) {
+			zoneId = ZoneId.systemDefault();
+		} else {
+			try {
+				zoneId = ZoneId.of(strTz);
+			} catch (Exception e) {
+				classLogger.warn("Invalid timezone provided: " + strTz + ", using system default");
+				zoneId = ZoneId.systemDefault();
+			}
+		}
+		if (user != null) {
+			user.setZoneId(zoneId);
+		}
+
+		StringBuilder requestData = new StringBuilder();
+		try (BufferedReader reader = new BufferedReader(new InputStreamReader(request.getInputStream()))) {
+			String line;
+			while ((line = reader.readLine()) != null) {
+				requestData.append(line);
+			}
+		} catch (IOException e) {
+			classLogger.error("Error reading request body", e);
+			Map<String, Object> errorMap = AnthropicMessagesHelper.createErrorResponse("invalid_request_error",
+					"Failed to read request body");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		classLogger.info("Anthropic Messages API request: " + requestData.toString());
+		
+		TypeReference<Map<String, Object>> mapType = new TypeReference<Map<String, Object>>() {
+		};
+		Map<String, Object> dataMap;
+		try {
+			dataMap = objectMapper.readValue(requestData.toString(), mapType);
+		} catch (JsonProcessingException e) {
+			classLogger.error("Error parsing request JSON", e);
+			Map<String, Object> errorMap = AnthropicMessagesHelper.createErrorResponse("invalid_request_error",
+					"Invalid JSON in request body");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		String engineId = WebUtility.inputSanitizer((String) dataMap.remove("model"));
+		if (engineId == null || engineId.isEmpty()) {
+			Map<String, Object> errorMap = AnthropicMessagesHelper.createErrorResponse("invalid_request_error",
+					"model is required");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		if (!SecurityEngineUtils.userCanViewEngine(user, engineId)) {
+			Map<String, Object> errorMap = AnthropicMessagesHelper.createErrorResponse("permission_error",
+					"User does not have access to model: " + engineId);
+			return WebUtility.getResponse(errorMap, 403);
+		}
+
+		IModelEngine engine = Utility.getModel(engineId);
+		if (engine == null) {
+			Map<String, Object> errorMap = AnthropicMessagesHelper.createErrorResponse("not_found_error",
+					"Model not found: " + engineId);
+			return WebUtility.getResponse(errorMap, 404);
+		}
+		
+		// ROOM & INSIGHT LOGIC START ---------
+		String insightId = null;
+		String userId = user.getPrimaryLoginToken().getId();
+		Room existingRoom = ModelInferenceLogsUtils.getRoomById(roomId, userId);
+		if (existingRoom != null) {
+			Insight existingInsight = existingRoom.getInsight();
+			if (existingInsight != null) {
+				insightId = existingInsight.getInsightId();
+			}
+		}
+		
+		if (insightId == null) {
+			insight = new Insight();
+			InsightStore.getInstance().put(insight);
+			insightId = insight.getInsightId();
+		} else {
+			insight = InsightStore.getInstance().get(insightId);
+			if (insight == null) {
+				insight = new Insight();
+				insight.setInsightId(insightId);
+				InsightStore.getInstance().put(insight);
+			}
+		}
+		insight.setUser(user);
+		room = RoomUtils.createRoomIfNotExists(roomId, insight, engine, null);
+		
+		ThreadStore.setInsightId(insight.getInsightId());
+		ThreadStore.setSessionId(SESSION_ID);
+		ThreadStore.setJobId(JOB_ID);
+		ThreadStore.setUser(insight.getUser());
+		
+		// ROOM & INSIGHT LOGIC END ---------
+
+		Object systemPromptBlock = dataMap.remove("system");
+		String systemPromptString = AnthropicMessagesHelper.getSystemMessage(systemPromptBlock);
+
+		Object messages = dataMap.remove("messages");
+		if (messages == null) {
+			Map<String, Object> errorMap = AnthropicMessagesHelper.createErrorResponse("invalid_request_error",
+					"messages is required");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		boolean isStreamingRequest = Boolean.parseBoolean(dataMap.getOrDefault("stream", false).toString());
+		dataMap.remove("stream");
+
+		List<Map<String, Object>> messagesList = (List<Map<String, Object>>) messages;
+		Map<String, Object> latestMessage = messagesList.get(messagesList.size() - 1);
+
+		Object tools = dataMap.remove("tools");
+
+		// HANDLE NON-STREAMING REQUESTS THROUGH askRoom
+		if (!isStreamingRequest) {
+		    Map<String, Object> normalizedLatest = AnthropicMessagesHelper.normalizeMessageForAskRoom(latestMessage,
+		            room, insight);
+		    String question = (String) normalizedLatest.get("question");
+		    List<String> copiedImages = (List<String>) normalizedLatest.get("images");
+
+		    Map<String, Object> openAIFormat = AnthropicMessagesHelper
+		            .normalizeAllAnthropicMessagesToOpenAI(messagesList, systemPromptString, tools);
+		    
+		    List<Map<String, Object>> openAIMessages = (List<Map<String, Object>>) openAIFormat.get("messages");
+		    dataMap.put(AbstractModelEngine.FULL_PROMPT, openAIMessages);
+		    dataMap.put("append_full_prompt", true);
+
+		    if (openAIFormat.containsKey("tools")) {
+		        dataMap.put("tools", openAIFormat.get("tools"));
+		    }
+
+		    final Insight finalInsight = insight;
+		    final Room finalRoom = room;
+		    
+		    InputMessage msg = InputMessage.builder(room)
+		            .withSystemPrompt(systemPromptString)
+		            .withInputUIPrompt(question)
+		            .withInputPrompt(question)
+		            .withModelType(engine.getModelType())
+		            .withMediaInputs(copiedImages, room)
+		            .withParamMap(dataMap)
+		            .build();
+
+		    return handleNonStreamingRequest(engine, finalInsight, finalRoom, msg, engineId);
+		} else {
+			
+		    final Insight finalInsight = insight;
+		    final Room finalRoom = room;
+
+		    Map<String, Object> openAIFormat = AnthropicMessagesHelper
+		            .normalizeAllAnthropicMessagesToOpenAI(messagesList, systemPromptString, tools);
+
+		    List<Map<String, Object>> openAIMessages = (List<Map<String, Object>>) openAIFormat.get("messages");
+		    dataMap.put(AbstractModelEngine.FULL_PROMPT, openAIMessages);
+
+		    if (openAIFormat.containsKey("tools")) {
+		        dataMap.put("tools", openAIFormat.get("tools"));
+		    }
+
+		    classLogger.info("finalDataMap: {}", GSON.toJson(dataMap));
+
+		    dataMap.put("append_full_prompt", true);
+
+		    return handleStreamingRequest(engine, finalInsight, finalRoom, dataMap, SESSION_ID, JOB_ID, engineId);
+		}
+	}
+	
 	/**
 	 * Main Messages API endpoint - handles both streaming and non-streaming
 	 * requests. Compatible with Anthropic's /v1/messages endpoint.
