@@ -604,4 +604,141 @@ public final class WebUtility {
 			ThreadContext.put(SemossLogUtils.SESSION_ID, "UNKNOWN");
 		}
 	}
+
+	/**
+	 * Get the protocol (http or https)
+	 * 
+	 * @param request
+	 * @return protocol string
+	 */
+	public static String getProtocol(HttpServletRequest request) {
+		// Check if behind a proxy/load balancer
+		String forwardedProto = request.getHeader("X-Forwarded-Proto");
+		if (forwardedProto != null && !forwardedProto.isEmpty()) {
+			return forwardedProto.toLowerCase();
+		}
+
+		// Check if the request is secure
+		if (request.isSecure()) {
+			return "https";
+		}
+
+		// Fallback to the scheme from the request
+		return request.getScheme();
+	}
+
+	/**
+	 * Get the hostname
+	 * 
+	 * @param request
+	 * @return hostname string
+	 */
+	public static String getHostname(HttpServletRequest request) {
+		// Check X-Forwarded-Host header (for proxied requests)
+		String forwardedHost = request.getHeader("X-Forwarded-Host");
+		if (forwardedHost != null && !forwardedHost.isEmpty()) {
+			// X-Forwarded-Host may contain port, so strip it
+			return forwardedHost.split(":")[0];
+		}
+
+		// Get from Host header
+		String hostHeader = request.getHeader("Host");
+		if (hostHeader != null && !hostHeader.isEmpty()) {
+			// Host header may contain port, so strip it
+			return hostHeader.split(":")[0];
+		}
+
+		// Fallback to server name
+		return request.getServerName();
+	}
+
+	/**
+	 * Get the port number
+	 * 
+	 * @param request
+	 * @return port number
+	 */
+	public static int getPort(HttpServletRequest request) {
+		// Check X-Forwarded-Port header (for proxied requests)
+		String forwardedPort = request.getHeader("X-Forwarded-Port");
+		if (forwardedPort != null && !forwardedPort.isEmpty()) {
+			try {
+				return Integer.parseInt(forwardedPort);
+			} catch (NumberFormatException e) {
+				// Fall through to other methods
+			}
+		}
+
+		// Check if port is in Host header
+		String hostHeader = request.getHeader("Host");
+		if (hostHeader != null && hostHeader.contains(":")) {
+			try {
+				String portStr = hostHeader.split(":")[1];
+				return Integer.parseInt(portStr);
+			} catch (NumberFormatException | ArrayIndexOutOfBoundsException e) {
+				// Fall through to other methods
+			}
+		}
+
+		// Get from server port
+		int serverPort = request.getServerPort();
+		if (serverPort > 0) {
+			return serverPort;
+		}
+
+		// Default ports based on protocol
+		return request.isSecure() ? 443 : 80;
+	}
+
+	/**
+	 * Get the local protocol (http or https) on the container
+	 * 
+	 * @param request
+	 * @return protocol string
+	 */
+	public static String getLocalProtocol(HttpServletRequest request) {
+		// Use request.isSecure() which reflects the actual connection to this container
+		if (request.isSecure()) {
+			return "https";
+		}
+
+		// Return the actual scheme used to connect to this container
+		return request.getScheme();
+	}
+
+	/**
+	 * Get the local hostname of the container
+	 * 
+	 * @param request
+	 * @return hostname string
+	 */
+	public static String getLocalHostname(HttpServletRequest request) {
+		// request.getServerName() returns the actual server name that received the
+		// request
+		String serverName = request.getServerName();
+		if (serverName != null && !serverName.isEmpty()) {
+			return serverName;
+		}
+
+		// Fallback to localhost if server name is not available
+		return "localhost";
+	}
+
+	/**
+	 * Get the local port number of the container
+	 * 
+	 * @param request
+	 * @return port number
+	 */
+	public static int getLocalPort(HttpServletRequest request) {
+		// request.getServerPort() returns the actual port this container is listening
+		// on
+		int serverPort = request.getServerPort();
+		if (serverPort > 0) {
+			return serverPort;
+		}
+
+		// Default ports based on protocol as fallback
+		return request.isSecure() ? 443 : 80;
+	}
 }
