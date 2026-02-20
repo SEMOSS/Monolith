@@ -78,6 +78,7 @@ import com.google.json.JsonSanitizer;
 
 import prerna.auth.User;
 import prerna.logging.SemossLogUtils;
+import prerna.om.ThreadStore;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
 import prerna.util.FstUtil;
@@ -581,6 +582,11 @@ public final class WebUtility {
 		ThreadContext.put(SemossLogUtils.ENDPOINT, request.getRequestURI());
 		ThreadContext.put(SemossLogUtils.HOST, request.getHeader("Host"));
 		loggingContextLoginEvent(request.getSession(false));
+
+		// also store local values
+		ThreadStore.setLocalHostname(getLocalHostname(request));
+		ThreadStore.setLocalPort(getLocalPort(request));
+		ThreadStore.setLocalProtocol(getLocalProtocol(request));
 	}
 
 	/**
