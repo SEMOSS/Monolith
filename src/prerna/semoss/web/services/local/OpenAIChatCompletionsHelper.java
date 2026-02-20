@@ -246,20 +246,7 @@ public final class OpenAIChatCompletionsHelper {
 		llmResponseMap.put("created", unixTimestamp);
 
 		// usage object
-		Map<String, Object> usage = new HashMap<>();
-		if (promptTokens != null && responseTokens != null) {
-			usage.put("completion_tokens", responseTokens);
-			usage.put("prompt_tokens", promptTokens);
-			usage.put("total_tokens", promptTokens + responseTokens);
-		} else {
-			if (responseTokens != null) {
-				usage.put("completion_tokens", responseTokens);
-			}
-			if (promptTokens != null) {
-				usage.put("prompt_tokens", promptTokens);
-			}
-		}
-		llmResponseMap.put("usage", usage);
+		llmResponseMap.put("usage", llmResponse.getProviderUsageMap());
 
 		// now we have to add the chat or the tool
 		if (AskModelEngineResponse.TOOL.equals(llmResponse.getMessageType())) {
