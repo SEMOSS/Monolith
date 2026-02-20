@@ -934,8 +934,8 @@ public class OpenAIEndpoints {
 		if (!isStreamingRequest) {
 			AskModelEngineResponse llmResponse;
 			try {
-				InputMessage msg = InputMessage.builder(room).withModelType(engine.getModelType())
-						.withInputUIPrompt(question).withInputPrompt(question).withParamMap(dataMap).build();
+				InputMessage msg = InputMessage.builder(room).withModelType(engine.getModelType()).withText(question, question)
+						.withParamMap(dataMap).build();
 				ResponseMessage response = room.ask(msg, engine);
 				llmResponse = response.getModelEngineResponse();
 			} catch (Exception e) {
@@ -1009,7 +1009,8 @@ public class OpenAIEndpoints {
 								new OutputStreamWriter(output, StandardCharsets.UTF_8))) {
 							// Get full completion from your model in one go
 							InputMessage msg = InputMessage.builder(FINAL_ROOM).withModelType(engine.getModelType())
-									.withInputUIPrompt(question).withInputPrompt(question).withParamMap(dataMap)
+									.withText(question, question)
+									.withParamMap(dataMap)
 									.build();
 							AskModelEngineResponse llmResponse = engine.askRoom(question, FINAL_ROOM, msg, dataMap);
 							String completionText = llmResponse.getStringResponse();
