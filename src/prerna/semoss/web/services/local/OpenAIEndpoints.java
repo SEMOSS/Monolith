@@ -975,22 +975,7 @@ public class OpenAIEndpoints {
 			llmResponseMap.put("choices", choicesList);
 
 			// "usage" object
-			Map<String, Object> usage = new HashMap<>();
-
-			if (promptTokens != null && responseTokens != null) {
-				usage.put("completion_tokens", responseTokens);
-				usage.put("prompt_tokens", promptTokens);
-				usage.put("total_tokens", promptTokens + responseTokens);
-			} else {
-				if (responseTokens != null) {
-					usage.put("completion_tokens", responseTokens);
-				}
-
-				if (promptTokens != null) {
-					usage.put("prompt_tokens", promptTokens);
-				}
-			}
-			llmResponseMap.put("usage", usage);
+			llmResponseMap.put("usage", llmResponse.getProviderUsageMap());
 
 			return WebUtility.getResponse(llmResponseMap, 200);
 		} else {
@@ -1033,17 +1018,7 @@ public class OpenAIEndpoints {
 							choices.add(choice);
 							chunk.put("choices", choices);
 
-							Map<String, Object> usage = new HashMap<>();
-							if (promptTokens != null) {
-								usage.put("prompt_tokens", promptTokens);
-							}
-							if (responseTokens != null) {
-								usage.put("completion_tokens", responseTokens);
-							}
-							if (promptTokens != null && responseTokens != null) {
-								usage.put("total_tokens", promptTokens + responseTokens);
-							}
-							chunk.put("usage", usage);
+							chunk.put("usage", llmResponse.getProviderUsageMap());
 
 							writer.write("data: " + mapper.writeValueAsString(chunk) + "\n\n");
 							writer.write("data: [DONE]\n\n");
@@ -1221,16 +1196,7 @@ public class OpenAIEndpoints {
 		embeddingsResponseMap.put("object", "list");
 
 		// "usage" object
-		Map<String, Object> usage = new HashMap<>();
-
-		if (promptTokens != null && responseTokens != null) {
-			usage.put("prompt_tokens", promptTokens);
-			usage.put("total_tokens", promptTokens + responseTokens);
-		} else {
-			usage.put("prompt_tokens", promptTokens);
-		}
-
-		embeddingsResponseMap.put("usage", usage);
+		embeddingsResponseMap.put("usage", embeddingsResponse.getProviderUsageMap());
 		return WebUtility.getResponse(embeddingsResponseMap, 200);
 	}
 
