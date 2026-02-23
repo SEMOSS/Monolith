@@ -985,14 +985,7 @@ public final class AnthropicMessagesHelper {
 		responseMap.put("content", content);
 		responseMap.put("stop_sequence", null);
 
-		Map<String, Object> usage = new HashMap<>();
-		if (promptTokens != null) {
-			usage.put("input_tokens", promptTokens);
-		}
-		if (responseTokens != null) {
-			usage.put("output_tokens", responseTokens);
-		}
-		responseMap.put("usage", usage);
+		responseMap.put("usage", llmResponse.getProviderUsageMap());
 
 		return responseMap;
 	}
