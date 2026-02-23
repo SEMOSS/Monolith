@@ -36,7 +36,6 @@ import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.time.ZoneId;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,7 +45,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.POST;
-
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.WebApplicationException;
@@ -70,6 +68,7 @@ import prerna.engine.api.IModelEngine;
 import prerna.engine.impl.model.AbstractModelEngine;
 import prerna.engine.impl.model.Room;
 import prerna.engine.impl.model.RoomUtils;
+import prerna.engine.impl.model.inferencetracking.ModelInferenceLogsUtils;
 import prerna.engine.impl.model.message.InputMessage;
 import prerna.engine.impl.model.message.ResponseMessage;
 import prerna.engine.impl.model.responses.AskModelEngineResponse;
@@ -84,7 +83,6 @@ import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.util.Constants;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
-import prerna.engine.impl.model.inferencetracking.ModelInferenceLogsUtils;
 
 /**
  * Anthropic Messages API compatible endpoints. Allows connections from Claude
@@ -255,55 +253,50 @@ public class AnthropicEndpoints {
 
 		// HANDLE NON-STREAMING REQUESTS THROUGH askRoom
 		if (!isStreamingRequest) {
-		    Map<String, Object> normalizedLatest = AnthropicMessagesHelper.normalizeMessageForAskRoom(latestMessage,
-		            room, insight);
-		    String question = (String) normalizedLatest.get("question");
-		    List<String> copiedImages = (List<String>) normalizedLatest.get("images");
+			Map<String, Object> normalizedLatest = AnthropicMessagesHelper.normalizeMessageForAskRoom(latestMessage,
+					room, insight);
+			String question = (String) normalizedLatest.get("question");
+			List<String> copiedImages = (List<String>) normalizedLatest.get("images");
 
-		    Map<String, Object> openAIFormat = AnthropicMessagesHelper
-		            .normalizeAllAnthropicMessagesToOpenAI(messagesList, systemPromptString, tools);
-		    
-		    List<Map<String, Object>> openAIMessages = (List<Map<String, Object>>) openAIFormat.get("messages");
-		    dataMap.put(AbstractModelEngine.FULL_PROMPT, openAIMessages);
-		    dataMap.put("append_full_prompt", true);
+			Map<String, Object> openAIFormat = AnthropicMessagesHelper
+					.normalizeAllAnthropicMessagesToOpenAI(messagesList, systemPromptString, tools);
 
-		    if (openAIFormat.containsKey("tools")) {
-		        dataMap.put("tools", openAIFormat.get("tools"));
-		    }
+			List<Map<String, Object>> openAIMessages = (List<Map<String, Object>>) openAIFormat.get("messages");
+			dataMap.put(AbstractModelEngine.FULL_PROMPT, openAIMessages);
+			dataMap.put("append_full_prompt", true);
 
-		    final Insight finalInsight = insight;
-		    final Room finalRoom = room;
-		    
-		    InputMessage msg = InputMessage.builder(room)
-		            .withSystemPrompt(systemPromptString)
-		            .withInputUIPrompt(question)
-		            .withInputPrompt(question)
-		            .withModelType(engine.getModelType())
-		            .withMediaInputs(copiedImages, room)
-		            .withParamMap(dataMap)
-		            .build();
+			if (openAIFormat.containsKey("tools")) {
+				dataMap.put("tools", openAIFormat.get("tools"));
+			}
 
-		    return handleNonStreamingRequest(engine, finalInsight, finalRoom, msg, engineId);
+			final Insight finalInsight = insight;
+			final Room finalRoom = room;
+
+			InputMessage msg = InputMessage.builder(room).withSystemPrompt(systemPromptString).withText(question)
+					.withModelType(engine.getModelType()).withMediaInputs(copiedImages, room).withParamMap(dataMap)
+					.build();
+
+			return handleNonStreamingRequest(engine, finalInsight, finalRoom, msg, engineId);
 		} else {
-			
-		    final Insight finalInsight = insight;
-		    final Room finalRoom = room;
 
-		    Map<String, Object> openAIFormat = AnthropicMessagesHelper
-		            .normalizeAllAnthropicMessagesToOpenAI(messagesList, systemPromptString, tools);
+			final Insight finalInsight = insight;
+			final Room finalRoom = room;
 
-		    List<Map<String, Object>> openAIMessages = (List<Map<String, Object>>) openAIFormat.get("messages");
-		    dataMap.put(AbstractModelEngine.FULL_PROMPT, openAIMessages);
+			Map<String, Object> openAIFormat = AnthropicMessagesHelper
+					.normalizeAllAnthropicMessagesToOpenAI(messagesList, systemPromptString, tools);
 
-		    if (openAIFormat.containsKey("tools")) {
-		        dataMap.put("tools", openAIFormat.get("tools"));
-		    }
+			List<Map<String, Object>> openAIMessages = (List<Map<String, Object>>) openAIFormat.get("messages");
+			dataMap.put(AbstractModelEngine.FULL_PROMPT, openAIMessages);
 
-		    classLogger.info("finalDataMap: {}", GSON.toJson(dataMap));
+			if (openAIFormat.containsKey("tools")) {
+				dataMap.put("tools", openAIFormat.get("tools"));
+			}
 
-		    dataMap.put("append_full_prompt", true);
+			classLogger.info("finalDataMap: {}", GSON.toJson(dataMap));
 
-		    return handleStreamingRequest(engine, finalInsight, finalRoom, dataMap, SESSION_ID, JOB_ID, engineId);
+			dataMap.put("append_full_prompt", true);
+
+			return handleStreamingRequest(engine, finalInsight, finalRoom, dataMap, SESSION_ID, JOB_ID, engineId);
 		}
 	}
 
@@ -459,16 +452,16 @@ public class AnthropicEndpoints {
 												String toolName = pendingToolNames.get(toolIndex);
 
 												if (toolId != null && toolName != null
-												        && !toolBlockStarted.getOrDefault(toolIndex, false)) {
-												    AnthropicMessagesHelper.writeToolUseContentBlockStart(toolIndex,
-												            toolId, toolName, writer);
-												    toolBlockStarted.put(toolIndex, true);
+														&& !toolBlockStarted.getOrDefault(toolIndex, false)) {
+													AnthropicMessagesHelper.writeToolUseContentBlockStart(toolIndex,
+															toolId, toolName, writer);
+													toolBlockStarted.put(toolIndex, true);
 
-												    StringBuilder accumulatedArgs = pendingToolArgs.get(toolIndex);
-												    if (accumulatedArgs != null && accumulatedArgs.length() > 0) {
-												        AnthropicMessagesHelper.writeInputJsonDelta(toolIndex, 
-												            accumulatedArgs.toString(), writer);
-												    }
+													StringBuilder accumulatedArgs = pendingToolArgs.get(toolIndex);
+													if (accumulatedArgs != null && accumulatedArgs.length() > 0) {
+														AnthropicMessagesHelper.writeInputJsonDelta(toolIndex,
+																accumulatedArgs.toString(), writer);
+													}
 												} else if (toolBlockStarted.getOrDefault(toolIndex, false)
 														&& functionMap != null
 														&& functionMap.containsKey("arguments")) {
@@ -525,7 +518,7 @@ public class AnthropicEndpoints {
 												Object toolArgs = toolResp.get("arguments");
 												String argsJson = toolArgs instanceof String ? (String) toolArgs
 														: GSON.toJson(toolArgs);
-												
+
 												if (argsJson == null || argsJson.isEmpty()) {
 													argsJson = "{}";
 												}
@@ -572,7 +565,7 @@ public class AnthropicEndpoints {
 					}
 				}).build();
 	}
-	
+
 	/**
 	 * Map OpenAI finish reasons to Anthropic stop reasons.
 	 */
