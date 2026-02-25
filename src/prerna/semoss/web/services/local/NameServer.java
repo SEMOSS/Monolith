@@ -405,14 +405,8 @@ public class NameServer {
 
 		// figure out the type of insight
 		// first is temp
-		if (insightId == null || insightId.toString().isEmpty() || insightId.equals("undefined")) {
-			insightId = "TempInsight_" + GUID.v7().toUUID().toString();
-			insight = new Insight();
-			insight.setBaseURL(getServerURL(request));
-			insight.setInsightId(insightId);
-			insight.setTemporaryInsight(true);
-			InsightStore.getInstance().put(insight);
-		} else if (insightId.equals("new")) {
+		if (insightId == null || insightId.toString().isEmpty() || insightId.equals("undefined")
+				|| insightId.equals("new")) {
 			// need to make a new insight here
 			insight = new Insight();
 			insight.setBaseURL(getServerURL(request));
@@ -576,14 +570,8 @@ public class NameServer {
 		String uuid = GUID.v7().toUUID().toString();
 		// figure out the type of insight
 		// first is temp
-		if (insightId == null || insightId.toString().isEmpty() || insightId.equals("undefined")) {
-			insightId = "TempInsight_" + uuid;
-			insight = new Insight();
-			insight.setBaseURL(getServerURL(request));
-			insight.setInsightId(insightId);
-			insight.setTemporaryInsight(true);
-			InsightStore.getInstance().put(insight);
-		} else if (insightId.equals("new")) {
+		if (insightId == null || insightId.toString().isEmpty() || insightId.equals("undefined")
+				|| insightId.equals("new")) {
 			// need to make a new insight here
 			insight = new Insight();
 			insight.setBaseURL(getServerURL(request));
@@ -918,14 +906,8 @@ public class NameServer {
 
 		// figure out the type of insight
 		// first is temp
-		if (insightId == null || insightId.toString().isEmpty() || insightId.equals("undefined")) {
-			insightId = "TempInsight_" + GUID.v7().toUUID().toString();
-			insight = new Insight();
-			insight.setBaseURL(getServerURL(request));
-			insight.setInsightId(insightId);
-			insight.setTemporaryInsight(true);
-			InsightStore.getInstance().put(insight);
-		} else if (insightId.equals("new")) {
+		if (insightId == null || insightId.toString().isEmpty() || insightId.equals("undefined")
+				|| insightId.equals("new")) {
 			// need to make a new insight here
 			insight = new Insight();
 			insight.setBaseURL(getServerURL(request));
