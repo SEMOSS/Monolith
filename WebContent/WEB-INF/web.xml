@@ -31,7 +31,6 @@
       <filter-name>SetCharacterEncoding</filter-name>
       <url-pattern>/*</url-pattern>
    </filter-mapping>
-   <!-- 
    <filter>
       <filter-name>CustomRestCsrfPreventionFilter</filter-name>
       <filter-class>prerna.web.conf.CustomRestCsrfPreventionFilter</filter-class>
@@ -47,12 +46,15 @@
          <param-name>randomClass</param-name>
          <param-value>java.security.SecureRandom</param-value>
       </init-param>
+      <init-param>
+         <param-name>excluded-paths</param-name>
+         <param-value>/api/model/openai,/api/ext,/api/model/anthropic</param-value>
+      </init-param>
    </filter>
    <filter-mapping>
       <filter-name>CustomRestCsrfPreventionFilter</filter-name>
       <url-pattern>/*</url-pattern>
    </filter-mapping>
-   -->
    <filter>
       <filter-name>HeaderSecurityFilter</filter-name>
       <filter-class>org.apache.catalina.filters.HttpHeaderSecurityFilter</filter-class>
@@ -212,6 +214,24 @@
    </filter-mapping>
    <filter-mapping>
       <filter-name>OpenAIFilter</filter-name>
+      <url-pattern>/api/model/anthropic/*</url-pattern>
+   </filter-mapping>
+
+   <!-- Code Assistant Filer -->
+   <filter>
+      <filter-name>CodeAssistantFilter</filter-name>
+      <filter-class>prerna.web.conf.CodeAssistantFilter</filter-class>
+   </filter>
+   <filter-mapping>
+      <filter-name>CodeAssistantFilter</filter-name>
+      <url-pattern>/api/model/openai/*</url-pattern>
+   </filter-mapping>
+   <filter-mapping>
+      <filter-name>CodeAssistantFilter</filter-name>
+      <url-pattern>/api/ext/*</url-pattern>
+   </filter-mapping>
+   <filter-mapping>
+      <filter-name>CodeAssistantFilter</filter-name>
       <url-pattern>/api/model/anthropic/*</url-pattern>
    </filter-mapping>
 
@@ -706,4 +726,3 @@
 	  </cookie-config>
    </session-config>
 </web-app>
-
