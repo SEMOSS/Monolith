@@ -28,8 +28,13 @@
 package prerna.web.conf;
 
 import java.io.IOException;
+import java.util.Enumeration;
+import java.util.HashSet;
+import java.util.Set;
 
 import javax.servlet.FilterChain;
+import javax.servlet.FilterConfig;
+import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
@@ -40,9 +45,97 @@ import prerna.rpa.quartz.jobs.insight.RunPixelJobFromDB;
 
 public class CustomRestCsrfPreventionFilter extends org.apache.catalina.filters.RestCsrfPreventionFilter {
 
+	/**
+	 * Set of paths to exclude from CSRF processing. Including openai endpoint,
+	 * anthropic endpoint, and mcp endpoint
+	 */
+	private Set<String> excludedPaths = new HashSet<>();
+
 	@Override
-	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
-		HttpSession session = ((HttpServletRequest) arg0).getSession();
+	public void init(FilterConfig filterConfig) throws ServletException {
+		// Get excluded paths parameter before calling parent init
+		String excludedPathsParam = filterConfig.getInitParameter("excluded-paths");
+		if (excludedPathsParam != null && !excludedPathsParam.trim().isEmpty()) {
+			String[] paths = excludedPathsParam.split(",");
+			for (String path : paths) {
+				this.excludedPaths.add(path.trim());
+			}
+		}
+
+		// Create a wrapper that excludes our custom parameter for excluded paths
+		FilterConfig wrappedConfig = new FilterConfig() {
+			@Override
+			public String getFilterName() {
+				return filterConfig.getFilterName();
+			}
+
+			@Override
+			public ServletContext getServletContext() {
+				return filterConfig.getServletContext();
+			}
+
+			@Override
+			public String getInitParameter(String name) {
+				if ("excluded-paths".equals(name)) {
+					return null;
+				}
+				return filterConfig.getInitParameter(name);
+			}
+
+			@Override
+			public Enumeration<String> getInitParameterNames() {
+				return new Enumeration<String>() {
+					private Enumeration<String> original = filterConfig.getInitParameterNames();
+					private String next = null;
+
+					@Override
+					public boolean hasMoreElements() {
+						if (next != null) {
+							return true;
+						}
+						while (original.hasMoreElements()) {
+							String param = original.nextElement();
+							if (!"excluded-paths".equals(param)) {
+								next = param;
+								return true;
+							}
+						}
+						return false;
+					}
+
+					@Override
+					public String nextElement() {
+						if (hasMoreElements()) {
+							String result = next;
+							next = null;
+							return result;
+						}
+						throw new java.util.NoSuchElementException();
+					}
+				};
+			}
+		};
+
+		// Call parent init with wrapped config
+		super.init(wrappedConfig);
+	}
+
+	@Override
+	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2)
+			throws IOException, ServletException {
+		HttpServletRequest httpRequest = (HttpServletRequest) arg0;
+
+		// Check if current path should be excluded
+		String path = httpRequest.getRequestURI().substring(httpRequest.getContextPath().length());
+		boolean shouldExclude = excludedPaths.stream().anyMatch(excludedPath -> path.startsWith(excludedPath));
+
+		if (shouldExclude) {
+			// Skip CSRF processing for excluded paths
+			arg2.doFilter(arg0, arg1);
+			return;
+		}
+
+		HttpSession session = httpRequest.getSession();
 		session.setAttribute("csrf", true);
 		RunPixelJobFromDB.setFetchCsrf(true);
 		super.doFilter(arg0, arg1, arg2);
