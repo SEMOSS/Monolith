@@ -42,17 +42,15 @@ import javax.servlet.http.HttpSession;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import prerna.auth.AccessToken;
-import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityUserAccessKeyUtils;
+import prerna.om.LocalUserStore;
 import prerna.util.Constants;
-import prerna.util.SocialPropertiesUtil;
 import prerna.web.services.util.WebUtility;
 
-public class OpenAIFilter implements Filter {
+public class CodeAssistantFilter implements Filter {
 
-	private static final Logger classLogger = LogManager.getLogger(OpenAIFilter.class);
+	private static final Logger classLogger = LogManager.getLogger(CodeAssistantFilter.class);
 
 	@Override
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2)
@@ -65,6 +63,12 @@ public class OpenAIFilter implements Filter {
 		}
 
 		if (user != null) {
+			arg2.doFilter(arg0, arg1);
+			return;
+		}
+
+		String remoteAddr = getClientIpAddress(request);
+		if (!isLocalhost(remoteAddr)) {
 			arg2.doFilter(arg0, arg1);
 			return;
 		}
@@ -92,44 +96,25 @@ public class OpenAIFilter implements Filter {
 					String accessKey = split[0];
 					String secretKey = split[1];
 
-					try {
-						user = SecurityUserAccessKeyUtils.validateKeysAndReturnUser(accessKey, secretKey);
-					} catch (IllegalAccessException e) {
-						classLogger.error(Constants.STACKTRACE, e);
-					}
-					if (user == null) {
-						classLogger.error("User could not login using user access key '" + accessKey
-								+ "' with invalid secret key");
-					}
+					if (LocalUserStore.getInstance().validate(accessKey, secretKey)) {
+						try {
+							user = SecurityUserAccessKeyUtils.validateLocalUserStore(accessKey, secretKey);
+						} catch (IllegalAccessException e) {
+							classLogger.error(Constants.STACKTRACE, e);
+						}
 
-					AccessToken token = null;
-					if (user != null) {
-						token = user.getPrimaryLoginToken();
-						// let us make sure this login type is still allowed to login via access/secret
-						// key
-						{
-							AuthProvider provider = token.getProvider();
-							boolean accessKeysAllowed = SocialPropertiesUtil.getInstance().accessKeysAllowed(provider);
-							if (!accessKeysAllowed) {
-								classLogger.error(
-										"User is trying to login using access/secret key but administrator has disabeled for provider "
-												+ provider.name());
-								user = null;
-								token = null;
-							}
+						if (user != null) {
+							SecurityUserAccessKeyUtils.updateAccessTokenLastUsed(accessKey);
+							session = request.getSession(true);
+							session.setAttribute(Constants.SESSION_USER, user);
+							session.setAttribute(Constants.SESSION_USER_ID_LOG, user.getPrimaryLoginToken().getId());
+							WebUtility.loggingContextLoginEvent(session);
+
+							classLogger.info("User is logging in for code assistance using provider "
+									+ user.getPrimaryLoginToken().getProvider() + " with user access key");
 						}
 					}
 
-					if (user != null && token != null) {
-						SecurityUserAccessKeyUtils.updateAccessTokenLastUsed(accessKey);
-						session = request.getSession(true);
-						session.setAttribute(Constants.SESSION_USER, user);
-						session.setAttribute(Constants.SESSION_USER_ID_LOG, token.getId());
-						WebUtility.loggingContextLoginEvent(session);
-
-						classLogger.info(
-								"User is logging in with provider " + token.getProvider() + " with user access key");
-					}
 				}
 			}
 		}
@@ -141,6 +126,26 @@ public class OpenAIFilter implements Filter {
 		// wrap the request to allow subsequent reading
 		HttpServletRequestWrapper requestWrapper = new HttpServletRequestWrapper(request);
 		arg2.doFilter(requestWrapper, arg1);
+	}
+
+	private String getClientIpAddress(HttpServletRequest request) {
+		// Check for proxied requests
+		String xForwardedFor = request.getHeader("X-Forwarded-For");
+		if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
+			return xForwardedFor.split(",")[0].trim();
+		}
+
+		String xRealIp = request.getHeader("X-Real-IP");
+		if (xRealIp != null && !xRealIp.isEmpty()) {
+			return xRealIp;
+		}
+
+		return request.getRemoteAddr();
+	}
+
+	private boolean isLocalhost(String ipAddress) {
+		return "127.0.0.1".equals(ipAddress) || "0:0:0:0:0:0:0:1".equals(ipAddress) || "::1".equals(ipAddress)
+				|| "localhost".equalsIgnoreCase(ipAddress);
 	}
 
 	@Override
