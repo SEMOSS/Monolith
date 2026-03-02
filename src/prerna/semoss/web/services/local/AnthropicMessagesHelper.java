@@ -463,7 +463,6 @@ public final class AnthropicMessagesHelper {
 	        }
 	        textContent.append(textBlock.get("text"));
 	    }
-
 	    assistantMsg.put("content", textContent.toString());
 
 	    if (!toolUseBlocks.isEmpty()) {
@@ -476,15 +475,7 @@ public final class AnthropicMessagesHelper {
 
 	            Map<String, Object> function = new HashMap<>();
 	            function.put("name", toolUse.get("name"));
-
-	            Object input = toolUse.get("input");
-	            String argsJson;
-	            if (input instanceof String) {
-	                argsJson = (String) input;
-	            } else {
-	                argsJson = new Gson().toJson(input);
-	            }
-	            function.put("arguments", argsJson);
+	            function.put("arguments", toolUse.get("input")); // keep as Map, GSON will serialize once in startAsyncModelRequest
 
 	            toolCall.put("function", function);
 	            toolCalls.add(toolCall);
