@@ -429,8 +429,8 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 
 	@GET
 	@Path("/getNumUsers")
-	@Produces("application/octet-stream")
-	public Response getNumUsers(@Context HttpServletRequest request) {
+	@Produces("application/json")
+	public Response getNumUsers(@Context HttpServletRequest request, @QueryParam("filterWord") String searchTerm) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
 		try {
@@ -443,7 +443,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		Long ret = adminUtils.getNumUsers();
+		Long ret = adminUtils.getNumUsers(searchTerm);
 		return WebUtility.getResponse(ret, 200);
 	}
 
