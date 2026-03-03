@@ -87,6 +87,29 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	}
 
 	@GET
+	@Path("/getGroupDetails")
+	@Produces("application/json")
+	public Response getGroupDetails(@Context HttpServletRequest request, @QueryParam("groupId") String groupId,
+			@QueryParam("type") String type) {
+		groupId = WebUtility.inputSanitizer(groupId);
+		type = WebUtility.inputSanitizer(type);
+		AdminSecurityGroupUtils groupUtils = null;
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+			groupUtils = AdminSecurityGroupUtils.getInstance(user);
+			Map<String, Object> ret = groupUtils.getGroupDetails(groupId, type);
+			return WebUtility.getResponse(ret, 200);
+		} catch (Exception e) {
+			classLogger.warn("User is trying to get details about a specific group");
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+	}
+
+	@GET
 	@Path("/getNumGroups")
 	@Produces("application/json")
 	public Response getNumGroups(@Context HttpServletRequest request, @QueryParam("searchTerm") String searchTerm) {
