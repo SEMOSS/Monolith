@@ -66,7 +66,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Path("/getGroups")
 	@Produces("application/json")
-	public Response getAllGroups(@Context HttpServletRequest request, @QueryParam("searchTerm") String searchTerm,
+	public Response getGroups(@Context HttpServletRequest request, @QueryParam("searchTerm") String searchTerm,
 			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
 		searchTerm = WebUtility.inputSanitizer(searchTerm);
 		AdminSecurityGroupUtils groupUtils = null;
@@ -84,6 +84,31 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 
 		List<Map<String, Object>> ret = groupUtils.getGroups(searchTerm, limit, offset);
 		return WebUtility.getResponse(ret, 200);
+	}
+
+	@GET
+	@Path("/getNumGroups")
+	@Produces("application/json")
+	public Response getNumGroups(@Context HttpServletRequest request, @QueryParam("searchTerm") String searchTerm) {
+		searchTerm = WebUtility.inputSanitizer(searchTerm);
+		AdminSecurityGroupUtils groupUtils = null;
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+			groupUtils = AdminSecurityGroupUtils.getInstance(user);
+		} catch (IllegalAccessException e) {
+			classLogger.warn("User is trying to get list of groups");
+			classLogger.error(Constants.STACKTRACE, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		Long numGroups = groupUtils.getNumGroups(searchTerm);
+		if (numGroups == null) {
+			numGroups = Long.valueOf(0);
+		}
+		return WebUtility.getResponse(numGroups, 200);
 	}
 
 	@POST

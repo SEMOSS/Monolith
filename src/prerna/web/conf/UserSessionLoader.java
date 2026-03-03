@@ -51,6 +51,7 @@ import prerna.engine.impl.r.IRUserConnection;
 import prerna.om.ClientProcessWrapper;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
+import prerna.om.LocalUserStore;
 import prerna.semoss.web.services.local.MCPResource;
 import prerna.usertracking.UserTrackingUtils;
 import prerna.util.Constants;
@@ -144,6 +145,14 @@ public class UserSessionLoader implements HttpSessionListener {
 				for (String authKey : mcpKeys) {
 					MCPResource.clearInsight(authKey);
 				}
+			}
+		}
+
+		// clear temporal user values
+		if (thisUser != null) {
+			String cachedKey = thisUser.getCachedTemporalAccessKey();
+			if (cachedKey != null) {
+				LocalUserStore.getInstance().remove(cachedKey);
 			}
 		}
 

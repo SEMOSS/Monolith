@@ -64,6 +64,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 
 	@GET
 	@Path("/isAdminUser")
+	@Produces("application/json")
 	public Response isAdminUser(@Context HttpServletRequest request) {
 		User user = null;
 		try {
@@ -79,8 +80,8 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 	}
 
 	@POST
-	@Produces("application/json")
 	@Path("/registerUser")
+	@Produces("application/json")
 	public Response registerUser(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		User user = null;
 		try {
@@ -191,8 +192,8 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 	 * @return
 	 */
 	@POST
-	@Produces("application/json")
 	@Path("/setUserPublisher")
+	@Produces("application/json")
 	public Response setUserPublisher(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -231,8 +232,8 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 	 * @return
 	 */
 	@POST
-	@Produces("application/json")
 	@Path("/setUserLocked")
+	@Produces("application/json")
 	public Response setUserLocked(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -339,8 +340,8 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 	}
 
 	@POST
-	@Produces("application/json")
 	@Path("/deleteUser")
+	@Produces("application/json")
 	public Response deleteUser(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -428,6 +429,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 
 	@GET
 	@Path("/getNumUsers")
+	@Produces("application/octet-stream")
 	public Response getNumUsers(@Context HttpServletRequest request) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
