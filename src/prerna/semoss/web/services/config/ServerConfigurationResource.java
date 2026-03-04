@@ -54,6 +54,7 @@ import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityInsightUtils;
 import prerna.auth.utils.SecurityProjectUtils;
+import prerna.auth.utils.SecurityUserUtils;
 import prerna.date.SemossDate;
 import prerna.ds.py.PyUtils;
 import prerna.reactor.cluster.VersionReactor;
@@ -288,6 +289,7 @@ public class ServerConfigurationResource {
 		clientConfig.put("engineMetaKeys", SecurityEngineUtils.getMetakeyOptions(null));
 		clientConfig.put("projectMetaKeys", SecurityProjectUtils.getMetakeyOptions(null));
 		clientConfig.put("insightMetaKeys", SecurityInsightUtils.getMetakeyOptions(null));
+    clientConfig.put("userMetaKeys", SecurityUserUtils.getMetakeyOptions(null));
 		// current date
 		clientConfig.put("systemDate", new SemossDate(Utility.getCurrentZonedDateTimeUTC()));
 		// do not keep this session

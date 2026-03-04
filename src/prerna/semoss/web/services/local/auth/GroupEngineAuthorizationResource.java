@@ -27,7 +27,6 @@
  *******************************************************************************/
 package prerna.semoss.web.services.local.auth;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -331,10 +330,14 @@ public class GroupEngineAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		List<Map<String, Object>> groups = new ArrayList<Map<String, Object>>();
+		Map<String, Object> ret = new HashMap<String, Object>();
 		try {
-			groups = SecurityGroupEngineUtils.getGroupsWithAccessToEngine(user, engineId, limit, offset);
-			return WebUtility.getResponse(groups, 200);
+			List<Map<String, Object>> groups = SecurityGroupEngineUtils.getGroupsWithAccessToEngine(user, engineId,
+					limit, offset);
+			long totalMembers = SecurityGroupEngineUtils.getNumGroupsWithAccessToEngine(user, engineId);
+			ret.put("totalGroups", totalMembers);
+			ret.put("groups", groups);
+			return WebUtility.getResponse(ret, 200);
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to get details for engine " + engineId + " without having proper access");
 			classLogger.error(Constants.STACKTRACE, e);
