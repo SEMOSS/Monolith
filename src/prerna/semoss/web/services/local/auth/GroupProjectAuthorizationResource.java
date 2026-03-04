@@ -27,7 +27,6 @@
  *******************************************************************************/
 package prerna.semoss.web.services.local.auth;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -336,10 +335,14 @@ public class GroupProjectAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		List<Map<String, Object>> groups = new ArrayList<Map<String, Object>>();
+		Map<String, Object> ret = new HashMap<String, Object>();
 		try {
-			groups = SecurityGroupProjectUtils.getGroupsWithAccessToProject(user, projectId, limit, offset);
-			return WebUtility.getResponse(groups, 200);
+			List<Map<String, Object>> groups = SecurityGroupProjectUtils.getGroupsWithAccessToProject(user, projectId,
+					limit, offset);
+			long totalMembers = SecurityGroupProjectUtils.getNumGroupsWithAccessToProject(user, projectId);
+			ret.put("totalGroups", totalMembers);
+			ret.put("groups", groups);
+			return WebUtility.getResponse(ret, 200);
 		} catch (IllegalAccessException e) {
 			classLogger
 					.warn("User is trying to get details for project " + projectId + " without having proper access");
