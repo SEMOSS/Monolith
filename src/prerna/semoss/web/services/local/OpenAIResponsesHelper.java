@@ -1,3 +1,30 @@
+/*******************************************************************************
+ * Copyright 2015 Defense Health Agency (DHA)
+ *
+ * If your use of this software does not include any GPLv2 components:
+ * 	Licensed under the Apache License, Version 2.0 (the "License");
+ * 	you may not use this file except in compliance with the License.
+ * 	You may obtain a copy of the License at
+ *
+ * 	  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * 	Unless required by applicable law or agreed to in writing, software
+ * 	distributed under the License is distributed on an "AS IS" BASIS,
+ * 	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * 	See the License for the specific language governing permissions and
+ * 	limitations under the License.
+ * ----------------------------------------------------------------------------
+ * If your use of this software includes any GPLv2 components:
+ * 	This program is free software; you can redistribute it and/or
+ * 	modify it under the terms of the GNU General Public License
+ * 	as published by the Free Software Foundation; either version 2
+ * 	of the License, or (at your option) any later version.
+ *
+ * 	This program is distributed in the hope that it will be useful,
+ * 	but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * 	GNU General Public License for more details.
+ *******************************************************************************/
 package prerna.semoss.web.services.local;
 
 import java.io.IOException;
@@ -18,8 +45,8 @@ import prerna.engine.impl.model.responses.AskToolModelEngineResponse;
 import prerna.engine.impl.model.responses.AskToolModelEngineResponse.ToolResponse;
 
 /**
- * Helper class for formatting OpenAI Responses API responses.
- * Simplified for raw passthrough mode - just forwards OpenAI events directly.
+ * Helper class for formatting OpenAI Responses API responses. Simplified for
+ * raw passthrough mode - just forwards OpenAI events directly.
  */
 public final class OpenAIResponsesHelper {
 
@@ -29,270 +56,278 @@ public final class OpenAIResponsesHelper {
 	private static ObjectMapper mapper = new ObjectMapper();
 
 	public static void writeSSEEvent(Map<String, Object> rawEvent, Writer writer) throws IOException {
-        String eventType = (String) rawEvent.get("type");
-        if (eventType != null) {
-            writer.write("event: " + eventType + "\n");
-        }
-        String eventJson = mapper.writeValueAsString(rawEvent);
-        writer.write("data: " + eventJson + "\n\n");
-        writer.flush();
-    }
+		String eventType = (String) rawEvent.get("type");
+		if (eventType != null) {
+			writer.write("event: " + eventType + "\n");
+		}
+		String eventJson = mapper.writeValueAsString(rawEvent);
+		writer.write("data: " + eventJson + "\n\n");
+		writer.flush();
+	}
 
-    // --- 1. Top Level Response Events ---
+	// --- 1. Top Level Response Events ---
 
-    public static Map<String, Object> createBaseEvent(String type, int seq, String respId, String model, long ts) {
-        Map<String, Object> event = new HashMap<>();
-        event.put("type", type);
-        event.put("sequence_number", seq);
-        Map<String, Object> resp = new HashMap<>();
-        resp.put("id", respId);
-        resp.put("object", "response");
-        resp.put("model", model);
-        resp.put("created_at", (double) ts);
-        resp.put("status", "in_progress");
-        event.put("response", resp);
-        return event;
-    }
+	public static Map<String, Object> createBaseEvent(String type, int seq, String respId, String model, long ts) {
+		Map<String, Object> event = new HashMap<>();
+		event.put("type", type);
+		event.put("sequence_number", seq);
+		Map<String, Object> resp = new HashMap<>();
+		resp.put("id", respId);
+		resp.put("object", "response");
+		resp.put("model", model);
+		resp.put("created_at", (double) ts);
+		resp.put("status", "in_progress");
+		event.put("response", resp);
+		return event;
+	}
 
-    // --- 2. Item Events ---
+	// --- 2. Item Events ---
 
-    public static void sendItemAdded(Writer w, int seq, String respId, String itemId, int idx, String type, String toolName) throws IOException {
-        Map<String, Object> event = new HashMap<>();
-        event.put("type", "response.output_item.added");
-        event.put("sequence_number", seq);
-        event.put("response_id", respId);
-        event.put("output_index", idx);
-        
-        Map<String, Object> item = new HashMap<>();
-        item.put("id", itemId);
-        item.put("type", type);
-        item.put("status", "in_progress");
-        
-        if ("message".equals(type)) {
-            item.put("role", "assistant");
-            item.put("content", new ArrayList<>());
-        } else if ("function_call".equals(type)) {
-            item.put("name", toolName);
-            item.put("call_id", itemId);
-            item.put("arguments", "");
-        }
-        
-        event.put("item", item);
-        writeSSEEvent(event, w);
-    }
+	public static void sendItemAdded(Writer w, int seq, String respId, String itemId, int idx, String type,
+			String toolName) throws IOException {
+		Map<String, Object> event = new HashMap<>();
+		event.put("type", "response.output_item.added");
+		event.put("sequence_number", seq);
+		event.put("response_id", respId);
+		event.put("output_index", idx);
 
-    public static void sendItemDone(Writer w, int seq, String respId, String itemId, int idx, String type, String finalContent, String toolName) throws IOException {
-        Map<String, Object> event = new HashMap<>();
-        event.put("type", "response.output_item.done");
-        event.put("sequence_number", seq);
-        event.put("response_id", respId);
-        
-        Map<String, Object> item = new HashMap<>();
-        item.put("id", itemId);
-        item.put("type", type);
-        item.put("status", "completed");
-        
-        if ("message".equals(type)) {
-            item.put("role", "assistant");
-            Map<String, Object> textPart = new HashMap<>();
-            textPart.put("type", "text");
-            textPart.put("text", finalContent);
-            ArrayList<Object> contentList = new ArrayList<>();
-            contentList.add(textPart);
-            item.put("content", contentList);
-        } else if ("function_call".equals(type)) {
-            item.put("call_id", itemId);
-            item.put("name", toolName);
-            item.put("arguments", finalContent);
-        }
-        
-        event.put("item", item);
-        writeSSEEvent(event, w);
-    }
+		Map<String, Object> item = new HashMap<>();
+		item.put("id", itemId);
+		item.put("type", type);
+		item.put("status", "in_progress");
 
-    // --- 3. Content Part Events ---
+		if ("message".equals(type)) {
+			item.put("role", "assistant");
+			item.put("content", new ArrayList<>());
+		} else if ("function_call".equals(type)) {
+			item.put("name", toolName);
+			item.put("call_id", itemId);
+			item.put("arguments", "");
+		}
 
-    public static void sendContentPartAdded(Writer w, int seq, String respId, String itemId, int outputIdx, int contentIdx) throws IOException {
-        Map<String, Object> event = new HashMap<>();
-        event.put("type", "response.content_part.added");
-        event.put("sequence_number", seq);
-        event.put("response_id", respId);
-        event.put("item_id", itemId);
-        event.put("output_index", outputIdx);
-        event.put("content_index", contentIdx);
-        
-        Map<String, Object> part = new HashMap<>();
-        part.put("type", "output_text");
-        part.put("text", "");
-        
-        event.put("part", part);
-        writeSSEEvent(event, w);
-    }
+		event.put("item", item);
+		writeSSEEvent(event, w);
+	}
 
-    public static void sendContentPartDone(Writer w, int seq, String respId, String itemId, int outputIdx, int contentIdx, String text) throws IOException {
-        Map<String, Object> event = new HashMap<>();
-        event.put("type", "response.content_part.done");
-        event.put("sequence_number", seq);
-        event.put("response_id", respId);
-        event.put("item_id", itemId);
-        event.put("output_index", outputIdx);
-        event.put("content_index", contentIdx);
-        
-        Map<String, Object> part = new HashMap<>();
-        part.put("type", "output_text");
-        part.put("text", text);
-        
-        event.put("part", part);
-        writeSSEEvent(event, w);
-    }
+	public static void sendItemDone(Writer w, int seq, String respId, String itemId, int idx, String type,
+			String finalContent, String toolName) throws IOException {
+		Map<String, Object> event = new HashMap<>();
+		event.put("type", "response.output_item.done");
+		event.put("sequence_number", seq);
+		event.put("response_id", respId);
 
-    // --- 4. Delta Events ---
+		Map<String, Object> item = new HashMap<>();
+		item.put("id", itemId);
+		item.put("type", type);
+		item.put("status", "completed");
 
-    public static void sendTextDelta(Writer w, int seq, String respId, String itemId, int outputIdx, int contentIdx, String delta) throws IOException {
-        Map<String, Object> event = new HashMap<>();
-        event.put("type", "response.output_text.delta");
-        event.put("sequence_number", seq);
-        event.put("response_id", respId);
-        event.put("item_id", itemId);
-        event.put("output_index", outputIdx);
-        event.put("content_index", contentIdx);
-        event.put("delta", delta);
-        writeSSEEvent(event, w);
-    }
-    
-    public static void sendTextDone(Writer w, int seq, String respId, String itemId, int outputIdx, int contentIdx, String finalUniqueText) throws IOException {
-        Map<String, Object> event = new HashMap<>();
-        event.put("type", "response.output_text.done");
-        event.put("sequence_number", seq);
-        event.put("response_id", respId);
-        event.put("item_id", itemId);
-        event.put("output_index", outputIdx);
-        event.put("content_index", contentIdx);
-        event.put("text", finalUniqueText);
-        writeSSEEvent(event, w);
-    }
+		if ("message".equals(type)) {
+			item.put("role", "assistant");
+			Map<String, Object> textPart = new HashMap<>();
+			textPart.put("type", "text");
+			textPart.put("text", finalContent);
+			ArrayList<Object> contentList = new ArrayList<>();
+			contentList.add(textPart);
+			item.put("content", contentList);
+		} else if ("function_call".equals(type)) {
+			item.put("call_id", itemId);
+			item.put("name", toolName);
+			item.put("arguments", finalContent);
+		}
 
-    public static void sendToolDelta(Writer w, int seq, String respId, String itemId, int outputIdx, String delta) throws IOException {
-        Map<String, Object> event = new HashMap<>();
-        event.put("type", "response.function_call_arguments.delta");
-        event.put("sequence_number", seq);
-        event.put("response_id", respId);
-        event.put("item_id", itemId);
-        event.put("output_index", outputIdx);
-        event.put("call_id", itemId); 
-        event.put("delta", delta);
-        writeSSEEvent(event, w);
-    }
+		event.put("item", item);
+		writeSSEEvent(event, w);
+	}
+
+	// --- 3. Content Part Events ---
+
+	public static void sendContentPartAdded(Writer w, int seq, String respId, String itemId, int outputIdx,
+			int contentIdx) throws IOException {
+		Map<String, Object> event = new HashMap<>();
+		event.put("type", "response.content_part.added");
+		event.put("sequence_number", seq);
+		event.put("response_id", respId);
+		event.put("item_id", itemId);
+		event.put("output_index", outputIdx);
+		event.put("content_index", contentIdx);
+
+		Map<String, Object> part = new HashMap<>();
+		part.put("type", "output_text");
+		part.put("text", "");
+
+		event.put("part", part);
+		writeSSEEvent(event, w);
+	}
+
+	public static void sendContentPartDone(Writer w, int seq, String respId, String itemId, int outputIdx,
+			int contentIdx, String text) throws IOException {
+		Map<String, Object> event = new HashMap<>();
+		event.put("type", "response.content_part.done");
+		event.put("sequence_number", seq);
+		event.put("response_id", respId);
+		event.put("item_id", itemId);
+		event.put("output_index", outputIdx);
+		event.put("content_index", contentIdx);
+
+		Map<String, Object> part = new HashMap<>();
+		part.put("type", "output_text");
+		part.put("text", text);
+
+		event.put("part", part);
+		writeSSEEvent(event, w);
+	}
+
+	// --- 4. Delta Events ---
+
+	public static void sendTextDelta(Writer w, int seq, String respId, String itemId, int outputIdx, int contentIdx,
+			String delta) throws IOException {
+		Map<String, Object> event = new HashMap<>();
+		event.put("type", "response.output_text.delta");
+		event.put("sequence_number", seq);
+		event.put("response_id", respId);
+		event.put("item_id", itemId);
+		event.put("output_index", outputIdx);
+		event.put("content_index", contentIdx);
+		event.put("delta", delta);
+		writeSSEEvent(event, w);
+	}
+
+	public static void sendTextDone(Writer w, int seq, String respId, String itemId, int outputIdx, int contentIdx,
+			String finalUniqueText) throws IOException {
+		Map<String, Object> event = new HashMap<>();
+		event.put("type", "response.output_text.done");
+		event.put("sequence_number", seq);
+		event.put("response_id", respId);
+		event.put("item_id", itemId);
+		event.put("output_index", outputIdx);
+		event.put("content_index", contentIdx);
+		event.put("text", finalUniqueText);
+		writeSSEEvent(event, w);
+	}
+
+	public static void sendToolDelta(Writer w, int seq, String respId, String itemId, int outputIdx, String delta)
+			throws IOException {
+		Map<String, Object> event = new HashMap<>();
+		event.put("type", "response.function_call_arguments.delta");
+		event.put("sequence_number", seq);
+		event.put("response_id", respId);
+		event.put("item_id", itemId);
+		event.put("output_index", outputIdx);
+		event.put("call_id", itemId);
+		event.put("delta", delta);
+		writeSSEEvent(event, w);
+	}
+
 	/**
 	 * Normalizes Codex/Responses API message format to standard OpenAI Chat format.
-	 * Converts: content: [{ "type": "input_text", "text": "..." }] 
-	 * To:       content: "..."
+	 * Converts: content: [{ "type": "input_text", "text": "..." }] To: content:
+	 * "..."
 	 */
-    @SuppressWarnings("unchecked")
-    public static Object normalizeMessages(Object input) {
-        if (input instanceof String) {
-            // Convert a single string input into a standard messages list
-            List<Map<String, Object>> messages = new ArrayList<>();
-            Map<String, Object> userMessage = new HashMap<>();
-            userMessage.put("role", "user");
-            userMessage.put("content", (String) input);
-            messages.add(userMessage);
-            return messages;
-        }
-        if (!(input instanceof List)) {
-            return input;
-        }
+	@SuppressWarnings("unchecked")
+	public static Object normalizeMessages(Object input) {
+		if (input instanceof String) {
+			// Convert a single string input into a standard messages list
+			List<Map<String, Object>> messages = new ArrayList<>();
+			Map<String, Object> userMessage = new HashMap<>();
+			userMessage.put("role", "user");
+			userMessage.put("content", input);
+			messages.add(userMessage);
+			return messages;
+		}
+		if (!(input instanceof List)) {
+			return input;
+		}
 
-        List<Map<String, Object>> messages = (List<Map<String, Object>>) input;
-        List<Map<String, Object>> normalizedMessages = new ArrayList<>();
-        
-        // Buffer to collect consecutive function calls into one assistant message
-        List<Map<String, Object>> pendingToolCalls = new ArrayList<>();
-        
-        for (Map<String, Object> message : messages) {
-            String type = (String) message.get("type");
-            
-            if ("function_call".equals(type)) {
-                Map<String, Object> toolCall = new HashMap<>();
-                toolCall.put("id", message.get("call_id"));
-                toolCall.put("type", "function");
-                
-                Map<String, Object> function = new HashMap<>();
-                function.put("name", message.get("name"));
-                Object args = message.get("arguments");
-                function.put("arguments", args != null ? args.toString() : "{}");
-                toolCall.put("function", function);
-                
-                pendingToolCalls.add(toolCall);
-                
-            } else if ("function_call_output".equals(type)) {
-                if (!pendingToolCalls.isEmpty()) {
-                    Map<String, Object> assistantMsg = new HashMap<>();
-                    assistantMsg.put("role", "assistant");
-                    assistantMsg.put("tool_calls", new ArrayList<>(pendingToolCalls));
-                    normalizedMessages.add(assistantMsg);
-                    pendingToolCalls.clear();
-                }
-                
-                Map<String, Object> toolMsg = new HashMap<>();
-                toolMsg.put("role", "tool");
-                toolMsg.put("tool_call_id", message.get("call_id"));
-                toolMsg.put("content", message.get("output"));
-                normalizedMessages.add(toolMsg);
-                
-            } else {
-                if (!pendingToolCalls.isEmpty()) {
-                    Map<String, Object> assistantMsg = new HashMap<>();
-                    assistantMsg.put("role", "assistant");
-                    assistantMsg.put("tool_calls", new ArrayList<>(pendingToolCalls));
-                    normalizedMessages.add(assistantMsg);
-                    pendingToolCalls.clear();
-                }
-                
-                Map<String, Object> normalizedMsg = new HashMap<>(message);
-                
-                normalizedMsg.remove("type");
-                
-                Object content = normalizedMsg.get("content");
-                if (content instanceof List) {
-                    List<Map<String, Object>> contentList = (List<Map<String, Object>>) content;
-                    StringBuilder flattenedText = new StringBuilder();
-                    for (Map<String, Object> part : contentList) {
-                        if (part.containsKey("text")) {
-                            if (flattenedText.length() > 0) {
-                                flattenedText.append("\n");
-                            }
-                            flattenedText.append(part.get("text").toString());
-                        }
-                    }
-                    normalizedMsg.put("content", flattenedText.toString());
-                }
-                
-                if (!normalizedMsg.containsKey("role")) {
-                    String role = (String) message.get("role");
-                    if (role == null) {
-                        role = "user"; // Default
-                    }
-                    normalizedMsg.put("role", role);
-                }
-                
-                normalizedMessages.add(normalizedMsg);
-            }
-        }
-        
-        if (!pendingToolCalls.isEmpty()) {
-            Map<String, Object> assistantMsg = new HashMap<>();
-            assistantMsg.put("role", "assistant");
-            assistantMsg.put("tool_calls", new ArrayList<>(pendingToolCalls));
-            normalizedMessages.add(assistantMsg);
-        }
-        
-        return normalizedMessages;
-    }
+		List<Map<String, Object>> messages = (List<Map<String, Object>>) input;
+		List<Map<String, Object>> normalizedMessages = new ArrayList<>();
+
+		// Buffer to collect consecutive function calls into one assistant message
+		List<Map<String, Object>> pendingToolCalls = new ArrayList<>();
+
+		for (Map<String, Object> message : messages) {
+			String type = (String) message.get("type");
+
+			if ("function_call".equals(type)) {
+				Map<String, Object> toolCall = new HashMap<>();
+				toolCall.put("id", message.get("call_id"));
+				toolCall.put("type", "function");
+
+				Map<String, Object> function = new HashMap<>();
+				function.put("name", message.get("name"));
+				Object args = message.get("arguments");
+				function.put("arguments", args != null ? args.toString() : "{}");
+				toolCall.put("function", function);
+
+				pendingToolCalls.add(toolCall);
+
+			} else if ("function_call_output".equals(type)) {
+				if (!pendingToolCalls.isEmpty()) {
+					Map<String, Object> assistantMsg = new HashMap<>();
+					assistantMsg.put("role", "assistant");
+					assistantMsg.put("tool_calls", new ArrayList<>(pendingToolCalls));
+					normalizedMessages.add(assistantMsg);
+					pendingToolCalls.clear();
+				}
+
+				Map<String, Object> toolMsg = new HashMap<>();
+				toolMsg.put("role", "tool");
+				toolMsg.put("tool_call_id", message.get("call_id"));
+				toolMsg.put("content", message.get("output"));
+				normalizedMessages.add(toolMsg);
+
+			} else {
+				if (!pendingToolCalls.isEmpty()) {
+					Map<String, Object> assistantMsg = new HashMap<>();
+					assistantMsg.put("role", "assistant");
+					assistantMsg.put("tool_calls", new ArrayList<>(pendingToolCalls));
+					normalizedMessages.add(assistantMsg);
+					pendingToolCalls.clear();
+				}
+
+				Map<String, Object> normalizedMsg = new HashMap<>(message);
+
+				normalizedMsg.remove("type");
+
+				Object content = normalizedMsg.get("content");
+				if (content instanceof List) {
+					List<Map<String, Object>> contentList = (List<Map<String, Object>>) content;
+					StringBuilder flattenedText = new StringBuilder();
+					for (Map<String, Object> part : contentList) {
+						if (part.containsKey("text")) {
+							if (flattenedText.length() > 0) {
+								flattenedText.append("\n");
+							}
+							flattenedText.append(part.get("text").toString());
+						}
+					}
+					normalizedMsg.put("content", flattenedText.toString());
+				}
+
+				if (!normalizedMsg.containsKey("role")) {
+					String role = (String) message.get("role");
+					if (role == null) {
+						role = "user"; // Default
+					}
+					normalizedMsg.put("role", role);
+				}
+
+				normalizedMessages.add(normalizedMsg);
+			}
+		}
+
+		if (!pendingToolCalls.isEmpty()) {
+			Map<String, Object> assistantMsg = new HashMap<>();
+			assistantMsg.put("role", "assistant");
+			assistantMsg.put("tool_calls", new ArrayList<>(pendingToolCalls));
+			normalizedMessages.add(assistantMsg);
+		}
+
+		return normalizedMessages;
+	}
 
 	/**
-	 * Process AskModelEngineResponse into native OpenAI Responses API format
-	 * Used for non-streaming responses only.
+	 * Process AskModelEngineResponse into native OpenAI Responses API format Used
+	 * for non-streaming responses only.
 	 *
 	 * @param engineId
 	 * @param llmResponse

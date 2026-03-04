@@ -67,6 +67,7 @@ import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityInsightUtils;
 import prerna.auth.utils.SecurityProjectUtils;
 import prerna.auth.utils.SecurityQueryUtils;
+import prerna.cluster.util.ClusterUtil;
 import prerna.engine.api.IEngine;
 import prerna.io.connector.antivirus.VirusScannerUtils;
 import prerna.io.connector.antivirus.VirusScanningException;
@@ -348,6 +349,11 @@ public class FileUploader extends Uploader {
 	 */
 	private List<Map<String, String>> getBaseUploadData(List<FileItem> fileItems, Insight in, String relativePath,
 			String projectId, String engineId, User user) throws VirusScanningException, IOException {
+		boolean pushEngine = false;
+		boolean pushRoom = false;
+		boolean pushUser = false;
+		IEngine engine = null;
+
 		// get base asset folder
 		String assetFolder = null;
 		String fePath = DIR_SEPARATOR;
@@ -357,14 +363,23 @@ public class FileUploader extends Uploader {
 				projectId = user.getAssetProjectId(provider);
 				String projectName = "Asset";
 				assetFolder = AssetUtility.getUserAssetAndWorkspaceAppRootFolder(projectName, projectId);
+				pushUser = true;
 			} else {
-				IProject project = Utility.getProject(projectId);
-				assetFolder = AssetUtility.getProjectAppRootFolder(project.getProjectName(), projectId);
+				engine = Utility.getProject(projectId);
+				assetFolder = EngineUtility.getSpecificEngineAppRootFolder(IEngine.CATALOG_TYPE.PROJECT,
+						engine.getEngineId(), engine.getEngineName());
+				pushEngine = true;
 			}
 		} else if (engineId != null) {
-			assetFolder = EngineUtility.getSpecificEngineBaseFolder(engineId);
+			engine = Utility.getEngine(engineId);
+			assetFolder = EngineUtility.getSpecificEngineBaseFolder(engine.getCatalogType(), engine.getEngineId(),
+					engine.getEngineName());
+			pushEngine = true;
 		} else {
 			assetFolder = in.getInsightFolder();
+			if (in.getRoomId() != null) {
+				pushRoom = true;
+			}
 		}
 		String filePath = assetFolder;
 		// add relative path
@@ -376,11 +391,22 @@ public class FileUploader extends Uploader {
 		if (!fileDir.exists()) {
 			Boolean success = fileDir.mkdirs();
 			if (!success) {
-				classLogger.info("Unable to make direction at location: " + Utility.cleanLogString(filePath));
+				classLogger.warn("Unable to make directory at location: {}", Utility.cleanLogString(filePath));
 			}
 		}
 
 		List<Map<String, String>> retData = processFileItems(fileItems, filePath, fePath);
+		if (pushEngine) {
+			if (engine instanceof IProject) {
+				ClusterUtil.pushProjectFolder((IProject) engine, filePath);
+			} else {
+				ClusterUtil.pushEngineFolder(engine, filePath);
+			}
+		} else if (pushRoom) {
+			ClusterUtil.pushRoom(in.getRoomId());
+		} else if (pushUser) {
+			ClusterUtil.pushUserWorkspace(projectId, true);
+		}
 		return retData;
 	}
 
@@ -622,6 +648,11 @@ public class FileUploader extends Uploader {
 		}
 
 		List<Map<String, String>> retData = processFileItems(fileItems, filePath, fePath);
+		if (engine instanceof IProject) {
+			ClusterUtil.pushProjectFolder((IProject) engine, filePath);
+		} else {
+			ClusterUtil.pushEngineFolder(engine, filePath);
+		}
 		return retData;
 	}
 
