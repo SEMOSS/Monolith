@@ -29,23 +29,20 @@ package prerna.semoss.web.services.local;
 
 import java.io.IOException;
 import java.io.Writer;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.nio.file.Path;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.ToNumberPolicy;
 
+import prerna.engine.impl.model.Room;
+import prerna.engine.impl.model.message.MessageUtils;
 import prerna.engine.impl.model.responses.AskModelEngineResponse;
 import prerna.engine.impl.model.responses.AskToolModelEngineResponse;
 import prerna.engine.impl.model.responses.AskToolModelEngineResponse.ToolResponse;
-import prerna.engine.impl.model.message.MessageUtils;
-import prerna.engine.impl.model.Room;
 import prerna.om.Insight;
 
 /**
@@ -264,8 +261,9 @@ public final class AnthropicMessagesHelper {
 
 			for (Map<String, Object> block : systemBlocks) {
 				if ("text".equals(block.get("type")) && block.containsKey("text")) {
-					if (finalSystemPrompt.length() > 0)
+					if (finalSystemPrompt.length() > 0) {
 						finalSystemPrompt.append("\n");
+					}
 					finalSystemPrompt.append(block.get("text").toString());
 				}
 			}
@@ -273,146 +271,145 @@ public final class AnthropicMessagesHelper {
 		}
 		return "";
 	}
-	
+
 	/**
-	 * Converts a full Anthropic message history to OpenAI/internal format.
-	 * Handles all message types including assistant tool_use and user tool_result blocks.
+	 * Converts a full Anthropic message history to OpenAI/internal format. Handles
+	 * all message types including assistant tool_use and user tool_result blocks.
 	 * 
 	 * @param messages     The full list of Anthropic formatted messages
 	 * @param systemPrompt The system prompt string (already extracted)
 	 * @param tools        The Anthropic formatted tools list
-	 * @return Map containing "messages" (List) in OpenAI format and optionally "tools" (List) in MCP format
+	 * @return Map containing "messages" (List) in OpenAI format and optionally
+	 *         "tools" (List) in MCP format
 	 */
 	@SuppressWarnings("unchecked")
-	public static Map<String, Object> normalizeAllAnthropicMessagesToOpenAI(
-	        List<Map<String, Object>> messages, 
-	        String systemPrompt, 
-	        Object tools) {
-	    
-	    Map<String, Object> result = new HashMap<>();
-	    List<Map<String, Object>> openAIMessages = new ArrayList<>();
+	public static Map<String, Object> normalizeAllAnthropicMessagesToOpenAI(List<Map<String, Object>> messages,
+			String systemPrompt, Object tools) {
 
-	    if (systemPrompt != null && !systemPrompt.trim().isEmpty()) {
-	        Map<String, Object> systemMessage = new HashMap<>();
-	        systemMessage.put("role", "system");
-	        systemMessage.put("content", systemPrompt);
-	        openAIMessages.add(systemMessage);
-	    }
+		Map<String, Object> result = new HashMap<>();
+		List<Map<String, Object>> openAIMessages = new ArrayList<>();
 
-	    for (Map<String, Object> message : messages) {
-	        String role = (String) message.get("role");
-	        Object content = message.get("content");
+		if (systemPrompt != null && !systemPrompt.trim().isEmpty()) {
+			Map<String, Object> systemMessage = new HashMap<>();
+			systemMessage.put("role", "system");
+			systemMessage.put("content", systemPrompt);
+			openAIMessages.add(systemMessage);
+		}
 
-	        if ("user".equals(role)) {
-	            processUserMessage(content, openAIMessages);
-	        } else if ("assistant".equals(role)) {
-	            processAssistantMessage(content, openAIMessages);
-	        }
-	    }
+		for (Map<String, Object> message : messages) {
+			String role = (String) message.get("role");
+			Object content = message.get("content");
 
-	    result.put("messages", openAIMessages);
+			if ("user".equals(role)) {
+				processUserMessage(content, openAIMessages);
+			} else if ("assistant".equals(role)) {
+				processAssistantMessage(content, openAIMessages);
+			}
+		}
 
-	    // 3. Convert tools from Anthropic to MCP format
-	    if (tools != null) {
-	        List<Map<String, Object>> mcpTools = normalizeToolsToMCP(tools);
-	        if (mcpTools != null && !mcpTools.isEmpty()) {
-	            result.put("tools", mcpTools);
-	        }
-	    }
+		result.put("messages", openAIMessages);
 
-	    return result;
+		// 3. Convert tools from Anthropic to MCP format
+		if (tools != null) {
+			List<Map<String, Object>> mcpTools = normalizeToolsToMCP(tools);
+			if (mcpTools != null && !mcpTools.isEmpty()) {
+				result.put("tools", mcpTools);
+			}
+		}
+
+		return result;
 	}
 
 	/**
-	 * Process an Anthropic user message and add to OpenAI message list.
-	 * Handles text, images, and tool_result blocks.
+	 * Process an Anthropic user message and add to OpenAI message list. Handles
+	 * text, images, and tool_result blocks.
 	 */
 	@SuppressWarnings("unchecked")
 	private static void processUserMessage(Object content, List<Map<String, Object>> openAIMessages) {
-	    if (content instanceof String) {
-	        Map<String, Object> userMsg = new HashMap<>();
-	        userMsg.put("role", "user");
-	        userMsg.put("content", content);
-	        openAIMessages.add(userMsg);
-	        return;
-	    }
+		if (content instanceof String) {
+			Map<String, Object> userMsg = new HashMap<>();
+			userMsg.put("role", "user");
+			userMsg.put("content", content);
+			openAIMessages.add(userMsg);
+			return;
+		}
 
-	    if (!(content instanceof List)) {
-	        return;
-	    }
+		if (!(content instanceof List)) {
+			return;
+		}
 
-	    List<Map<String, Object>> contentBlocks = (List<Map<String, Object>>) content;
+		List<Map<String, Object>> contentBlocks = (List<Map<String, Object>>) content;
 
-	    List<Map<String, Object>> textBlocks = new ArrayList<>();
-	    List<Map<String, Object>> imageBlocks = new ArrayList<>();
-	    List<Map<String, Object>> toolResultBlocks = new ArrayList<>();
+		List<Map<String, Object>> textBlocks = new ArrayList<>();
+		List<Map<String, Object>> imageBlocks = new ArrayList<>();
+		List<Map<String, Object>> toolResultBlocks = new ArrayList<>();
 
-	    for (Map<String, Object> block : contentBlocks) {
-	        String type = (String) block.get("type");
-	        if ("text".equals(type)) {
-	            String text = (String) block.get("text");
-	            if (text != null && !text.trim().isEmpty()) {
-	                textBlocks.add(block);
-	            }
-	        } else if ("image".equals(type)) {
-	            imageBlocks.add(block);
-	        } else if ("tool_result".equals(type)) {
-	            toolResultBlocks.add(block);
-	        }
-	    }
+		for (Map<String, Object> block : contentBlocks) {
+			String type = (String) block.get("type");
+			if ("text".equals(type)) {
+				String text = (String) block.get("text");
+				if (text != null && !text.trim().isEmpty()) {
+					textBlocks.add(block);
+				}
+			} else if ("image".equals(type)) {
+				imageBlocks.add(block);
+			} else if ("tool_result".equals(type)) {
+				toolResultBlocks.add(block);
+			}
+		}
 
-	    if (!textBlocks.isEmpty() || !imageBlocks.isEmpty()) {
-	        Map<String, Object> userMsg = new HashMap<>();
-	        userMsg.put("role", "user");
+		if (!textBlocks.isEmpty() || !imageBlocks.isEmpty()) {
+			Map<String, Object> userMsg = new HashMap<>();
+			userMsg.put("role", "user");
 
-	        if (!imageBlocks.isEmpty()) {
-	            List<Map<String, Object>> openAIContent = new ArrayList<>();
+			if (!imageBlocks.isEmpty()) {
+				List<Map<String, Object>> openAIContent = new ArrayList<>();
 
-	            for (Map<String, Object> textBlock : textBlocks) {
-	                Map<String, Object> textPart = new HashMap<>();
-	                textPart.put("type", "text");
-	                textPart.put("text", textBlock.get("text"));
-	                openAIContent.add(textPart);
-	            }
+				for (Map<String, Object> textBlock : textBlocks) {
+					Map<String, Object> textPart = new HashMap<>();
+					textPart.put("type", "text");
+					textPart.put("text", textBlock.get("text"));
+					openAIContent.add(textPart);
+				}
 
-	            for (Map<String, Object> imageBlock : imageBlocks) {
-	                String imageUrl = extractImageAsOpenAIUrl(imageBlock);
-	                if (imageUrl != null) {
-	                    Map<String, Object> imagePart = new HashMap<>();
-	                    imagePart.put("type", "image_url");
-	                    Map<String, Object> imageUrlObj = new HashMap<>();
-	                    imageUrlObj.put("url", imageUrl);
-	                    imagePart.put("image_url", imageUrlObj);
-	                    openAIContent.add(imagePart);
-	                }
-	            }
+				for (Map<String, Object> imageBlock : imageBlocks) {
+					String imageUrl = extractImageAsOpenAIUrl(imageBlock);
+					if (imageUrl != null) {
+						Map<String, Object> imagePart = new HashMap<>();
+						imagePart.put("type", "image_url");
+						Map<String, Object> imageUrlObj = new HashMap<>();
+						imageUrlObj.put("url", imageUrl);
+						imagePart.put("image_url", imageUrlObj);
+						openAIContent.add(imagePart);
+					}
+				}
 
-	            userMsg.put("content", openAIContent);
-	        } else {
-	            StringBuilder textContent = new StringBuilder();
-	            for (Map<String, Object> textBlock : textBlocks) {
-	                if (textContent.length() > 0) {
-	                    textContent.append("\n");
-	                }
-	                textContent.append(textBlock.get("text"));
-	            }
-	            userMsg.put("content", textContent.toString());
-	        }
+				userMsg.put("content", openAIContent);
+			} else {
+				StringBuilder textContent = new StringBuilder();
+				for (Map<String, Object> textBlock : textBlocks) {
+					if (textContent.length() > 0) {
+						textContent.append("\n");
+					}
+					textContent.append(textBlock.get("text"));
+				}
+				userMsg.put("content", textContent.toString());
+			}
 
-	        openAIMessages.add(userMsg);
-	    }
+			openAIMessages.add(userMsg);
+		}
 
-	    for (Map<String, Object> toolResultBlock : toolResultBlocks) {
-	        Map<String, Object> toolMsg = new HashMap<>();
-	        toolMsg.put("role", "tool");
-	        toolMsg.put("tool_call_id", toolResultBlock.get("tool_use_id"));
+		for (Map<String, Object> toolResultBlock : toolResultBlocks) {
+			Map<String, Object> toolMsg = new HashMap<>();
+			toolMsg.put("role", "tool");
+			toolMsg.put("tool_call_id", toolResultBlock.get("tool_use_id"));
 
-	        Object toolContent = toolResultBlock.get("content");
-	        String toolContentStr = extractToolResultContent(toolContent);
-	        toolMsg.put("content", toolContentStr);
+			Object toolContent = toolResultBlock.get("content");
+			String toolContentStr = extractToolResultContent(toolContent);
+			toolMsg.put("content", toolContentStr);
 
-	        openAIMessages.add(toolMsg);
-	    }
+			openAIMessages.add(toolMsg);
+		}
 	}
 
 	/**
@@ -421,90 +418,82 @@ public final class AnthropicMessagesHelper {
 	 */
 	@SuppressWarnings("unchecked")
 	private static void processAssistantMessage(Object content, List<Map<String, Object>> openAIMessages) {
-	    if (content instanceof String) {
-	        Map<String, Object> assistantMsg = new HashMap<>();
-	        assistantMsg.put("role", "assistant");
-	        assistantMsg.put("content", content);
-	        openAIMessages.add(assistantMsg);
-	        return;
-	    }
+		if (content instanceof String) {
+			Map<String, Object> assistantMsg = new HashMap<>();
+			assistantMsg.put("role", "assistant");
+			assistantMsg.put("content", content);
+			openAIMessages.add(assistantMsg);
+			return;
+		}
 
-	    if (!(content instanceof List)) {
-	        return;
-	    }
+		if (!(content instanceof List)) {
+			return;
+		}
 
-	    List<Map<String, Object>> contentBlocks = (List<Map<String, Object>>) content;
+		List<Map<String, Object>> contentBlocks = (List<Map<String, Object>>) content;
 
-	    List<Map<String, Object>> textBlocks = new ArrayList<>();
-	    List<Map<String, Object>> thinkingBlocks = new ArrayList<>();
-	    List<Map<String, Object>> toolUseBlocks = new ArrayList<>();
+		List<Map<String, Object>> textBlocks = new ArrayList<>();
+		List<Map<String, Object>> thinkingBlocks = new ArrayList<>();
+		List<Map<String, Object>> toolUseBlocks = new ArrayList<>();
 
-	    for (Map<String, Object> block : contentBlocks) {
-	        String type = (String) block.get("type");
-	        if ("text".equals(type)) {
-	            String text = (String) block.get("text");
-	            if (text != null && !text.trim().isEmpty()) {
-	                textBlocks.add(block);
-	            }
-	        } else if ("thinking".equals(type)) {
-	            thinkingBlocks.add(block);
-	        } else if ("tool_use".equals(type)) {
-	            toolUseBlocks.add(block);
-	        }
-	    }
+		for (Map<String, Object> block : contentBlocks) {
+			String type = (String) block.get("type");
+			if ("text".equals(type)) {
+				String text = (String) block.get("text");
+				if (text != null && !text.trim().isEmpty()) {
+					textBlocks.add(block);
+				}
+			} else if ("thinking".equals(type)) {
+				thinkingBlocks.add(block);
+			} else if ("tool_use".equals(type)) {
+				toolUseBlocks.add(block);
+			}
+		}
 
-	    Map<String, Object> assistantMsg = new HashMap<>();
-	    assistantMsg.put("role", "assistant");
+		Map<String, Object> assistantMsg = new HashMap<>();
+		assistantMsg.put("role", "assistant");
 
-	    StringBuilder textContent = new StringBuilder();
-	    for (Map<String, Object> textBlock : textBlocks) {
-	        if (textContent.length() > 0) {
-	            textContent.append("\n");
-	        }
-	        textContent.append(textBlock.get("text"));
-	    }
+		StringBuilder textContent = new StringBuilder();
+		for (Map<String, Object> textBlock : textBlocks) {
+			if (textContent.length() > 0) {
+				textContent.append("\n");
+			}
+			textContent.append(textBlock.get("text"));
+		}
+		assistantMsg.put("content", textContent.toString());
 
-	    assistantMsg.put("content", textContent.toString());
+		if (!toolUseBlocks.isEmpty()) {
+			List<Map<String, Object>> toolCalls = new ArrayList<>();
 
-	    if (!toolUseBlocks.isEmpty()) {
-	        List<Map<String, Object>> toolCalls = new ArrayList<>();
+			for (Map<String, Object> toolUse : toolUseBlocks) {
+				Map<String, Object> toolCall = new HashMap<>();
+				toolCall.put("id", toolUse.get("id"));
+				toolCall.put("type", "function");
 
-	        for (Map<String, Object> toolUse : toolUseBlocks) {
-	            Map<String, Object> toolCall = new HashMap<>();
-	            toolCall.put("id", toolUse.get("id"));
-	            toolCall.put("type", "function");
+				Map<String, Object> function = new HashMap<>();
+				function.put("name", toolUse.get("name"));
+				function.put("arguments", toolUse.get("input")); // keep as Map, GSON will serialize once in
+																	// startAsyncModelRequest
 
-	            Map<String, Object> function = new HashMap<>();
-	            function.put("name", toolUse.get("name"));
+				toolCall.put("function", function);
+				toolCalls.add(toolCall);
+			}
 
-	            Object input = toolUse.get("input");
-	            String argsJson;
-	            if (input instanceof String) {
-	                argsJson = (String) input;
-	            } else {
-	                argsJson = new Gson().toJson(input);
-	            }
-	            function.put("arguments", argsJson);
+			assistantMsg.put("tool_calls", toolCalls);
+		}
 
-	            toolCall.put("function", function);
-	            toolCalls.add(toolCall);
-	        }
+		if (!thinkingBlocks.isEmpty()) {
+			StringBuilder thinking = new StringBuilder();
+			for (Map<String, Object> thinkingBlock : thinkingBlocks) {
+				if (thinking.length() > 0) {
+					thinking.append("\n");
+				}
+				thinking.append(thinkingBlock.get("thinking"));
+			}
+			assistantMsg.put("thinking", thinking.toString());
+		}
 
-	        assistantMsg.put("tool_calls", toolCalls);
-	    }
-
-	    if (!thinkingBlocks.isEmpty()) {
-	        StringBuilder thinking = new StringBuilder();
-	        for (Map<String, Object> thinkingBlock : thinkingBlocks) {
-	            if (thinking.length() > 0) {
-	                thinking.append("\n");
-	            }
-	            thinking.append(thinkingBlock.get("thinking"));
-	        }
-	        assistantMsg.put("thinking", thinking.toString());
-	    }
-
-	    openAIMessages.add(assistantMsg);
+		openAIMessages.add(assistantMsg);
 	}
 
 	/**
@@ -512,40 +501,43 @@ public final class AnthropicMessagesHelper {
 	 */
 	@SuppressWarnings("unchecked")
 	private static String extractToolResultContent(Object toolContent) {
-	    if (toolContent instanceof String) {
-	        return (String) toolContent;
-	    }
+		if (toolContent instanceof String) {
+			return (String) toolContent;
+		}
 
-	    if (toolContent instanceof List) {
-	        StringBuilder textAggregator = new StringBuilder();
-	        for (Map<String, Object> innerBlock : (List<Map<String, Object>>) toolContent) {
-	            String innerType = (String) innerBlock.get("type");
-	            if ("text".equals(innerType)) {
-	                if (textAggregator.length() > 0) {
-	                    textAggregator.append("\n");
-	                }
-	                textAggregator.append(innerBlock.get("text"));
-	            }
-	            // Note: Images in tool results are harder to represent in OpenAI format
-	            // may need to handle these separately or skip them
-	        }
-	        return textAggregator.toString();
-	    }
+		if (toolContent instanceof List) {
+			StringBuilder textAggregator = new StringBuilder();
+			for (Map<String, Object> innerBlock : (List<Map<String, Object>>) toolContent) {
+				String innerType = (String) innerBlock.get("type");
+				if ("text".equals(innerType)) {
+					if (textAggregator.length() > 0) {
+						textAggregator.append("\n");
+					}
+					textAggregator.append(innerBlock.get("text"));
+				}
+				// Note: Images in tool results are harder to represent in OpenAI format
+				// may need to handle these separately or skip them
+			}
+			return textAggregator.toString();
+		}
 
-	    return "";
+		return "";
 	}
-	
+
 	/**
-	 * Converts an Anthropic user message, system prompt, and tools to OpenAI/MCP format.
-	 * Messages are converted to OpenAI format, tools are converted to MCP format.
+	 * Converts an Anthropic user message, system prompt, and tools to OpenAI/MCP
+	 * format. Messages are converted to OpenAI format, tools are converted to MCP
+	 * format.
 	 * 
 	 * @param message      The Anthropic formatted user message
 	 * @param systemPrompt The system prompt string (already extracted)
 	 * @param tools        The Anthropic formatted tools list
-	 * @return Map containing "messages" (List) in OpenAI format and optionally "tools" (List) in MCP format
+	 * @return Map containing "messages" (List) in OpenAI format and optionally
+	 *         "tools" (List) in MCP format
 	 */
 	@SuppressWarnings("unchecked")
-	public static Map<String, Object> normalizeAnthropicMessagestoOpenAIMessages(Map<String, Object> message, String systemPrompt, Object tools) {
+	public static Map<String, Object> normalizeAnthropicMessagestoOpenAIMessages(Map<String, Object> message,
+			String systemPrompt, Object tools) {
 		Map<String, Object> result = new HashMap<>();
 		List<Map<String, Object>> openAIMessages = new ArrayList<>();
 
@@ -640,7 +632,8 @@ public final class AnthropicMessagesHelper {
 					openAIMessages.add(userMsg);
 				}
 
-				// Handle tool_result blocks - each becomes a separate "tool" role message in OpenAI
+				// Handle tool_result blocks - each becomes a separate "tool" role message in
+				// OpenAI
 				for (Map<String, Object> toolResultBlock : toolResultBlocks) {
 					Map<String, Object> toolMsg = new HashMap<>();
 					toolMsg.put("role", "tool");
@@ -708,9 +701,8 @@ public final class AnthropicMessagesHelper {
 	}
 
 	/**
-	 * Extract Anthropic image source as an OpenAI compatible URL.
-	 * For base64 images, returns data URI format.
-	 * For URL images, returns the URL directly.
+	 * Extract Anthropic image source as an OpenAI compatible URL. For base64
+	 * images, returns data URI format. For URL images, returns the URL directly.
 	 */
 	@SuppressWarnings("unchecked")
 	private static String extractImageAsOpenAIUrl(Map<String, Object> block) {
@@ -729,7 +721,8 @@ public final class AnthropicMessagesHelper {
 	}
 
 	@SuppressWarnings("unchecked")
-	public static Map<String, Object> normalizeMessageForAskRoom(Map<String, Object> message, Room room, Insight insight) {
+	public static Map<String, Object> normalizeMessageForAskRoom(Map<String, Object> message, Room room,
+			Insight insight) {
 		Map<String, Object> normalizedMessageData = new HashMap<>();
 
 		Object content = message.get("content");
@@ -771,8 +764,9 @@ public final class AnthropicMessagesHelper {
 				if (!textBlocks.isEmpty() || !imageBlocks.isEmpty()) {
 					// Combine all text
 					for (Map<String, Object> textBlock : textBlocks) {
-						if (finalTextContent.length() > 0)
+						if (finalTextContent.length() > 0) {
 							finalTextContent.append("\n");
+						}
 						finalTextContent.append(textBlock.get("text"));
 					}
 					String finalText = finalTextContent.toString();
@@ -851,7 +845,6 @@ public final class AnthropicMessagesHelper {
 		return null;
 	}
 
-
 	private static String uploadImageToRoom(String inputImage, Room room, Insight insight) {
 		Path roomPath = Path.of(room.getRoomFolderPath());
 		return MessageUtils.writeBase64ImageDataUriToDir(inputImage, roomPath);
@@ -901,8 +894,8 @@ public final class AnthropicMessagesHelper {
 	 * Anthropic format: {"name": "get_weather", "description": "...",
 	 * "input_schema": {"type": "object", "properties": {...}}}
 	 * 
-	 * MCP format: {"name": "get_weather", "description": "...",
-	 * "inputSchema": {"type": "object", "properties": {...}}}
+	 * MCP format: {"name": "get_weather", "description": "...", "inputSchema":
+	 * {"type": "object", "properties": {...}}}
 	 */
 	@SuppressWarnings("unchecked")
 	public static List<Map<String, Object>> normalizeToolsToMCP(Object tools) {

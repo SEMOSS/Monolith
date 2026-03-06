@@ -51,6 +51,7 @@ import prerna.engine.impl.r.IRUserConnection;
 import prerna.om.ClientProcessWrapper;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
+import prerna.om.LocalUserStore;
 import prerna.semoss.web.services.local.MCPResource;
 import prerna.usertracking.UserTrackingUtils;
 import prerna.util.Constants;
@@ -147,6 +148,14 @@ public class UserSessionLoader implements HttpSessionListener {
 			}
 		}
 
+		// clear temporal user values
+		if (thisUser != null) {
+			String cachedKey = thisUser.getCachedTemporalAccessKey();
+			if (cachedKey != null) {
+				LocalUserStore.getInstance().remove(cachedKey);
+			}
+		}
+
 		// drop the r thread if not netty
 		try {
 			if (thisUser != null) {
@@ -204,8 +213,8 @@ public class UserSessionLoader implements HttpSessionListener {
 
 		// if cloud sync enabled, push and clear the rooms
 		if (ClusterUtil.IS_CLUSTER) {
-			if (thisUser != null && thisUser.roomHash != null) {
-				Map<String, Object> roomHash = thisUser.roomHash;
+			if (thisUser != null && thisUser.getRoomHash() != null) {
+				Map<String, Object> roomHash = thisUser.getRoomHash();
 				for (Map.Entry<String, Object> entry : roomHash.entrySet()) {
 					String roomId = entry.getKey();
 					Object roomObj = entry.getValue();
