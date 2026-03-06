@@ -51,7 +51,6 @@ import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
-import javax.ws.rs.PathParam;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
