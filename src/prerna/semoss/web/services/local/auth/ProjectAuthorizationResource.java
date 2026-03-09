@@ -600,6 +600,7 @@ public class ProjectAuthorizationResource {
 		}
 
 		String existingUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
+		String existingUserType = WebUtility.inputSQLSanitizer(form.getFirst("type"));
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String newPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
@@ -613,7 +614,7 @@ public class ProjectAuthorizationResource {
 		}
 
 		try {
-			SecurityProjectUtils.editProjectUserPermission(user, existingUserId, projectId, newPermission, endDate);
+			SecurityProjectUtils.editProjectUserPermission(user, existingUserId, existingUserType, projectId, newPermission, endDate);
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to edit user " + existingUserId + " permissions for project " + projectId
 					+ " without having proper access");
