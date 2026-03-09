@@ -71,9 +71,12 @@ import prerna.io.connector.couch.CouchException;
 import prerna.io.connector.couch.CouchUtil;
 import prerna.io.connector.secrets.ISecrets;
 import prerna.io.connector.secrets.SecretsFactory;
+import prerna.notifications.NotificationDbUtils;
 import prerna.util.Constants;
 import prerna.util.DefaultImageGeneratorUtil;
+import prerna.util.EmailUtility;
 import prerna.util.EngineUtility;
+import prerna.util.NotificationConstants;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
@@ -254,6 +257,15 @@ public class EngineRouteResource {
 
 		// push to cloud
 		ClusterUtil.pushEngineSmss(engineId, engine.getCatalogType());
+		if (Utility.isNotificationDatabaseEnabled()) {
+			// Adding notification
+			String engineType = String.valueOf(SecurityEngineUtils.getEngineType(engineId)).toLowerCase();
+			NotificationDbUtils.createNotification(user, null, null, engineId, NotificationConstants.Type.SMSS_UPDATE,
+					engineType, NotificationConstants.Priority.MEDIUM, null, null);
+
+			// Adding email notification
+			EmailUtility.sendSmssUpdateEmailNotification(user, engineId, EmailUtility.RESOURCE_TYPE.ENGINE);
+		}
 
 		Map<String, Object> success = new HashMap<>();
 		success.put("success", true);
