@@ -213,8 +213,8 @@ public class UserSessionLoader implements HttpSessionListener {
 
 		// if cloud sync enabled, push and clear the rooms
 		if (ClusterUtil.IS_CLUSTER) {
-			if (thisUser != null && thisUser.roomHash != null) {
-				Map<String, Object> roomHash = thisUser.roomHash;
+			if (thisUser != null && thisUser.getRoomHash() != null) {
+				Map<String, Object> roomHash = thisUser.getRoomHash();
 				for (Map.Entry<String, Object> entry : roomHash.entrySet()) {
 					String roomId = entry.getKey();
 					Object roomObj = entry.getValue();

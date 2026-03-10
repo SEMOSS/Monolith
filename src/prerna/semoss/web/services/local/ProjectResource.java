@@ -86,6 +86,7 @@ import prerna.engine.impl.CaseInsensitiveProperties;
 import prerna.engine.impl.SmssUtilities;
 import prerna.io.connector.couch.CouchException;
 import prerna.io.connector.couch.CouchUtil;
+import prerna.notifications.NotificationDbUtils;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.ThreadStore;
@@ -97,7 +98,9 @@ import prerna.sablecc2.om.NounStore;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.util.AssetUtility;
 import prerna.util.Constants;
+import prerna.util.EmailUtility;
 import prerna.util.EngineUtility;
+import prerna.util.NotificationConstants;
 import prerna.util.Utility;
 import prerna.util.insight.TextToGraphic;
 import prerna.web.requests.OverrideParametersServletRequest;
@@ -252,6 +255,14 @@ public class ProjectResource {
 
 		// push to cloud
 		ClusterUtil.pushProjectSmss(projectId);
+		if (Utility.isNotificationDatabaseEnabled()) {
+			// Adding notification
+			NotificationDbUtils.createNotification(user, null, null, projectId, NotificationConstants.Type.SMSS_UPDATE,
+					NotificationConstants.APP_CATALOG, NotificationConstants.Priority.MEDIUM, null, null);
+
+			// Adding email notification
+			EmailUtility.sendSmssUpdateEmailNotification(user, projectId, EmailUtility.RESOURCE_TYPE.PROJECT);
+		}
 
 		Map<String, Object> success = new HashMap<>();
 		success.put("success", true);
