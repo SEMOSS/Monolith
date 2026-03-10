@@ -320,6 +320,7 @@ public class DatabaseAuthorizationResource {
 		}
 
 		String existingUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
+		String existingUserType = WebUtility.inputSQLSanitizer(form.getFirst("type"));
 		String appId = WebUtility.inputSanitizer(form.getFirst("appId"));
 		String newPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
 
@@ -331,7 +332,7 @@ public class DatabaseAuthorizationResource {
 		}
 
 		try {
-			SecurityEngineUtils.editEngineUserPermission(user, existingUserId, appId, newPermission, null, null, null,
+			SecurityEngineUtils.editEngineUserPermission(user, existingUserId, existingUserType, appId, newPermission, null, null, null,
 					0, 0.0);
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to edit user " + existingUserId + " permissions for database " + appId

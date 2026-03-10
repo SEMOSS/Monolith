@@ -217,6 +217,8 @@ public class DBLoader implements ServletContextListener {
 					.getEngineProperty(Constants.SCHEDULER_DB);
 			IDatabaseEngine userTracking = (IDatabaseEngine) DIHelper.getInstance()
 					.getEngineProperty(Constants.USER_TRACKING_DB);
+			IDatabaseEngine notificationDb = (IDatabaseEngine) DIHelper.getInstance()
+					.getEngineProperty(Constants.NOTIFICATION_DB);
 			boolean startupFailed = false;
 
 			// Check localmaster
@@ -287,6 +289,23 @@ public class DBLoader implements ServletContextListener {
 				}
 			} else {
 				classLogger.info("STARTUP CHECK SKIPPED: auditDb (AUDIT_LOGS_DATABASE_ENABLED=false)");
+			}
+
+			// Check notificationDb (conditional)
+			if (Utility.isNotificationDatabaseEnabled()) {
+				if (notificationDb == null) {
+					classLogger
+							.error("STARTUP CHECK FAILED: notificationDb is NULL (NOTIFICATION_DATABASE_ENABLED=true)");
+					startupFailed = true;
+				} else if (!notificationDb.isConnected()) {
+					classLogger.error(
+							"STARTUP CHECK FAILED: notificationDb is NOT CONNECTED (NOTIFICATION_DATABASE_ENABLED=true)");
+					startupFailed = true;
+				} else {
+					classLogger.info("STARTUP CHECK PASSED: notificationDb is connected");
+				}
+			} else {
+				classLogger.info("STARTUP CHECK SKIPPED: notificationDb (NOTIFICATION_DATABASE_ENABLED=false)");
 			}
 
 			if (startupFailed) {
