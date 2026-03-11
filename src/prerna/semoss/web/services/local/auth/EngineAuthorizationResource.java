@@ -548,6 +548,7 @@ public class EngineAuthorizationResource {
 
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		String existingUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
+		String existingUserType = WebUtility.inputSQLSanitizer(form.getFirst("type"));
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess(engineId) && !SecurityAdminUtils.userIsAdmin(user)) {
 			classLogger.warn("User is trying to edit user " + existingUserId + " permissions for engine " + engineId
 					+ " but is not an admin");
@@ -590,7 +591,7 @@ public class EngineAuthorizationResource {
 		}
 
 		try {
-			SecurityEngineUtils.editEngineUserPermission(user, existingUserId, engineId, newPermission, endDate,
+			SecurityEngineUtils.editEngineUserPermission(user, existingUserId, existingUserType, engineId, newPermission, endDate,
 					usageRestriction, usageFrequency, maxTokens, maxResponseTime);
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to edit user " + existingUserId + " permissions for engine " + engineId
