@@ -737,9 +737,9 @@ public final class WebUtility {
 	 * @return port number
 	 */
 	public static int getLocalPort(HttpServletRequest request) {
-		// request.getServerPort() returns the actual port this container is listening
+		// request.getLocalPort() returns the actual port this container is listening
 		// on
-		int serverPort = request.getServerPort();
+		int serverPort = request.getLocalPort();
 		if (serverPort > 0) {
 			return serverPort;
 		}
