@@ -75,10 +75,10 @@ public class GroupInsightAuthorizationResource {
 			@QueryParam("groupId") String groupId, @QueryParam("type") String type,
 			@QueryParam("projectId") String projectId, @QueryParam("insightId") String insightId) {
 
-		projectId = WebUtility.inputSanitizer(projectId);
-		type = WebUtility.inputSanitizer(type);
-		insightId = WebUtility.inputSanitizer(insightId);
-		groupId = WebUtility.inputSanitizer(groupId);
+		projectId = WebUtility.inputSQLSanitizer(projectId);
+		type = WebUtility.inputSQLSanitizer(type);
+		insightId = WebUtility.inputSQLSanitizer(insightId);
+		groupId = WebUtility.inputSQLSanitizer(groupId);
 
 		Map<String, String> errorMap = new HashMap<String, String>();
 		User user = null;
@@ -148,11 +148,11 @@ public class GroupInsightAuthorizationResource {
 		}
 
 		String groupId = WebUtility.inputSQLSanitizer(form.getFirst("groupId"));
-		String type = WebUtility.inputSanitizer(form.getFirst("type"));
-		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
-		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
-		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
-		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
+		String type = WebUtility.inputSQLSanitizer(form.getFirst("type"));
+		String projectId = WebUtility.inputSQLSanitizer(form.getFirst("projectId"));
+		String insightId = WebUtility.inputSQLSanitizer(form.getFirst("insightId"));
+		String permission = WebUtility.inputSQLSanitizer(form.getFirst("permission"));
+		String endDate = WebUtility.inputSQLSanitizer(form.getFirst("endDate"));
 
 		try {
 			if (groupId == null || (groupId = groupId.trim()).isEmpty()) {
@@ -220,11 +220,11 @@ public class GroupInsightAuthorizationResource {
 		}
 
 		String groupId = WebUtility.inputSQLSanitizer(form.getFirst("groupId"));
-		String type = WebUtility.inputSanitizer(form.getFirst("type"));
-		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
-		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
-		String newPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
-		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
+		String type = WebUtility.inputSQLSanitizer(form.getFirst("type"));
+		String projectId = WebUtility.inputSQLSanitizer(form.getFirst("projectId"));
+		String insightId = WebUtility.inputSQLSanitizer(form.getFirst("insightId"));
+		String newPermission = WebUtility.inputSQLSanitizer(form.getFirst("permission"));
+		String endDate = WebUtility.inputSQLSanitizer(form.getFirst("endDate"));
 		try {
 			if (groupId == null || (groupId = groupId.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The group id cannot be null or empty");
@@ -290,9 +290,9 @@ public class GroupInsightAuthorizationResource {
 		}
 
 		String groupId = WebUtility.inputSQLSanitizer(form.getFirst("groupId"));
-		String type = WebUtility.inputSanitizer(form.getFirst("type"));
-		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
-		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
+		String type = WebUtility.inputSQLSanitizer(form.getFirst("type"));
+		String projectId = WebUtility.inputSQLSanitizer(form.getFirst("projectId"));
+		String insightId = WebUtility.inputSQLSanitizer(form.getFirst("insightId"));
 		try {
 			if (groupId == null || (groupId = groupId.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The group id cannot be null or empty");
