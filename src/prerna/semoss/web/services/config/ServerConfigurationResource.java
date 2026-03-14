@@ -283,6 +283,8 @@ public class ServerConfigurationResource {
 		myConfiguration.put("projectMetaKeys", SecurityProjectUtils.getMetakeyOptions(null));
 		myConfiguration.put("insightMetaKeys", SecurityInsightUtils.getMetakeyOptions(null));
 		myConfiguration.put("userMetaKeys", SecurityUserUtils.getMetakeyOptions(null));
+		myConfiguration.put("notificationEnabled", Utility.isNotificationDatabaseEnabled());
+		myConfiguration.put("auditLogEnabled", Utility.isAuditLogsDatabaseEnabled());
 		// current date
 		myConfiguration.put("systemDate", new SemossDate(Utility.getCurrentZonedDateTimeUTC()));
 		// do not keep this session
