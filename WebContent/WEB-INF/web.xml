@@ -6,16 +6,28 @@
    </welcome-file-list>
 
    <error-page>
+     <error-code>400</error-code>
+     <location>/error/json</location>
+   </error-page>
+   <error-page>
+     <error-code>401</error-code>
+     <location>/error/json</location>
+   </error-page>
+   <error-page>
+     <error-code>403</error-code>
+     <location>/error/json</location>
+   </error-page>
+   <error-page>
      <error-code>404</error-code>
-     <location>/error/404error.html</location>
+     <location>/error/json</location>
    </error-page>
    <error-page>
       <error-code>500</error-code>
-      <location>/error/error.html</location>
+      <location>/error/json</location>
    </error-page>
    <error-page>
       <exception-type>java.lang.Throwable</exception-type>
-      <location>/error/error.html</location>
+      <location>/error/json</location>
    </error-page>
 
    <!-- From Tomcat -->
@@ -668,6 +680,15 @@
    <servlet-mapping>
       <servlet-name>AdminApplication</servlet-name>
       <url-pattern>/adminconfig/*</url-pattern>
+   </servlet-mapping>
+   <!-- JSON Error Handler Servlet -->
+   <servlet>
+      <servlet-name>JsonErrorServlet</servlet-name>
+      <servlet-class>prerna.web.conf.JsonErrorServlet</servlet-class>
+   </servlet>
+   <servlet-mapping>
+      <servlet-name>JsonErrorServlet</servlet-name>
+      <url-pattern>/error/json</url-pattern>
    </servlet-mapping>
 
    <!-- context params -->
