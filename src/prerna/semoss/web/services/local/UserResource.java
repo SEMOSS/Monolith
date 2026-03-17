@@ -34,6 +34,9 @@ import java.net.URLEncoder;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.security.Principal;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
@@ -64,6 +67,7 @@ import javax.ws.rs.core.Response;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.json.JSONArray;
 import org.owasp.encoder.Encode;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -85,9 +89,12 @@ import prerna.auth.utils.SecurityNativeUserUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
 import prerna.auth.utils.SecurityUserUtils;
 import prerna.cluster.util.ClusterUtil;
+import prerna.engine.api.IRDBMSEngine;
+import prerna.engine.impl.rdbms.RDBMSNativeEngine;
 import prerna.io.connector.GenericTokenFiller;
 import prerna.io.connector.github.GithubTokenFiller;
 import prerna.io.connector.google.GoogleTokenFiller;
+import prerna.io.connector.jira.JiraTokenFiller;
 import prerna.io.connector.ms.MicrosoftTokenFiller;
 import prerna.io.connector.okta.OktaTokenFiller;
 import prerna.io.connector.surveymonkey.MonkeyProfile;
@@ -727,6 +734,70 @@ public class UserResource {
 			ret.put(Constants.ERROR_MESSAGE, "Log into your Okta account");
 			return WebUtility.getResponse(ret, 200);
 		}
+	}
+
+	/**
+	 * Gets user info for Jira
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("/userinfo/jira")
+	public Response userinfoJira(@Context HttpServletRequest request) {
+		Map<String, String> ret = new HashMap<>();
+		HttpSession session = request.getSession(false);
+		User semossUser = null;
+		if (session != null) {
+			semossUser = (User) session.getAttribute(Constants.SESSION_USER);
+		}
+
+		if (semossUser == null) {
+			List<NewCookie> newCookies = new ArrayList<>();
+			// not authenticated
+			// remove any cookies we shouldn't have
+			WebUtility.expireSessionCookies(request, newCookies);
+
+			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
+				session.invalidate();
+			}
+
+			ret.put(Constants.ERROR_MESSAGE, "Log into your Jira account");
+			return WebUtility.getResponseNoCache(ret, 200, newCookies.toArray(new NewCookie[] {}));
+		}
+
+		// Prefer login token; fall back to resource (connection) token
+		AccessToken jiraToken = semossUser.getAccessToken(AuthProvider.JIRA);
+		if (jiraToken == null) {
+			jiraToken = semossUser.getResourceAccessToken(AuthProvider.JIRA);
+		}
+
+		if (jiraToken == null) {
+			ret.put(Constants.ERROR_MESSAGE, "Log into your Jira account");
+			return WebUtility.getResponse(ret, 200);
+		}
+
+		try {
+			String accessString = jiraToken.getAccess_token();
+			String url = "https://api.atlassian.com/me";
+			String output = HttpHelperUtility.makeGetCall(url, accessString, null, true);
+			String[] beanProps = { "name", "profile", "email" };
+			String jsonPattern = "[displayName, picture, email]";
+			AccessToken filledToken = (AccessToken) BeanFiller.fillFromJson(output, jsonPattern, beanProps,
+					new AccessToken());
+			if (filledToken.getName() != null) {
+				ret.put("name", filledToken.getName());
+			}
+			if (filledToken.getProfile() != null) {
+				ret.put("picture", filledToken.getProfile());
+			}
+			if (filledToken.getEmail() != null) {
+				ret.put("email", filledToken.getEmail());
+			}
+		} catch (Exception e) {
+			classLogger.error(Constants.STACKTRACE, e);
+			ret.put(Constants.ERROR_MESSAGE, "Log into your Jira account");
+		}
+
+		return WebUtility.getResponse(ret, 200);
 	}
 
 	/**
@@ -2055,6 +2126,194 @@ public class UserResource {
 			classLogger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 		}
 		return redirectUrl;
+	}
+	
+	
+	@GET
+	@Produces("application/json")
+	@Path("/login/jira")
+	public Response loginJira(@Context HttpServletRequest request, @Context HttpServletResponse response)
+			throws IOException {
+		// Check connect allowed - login not supported for jira, only connection for resource access
+		boolean connectAllowed = socialData.getConnectionsAllowed().get("jira") != null
+				&& socialData.getConnectionsAllowed().get("jira");
+		// Login not supported for Jira, return error if connection is not allowed
+		if (!connectAllowed) {
+			Map<String, Object> ret = new HashMap<>();
+			ret.put(Constants.ERROR_MESSAGE, "Jira connection is not allowed");
+			return WebUtility.getResponse(ret, 400);
+		}
+		// Get session and user
+		HttpSession session = request.getSession(false);
+		User userObj = null;
+		if (session != null) {
+			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		}
+		// Handle custom redirect
+		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
+		if (customRedirect != null && !customRedirect.isEmpty()) {
+			if (session == null) {
+				session = request.getSession();
+			}
+			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
+		}
+		// Connection requires an already-logged-in user
+		if (connectAllowed && (userObj == null || userObj.getLogins().isEmpty())) {
+			Map<String, Object> ret = new HashMap<>();
+			ret.put(Constants.ERROR_MESSAGE, "User must be logged in to connect to Jira account");
+			return WebUtility.getResponse(ret, 401);
+		}
+		// Check completion status of connection operation
+		boolean connectComplete = (userObj != null && userObj.getResourceAccessToken(AuthProvider.JIRA) != null);
+		boolean needsConnect = connectAllowed && !connectComplete;
+
+		// Process OAuth callback if code is present
+		String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
+		if (queryString != null && queryString.contains("code")) {
+			if (needsConnect) {
+				String[] outputs = HttpHelperUtility.getCodes(queryString);
+				String code = URLDecoder.decode(outputs[0]);
+
+				if (code.matches("[ -~]+")) {
+					String clientId = null;
+					String clientSecret = null;
+					String redirectUri = "http://localhost:9090/Monolith/api/auth/login/jira";
+					String userInfoUrl = null;
+					String uuid = request.getParameter("state");
+					boolean autoAdd = true;
+
+					IRDBMSEngine jiraDB = (RDBMSNativeEngine) Utility.getDatabase(Constants.SECURITY_DB);
+					String query = "SELECT CLIENTID, CLIENTSECRET, USERPROFILEURL FROM JIRA_CONNECTIONS WHERE ID = ?";
+					try (Connection conn = jiraDB.getConnection();
+							PreparedStatement pstmt = conn.prepareStatement(query)) {
+						pstmt.setString(1, uuid);
+						try (ResultSet rs = pstmt.executeQuery()) {
+							if (rs.next()) {
+								clientId = rs.getString("CLIENTID");
+								clientSecret = rs.getString("CLIENTSECRET");
+								userInfoUrl = rs.getString("USERPROFILEURL");
+							}
+						}
+					} catch (Exception e) {
+						classLogger.error("Error loading Jira credentials by UUID ", e);
+						throw new SemossPixelException("Error loading Jira credentials by UUID");
+					}
+
+					if (clientId == null || clientSecret == null) {
+						response.setStatus(400);
+						response.getWriter().write("Jira credentials not found for uuid = " + uuid);
+						return null;
+					}
+
+					if (classLogger.isDebugEnabled()) {
+						classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
+					}
+
+					Map<String, String> params = new HashMap<>();
+					params.put("client_id", clientId);
+					params.put("client_secret", clientSecret);
+					params.put("redirect_uri", redirectUri);
+					params.put("code", code);
+					params.put("grant_type", "authorization_code");
+
+					String tokenUrl = "https://auth.atlassian.com/oauth/token";
+
+					AccessToken accessToken = HttpHelperUtility.getAccessToken(tokenUrl, params, true, true);
+					if (accessToken == null) {
+						classLogger.error("Failed to obtain access token from Jira");
+						response.setStatus(302);
+						response.sendRedirect(getJiraRedirect(request, response));
+						return null;
+					}
+					accessToken.setProvider(AuthProvider.JIRA);
+					JiraTokenFiller profiler = new JiraTokenFiller();
+					profiler.fillAccessToken(accessToken, userInfoUrl, null, null, null);
+					
+					String cloudId = fetchJiraCloudId(accessToken.getAccess_token());
+					if (cloudId != null) {
+						accessToken.setId(cloudId);
+					}
+
+					// Add to resource if allowed connection is allowed and needed
+					if (connectAllowed) {
+						addResourceAccessToken(accessToken, request);
+						needsConnect = false;
+						classLogger.info("User connected Jira account for resource access");
+					}
+
+					if (classLogger.isDebugEnabled()) {
+						classLogger.debug("Successfully processed Jira OAuth token");
+					}
+				}
+			}
+		}
+
+		// Refresh user from session
+		if (session != null || (session = request.getSession(false)) != null) {
+			userObj = (User) session.getAttribute(Constants.SESSION_USER);
+		}
+
+		if (needsConnect) {
+			response.setStatus(302);
+			response.sendRedirect(getJiraRedirect(request, response));
+			return null;
+		}
+
+		setMainPageRedirect(request, response);
+		return null;
+	}
+
+	private String getJiraRedirect(HttpServletRequest request, HttpServletResponse response)
+			throws UnsupportedEncodingException, IOException {
+		String clientId = null;
+		String scope = null;
+		String redirectUri = "http://localhost:9090/Monolith/api/auth/login/jira";
+		String uuid = request.getParameter("state");
+
+		if (uuid == null || uuid.isEmpty()) {
+			response.setStatus(400);
+			response.getWriter().write("Missing required parameter: state");
+			return null;
+		}
+
+		IRDBMSEngine jiraDB = (RDBMSNativeEngine) Utility.getDatabase(Constants.SECURITY_DB);
+		String query = "SELECT CLIENTID, SCOPE FROM JIRA_CONNECTIONS WHERE ID = ?";
+		try (Connection conn = jiraDB.getConnection(); PreparedStatement pstmt = conn.prepareStatement(query)) {
+			pstmt.setString(1, uuid);
+			try (ResultSet rs = pstmt.executeQuery()) {
+				if (rs.next()) {
+					clientId = rs.getString("CLIENTID");
+					scope = rs.getString("SCOPE");
+				}
+			}
+		} catch (Exception e) {
+			classLogger.error("Error loading Jira credentials by UUID ", e);
+			throw new SemossPixelException("Error loading Jira credentials by UUID");
+		}
+		String redirectUrl = "https://auth.atlassian.com/authorize" + "?audience=api.atlassian.com" + "&client_id="
+				+ URLEncoder.encode(clientId, "UTF-8") + "&scope=" + URLEncoder.encode(scope, "UTF-8")
+				+ "&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8") + "&state="
+				+ URLEncoder.encode(uuid, "UTF-8") + "&response_type=code" + "&prompt=consent";
+
+		if (classLogger.isDebugEnabled()) {
+			classLogger.debug("Sending Jira redirect.. " + Utility.cleanLogString(redirectUrl));
+		}
+		return redirectUrl;
+	}
+
+	private String fetchJiraCloudId(String bearerToken) {
+		try {
+			String url = "https://api.atlassian.com/oauth/token/accessible-resources";
+			Map<String, Object> params = new HashMap<>();
+			String output = HttpHelperUtility.makeGetCall(url, bearerToken, params, true);
+			JSONArray resources = new JSONArray(output);
+			if (resources.length() > 0) {
+				return resources.getJSONObject(0).getString("id");
+			}
+		} catch (Exception e) {
+			classLogger.error("Failed to fetch Jira accessible resources (cloudId)", e);
+		}
+		return null;
 	}
 
 //	/**
