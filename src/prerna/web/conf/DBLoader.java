@@ -52,7 +52,6 @@ import prerna.engine.api.IDatabaseEngine;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.IEngine.CATALOG_TYPE;
 import prerna.engine.impl.r.RserveUtil;
-import prerna.forms.AbstractFormBuilder;
 import prerna.logging.SemossLogUtils;
 import prerna.masterdatabase.utility.MasterDatabaseUtility;
 import prerna.om.Insight;
@@ -64,6 +63,7 @@ import prerna.util.AbstractFileWatcher;
 import prerna.util.ChromeDriverUtility;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
+import prerna.util.SystemEngineRegistry;
 import prerna.util.Utility;
 import prerna.util.insight.InsightUtility;
 
@@ -207,37 +207,18 @@ public class DBLoader implements ServletContextListener {
 		// if there was an issue starting up the server
 		// we should do it here so that we can redirect the user
 		{
-			IDatabaseEngine localmaster = (IDatabaseEngine) DIHelper.getInstance()
-					.getEngineProperty(Constants.LOCAL_MASTER_DB);
-			IDatabaseEngine security = (IDatabaseEngine) DIHelper.getInstance()
-					.getEngineProperty(Constants.SECURITY_DB);
-			IDatabaseEngine auditDb = (IDatabaseEngine) DIHelper.getInstance()
-					.getEngineProperty(Constants.AUDIT_LOGS_DB);
-			IDatabaseEngine scheduler = (IDatabaseEngine) DIHelper.getInstance()
-					.getEngineProperty(Constants.SCHEDULER_DB);
-			IDatabaseEngine userTracking = (IDatabaseEngine) DIHelper.getInstance()
-					.getEngineProperty(Constants.USER_TRACKING_DB);
-			IDatabaseEngine notificationDb = (IDatabaseEngine) DIHelper.getInstance()
-					.getEngineProperty(Constants.NOTIFICATION_DB);
 			boolean startupFailed = false;
-
 			// Check localmaster
-			if (localmaster == null) {
-				classLogger.error("STARTUP CHECK FAILED: localmaster is NULL");
-				startupFailed = true;
-			} else if (!localmaster.isConnected()) {
-				classLogger.error("STARTUP CHECK FAILED: localmaster is NOT CONNECTED");
+			if (!SystemEngineRegistry.isLocalMasterDbLoaded()) {
+				classLogger.error("STARTUP CHECK FAILED: localmaster is not loaded");
 				startupFailed = true;
 			} else {
 				classLogger.info("STARTUP CHECK PASSED: localmaster is connected");
 			}
 
 			// Check security
-			if (security == null) {
-				classLogger.error("STARTUP CHECK FAILED: security is NULL");
-				startupFailed = true;
-			} else if (!security.isConnected()) {
-				classLogger.error("STARTUP CHECK FAILED: security is NOT CONNECTED");
+			if (!SystemEngineRegistry.isSecurityDbLoaded()) {
+				classLogger.error("STARTUP CHECK FAILED: security is not loaded");
 				startupFailed = true;
 			} else {
 				classLogger.info("STARTUP CHECK PASSED: security is connected");
@@ -245,12 +226,8 @@ public class DBLoader implements ServletContextListener {
 
 			// Check scheduler (conditional)
 			if (!Utility.schedulerForceDisable()) {
-				if (scheduler == null) {
-					classLogger.error("STARTUP CHECK FAILED: scheduler is NULL (SCHEDULER_FORCE_DISABLE=false)");
-					startupFailed = true;
-				} else if (!scheduler.isConnected()) {
-					classLogger
-							.error("STARTUP CHECK FAILED: scheduler is NOT CONNECTED (SCHEDULER_FORCE_DISABLE=false)");
+				if (!SystemEngineRegistry.isSchedulerDbLoaded()) {
+					classLogger.error("STARTUP CHECK FAILED: scheduler is not loaded (SCHEDULER_FORCE_DISABLE=false)");
 					startupFailed = true;
 				} else {
 					classLogger.info("STARTUP CHECK PASSED: scheduler is connected");
@@ -261,12 +238,8 @@ public class DBLoader implements ServletContextListener {
 
 			// Check userTracking (conditional)
 			if (Utility.isUserTrackingEnabled()) {
-				if (userTracking == null) {
-					classLogger.error("STARTUP CHECK FAILED: userTracking is NULL (USER_TRACKING_ENABLED=true)");
-					startupFailed = true;
-				} else if (!userTracking.isConnected()) {
-					classLogger
-							.error("STARTUP CHECK FAILED: userTracking is NOT CONNECTED (USER_TRACKING_ENABLED=true)");
+				if (!SystemEngineRegistry.isUserTrackingDbLoaded()) {
+					classLogger.error("STARTUP CHECK FAILED: userTracking is not loaded (USER_TRACKING_ENABLED=true)");
 					startupFailed = true;
 				} else {
 					classLogger.info("STARTUP CHECK PASSED: userTracking is connected");
@@ -277,12 +250,8 @@ public class DBLoader implements ServletContextListener {
 
 			// Check auditDb (conditional)
 			if (Utility.isAuditLogsDatabaseEnabled()) {
-				if (auditDb == null) {
-					classLogger.error("STARTUP CHECK FAILED: auditDb is NULL (AUDIT_LOGS_DATABASE_ENABLED=true)");
-					startupFailed = true;
-				} else if (!auditDb.isConnected()) {
-					classLogger
-							.error("STARTUP CHECK FAILED: auditDb is NOT CONNECTED (AUDIT_LOGS_DATABASE_ENABLED=true)");
+				if (!SystemEngineRegistry.isAuditLogsDbLoaded()) {
+					classLogger.error("STARTUP CHECK FAILED: auditDb is not loaded (AUDIT_LOGS_DATABASE_ENABLED=true)");
 					startupFailed = true;
 				} else {
 					classLogger.info("STARTUP CHECK PASSED: auditDb is connected");
@@ -291,15 +260,24 @@ public class DBLoader implements ServletContextListener {
 				classLogger.info("STARTUP CHECK SKIPPED: auditDb (AUDIT_LOGS_DATABASE_ENABLED=false)");
 			}
 
+			// Check auditDb (conditional)
+			if (Utility.isModelInferenceLogsEnabled()) {
+				if (!SystemEngineRegistry.isModelInferenceLogsDbLoaded()) {
+					classLogger.error(
+							"STARTUP CHECK FAILED: modelInferenceLogsDb is not loaded (MODEL_INFERENCE_LOGS_ENABLED=true)");
+					startupFailed = true;
+				} else {
+					classLogger.info("STARTUP CHECK PASSED: modelInferenceLogsDb is connected");
+				}
+			} else {
+				classLogger.info("STARTUP CHECK SKIPPED: modelInferenceLogsDb (MODEL_INFERENCE_LOGS_ENABLED=false)");
+			}
+
 			// Check notificationDb (conditional)
 			if (Utility.isNotificationDatabaseEnabled()) {
-				if (notificationDb == null) {
-					classLogger
-							.error("STARTUP CHECK FAILED: notificationDb is NULL (NOTIFICATION_DATABASE_ENABLED=true)");
-					startupFailed = true;
-				} else if (!notificationDb.isConnected()) {
+				if (!SystemEngineRegistry.isNotificationDbLoaded()) {
 					classLogger.error(
-							"STARTUP CHECK FAILED: notificationDb is NOT CONNECTED (NOTIFICATION_DATABASE_ENABLED=true)");
+							"STARTUP CHECK FAILED: notificationDb is not loaded (NOTIFICATION_DATABASE_ENABLED=true)");
 					startupFailed = true;
 				} else {
 					classLogger.info("STARTUP CHECK PASSED: notificationDb is connected");
@@ -318,7 +296,7 @@ public class DBLoader implements ServletContextListener {
 			classLogger.info("STARTUP SUCCESS - All required components are connected");
 
 			// Load and run triggerOnLoad jobs
-			if (!Utility.schedulerForceDisable() && scheduler != null) {
+			if (!Utility.schedulerForceDisable() && SystemEngineRegistry.isSchedulerDbLoaded()) {
 				try {
 					SchedulerDatabaseUtility.executeAllTriggerOnLoads();
 				} catch (Exception e) {
@@ -420,20 +398,18 @@ public class DBLoader implements ServletContextListener {
 			}
 		}
 
-		String[] autoLoadedDbs = new String[] { AbstractFormBuilder.FORM_BUILDER_ENGINE_NAME, Constants.SECURITY_DB,
-				Constants.USER_TRACKING_DB, Constants.LOCAL_MASTER_DB, };
-
-		for (String db : autoLoadedDbs) {
-			IDatabaseEngine engine = Utility.getDatabase(db, false);
+		IDatabaseEngine[] autoLoadedDbs = new IDatabaseEngine[] { SystemEngineRegistry.getSecurityDb(),
+				SystemEngineRegistry.getLocalMasterDb(), SystemEngineRegistry.getLocalMasterDb() };
+		for (IDatabaseEngine engine : autoLoadedDbs) {
 			if (engine != null) {
-				classLogger.log(SHUTDOWN, "Closing database " + db);
+				classLogger.log(SHUTDOWN, "Closing database " + engine.getEngineId());
 				try {
 					engine.close();
 				} catch (IOException e) {
 					classLogger.error(Constants.STACKTRACE, e);
 				}
 			} else {
-				classLogger.log(SHUTDOWN, "Couldn't find database " + db);
+				classLogger.log(SHUTDOWN, "Couldn't find database " + engine.getEngineId());
 			}
 		}
 
