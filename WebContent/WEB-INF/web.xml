@@ -596,6 +596,15 @@
    -->
    
    <!-- servlets -->
+   <!-- JSON Error Handler Servlet -->
+   <servlet>
+      <servlet-name>JsonErrorServlet</servlet-name>
+      <servlet-class>prerna.web.conf.JsonErrorServlet</servlet-class>
+   </servlet>
+   <servlet-mapping>
+      <servlet-name>JsonErrorServlet</servlet-name>
+      <url-pattern>/error/json</url-pattern>
+   </servlet-mapping>
    <!-- Servlet For SEMOSS UI - SEMOSS BE communication -->
    <servlet>
       <servlet-name>MainApplication</servlet-name>
@@ -680,15 +689,6 @@
    <servlet-mapping>
       <servlet-name>AdminApplication</servlet-name>
       <url-pattern>/adminconfig/*</url-pattern>
-   </servlet-mapping>
-   <!-- JSON Error Handler Servlet -->
-   <servlet>
-      <servlet-name>JsonErrorServlet</servlet-name>
-      <servlet-class>prerna.web.conf.JsonErrorServlet</servlet-class>
-   </servlet>
-   <servlet-mapping>
-      <servlet-name>JsonErrorServlet</servlet-name>
-      <url-pattern>/error/json</url-pattern>
    </servlet-mapping>
 
    <!-- context params -->
