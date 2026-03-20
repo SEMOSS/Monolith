@@ -212,25 +212,42 @@ public class MCPResource {
 	/**
 	 * Remove a key from the mcpThread cache
 	 * 
-	 * @param authorization
+	 * @param key
 	 */
-	public static void clearInsight(String authorization) {
-		if (authorization != null) {
-			Insight removedInsight = INSIGHT_MAP.remove(authorization);
+	public static void clearInsight(String key) {
+		if (key != null) {
+			Insight removedInsight = INSIGHT_MAP.remove(key);
 			if (removedInsight != null) {
-				classLogger.info("Removed cached insight from MCP thread for auth key");
+				classLogger.info("Removed cached insight from MCP thread");
 			}
 		}
 	}
 
 	/**
-	 * 
+	 *
 	 * @param session
 	 * @param authorization
 	 * @return
 	 */
 	private Insight getInsight(HttpSession session, String authorization) {
-		return INSIGHT_MAP.computeIfAbsent(authorization, key -> initSession(session));
+		Insight insight;
+		if (authorization != null) {
+			insight = INSIGHT_MAP.computeIfAbsent(authorization, key -> initSession(session));
+			// re-initialize if the insight was evicted/cleaned up from the store
+			if (InsightStore.getInstance().get(insight.getInsightId()) == null) {
+				insight = initSession(session);
+				INSIGHT_MAP.put(authorization, insight);
+			}
+		} else {
+			// no authorization key - fall back to session-id
+			insight = INSIGHT_MAP.computeIfAbsent(session.getId(), key -> initSession(session));
+			// re-initialize if the insight was evicted/cleaned up from the store
+			if (InsightStore.getInstance().get(insight.getInsightId()) == null) {
+				insight = initSession(session);
+				INSIGHT_MAP.put(authorization, insight);
+			}
+		}
+		return insight;
 	}
 
 	/**
