@@ -333,10 +333,10 @@ public class DBLoader implements ServletContextListener {
 			while (watchers.hasMoreElements()) {
 				String watcher = watchers.nextToken();
 				if (watcher != null && !(watcher = watcher.trim()).isEmpty()) {
-					String watcherClass = DIHelper.getInstance().getProperty(watcher);
-					String folder = DIHelper.getInstance().getProperty(watcher + "_DIR");
-					String ext = DIHelper.getInstance().getProperty(watcher + "_EXT");
-					String engineType = DIHelper.getInstance().getProperty(watcher + "_ETYPE");
+					String watcherClass = Utility.getDIHelperProperty(watcher);
+					String folder = Utility.getDIHelperProperty(watcher + "_DIR");
+					String ext = Utility.getDIHelperProperty(watcher + "_EXT");
+					String engineType = Utility.getDIHelperProperty(watcher + "_ETYPE");
 					AbstractFileWatcher watcherInstance = (AbstractFileWatcher) Class.forName(watcherClass)
 							.getConstructor().newInstance();
 					watcherInstance.setFolderToWatch(folder);
