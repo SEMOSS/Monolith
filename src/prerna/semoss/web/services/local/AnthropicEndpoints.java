@@ -501,12 +501,12 @@ public class AnthropicEndpoints {
 
 			List<Map<String, Object>> openAIMessages = (List<Map<String, Object>>) openAIFormat.get("messages");
 			dataMap.put(AbstractModelEngine.FULL_PROMPT, openAIMessages);
-
+			
 			if (openAIFormat.containsKey("tools")) {
 				dataMap.put("tools", openAIFormat.get("tools"));
 			}
 
-			classLogger.info("finalDataMap: {}", GSON.toJson(dataMap));
+			classLogger.debug("finalDataMap: {}", GSON.toJson(dataMap));
 
 			dataMap.put("append_full_prompt", true);
 
@@ -541,7 +541,7 @@ public class AnthropicEndpoints {
 	private Response handleStreamingRequest(IModelEngine engine, Insight finalInsight, Room finalRoom,
 			Map<String, Object> dataMap, String sessionId, String jobId, String engineId) {
 
-		classLogger.info("Starting Anthropic streaming response for engine: " + engineId);
+		classLogger.debug("Starting Anthropic streaming response for engine: " + engineId);
 
 		return Response.ok().header("Content-Type", "text/event-stream").header("Cache-Control", "no-cache")
 				.header("Connection", "keep-alive").header("X-Content-Type-Options", "nosniff")
@@ -555,6 +555,7 @@ public class AnthropicEndpoints {
 						try (Writer writer = new BufferedWriter(
 								new OutputStreamWriter(output, StandardCharsets.UTF_8))) {
 							asyncJobId = startAsyncModelRequest(engine, finalInsight, finalRoom, dataMap, sessionId);
+							classLogger.debug("Streaming job started: {}", asyncJobId);
 
 							boolean started = false;
 							int contentBlockIndex = 0;
@@ -685,6 +686,7 @@ public class AnthropicEndpoints {
 													if (argsChunk != null && !argsChunk.isEmpty()) {
 														AnthropicMessagesHelper.writeInputJsonDelta(toolIndex,
 																argsChunk, writer);
+														
 													}
 												}
 											}
@@ -813,7 +815,6 @@ public class AnthropicEndpoints {
 
 			String modelPixel = "LLM(engine='" + engine.getEngineId() + "',roomId='" + room.getId()
 					+ "',command='<encode>ignore</encode>'" + ",paramValues=[" + GSON.toJson(dataMap) + "]);";
-			classLogger.info(modelPixel);
 			jt.addPixel(modelPixel);
 			jt.start();
 			return jobId;
