@@ -42,6 +42,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.ws.rs.sse.OutboundSseEvent;
@@ -171,17 +172,22 @@ public class MCPReaper implements Runnable {
 	private void runHttp() {
 		AtomicBoolean timedOut = new AtomicBoolean(false);
 		AtomicReference<ScheduledFuture<?>> idleTimer = new AtomicReference<>();
+		AtomicLong timerGeneration = new AtomicLong(0);
 
 		Runnable resetIdleTimer = () -> {
+			long gen = timerGeneration.incrementAndGet();
 			ScheduledFuture<?> existing = idleTimer.get();
 			if (existing != null) {
 				existing.cancel(false);
 			}
 			idleTimer.set(CONNECTION_REAPER.schedule(() -> {
-				timedOut.set(true);
-				try {
-					this.is.close();
-				} catch (IOException ignored) {
+				// only act if this task is still the current generation
+				if (timerGeneration.get() == gen) {
+					timedOut.set(true);
+					try {
+						this.is.close();
+					} catch (IOException ignored) {
+					}
 				}
 			}, idleTimeoutMinutes, TimeUnit.MINUTES));
 		};
@@ -283,24 +289,20 @@ public class MCPReaper implements Runnable {
 	 * @return
 	 */
 	private Object runPixel(User user, Insight insight, String expression, String sessionId) {
-		// get the session
-		// see if the user is available
-		// get the insight from it
-		// if not make a new insight
-		// set up pixel runner and get output from it
-		// pass it back.
 		boolean dropLogging = true;
 
 		String jobId = "";
 		String insightId = WebUtility.inputSanitizer(insight.getInsightId());
 
-		// set if we are scheduler mode
-		Boolean schedulerMode = ThreadStore.isSchedulerMode();
-		if (schedulerMode != null) {
-			insight.setSchedulerMode(schedulerMode);
+		// serialize concurrent calls on the same insight — multiple parallel
+		// HTTP streaming connections from the same client share an insight instance
+		synchronized (insight) {
+			Boolean schedulerMode = ThreadStore.isSchedulerMode();
+			if (schedulerMode != null) {
+				insight.setSchedulerMode(schedulerMode);
+			}
+			return runPixelJob(user, insight, expression, jobId, insightId, sessionId, null, dropLogging);
 		}
-
-		return runPixelJob(user, insight, expression, jobId, insightId, sessionId, null, dropLogging);
 	}
 
 	/**
