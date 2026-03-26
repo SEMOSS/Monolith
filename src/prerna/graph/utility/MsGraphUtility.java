@@ -44,6 +44,7 @@ import org.json.JSONObject;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
+import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityAdminUtils;
@@ -56,6 +57,8 @@ import prerna.util.SocialPropertiesUtil;
 public class MsGraphUtility {
 
 	private static final Logger classLogger = LogManager.getLogger(MsGraphUtility.class);
+
+	private static final Gson GSON = new Gson();
 
 	private static String prefix = "nld_"; // for next link data
 	private static String projectPrefix = prefix + "p_";
@@ -109,17 +112,16 @@ public class MsGraphUtility {
 
 		try {
 			MSGraphAPICall msGraphApi = new MSGraphAPICall();
-			Gson gson = new Gson();
 
 			// Step 3: Fetch more data if nextLink is in the session, else make a fresh call
 			// to Graph API
 			if (nextLink == null || offset == 0) {
 				// Make a new API call to GraphAPI if nextLink is not in the session
-				String msUsers = msGraphApi.getUserDetails(user.getAccessToken(AuthProvider.MICROSOFT), groupId,
-						searchTerm, null);
+				String msUsers = fetchMsUsers(msGraphApi, user, groupId, searchTerm, null,
+						graphApiUsingSystemCredentials);
 				JSONObject jsonObject = new JSONObject(msUsers);
 				JSONArray jsonArray = jsonObject.getJSONArray(Constants.MS_GRAPH_VALUE);
-				msGraphUsers = gson.fromJson(jsonArray.toString(), List.class);
+				msGraphUsers = GSON.fromJson(jsonArray.toString(), List.class);
 
 				// Store new nextLink for pagination if available
 				nextLink = jsonObject.optString("@odata.nextLink", null);
@@ -128,11 +130,11 @@ public class MsGraphUtility {
 				}
 			} else {
 				// Fetch data from GraphAPI using nextLink
-				String msUsers = msGraphApi.getUserDetails(user.getAccessToken(AuthProvider.MICROSOFT), groupId,
-						searchTerm, nextLink);
+				String msUsers = fetchMsUsers(msGraphApi, user, groupId, searchTerm, nextLink,
+						graphApiUsingSystemCredentials);
 				JSONObject jsonObject = new JSONObject(msUsers);
 				JSONArray jsonArray = jsonObject.getJSONArray(Constants.MS_GRAPH_VALUE);
-				msGraphUsers = gson.fromJson(jsonArray.toString(), List.class);
+				msGraphUsers = GSON.fromJson(jsonArray.toString(), List.class);
 
 				// Update or clear nextLink based on the response
 				nextLink = jsonObject.optString("@odata.nextLink", null);
@@ -147,7 +149,7 @@ public class MsGraphUtility {
 			String jsonPattern = SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_jsonPattern");
 			final Map<String, String> mapping;
 			if (jsonPattern != null && !jsonPattern.isEmpty()) {
-				mapping = gson.fromJson(jsonPattern, new TypeToken<Map<String, String>>() {
+				mapping = GSON.fromJson(jsonPattern, new TypeToken<Map<String, String>>() {
 				}.getType());
 			} else {
 				mapping = null;
@@ -163,7 +165,6 @@ public class MsGraphUtility {
 
 							Map<String, Object> userMap = new HashMap<>();
 
-							// Use the mapping pattern if it exists, otherwise use default mapping
 							// Use the mapping pattern if it exists, otherwise use default mapping
 							if (mapping != null && !mapping.isEmpty()) {
 								mapping.forEach((userMapKey, msGraphKey) -> {
@@ -185,7 +186,8 @@ public class MsGraphUtility {
 
 				long currentCount = filteredUsers.size();
 				if (currentCount < limit && nextLink != null) {
-					List<Map<String, Object>> moreUsers = fetchMsGraphUsers(user, searchTerm, groupId, sessionData);
+					List<Map<String, Object>> moreUsers = fetchMsGraphUsers(user, searchTerm, groupId, sessionData,
+							graphApiUsingSystemCredentials);
 					filteredUsers.addAll(moreUsers);
 				}
 
@@ -203,7 +205,8 @@ public class MsGraphUtility {
 			} while (filteredUsers.size() < limit && nextLink != null);
 
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to fetch Microsoft Graph project users for projectId={} searchTerm={}", projectId,
+					searchTerm, e);
 			throw new IllegalArgumentException("An error occurred while fetching users");
 		}
 
@@ -263,17 +266,16 @@ public class MsGraphUtility {
 
 		try {
 			MSGraphAPICall msGraphApi = new MSGraphAPICall();
-			Gson gson = new Gson();
 
 			// Step 3: Fetch more data if nextLink is in the session, else make a fresh call
 			// to Graph API
 			if (nextLink == null || offset == 0) {
 				// Make a new API call to GraphAPI if nextLink is not in the session
-				String msUsers = msGraphApi.getUserDetails(user.getAccessToken(AuthProvider.MICROSOFT), groupId,
-						searchTerm, null);
+				String msUsers = fetchMsUsers(msGraphApi, user, groupId, searchTerm, null,
+						graphApiUsingSystemCredentials);
 				JSONObject jsonObject = new JSONObject(msUsers);
 				JSONArray jsonArray = jsonObject.getJSONArray(Constants.MS_GRAPH_VALUE);
-				msGraphUsers = gson.fromJson(jsonArray.toString(), List.class);
+				msGraphUsers = GSON.fromJson(jsonArray.toString(), List.class);
 
 				// Store new nextLink for pagination if available
 				nextLink = jsonObject.optString("@odata.nextLink", null);
@@ -282,11 +284,11 @@ public class MsGraphUtility {
 				}
 			} else {
 				// Fetch data from GraphAPI using nextLink
-				String msUsers = msGraphApi.getUserDetails(user.getAccessToken(AuthProvider.MICROSOFT), groupId,
-						searchTerm, nextLink);
+				String msUsers = fetchMsUsers(msGraphApi, user, groupId, searchTerm, nextLink,
+						graphApiUsingSystemCredentials);
 				JSONObject jsonObject = new JSONObject(msUsers);
 				JSONArray jsonArray = jsonObject.getJSONArray(Constants.MS_GRAPH_VALUE);
-				msGraphUsers = gson.fromJson(jsonArray.toString(), List.class);
+				msGraphUsers = GSON.fromJson(jsonArray.toString(), List.class);
 
 				// Update or clear nextLink based on the response
 				nextLink = jsonObject.optString("@odata.nextLink", null);
@@ -301,7 +303,7 @@ public class MsGraphUtility {
 			String jsonPattern = SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_jsonPattern");
 			final Map<String, String> mapping;
 			if (jsonPattern != null && !jsonPattern.isEmpty()) {
-				mapping = gson.fromJson(jsonPattern, new TypeToken<Map<String, String>>() {
+				mapping = GSON.fromJson(jsonPattern, new TypeToken<Map<String, String>>() {
 				}.getType());
 			} else {
 				mapping = null;
@@ -340,7 +342,8 @@ public class MsGraphUtility {
 				// limitCount data
 				long currentCount = filteredUsers.size();
 				if (currentCount < limit && nextLink != null) {
-					List<Map<String, Object>> moreUsers = fetchMsGraphUsers(user, searchTerm, groupId, sessionData);
+					List<Map<String, Object>> moreUsers = fetchMsGraphUsers(user, searchTerm, groupId, sessionData,
+							graphApiUsingSystemCredentials);
 					filteredUsers.addAll(moreUsers);
 				}
 				// Step 6: Return the data if the limit is reached or no more nextLink data
@@ -359,7 +362,8 @@ public class MsGraphUtility {
 			} while (filteredUsers.size() < limit && nextLink != null);
 
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to fetch Microsoft Graph engine users for engineId={} searchTerm={}", engineId,
+					searchTerm, e);
 			throw new IllegalArgumentException("An error occurred while fetching users");
 		}
 
@@ -376,26 +380,41 @@ public class MsGraphUtility {
 	 */
 	public static List<Map<String, Object>> fetchMsGraphUsers(User user, String searchTerm, String groupId,
 			Map<String, Object> sessionData) throws Exception {
+		boolean graphApiUsingSystemCredentials = Boolean.parseBoolean(
+				"" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_application_credentials"));
+		return fetchMsGraphUsers(user, searchTerm, groupId, sessionData, graphApiUsingSystemCredentials);
+	}
+
+	/**
+	 * 
+	 * @param user
+	 * @param searchTerm
+	 * @param groupId
+	 * @param sessionData
+	 * @param graphApiUsingSystemCredentials
+	 * @return
+	 * @throws Exception
+	 */
+	public static List<Map<String, Object>> fetchMsGraphUsers(User user, String searchTerm, String groupId,
+			Map<String, Object> sessionData, boolean graphApiUsingSystemCredentials) throws Exception {
 		String nextLink = (String) sessionData.get("nextLinkData");
 		List<Map<String, Object>> msGraphUsers = new ArrayList<>();
 		MSGraphAPICall msGraphApi = new MSGraphAPICall();
-		Gson gson = new Gson();
 
 		// Make API call to GraphAPI
 		String msUsers;
 		if (nextLink == null) {
 			// First call to fetch users
-			msUsers = msGraphApi.getUserDetails(user.getAccessToken(AuthProvider.MICROSOFT), groupId, searchTerm, null);
+			msUsers = fetchMsUsers(msGraphApi, user, groupId, searchTerm, null, graphApiUsingSystemCredentials);
 		} else {
 			// Subsequent call using nextLink
-			msUsers = msGraphApi.getUserDetails(user.getAccessToken(AuthProvider.MICROSOFT), groupId, searchTerm,
-					nextLink);
+			msUsers = fetchMsUsers(msGraphApi, user, groupId, searchTerm, nextLink, graphApiUsingSystemCredentials);
 		}
 
 		// Parse the response
 		JSONObject jsonObject = new JSONObject(msUsers);
 		JSONArray jsonArray = jsonObject.getJSONArray(Constants.MS_GRAPH_VALUE);
-		msGraphUsers = gson.fromJson(jsonArray.toString(), List.class);
+		msGraphUsers = GSON.fromJson(jsonArray.toString(), List.class);
 
 		// Update nextLink for pagination
 		nextLink = jsonObject.optString("@odata.nextLink", null);
@@ -406,6 +425,21 @@ public class MsGraphUtility {
 		}
 
 		return msGraphUsers;
+	}
+
+	private static String fetchMsUsers(MSGraphAPICall msGraphApi, User user, String groupId, String searchTerm,
+			String nextLink, boolean graphApiUsingSystemCredentials) throws Exception {
+		AccessToken requestedAccessToken = graphApiUsingSystemCredentials ? null
+				: user.getAccessToken(AuthProvider.MICROSOFT);
+		MSGraphAPICall.GraphApiResponse graphApiResponse = msGraphApi.getUserDetails(requestedAccessToken, groupId,
+				searchTerm, nextLink);
+
+		// Persist refreshed delegated token in the user session so subsequent calls use
+		// the latest token/refresh token pair.
+		if (!graphApiUsingSystemCredentials && graphApiResponse.getAccessToken() != null) {
+			user.setAccessToken(graphApiResponse.getAccessToken());
+		}
+		return graphApiResponse.getResponseBody();
 	}
 
 }
