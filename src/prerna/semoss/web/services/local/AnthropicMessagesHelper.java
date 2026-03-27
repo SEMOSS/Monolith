@@ -320,9 +320,14 @@ public final class AnthropicMessagesHelper {
 		return result;
 	}
 
-	/**
-	 * Process an Anthropic user message and add to OpenAI message list. Handles
-	 * text, images, and tool_result blocks.
+
+/**
+	 * Process an Anthropic user message and add to OpenAI message list.
+	 * Handles text, images, and tool_result blocks.
+	 * 
+	 * IMPORTANT: tool_result blocks MUST be added to the message list BEFORE
+	 * any text/image blocks from the same message, because the Anthropic API
+	 * requires tool_result to immediately follow the assistant's tool_use.
 	 */
 	@SuppressWarnings("unchecked")
 	private static void processUserMessage(Object content, List<Map<String, Object>> openAIMessages) {
@@ -358,6 +363,36 @@ public final class AnthropicMessagesHelper {
 			}
 		}
 
+		// ---------------------------------------------------------------
+		// 1. Process tool_result blocks FIRST.
+		//    These MUST appear immediately after the assistant's tool_use
+		//    message in the normalized output. If we emit text/image blocks
+		//    before tool results, the Anthropic API will reject the request
+		//    with: "tool_use ids were found without tool_result blocks
+		//    immediately after"
+		// ---------------------------------------------------------------
+		for (Map<String, Object> toolResultBlock : toolResultBlocks) {
+			Map<String, Object> toolMsg = new HashMap<>();
+			toolMsg.put("role", "tool");
+			toolMsg.put("tool_call_id", toolResultBlock.get("tool_use_id"));
+
+			Object toolContent = toolResultBlock.get("content");
+			String toolContentStr = extractToolResultContent(toolContent);
+
+			// If the content is empty after extraction (e.g. tool_reference
+			// blocks that we couldn't fully serialize), provide a placeholder
+			// so the downstream model doesn't receive an empty tool result.
+			if (toolContentStr == null || toolContentStr.isEmpty()) {
+				toolContentStr = "Tool executed successfully.";
+			}
+
+			toolMsg.put("content", toolContentStr);
+			openAIMessages.add(toolMsg);
+		}
+
+		// ---------------------------------------------------------------
+		// 2. Process text + image blocks as a user message (if any).
+		// ---------------------------------------------------------------
 		if (!textBlocks.isEmpty() || !imageBlocks.isEmpty()) {
 			Map<String, Object> userMsg = new HashMap<>();
 			userMsg.put("role", "user");
@@ -398,19 +433,8 @@ public final class AnthropicMessagesHelper {
 
 			openAIMessages.add(userMsg);
 		}
-
-		for (Map<String, Object> toolResultBlock : toolResultBlocks) {
-			Map<String, Object> toolMsg = new HashMap<>();
-			toolMsg.put("role", "tool");
-			toolMsg.put("tool_call_id", toolResultBlock.get("tool_use_id"));
-
-			Object toolContent = toolResultBlock.get("content");
-			String toolContentStr = extractToolResultContent(toolContent);
-			toolMsg.put("content", toolContentStr);
-
-			openAIMessages.add(toolMsg);
-		}
 	}
+
 
 	/**
 	 * Process an Anthropic assistant message and add to OpenAI message list.
@@ -501,27 +525,24 @@ public final class AnthropicMessagesHelper {
 	 */
 	@SuppressWarnings("unchecked")
 	private static String extractToolResultContent(Object toolContent) {
-		if (toolContent instanceof String) {
-			return (String) toolContent;
-		}
-
-		if (toolContent instanceof List) {
-			StringBuilder textAggregator = new StringBuilder();
-			for (Map<String, Object> innerBlock : (List<Map<String, Object>>) toolContent) {
-				String innerType = (String) innerBlock.get("type");
-				if ("text".equals(innerType)) {
-					if (textAggregator.length() > 0) {
-						textAggregator.append("\n");
-					}
-					textAggregator.append(innerBlock.get("text"));
-				}
-				// Note: Images in tool results are harder to represent in OpenAI format
-				// may need to handle these separately or skip them
-			}
-			return textAggregator.toString();
-		}
-
-		return "";
+	    if (toolContent instanceof String) {
+	        return (String) toolContent;
+	    }
+	    if (toolContent instanceof List) {
+	        StringBuilder textAggregator = new StringBuilder();
+	        for (Map<String, Object> innerBlock : (List<Map<String, Object>>) toolContent) {
+	            String innerType = (String) innerBlock.get("type");
+	            if ("text".equals(innerType)) {
+	                if (textAggregator.length() > 0) textAggregator.append("\n");
+	                textAggregator.append(innerBlock.get("text"));
+	            } else if ("tool_reference".equals(innerType)) {
+	                if (textAggregator.length() > 0) textAggregator.append("\n");
+	                textAggregator.append("Tool loaded: " + innerBlock.get("tool_name"));
+	            }
+	        }
+	        return textAggregator.toString();
+	    }
+	    return "";
 	}
 
 	/**
