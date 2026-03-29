@@ -163,7 +163,7 @@ public class AnthropicEndpoints {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
-		classLogger.info("Anthropic Messages API request: " + requestData.toString());
+//		classLogger.info("Anthropic Messages API request: " + requestData.toString());
 
 		TypeReference<Map<String, Object>> mapType = new TypeReference<Map<String, Object>>() {
 		};
@@ -216,7 +216,7 @@ public class AnthropicEndpoints {
 				}
 			}
 		}
-
+		
 		if (insightId == null) {
 			insight = new Insight();
 			InsightStore.getInstance().put(insight);
@@ -253,6 +253,18 @@ public class AnthropicEndpoints {
 
 		List<Map<String, Object>> messagesList = (List<Map<String, Object>>) messages;
 		Map<String, Object> latestMessage = messagesList.get(messagesList.size() - 1);
+		
+		SemossContextExtractor.ExtractionResult ctx = SemossContextExtractor.extractAndStripFromMessage(latestMessage);
+
+		// Use extracted IDs, falling back to what was in the request body
+		if (ctx.hasInsightId()) {
+		    insightId = ctx.getInsightId();
+		    classLogger.debug("Found insightID: {}", insightId);
+		}
+		if (ctx.hasRoomId() && roomId == null) {
+		    roomId = ctx.getRoomId();
+		    classLogger.debug("Found roomId: {}", roomId);
+		}
 
 		Object tools = dataMap.remove("tools");
 
@@ -297,7 +309,7 @@ public class AnthropicEndpoints {
 				dataMap.put("tools", openAIFormat.get("tools"));
 			}
 
-			classLogger.debug("finalDataMap: {}", GSON.toJson(dataMap));
+//			classLogger.debug("finalDataMap: {}", GSON.toJson(dataMap));
 
 			dataMap.put("append_full_prompt", true);
 
@@ -332,7 +344,7 @@ public class AnthropicEndpoints {
 	private Response handleStreamingRequest(IModelEngine engine, Insight finalInsight, Room finalRoom,
 			Map<String, Object> dataMap, String sessionId, String jobId, String engineId) {
 
-		classLogger.debug("Starting Anthropic streaming response for engine: " + engineId);
+//		classLogger.debug("Starting Anthropic streaming response for engine: " + engineId);
 
 		return Response.ok().header("Content-Type", "text/event-stream").header("Cache-Control", "no-cache")
 				.header("Connection", "keep-alive").header("X-Content-Type-Options", "nosniff")
