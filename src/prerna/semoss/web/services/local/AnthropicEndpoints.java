@@ -178,11 +178,6 @@ public class AnthropicEndpoints {
 		}
 
 		String engineId = WebUtility.inputSanitizer((String) dataMap.remove("model"));
-		if ("claude-haiku-4-5-20251001".equals(engineId)) {
-			engineId = "aa876e7e-e78e-404d-b7db-1a44236bc2a5";
-		} else if ("claude-haiku-4-5".equals(engineId)) {
-			engineId = "aa876e7e-e78e-404d-b7db-1a44236bc2a5";
-		}
 		if (engineId == null || engineId.isEmpty()) {
 			Map<String, Object> errorMap = AnthropicMessagesHelper.createErrorResponse("invalid_request_error",
 					"model is required");
@@ -240,6 +235,14 @@ public class AnthropicEndpoints {
 
 		Object systemPromptBlock = dataMap.remove("system");
 		String systemPromptString = AnthropicMessagesHelper.getSystemMessage(systemPromptBlock);
+
+		// Extract model ID from system prompt if present (injected by claude_code_client.py)
+		String systemModelId = SemossContextExtractor.extractModelId(systemPromptString);
+		if (systemModelId != null && !systemModelId.isEmpty()) {
+			engineId = systemModelId;
+			classLogger.debug("Using model ID from system prompt: {}", engineId);
+			systemPromptString = SemossContextExtractor.stripModelTag(systemPromptString);
+		}
 
 		Object messages = dataMap.remove("messages");
 		if (messages == null) {
