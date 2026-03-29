@@ -18,6 +18,10 @@ public class SemossContextExtractor {
         "\\[\\[SEMOSS_CONTEXT:(.*?)\\]\\]\\s*"
     );
 
+    private static final Pattern MODEL_PATTERN = Pattern.compile(
+        "\\[\\[SEMOSS_MODEL:(.*?)\\]\\]\\s*"
+    );
+
     private static final Pattern KV_PATTERN = Pattern.compile(
         "(\\w+)=([^,\\]]+)"
     );
@@ -135,5 +139,32 @@ public class SemossContextExtractor {
         }
 
         return new ExtractionResult(null, null);
+    }
+
+    /**
+     * Extract the model ID from a [[SEMOSS_MODEL:...]] tag in the system prompt.
+     *
+     * @param systemPrompt the full system prompt string
+     * @return the model ID, or null if no tag is present
+     */
+    public static String extractModelId(String systemPrompt) {
+        if (systemPrompt == null || systemPrompt.isEmpty()) {
+            return null;
+        }
+        Matcher matcher = MODEL_PATTERN.matcher(systemPrompt);
+        if (matcher.find()) {
+            return matcher.group(1).trim();
+        }
+        return null;
+    }
+
+    /**
+     * Strip the [[SEMOSS_MODEL:...]] tag from a string.
+     */
+    public static String stripModelTag(String text) {
+        if (text == null || text.isEmpty()) {
+            return text;
+        }
+        return MODEL_PATTERN.matcher(text).replaceAll("").trim();
     }
 }
