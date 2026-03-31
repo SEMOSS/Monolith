@@ -50,7 +50,7 @@ import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.semoss.web.services.config.AdminConfigService;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
-import prerna.util.Utility;
+import prerna.util.SystemEngineRegistry;
 import prerna.web.services.util.WebUtility;
 
 public class NoUserExistsFilter implements Filter {
@@ -133,7 +133,7 @@ public class NoUserExistsFilter implements Filter {
 	private static boolean hasUser() {
 		boolean hasUser = true;
 
-		IDatabaseEngine engine = Utility.getDatabase(Constants.SECURITY_DB);
+		IDatabaseEngine engine = SystemEngineRegistry.getSecurityDb();
 		SelectQueryStruct qs = new SelectQueryStruct();
 		qs.addSelector(new QueryColumnSelector("SMSS_USER__ID"));
 		qs.setLimit(1);

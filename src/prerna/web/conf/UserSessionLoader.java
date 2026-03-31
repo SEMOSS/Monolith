@@ -147,6 +147,8 @@ public class UserSessionLoader implements HttpSessionListener {
 				}
 			}
 		}
+		// also attempt to clear via just the sessionId
+		MCPResource.clearInsight(sessionId);
 
 		// clear temporal user values
 		if (thisUser != null) {
