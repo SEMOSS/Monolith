@@ -5,207 +5,379 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Initial Admin Setup</title>
 <style>
+:root {
+	--surface-bg: rgba(255, 255, 255, 0.96);
+	--surface-border: #d8e0eb;
+	--text-main: #131a22;
+	--text-muted: #354457;
+	--table-header-bg: #f5f9fe;
+	--table-border: #d8e0eb;
+	--field-border: #c4c4c4;
+	--primary: #0c63db;
+	--primary-hover: #064da8;
+}
+
+* {
+	box-sizing: border-box;
+}
+
+html,
+body {
+	margin: 0;
+	min-height: 100%;
+}
+
 body {
 	font-family: Arial, sans-serif;
-	margin: 40px;
-	background-color: #f8f9fa;
-}
-
-.container {
-	width: 776px;
-	margin: auto;
-	background-color: #fff;
-	border: 1px solid #ddd;
-	border-radius: 8px;
-	padding: 24px;
-	box-shadow: 0px 5px 8px 0px rgba(0, 0, 0, 0.08);
-}
-
-h2 {
-	margin-top: 0;
-}
-
-input[type="text"] {
-	width: 100%;
-	padding: 12px;
-	margin: 12px 0;
-	box-sizing: border-box;
-	font-size: 16px;
-	border: 1px solid #C4C4C4;
-	border-radius: 8px;
-}
-
-button {
-	padding: 6px 16px;
-	font-size: 14px;
-	background-color: #007bff;
-	color: white;
-	border: none;
-	border-radius: 10px;
-	cursor: pointer;
-	margin-top: 10px;
-	line-height: 24px;
-	font-weight: 500;
-}
-
-button:hover {
-	background-color: #0056b3;
-}
-
-.table-section {
-	margin-top: 40px;
-}
-
-table {
-	width: 100%;
-	border-collapse: collapse;
-	border-radius: 8px;
-	margin-top: 10px;
-	table-layout: fixed;
-}
-
-th {
-	border-bottom: 1px solid #ddd;
-	padding: 16px;
-	text-align: left;
-	font: menu;
-	font-size: 15px;
-	font-weight: 600;
-}
-
-td {
-	border-bottom: 1px solid #ddd;
-	padding: 16px;
-	text-align: left;
-	font: menu;
-	font-size: 15px;
-}
-
-thead {
-	background-color: #F5F9FE;
-	border-radius: 20px;
-}
-
-th:first-child, td:first-child {
-	border-right: 1px solid #bbb;
+	color: var(--text-main);
+	background-color: #f0f4fa;
 }
 
 .register {
-	position: absolute;
-	top: 0;
-	right: 0;
-	bottom: 0;
-	left: 0;
+	min-height: 100vh;
 	display: flex;
 	align-items: center;
+	justify-content: center;
+	padding: 24px 16px;
 	background: url(./milkyway.jpg) no-repeat center center fixed;
 	background-size: cover;
 	overflow: auto;
 }
 
+.container {
+	width: min(100%, 776px);
+	background-color: var(--surface-bg);
+	border: 1px solid var(--surface-border);
+	border-radius: 12px;
+	padding: 24px;
+	box-shadow: 0px 8px 24px rgba(0, 0, 0, 0.12);
+}
+
 .typography-h6 {
+	margin: 0;
 	font-size: 20px;
 	font-style: normal;
 	font-weight: 500;
 	letter-spacing: 0.15px;
 }
-</style>
-<script>
-			function registerAdmins() {
-				var xhttp1 = new XMLHttpRequest(),
-					xhttp2 = new XMLHttpRequest(),
-					origin = window.location.href;
-				endpoint1 = origin.substring(0, origin.lastIndexOf('/setAdmin')+1) + 'adminconfig/setInitialAdmins',
-				endpoint2 = origin.substring(0, origin.lastIndexOf('/setAdmin')+1) + 'api/config/fetchCsrf',
-					inputs = document.getElementById('user-id');
-				ids = [inputs.value];
 
-				if (inputs.value) {
-					var csrfToken;
-					xhttp2.onreadystatechange = function () {
-					  if(this.readyState == this.DONE) {
-						csrfToken = this.getResponseHeader('x-csrf-token');
-					  }
-					};
-					xhttp2.open('GET', endpoint2, false);
-					xhttp2.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
-					xhttp2.setRequestHeader('X-CSRF-Token', 'fetch');
-					xhttp2.send();
-				
-					xhttp1.onreadystatechange = function () {
-						if (this.status == 302) {
-							var redir = this.getResponseHeader("redirect");
-							if (redir) {
-								window.location.replace(redir);
+.page-intro {
+	margin-top: 10px;
+	font-size: 16px;
+	font-style: normal;
+	font-weight: 400;
+	letter-spacing: 0.15px;
+	color: var(--text-muted);
+}
+
+.helper-text {
+	margin-top: 30px;
+	font-size: 14px;
+	font-style: normal;
+	font-weight: 400;
+	letter-spacing: 0.17px;
+	color: var(--text-muted);
+}
+
+input[type="text"] {
+	width: 100%;
+	padding: 12px;
+	margin: 12px 0 0;
+	font-size: 16px;
+	border: 1px solid var(--field-border);
+	border-radius: 8px;
+}
+
+.actions {
+	margin-top: 12px;
+}
+
+button {
+	padding: 8px 16px;
+	font-size: 14px;
+	background-color: var(--primary);
+	color: white;
+	border: none;
+	border-radius: 10px;
+	cursor: pointer;
+	line-height: 24px;
+	font-weight: 500;
+	min-width: 120px;
+}
+
+button:hover {
+	background-color: var(--primary-hover);
+}
+
+.table-section {
+	margin-top: 32px;
+}
+
+.table-title {
+	font-size: 16px;
+	font-weight: 300;
+	letter-spacing: 0.15px;
+	color: var(--text-muted);
+}
+
+.table-wrapper {
+	margin-top: 10px;
+	border: 1px solid var(--table-border);
+	border-radius: 8px;
+	overflow-x: auto;
+	-webkit-overflow-scrolling: touch;
+}
+
+table {
+	width: 100%;
+	min-width: 520px;
+	border-collapse: collapse;
+	table-layout: fixed;
+}
+
+thead {
+	background-color: var(--table-header-bg);
+}
+
+th {
+	border-bottom: 1px solid var(--table-border);
+	padding: 14px;
+	text-align: left;
+	font-size: 15px;
+	font-weight: 600;
+	vertical-align: top;
+}
+
+td {
+	border-bottom: 1px solid var(--table-border);
+	padding: 14px;
+	text-align: left;
+	font-size: 15px;
+	vertical-align: top;
+}
+
+th:first-child,
+td:first-child {
+	border-right: 1px solid var(--table-border);
+	width: 40%;
+}
+
+tbody tr:last-child td {
+	border-bottom: 0;
+}
+
+@media (max-width: 768px) {
+	.register {
+		padding: 16px 12px;
+	}
+
+	.container {
+		padding: 18px;
+	}
+
+	.actions button {
+		width: 100%;
+	}
+
+	table {
+		min-width: 460px;
+	}
+
+	th,
+	td {
+		padding: 12px;
+		font-size: 14px;
+	}
+}
+
+@media (max-width: 480px) {
+	.typography-h6 {
+		font-size: 18px;
+	}
+
+	.page-intro,
+	.table-title {
+		font-size: 15px;
+	}
+
+	.helper-text {
+		margin-top: 20px;
+	}
+
+	.table-section {
+		margin-top: 24px;
+	}
+}
+</style>
+	<script>
+				function getBasePrefix() {
+					var path = window.location.pathname;
+					var index = path.lastIndexOf('/setAdmin');
+					if (index >= 0) {
+						return path.substring(0, index + 1);
+					}
+					return '/';
+				}
+
+				function xhr(method, url, body, headers, callback) {
+					var req = new XMLHttpRequest();
+					req.open(method, url, true);
+					req.withCredentials = true;
+
+					if (headers) {
+						for (var key in headers) {
+							if (Object.prototype.hasOwnProperty.call(headers, key)) {
+								req.setRequestHeader(key, headers[key]);
 							}
 						}
+					}
+
+					req.onreadystatechange = function () {
+						if (req.readyState === XMLHttpRequest.DONE) {
+							callback(req);
+						}
 					};
-					xhttp1.open('POST', endpoint1, true);
-					xhttp1.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
-					xhttp1.setRequestHeader('X-CSRF-Token', csrfToken);
-					xhttp1.send('ids=' + encodeURIComponent(JSON.stringify(ids)));
+
+					req.send(body || null);
 				}
-			}
-		</script>
+
+				function registerAdmins() {
+					var input = document.getElementById('user-id');
+					var id = (input.value || '').trim();
+					if (!id) {
+						return;
+					}
+
+					var base = getBasePrefix();
+					var setAdminsEndpoint = base + 'adminconfig/setInitialAdmins';
+					var configEndpoint = base + 'api/config';
+					var csrfEndpoint = base + 'api/config/fetchCsrf';
+					var ids = [id];
+					var body = 'ids=' + encodeURIComponent(JSON.stringify(ids));
+
+					function submit(csrfToken) {
+						var headers = {
+							'Content-type': 'application/x-www-form-urlencoded'
+						};
+
+						if (csrfToken) {
+							headers['X-CSRF-Token'] = csrfToken;
+						}
+
+						xhr('POST', setAdminsEndpoint, body, headers, function (response) {
+							var payload = {};
+							try {
+								payload = JSON.parse(response.responseText || '{}');
+							} catch (_e) {}
+
+							if (response.status >= 200 && response.status < 300) {
+								var redir =
+									payload.redirectUrl ||
+									response.getResponseHeader('redirect') ||
+									response.getResponseHeader('location');
+
+								if (redir) {
+									window.location.replace(redir);
+									return;
+								}
+
+								window.location.replace(getBasePrefix());
+								return;
+							}
+
+							alert(payload.errorMessage || 'Unable to set initial admin');
+						});
+					}
+
+					xhr('GET', configEndpoint, null, null, function (configResponse) {
+						var csrfEnabled = false;
+
+						if (configResponse.status >= 200 && configResponse.status < 300) {
+							try {
+								var config = JSON.parse(configResponse.responseText || '{}');
+								csrfEnabled = config.csrf === true;
+							} catch (_error) {
+								csrfEnabled = false;
+							}
+						}
+
+						if (!csrfEnabled) {
+							submit(null);
+							return;
+						}
+
+						xhr('GET', csrfEndpoint, null, {
+							'X-CSRF-Token': 'Fetch'
+						}, function (csrfResponse) {
+							var csrfToken = csrfResponse.getResponseHeader('X-CSRF-Token')
+								|| csrfResponse.getResponseHeader('x-csrf-token');
+
+							if (!csrfToken) {
+								alert('Unable to fetch CSRF token. Please refresh and try again.');
+								return;
+							}
+
+							submit(csrfToken);
+						});
+					});
+				}
+			</script>
 </head>
 <body>
-	<div class="register">
-		<div class="container">
-			<div class="typography-h6">Initial Admin Setup</div>
-			<div
-				style="font-size: 16px; font-style: normal; font-weight: 400; margin-top: 10px; letter-spacing: 0.15px;">
-				Enter Email or username to set your admin</div>
-			<div
-				style="font-size: 14px; font-style: normal; font-weight: 400; margin-top: 30px; letter-spacing: 0.17px;">
-				Set Admin Initial.</div>
-
-			<input type="text" id="user-id" placeholder="Email or username" />
-			<button type="submit" onclick="registerAdmins()">Submit</button>
-
-
-			<div class="table-section">
-				<div
-					style="font-size: 16px; font-weight: 300; letter-spacing: 0.15px;">
-					Utilize this table to determine what value to enter</div>
-
-				<table>
-					<thead>
-						<tr>
-							<th>Login Type</th>
-							<th>Input Value</th>
-						</tr>
-					</thead>
-					<tbody>
-						<tr>
-							<td>Google OAuth</td>
-							<td>Email</td>
-						</tr>
-						<tr>
-							<td>Github OAuth</td>
-							<td>Email (Must have an email set on public profile)</td>
-						</tr>
-						<tr>
-							<td>Microsoft OAuth</td>
-							<td>Email</td>
-						</tr>
-						<tr>
-							<td>Native Login/ Password</td>
-							<td>Username (must match value to be entered on registration
-								page)</td>
-						</tr>
-						<tr>
-							<td>X.509 Certificates</td>
-							<td>Email</td>
-						</tr>
-						<tr>
-							<td>Window Authentication - Waffle</td>
-							<td>Username (e.g US\\jsmith)</td>
-						</tr>
-					</tbody>
-				</table>
+		<div class="register">
+			<div class="container">
+				<div class="typography-h6">Initial Admin Setup</div>
+				<div class="page-intro">Enter Email or username to set your admin</div>
+				<div class="helper-text">Set Admin Initial.</div>
+	
+				<input type="text" id="user-id" placeholder="Email or username" />
+				<div class="actions">
+					<button type="submit" onclick="registerAdmins()">Submit</button>
+				</div>
+	
+	
+				<div class="table-section">
+					<div class="table-title">Utilize this table to determine what value to enter</div>
+					<div class="table-wrapper">
+						<table>
+							<thead>
+								<tr>
+									<th>Login Type</th>
+									<th>Input Value</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr>
+									<td>Google OAuth</td>
+									<td>Email</td>
+								</tr>
+								<tr>
+									<td>Github OAuth</td>
+									<td>Email (Must have an email set on public profile)</td>
+								</tr>
+								<tr>
+									<td>Microsoft OAuth</td>
+									<td>Email</td>
+								</tr>
+								<tr>
+									<td>Native Login/ Password</td>
+									<td>Username (must match value to be entered on registration
+										page)</td>
+								</tr>
+								<tr>
+									<td>X.509 Certificates</td>
+									<td>Email</td>
+								</tr>
+								<tr>
+									<td>Window Authentication - Waffle</td>
+									<td>Username (e.g US\\jsmith)</td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
 			</div>
 		</div>
-	</div>
 
 </body>
 </html>
