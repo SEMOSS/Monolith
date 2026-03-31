@@ -379,17 +379,8 @@ public class AnthropicEndpoints {
 							asyncJobId = startAsyncModelRequest(engine, finalInsight, finalRoom, dataMap, sessionId);
 							classLogger.debug("Streaming job started: {}", asyncJobId);
 
+							boolean started = false;
 							int contentBlockIndex = 0;
-
-							// Send message_start + content_block_start + empty delta
-							// immediately so Claude Code sees a "model is generating"
-							// state. This satisfies its ~6s first-event timeout.
-							// Without this, the pipeline takes longer than the timeout
-							// and Claude Code retries.
-							AnthropicMessagesHelper.writeMessageStart(messageId, engineId, 0, writer);
-							AnthropicMessagesHelper.writeTextContentBlockStart(contentBlockIndex, writer);
-							AnthropicMessagesHelper.writeTextDelta(contentBlockIndex, "", writer);
-							boolean started = true;
 
 							// Track tool data across chunks
 							Map<Integer, String> pendingToolIds = new HashMap<>();
@@ -431,6 +422,15 @@ public class AnthropicEndpoints {
 											} else {
 												String newContent = (String) streamData.get("content");
 												if (newContent != null && !newContent.isEmpty()) {
+													if (!started) {
+														long elapsed = System.currentTimeMillis() - streamStartTime;
+														classLogger.info("SSE first event after {}ms for job {}", elapsed, asyncJobId);
+														AnthropicMessagesHelper.writeMessageStart(messageId, engineId,
+																0, writer);
+														AnthropicMessagesHelper
+																.writeTextContentBlockStart(contentBlockIndex, writer);
+														started = true;
+													}
 													AnthropicMessagesHelper.writeTextDelta(contentBlockIndex,
 															newContent, writer);
 												}
@@ -518,10 +518,7 @@ public class AnthropicEndpoints {
 									}
 								}
 
-								// Send SSE keep-alive comment when no data is available.
-								// Claude Code's SSE parser logs a JSON parse error for
-								// these but they still keep the TCP connection alive and
-								// reduce retries from 8 to 3.
+								// Send SSE keep-alive comment when no data is available
 								if (partialResponseContent == null || partialResponseContent.isEmpty()) {
 									writer.write(": keepalive\n\n");
 									writer.flush();
@@ -602,9 +599,20 @@ public class AnthropicEndpoints {
 									break;
 								}
 							}
+						} catch (org.apache.catalina.connector.ClientAbortException e) {
+							// Client (Claude Code) closed the connection — this is
+							// expected when it retries after its ~6s timeout. Just
+							// log at debug level and return silently. Throwing here
+							// would cause Tomcat to inject an HTML error page into
+							// the already-committed SSE stream, corrupting it.
+							classLogger.debug("Client disconnected from SSE stream: {}", e.getMessage());
 						} catch (Exception e) {
 							classLogger.error("Error in streaming response", e);
-							throw new WebApplicationException(e, 500);
+							// Don't throw WebApplicationException — the response is
+							// already committed as text/event-stream. Throwing would
+							// cause Tomcat to append its HTML error page into the
+							// SSE stream body, which corrupts responses for other
+							// concurrent connections.
 						} finally {
 							if (asyncJobId != null) {
 								PixelJobManager.getManager().clearJob(asyncJobId);
