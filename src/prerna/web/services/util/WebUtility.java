@@ -514,15 +514,41 @@ public final class WebUtility {
 	 * @param newCookies
 	 */
 	public static void expireSessionCookies(HttpServletRequest request, List<NewCookie> newCookies) {
+		if (request == null || newCookies == null) {
+			return;
+		}
+
 		Cookie[] cookies = request.getCookies();
-		if (cookies != null) {
-			for (Cookie c : cookies) {
-				if (DBLoader.getSessionIdKey().equals(c.getName())) {
-					// we need to null this out
-					NewCookie nullC = new NewCookie(c.getName(), cleanHttpResponse(c.getValue()),
-							cleanHttpResponse(c.getPath()), cleanHttpResponse(c.getDomain()),
-							cleanHttpResponse(c.getComment()), 0, c.getSecure());
-					newCookies.add(nullC);
+		if (cookies == null) {
+			return;
+		}
+
+		String sessionCookieName = DBLoader.getSessionIdKey();
+		String contextPath = request.getContextPath();
+		if (contextPath == null || contextPath.trim().isEmpty()) {
+			contextPath = "/";
+		}
+		contextPath = cleanHttpResponse(contextPath);
+
+		// Browsers block SameSite=None cookies unless Secure is also present.
+		boolean secureRequiredForSameSite = "none".equalsIgnoreCase(Utility.getSameSiteCookieValue());
+		boolean secureFlag = request.isSecure() || secureRequiredForSameSite;
+
+		for (Cookie c : cookies) {
+			if (sessionCookieName.equals(c.getName())) {
+				String cookieName = cleanHttpResponse(c.getName());
+				String cookieDomain = cleanHttpResponse(c.getDomain());
+
+				// Expire cookie on the app context path.
+				NewCookie expireAtContextPath = new NewCookie(cookieName, "", contextPath, cookieDomain,
+						"Expire session cookie", 0, secureFlag);
+				newCookies.add(expireAtContextPath);
+
+				// Also expire at root path in case the session cookie was set there.
+				if (!"/".equals(contextPath)) {
+					NewCookie expireAtRootPath = new NewCookie(cookieName, "", "/", cookieDomain,
+							"Expire session cookie", 0, secureFlag);
+					newCookies.add(expireAtRootPath);
 				}
 			}
 		}
