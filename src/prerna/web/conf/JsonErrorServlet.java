@@ -36,7 +36,7 @@ public class JsonErrorServlet extends HttpServlet {
 
 		Map<String, Object> errorBody = new LinkedHashMap<>();
 		errorBody.put("status", statusCode);
-		errorBody.put("error", message);
+		errorBody.put("message", message);
 		if (requestUri != null) {
 			errorBody.put("request_uri", requestUri);
 		}
