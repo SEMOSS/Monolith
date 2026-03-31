@@ -22,6 +22,10 @@
      <location>/error/json</location>
    </error-page>
    <error-page>
+     <error-code>416</error-code>
+     <location>/error/json</location>
+   </error-page>
+   <error-page>
       <error-code>500</error-code>
       <location>/error/json</location>
    </error-page>
