@@ -54,7 +54,7 @@ import prerna.query.querystruct.SelectQueryStruct;
 import prerna.query.querystruct.selectors.QueryColumnSelector;
 import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.util.Constants;
-import prerna.util.Utility;
+import prerna.util.SystemEngineRegistry;
 import prerna.web.conf.AdminStartupFilter;
 import prerna.web.services.util.WebUtility;
 
@@ -69,10 +69,11 @@ public class AdminConfigService {
 
 	@POST
 	@Path("/setInitialAdmins")
-	public Response setInitialAdmins(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
+	public Response setInitialAdmins(@Context HttpServletRequest request, @Context HttpServletResponse response)
+			throws IOException {
 		HttpSession session = request.getSession(false);
 
-		IDatabaseEngine engine = Utility.getDatabase(Constants.SECURITY_DB);
+		IDatabaseEngine engine = SystemEngineRegistry.getSecurityDb();
 		SelectQueryStruct qs = new SelectQueryStruct();
 		qs.addSelector(new QueryColumnSelector("SMSS_USER__ID"));
 		qs.setLimit(1);
@@ -90,13 +91,14 @@ public class AdminConfigService {
 		} catch (Exception e) {
 			classLogger.error(Constants.STACKTRACE, e);
 			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Error occurred attempting to determine if the initial admin is set. Please check the system logs for assistance");
+			errorMap.put(Constants.ERROR_MESSAGE,
+					"Error occurred attempting to determine if the initial admin is set. Please check the system logs for assistance");
 			return WebUtility.getResponse(errorMap, 400);
 		} finally {
 			if (wrapper != null) {
 				try {
 					wrapper.close();
-				} catch(IOException e) {
+				} catch (IOException e) {
 					classLogger.error(Constants.STACKTRACE, e);
 				}
 			}
@@ -111,10 +113,8 @@ public class AdminConfigService {
 
 		List<String> ids = GSON.fromJson(idString, List.class);
 		for (String id : ids) {
-			SecurityUpdateUtils.registerUser(id, 
-					null, null, null, null, null, null, null, 
-					true, true, true, 
-					null, null, null, null); 
+			SecurityUpdateUtils.registerUser(id, null, null, null, null, null, null, null, true, true, true, null, null,
+					null, null);
 		}
 
 		if (session != null && session.getAttribute(ADMIN_REDIRECT_KEY) != null) {
