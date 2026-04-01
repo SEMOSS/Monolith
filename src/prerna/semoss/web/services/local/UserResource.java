@@ -64,6 +64,7 @@ import javax.ws.rs.core.Response;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.javatuples.Pair;
 import org.owasp.encoder.Encode;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -81,6 +82,7 @@ import prerna.auth.external.ExternalAuthorizationHelper;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityAPIUserUtils;
 import prerna.auth.utils.SecurityAdminUtils;
+import prerna.auth.utils.SecurityExternalConnectorsUtils;
 import prerna.auth.utils.SecurityNativeUserUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
 import prerna.auth.utils.SecurityUserUtils;
@@ -90,6 +92,7 @@ import prerna.io.connector.github.GithubTokenFiller;
 import prerna.io.connector.google.GoogleTokenFiller;
 import prerna.io.connector.ms.MicrosoftTokenFiller;
 import prerna.io.connector.okta.OktaTokenFiller;
+import prerna.io.connector.salesforce.SalesforceTokenFiller;
 import prerna.io.connector.surveymonkey.MonkeyProfile;
 import prerna.sablecc2.om.execptions.SemossPixelException;
 import prerna.security.HttpHelperUtility;
@@ -390,6 +393,61 @@ public class UserResource {
 		}
 
 		return WebUtility.getResponse(ret, 200);
+	}
+
+	/**
+	 * Gets user info for Salesforce
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("/userinfo/salesforce")
+	public Response userinfoSalesforce(@Context HttpServletRequest request) {
+		Map<String, String> ret = new HashMap<>();
+		HttpSession session = request.getSession(false);
+		User semossUser = null;
+		if (session != null) {
+			semossUser = (User) session.getAttribute(Constants.SESSION_USER);
+		}
+
+		if (semossUser == null) {
+			List<NewCookie> newCookies = new ArrayList<>();
+			// not authenticated
+			// remove any cookies we shouldn't have
+			WebUtility.expireSessionCookies(request, newCookies);
+
+			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
+				session.invalidate();
+			}
+
+			ret.put(Constants.ERROR_MESSAGE, "Log into your Salesforce account");
+			return WebUtility.getResponseNoCache(ret, 200, newCookies.toArray(new NewCookie[] {}));
+		}
+
+		String[] beanProps = { "name" };
+		String jsonPattern = "[name]";
+
+		String accessString = null;
+		try {
+			AccessToken salesforceToken = semossUser.getAccessToken(AuthProvider.SALESFORCE);
+			accessString = salesforceToken.getAccess_token();
+			String url = "https://login.salesforce.com/services/oauth2/userinfo";
+			Map<String, Object> params = new HashMap<>();
+			params.put("access_token", accessString);
+			params.put("alt", "json");
+
+			String output = HttpHelperUtility.makeGetCall(url, accessString, params, true);
+			AccessToken accessToken2 = (AccessToken) BeanFiller.fillFromJson(output, jsonPattern, beanProps,
+					new AccessToken());
+			String name = accessToken2.getName();
+			ret.put("name", name);
+			return WebUtility.getResponse(ret, 200);
+
+		} catch (Exception e) {
+			classLogger.error("Failed to fetch Salesforce user info", e);
+			ret.put(Constants.ERROR_MESSAGE, "Log into your Salesforce account");
+			return WebUtility.getResponse(ret, 401);
+		}
+
 	}
 
 	/**
@@ -774,7 +832,7 @@ public class UserResource {
 
 				// oauth code should match [ -~]+ (1 or more ascii)
 				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
-				String code = URLDecoder.decode(outputs[0]);
+				String code = URLDecoder.decode(outputs[0], StandardCharsets.UTF_8);
 				if (code.matches("[ -~]+")) {
 					String prefix = "salesforce_";
 					String clientId = socialData.getProperty(prefix + "client_id");
@@ -803,6 +861,11 @@ public class UserResource {
 						return null;
 					}
 					accessToken.setProvider(AuthProvider.SALESFORCE);
+
+					// fill the access token with the other properties so we can properly create the
+					// user
+					SalesforceTokenFiller profiler = new SalesforceTokenFiller();
+					profiler.fillAccessToken(accessToken, null, null, null, null);
 					addAccessToken(accessToken, request, autoAdd);
 
 					if (classLogger.isDebugEnabled()) {
@@ -834,6 +897,148 @@ public class UserResource {
 
 		String redirectUrl = "https://login.salesforce.com/services/oauth2/authorize?" + "client_id=" + clientId
 				+ "&response_type=code" + "&redirect_uri=" + redirectUri + "&scope=" + URLEncoder.encode("api", UTF8);
+
+		if (classLogger.isDebugEnabled()) {
+			classLogger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
+		}
+		return redirectUrl;
+	}
+
+	/**
+	 * Logs user in through salesforce using dynamic credentials in security db
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("/login2/salesforce")
+	public Response loginSalesforceDynamic(@Context HttpServletRequest request, @Context HttpServletResponse response)
+			throws IOException {
+		HttpSession session = request.getSession(false);
+		User userObj = null;
+		if (session != null) {
+			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		}
+		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
+		if (customRedirect != null && !customRedirect.isEmpty()) {
+			if (session == null) {
+				session = request.getSession();
+			}
+			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
+		}
+		String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
+		if (queryString != null && queryString.contains("code")) {
+			if (userObj == null || userObj.getAccessToken(AuthProvider.SALESFORCE) == null) {
+				String[] outputs = HttpHelperUtility.getCodes(queryString);
+
+				// oauth code should match [ -~]+ (1 or more ascii)
+				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
+				String code = URLDecoder.decode(outputs[0], StandardCharsets.UTF_8);
+				if (code.matches("[ -~]+")) {
+					String state = outputs[1];
+					String connectionId = session == null ? null : (String) session.getAttribute("sf_state_" + state);
+					if (connectionId == null) {
+						// invalid or tampered state
+						response.setStatus(400);
+						return null;
+					}
+					session.removeAttribute("sf_state_" + state);
+
+					// get credentials by UUID (ID) from SALESFORCE_CREDENTIALS table
+					String redirectUri = WebUtility.getCurrentCallbackUrl(request);
+					boolean autoAdd = true;
+
+					Pair<String, String> details = SecurityExternalConnectorsUtils
+							.getSalesforceConnectionDetails(connectionId);
+					String clientId = details.getValue0();
+					String clientSecret = details.getValue1();
+
+					if (clientId == null || clientSecret == null || redirectUri == null) {
+						response.setStatus(400);
+						response.getWriter()
+								.write("Salesforce credentials not found for connection id = " + connectionId);
+						return null;
+					}
+
+					if (classLogger.isDebugEnabled()) {
+						classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
+					}
+
+					Map<String, String> params = new HashMap<>();
+					params.put("client_id", clientId);
+					params.put("grant_type", "authorization_code");
+					params.put("redirect_uri", redirectUri);
+					params.put("code", code);
+					params.put("client_secret", clientSecret);
+
+					String url = "https://login.salesforce.com/services/oauth2/token";
+
+					AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, true, true);
+					if (accessToken == null) {
+						// not authenticated
+						response.setStatus(302);
+						response.sendRedirect(getSalesforceRedirectDynamic(request, response, connectionId));
+						return null;
+					}
+					accessToken.setProvider(AuthProvider.SALESFORCE);
+
+					// fill the access token with the other properties so we can properly create the
+					// user
+					SalesforceTokenFiller profiler = new SalesforceTokenFiller();
+					profiler.fillAccessToken(accessToken, null, null, null, null);
+					addAccessToken(accessToken, request, autoAdd);
+
+					if (classLogger.isDebugEnabled()) {
+						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
+					}
+				}
+			}
+		}
+
+		// grab the user again
+		if (session != null || (session = request.getSession(false)) != null) {
+			userObj = (User) session.getAttribute(Constants.SESSION_USER);
+		}
+		if (userObj == null || userObj.getAccessToken(AuthProvider.SALESFORCE) == null) {
+			// not authenticated
+			response.setStatus(302);
+			response.sendRedirect(getSalesforceRedirectDynamic(request, response, null));
+			return null;
+		}
+
+		setMainPageRedirect(request, response);
+		return null;
+	}
+
+	/**
+	 * 
+	 * @param request
+	 * @param response
+	 * @param connectionId
+	 * @return
+	 * @throws UnsupportedEncodingException
+	 * @throws IOException
+	 */
+	private String getSalesforceRedirectDynamic(HttpServletRequest request, @Context HttpServletResponse response,
+			String connectionId) throws UnsupportedEncodingException, IOException {
+		String redirectUri = WebUtility.getCurrentCallbackUrl(request);
+		if (connectionId == null) {
+			connectionId = request.getParameter("connectionId");
+		}
+		if (connectionId == null || connectionId.isEmpty()) {
+			response.setStatus(400);
+			response.getWriter().write("Missing required parameter: connectionId");
+			return null;
+		}
+
+		String state = UUID.randomUUID().toString();
+		// store the connection id in session
+		request.getSession().setAttribute("sf_state_" + state, connectionId);
+
+		Pair<String, String> details = SecurityExternalConnectorsUtils.getSalesforceConnectionDetails(connectionId);
+		String clientId = details.getValue0();
+		String redirectUrl = "https://login.salesforce.com/services/oauth2/authorize?" + "client_id="
+				+ URLEncoder.encode(clientId, "UTF-8") + "&response_type=code" + "&redirect_uri="
+				+ URLEncoder.encode(redirectUri, "UTF-8") + "&scope=" + URLEncoder.encode("api", "UTF-8") + "&state="
+				+ state;
 
 		if (classLogger.isDebugEnabled()) {
 			classLogger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
@@ -878,7 +1083,7 @@ public class UserResource {
 
 				// oauth code should match [ -~]+ (1 or more ascii)
 				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
-				String code = URLDecoder.decode(outputs[0]);
+				String code = URLDecoder.decode(outputs[0], StandardCharsets.UTF_8);
 				if (code.matches("[ -~]+")) {
 					String prefix = "surveymonkey_";
 					String clientId = socialData.getProperty(prefix + "client_id");
@@ -985,8 +1190,8 @@ public class UserResource {
 				// oauth code and state should match [ -~]+ (1 or more ascii)
 				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.5
 				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
-				String code = URLDecoder.decode(outputs[0]);
-				String state = URLDecoder.decode(outputs[1]);
+				String code = URLDecoder.decode(outputs[0], StandardCharsets.UTF_8);
+				String state = URLDecoder.decode(outputs[1], StandardCharsets.UTF_8);
 				if (code.matches("[ -~]+") && state.matches("[ -~]+")) {
 					String prefix = "github_";
 					String clientId = socialData.getProperty(prefix + "client_id");
@@ -1112,8 +1317,8 @@ public class UserResource {
 				// oauth code and state should match [ -~]+ (1 or more ascii)
 				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.5
 				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
-				String code = URLDecoder.decode(outputs[0]);
-				String state = URLDecoder.decode(outputs[1]);
+				String code = URLDecoder.decode(outputs[0], StandardCharsets.UTF_8);
+				String state = URLDecoder.decode(outputs[1], StandardCharsets.UTF_8);
 				if (code.matches("[ -~]+") && state.matches("[ -~]+")) {
 					String clientId = socialData.getProperty(prefix + "client_id");
 					String clientSecret = socialData.getProperty(prefix + "secret_key");
@@ -1176,7 +1381,6 @@ public class UserResource {
 			String group_url = socialData.getProperty(prefix + "group_url");
 			String groupsJson = HttpHelperUtility.makeGetCall(group_url,
 					userObj.getAccessToken(AuthProvider.GITLAB).getAccess_token());
-			System.out.println(groupsJson);
 			String groupJsonPattern = socialData.getProperty(prefix + "groupJsonPattern");
 			// String beanProps = socialData.getProperty(prefix + "groupBeanProps");
 			// String[] beanPropsArr = beanProps.split(",", -1);
@@ -1265,7 +1469,7 @@ public class UserResource {
 
 				// oauth code should match [ -~]+ (1 or more ascii)
 				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
-				String code = URLDecoder.decode(outputs[0]);
+				String code = URLDecoder.decode(outputs[0], StandardCharsets.UTF_8);
 				if (code.matches("[ -~]+")) {
 					String prefix = "ms_";
 					String clientId = socialData.getProperty(prefix + "client_id");
@@ -1396,7 +1600,7 @@ public class UserResource {
 
 				// oauth code should match [ -~]+ (1 or more ascii)
 				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
-				String code = URLDecoder.decode(outputs[0]);
+				String code = URLDecoder.decode(outputs[0], StandardCharsets.UTF_8);
 				if (code.matches("[ -~]+")) {
 					String prefix = "adfs_";
 					String clientId = socialData.getProperty(prefix + "client_id");
@@ -1463,17 +1667,8 @@ public class UserResource {
 
 	public String decodeTokenPayload(String token) {
 		String[] parts = token.split("\\.", 0);
-
-		// for (String part : parts) {
-		// byte[] bytes = Base64.getUrlDecoder().decode(part);
-		// String decodedString = new String(bytes, StandardCharsets.UTF_8);
-		//
-		// System.out.println("Decoded: " + decodedString);
-		// }
 		byte[] bytes = Base64.getUrlDecoder().decode(parts[1]);
-
 		String payload = new String(bytes, StandardCharsets.UTF_8);
-
 		return payload;
 	}
 
@@ -1536,7 +1731,7 @@ public class UserResource {
 
 				// oauth code should match [ -~]+ (1 or more ascii)
 				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
-				String code = URLDecoder.decode(outputs[0]);
+				String code = URLDecoder.decode(outputs[0], StandardCharsets.UTF_8);
 				if (code.matches("[ -~]+")) {
 					String prefix = "okta_";
 					String clientId = socialData.getProperty(prefix + "client_id");
@@ -1656,7 +1851,7 @@ public class UserResource {
 
 				// oauth code should match [ -~]+ (1 or more ascii)
 				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
-				String code = URLDecoder.decode(outputs[0]);
+				String code = URLDecoder.decode(outputs[0], StandardCharsets.UTF_8);
 				if (code.matches("[ -~]+")) {
 					String prefix = "siteminder_";
 					String clientId = socialData.getProperty(prefix + "client_id");
@@ -1775,7 +1970,7 @@ public class UserResource {
 
 				// oauth code should match [ -~]+ (1 or more ascii)
 				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
-				String code = URLDecoder.decode(outputs[0]);
+				String code = URLDecoder.decode(outputs[0], StandardCharsets.UTF_8);
 				if (code.matches("[ -~]+")) {
 					String prefix = "dropbox_";
 					String clientId = socialData.getProperty(prefix + "client_id");
@@ -1883,7 +2078,7 @@ public class UserResource {
 
 				// oauth code should match [ -~]+ (1 or more ascii)
 				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
-				String code = URLDecoder.decode(outputs[0]);
+				String code = URLDecoder.decode(outputs[0], StandardCharsets.UTF_8);
 				if (code.matches("[ -~]+")) {
 					String prefix = "google_";
 					String clientId = socialData.getProperty(prefix + "client_id");
@@ -2056,7 +2251,7 @@ public class UserResource {
 
 				// oauth code should match [ -~]+ (1 or more ascii)
 				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
-				String code = URLDecoder.decode(outputs[0]);
+				String code = URLDecoder.decode(outputs[0], StandardCharsets.UTF_8);
 				if (code.matches("[ -~]+")) {
 					String prefix = "producthunt_";
 					String clientId = socialData.getProperty(prefix + "client_id");
@@ -2163,7 +2358,7 @@ public class UserResource {
 
 				// oauth code should match [ -~]+ (1 or more ascii)
 				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
-				String code = URLDecoder.decode(outputs[0]);
+				String code = URLDecoder.decode(outputs[0], StandardCharsets.UTF_8);
 				if (code.matches("[ -~]+")) {
 					String prefix = "linkedin_";
 					String clientId = socialData.getProperty(prefix + "client_id");
@@ -2277,8 +2472,8 @@ public class UserResource {
 				// oauth code and state should match [ -~]+ (1 or more ascii)
 				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.5
 				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
-				String code = URLDecoder.decode(outputs[0]);
-				String state = URLDecoder.decode(outputs[1]);
+				String code = URLDecoder.decode(outputs[0], StandardCharsets.UTF_8);
+				String state = URLDecoder.decode(outputs[1], StandardCharsets.UTF_8);
 				if (code.matches("[ -~]+") && state.matches("[ -~]+")) {
 					String prefix = "twitter_";
 					String clientId = socialData.getProperty(prefix + "client_id");
@@ -2407,7 +2602,7 @@ public class UserResource {
 
 				// oauth code should match [ -~]+ (1 or more ascii)
 				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
-				String code = URLDecoder.decode(outputs[0]);
+				String code = URLDecoder.decode(outputs[0], StandardCharsets.UTF_8);
 				if (code.matches("[ -~]+")) {
 					String prefix = provider + "_";
 					String clientId = socialData.getProperty(prefix + "client_id");

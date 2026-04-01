@@ -638,6 +638,16 @@ public final class WebUtility {
 	}
 
 	/**
+	 * Get the url being made for the request excluding query params
+	 * 
+	 * @param request HttpServletRequest object for the request
+	 * @return the string containing the request url
+	 */
+	public static String getCurrentCallbackUrl(HttpServletRequest request) {
+		return WebUtility.cleanHttpResponse(request.getRequestURL().toString());
+	}
+
+	/**
 	 * Get the protocol (http or https)
 	 * 
 	 * @param request
