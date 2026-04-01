@@ -3733,11 +3733,12 @@ public class UserResource {
 		boolean endpoint = session.getAttribute(Constants.ENDPOINT_REDIRECT_KEY) != null;
 		response.setStatus(302);
 		try {
+			boolean secureRequest = "https".equalsIgnoreCase(WebUtility.getProtocol(request));
 			// add the cookie to the header directly
 			// to allow for cross site login when embedded as iframe
 			String setCookieString = DBLoader.getSessionIdKey() + "=" + session.getId() + "; Path=" + contextPath
 					+ "; HttpOnly"
-					+ ((ClusterUtil.IS_CLUSTER || request.isSecure())
+					+ ((ClusterUtil.IS_CLUSTER || secureRequest)
 							? ("; Secure; SameSite=" + Utility.getSameSiteCookieValue())
 							: "");
 			response.addHeader("Set-Cookie", setCookieString);
