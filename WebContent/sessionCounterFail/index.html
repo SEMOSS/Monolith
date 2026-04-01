@@ -1,9 +1,75 @@
 <!DOCTYPE html>
 <html lang="en" xml:lang="en">
-	<head>
-		<title>User Limit Exceeded</title>
-	</head>
-	<body>
-		<p>Too many users are on the box at the same time. Please try again later.</p>
-	</body>
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>User Limit Exceeded</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/basecoat-css@0.3.11/dist/basecoat.cdn.min.css" />
+    <style>
+        :root {
+            color-scheme: light;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px 16px;
+            background: radial-gradient(circle at top, #f7f9fc 0%, #edf2f8 100%);
+        }
+
+        .page-shell {
+            width: min(100%, 640px);
+        }
+
+        .page-card.card {
+            display: grid;
+            gap: 12px;
+            text-align: center;
+            padding: 28px 24px;
+            border: 1px solid var(--color-border);
+            background-color: var(--color-card);
+        }
+
+        .page-badge {
+            justify-self: center;
+        }
+
+        .page-title {
+            margin: 0;
+            font-size: clamp(1.375rem, 2.2vw, 1.75rem);
+            line-height: 1.2;
+            font-weight: 600;
+            color: var(--color-foreground);
+        }
+
+        .page-copy {
+            margin: 0;
+            font-size: 1rem;
+            line-height: 1.6;
+            color: var(--color-muted-foreground);
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 16px 12px;
+            }
+
+            .page-card.card {
+                padding: 20px 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+<main class="page-shell">
+    <section class="card page-card" role="status" aria-live="polite">
+        <span class="badge-secondary page-badge">Capacity</span>
+        <h1 class="page-title">User Limit Exceeded</h1>
+        <p class="page-copy">Too many users are on the box at the same time. Please try again later.</p>
+    </section>
+</main>
+</body>
 </html>
