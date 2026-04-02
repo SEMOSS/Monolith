@@ -28,7 +28,6 @@
 package prerna.semoss.web.services.local;
 
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
@@ -42,6 +41,7 @@ import java.util.Map;
 
 import javax.annotation.security.PermitAll;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.POST;
@@ -113,7 +113,7 @@ public class AnthropicEndpoints {
 	@Path("/v1/messages")
 	@Consumes({ "application/json" })
 	@Produces({ "application/json;charset=utf-8", "text/event-stream" })
-	public Response createMessage(@Context HttpServletRequest request) {
+	public Response createMessage(@Context HttpServletRequest request, @Context HttpServletResponse response) {
 		HttpSession session = request.getSession(false);
 		User user = null;
 
@@ -163,7 +163,7 @@ public class AnthropicEndpoints {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
-//		classLogger.info("Anthropic Messages API request: " + requestData.toString());
+		classLogger.debug("Anthropic-Messages-API-request::{}::{}", JOB_ID, requestData.toString());
 
 		TypeReference<Map<String, Object>> mapType = new TypeReference<Map<String, Object>>() {
 		};
@@ -225,7 +225,7 @@ public class AnthropicEndpoints {
 			}
 		}
 		insight.setUser(user);
-		room = RoomUtils.createRoomIfNotExists(roomId, insight, engine, null);
+//		room = RoomUtils.createRoomIfNotExists(roomId, insight, engine, null);
 
 		ThreadStore.setInsightId(insight.getInsightId());
 		ThreadStore.setSessionId(SESSION_ID);
@@ -238,10 +238,13 @@ public class AnthropicEndpoints {
 
 		// Extract model ID from system prompt if present (injected by claude_code_client.py)
 		String systemModelId = SemossContextExtractor.extractModelId(systemPromptString);
+		Boolean appendFullPrompt = false;
 		if (systemModelId != null && !systemModelId.isEmpty()) {
 			engineId = systemModelId;
 			classLogger.debug("Using model ID from system prompt: {}", engineId);
 			systemPromptString = SemossContextExtractor.stripModelTag(systemPromptString);
+			appendFullPrompt = true;
+		
 		}
 
 		Object messages = dataMap.remove("messages");
@@ -253,6 +256,10 @@ public class AnthropicEndpoints {
 
 		boolean isStreamingRequest = Boolean.parseBoolean(dataMap.getOrDefault("stream", false).toString());
 		dataMap.remove("stream");
+		dataMap.remove("thinking");
+		dataMap.remove("context_management");
+		dataMap.remove("output_config");
+		dataMap.remove("metadata");
 
 		List<Map<String, Object>> messagesList = (List<Map<String, Object>>) messages;
 		Map<String, Object> latestMessage = messagesList.get(messagesList.size() - 1);
@@ -262,16 +269,19 @@ public class AnthropicEndpoints {
 		// Use extracted IDs, falling back to what was in the request body
 		if (ctx.hasInsightId()) {
 		    insightId = ctx.getInsightId();
-		    classLogger.debug("Found insightID: {}", insightId);
+		    classLogger.debug("Found-insightID::{}::{}",JOB_ID, insightId);
 		}
-		if (ctx.hasRoomId() && roomId == null) {
+		if (ctx.hasRoomId()) {
 		    roomId = ctx.getRoomId();
-		    classLogger.debug("Found roomId: {}", roomId);
+		    classLogger.debug("Found-roomId::{}::{}",JOB_ID, roomId);
 		}
+
+		room = RoomUtils.createRoomIfNotExists(roomId, insight, engine, null);
+
 
 		Object tools = dataMap.remove("tools");
 
-		// HANDLE NON-STREAMING REQUESTS THROUGH askRoom
+		// HANDLE NON-STREAMING REQUESTS THROUGH askRoomIN
 		if (!isStreamingRequest) {
 			Map<String, Object> normalizedLatest = AnthropicMessagesHelper.normalizeMessageForAskRoom(latestMessage,
 					room, insight);
@@ -307,6 +317,8 @@ public class AnthropicEndpoints {
 
 			List<Map<String, Object>> openAIMessages = (List<Map<String, Object>>) openAIFormat.get("messages");
 			dataMap.put(AbstractModelEngine.FULL_PROMPT, openAIMessages);
+			Gson gson = new GsonBuilder().setPrettyPrinting().create();
+			classLogger.debug("OpenAI-Formatted-Message::{}::{},", JOB_ID, gson.toJson(openAIMessages));;
 			
 			if (openAIFormat.containsKey("tools")) {
 				dataMap.put("tools", openAIFormat.get("tools"));
@@ -316,7 +328,7 @@ public class AnthropicEndpoints {
 
 			dataMap.put("append_full_prompt", true);
 
-			return handleStreamingRequest(engine, finalInsight, finalRoom, dataMap, SESSION_ID, JOB_ID, engineId);
+			return handleStreamingRequest(engine, finalInsight, finalRoom, dataMap, SESSION_ID, JOB_ID, engineId, response);
 		}
 	}
 
@@ -345,9 +357,13 @@ public class AnthropicEndpoints {
 	 * Anthropic-compatible events.
 	 */
 	private Response handleStreamingRequest(IModelEngine engine, Insight finalInsight, Room finalRoom,
-			Map<String, Object> dataMap, String sessionId, String jobId, String engineId) {
+			Map<String, Object> dataMap, String sessionId, String jobId, String engineId,
+			HttpServletResponse servletResponse) {
 
-//		classLogger.debug("Starting Anthropic streaming response for engine: " + engineId);
+		// Disable servlet output buffering so SSE events and keep-alive
+		// comments are flushed to the wire immediately, not held in an
+		// internal buffer until it fills up (typically 8 KB in Tomcat).
+		servletResponse.setBufferSize(0);
 
 		return Response.ok().header("Content-Type", "text/event-stream").header("Cache-Control", "no-cache")
 				.header("Connection", "keep-alive").header("X-Content-Type-Options", "nosniff")
@@ -357,9 +373,9 @@ public class AnthropicEndpoints {
 					public void write(OutputStream output) throws IOException, WebApplicationException {
 						String messageId = "msg_" + GUID.v7().toUUID().toString().replace("-", "");
 						String asyncJobId = null;
+						long streamStartTime = System.currentTimeMillis();
 
-						try (Writer writer = new BufferedWriter(
-								new OutputStreamWriter(output, StandardCharsets.UTF_8))) {
+						try (Writer writer = new OutputStreamWriter(output, StandardCharsets.UTF_8)) {
 							asyncJobId = startAsyncModelRequest(engine, finalInsight, finalRoom, dataMap, sessionId);
 							classLogger.debug("Streaming job started: {}", asyncJobId);
 
@@ -407,6 +423,8 @@ public class AnthropicEndpoints {
 												String newContent = (String) streamData.get("content");
 												if (newContent != null && !newContent.isEmpty()) {
 													if (!started) {
+														long elapsed = System.currentTimeMillis() - streamStartTime;
+														classLogger.info("SSE first event after {}ms for job {}", elapsed, asyncJobId);
 														AnthropicMessagesHelper.writeMessageStart(messageId, engineId,
 																0, writer);
 														AnthropicMessagesHelper
@@ -492,12 +510,18 @@ public class AnthropicEndpoints {
 													if (argsChunk != null && !argsChunk.isEmpty()) {
 														AnthropicMessagesHelper.writeInputJsonDelta(toolIndex,
 																argsChunk, writer);
-														
+
 													}
 												}
 											}
 										}
 									}
+								}
+
+								// Send SSE keep-alive comment when no data is available
+								if (partialResponseContent == null || partialResponseContent.isEmpty()) {
+									writer.write(": keepalive\n\n");
+									writer.flush();
 								}
 
 								if (jobStatus == PixelJobStatus.PROGRESS_COMPLETE && started) {
@@ -569,15 +593,26 @@ public class AnthropicEndpoints {
 								}
 
 								try {
-									Thread.sleep(100);
+									Thread.sleep(50);
 								} catch (InterruptedException e) {
 									Thread.currentThread().interrupt();
 									break;
 								}
 							}
+						} catch (org.apache.catalina.connector.ClientAbortException e) {
+							// Client (Claude Code) closed the connection — this is
+							// expected when it retries after its ~6s timeout. Just
+							// log at debug level and return silently. Throwing here
+							// would cause Tomcat to inject an HTML error page into
+							// the already-committed SSE stream, corrupting it.
+							classLogger.debug("Client disconnected from SSE stream: {}", e.getMessage());
 						} catch (Exception e) {
 							classLogger.error("Error in streaming response", e);
-							throw new WebApplicationException(e, 500);
+							// Don't throw WebApplicationException — the response is
+							// already committed as text/event-stream. Throwing would
+							// cause Tomcat to append its HTML error page into the
+							// SSE stream body, which corrupts responses for other
+							// concurrent connections.
 						} finally {
 							if (asyncJobId != null) {
 								PixelJobManager.getManager().clearJob(asyncJobId);
