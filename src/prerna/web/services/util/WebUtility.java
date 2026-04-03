@@ -644,7 +644,42 @@ public final class WebUtility {
 	 * @return the string containing the request url
 	 */
 	public static String getCurrentCallbackUrl(HttpServletRequest request) {
-		return WebUtility.cleanHttpResponse(request.getRequestURL().toString());
+		String defaultCallbackUrl = request.getRequestURL().toString();
+		// applicationUrl should equal https://<dns.com>/optional_route/Monolith
+		String applicationUrl = Utility.getApplicationUrl();
+		if (applicationUrl == null || (applicationUrl = applicationUrl.trim()).isEmpty()) {
+			return WebUtility.cleanHttpResponse(defaultCallbackUrl);
+		}
+
+		// This logic is to ensure we preserve the optional route (reverse-proxy
+		// prefixes) which is present in applicationUrl.
+
+		// requestUri should equal something like /Monolith/api/auth/login2/salesforce
+		String requestUri = request.getRequestURI();
+		// contextPath should equal /Monolith
+		String contextPath = request.getContextPath();
+
+		String pathToAppend = requestUri;
+		// Remove training / from applicationUrl ... shouldn't be but just in case
+		// normalizedApplicationUrl should be https://<dns.com>/optional_route/Monolith
+		String normalizedApplicationUrl = applicationUrl.endsWith("/")
+				? applicationUrl.substring(0, applicationUrl.length() - 1)
+				: applicationUrl;
+		// Remove /Monolith from the requestUri so we can append it to the appliationUrl
+		// without having double /Monoltih
+		if (requestUri != null && contextPath != null && !contextPath.isEmpty() && requestUri.startsWith(contextPath)
+				&& normalizedApplicationUrl.endsWith(contextPath)) {
+			pathToAppend = requestUri.substring(contextPath.length());
+		}
+
+		if (pathToAppend == null) {
+			pathToAppend = "";
+		}
+		if (!pathToAppend.isEmpty() && !pathToAppend.startsWith("/")) {
+			pathToAppend = "/" + pathToAppend;
+		}
+
+		return WebUtility.cleanHttpResponse(normalizedApplicationUrl + pathToAppend);
 	}
 
 	/**
