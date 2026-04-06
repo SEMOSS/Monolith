@@ -91,7 +91,7 @@ public class PublicHomeCheckFilter implements Filter {
 		}
 
 		// Security checks
-		if (!performSecurityChecks(projectId, session, response)) {
+		if (!performSecurityChecks(projectId, session, request, response)) {
 			return; // Access denied
 		}
 
@@ -166,17 +166,19 @@ public class PublicHomeCheckFilter implements Filter {
 	 * @return
 	 * @throws IOException
 	 */
-	private boolean performSecurityChecks(String projectId, HttpSession session, HttpServletResponse response)
-			throws IOException {
+	private boolean performSecurityChecks(String projectId, HttpSession session, HttpServletRequest request,
+			HttpServletResponse response) throws IOException {
 		if (!SecurityProjectUtils.projectIsGlobal(projectId)) {
 			if (session != null) {
 				User user = (User) session.getAttribute(Constants.SESSION_USER);
 				if (!SecurityProjectUtils.userCanViewProject(user, projectId)) {
-					response.getWriter().write("User does not have access to this project");
+					sendError(request, response, HttpServletResponse.SC_FORBIDDEN,
+							"You do not have access to this project.");
 					return false;
 				}
 			} else {
-				response.getWriter().write("User must be logged in to access this project");
+				sendError(request, response, HttpServletResponse.SC_FORBIDDEN,
+						"You must be logged in to access this project.");
 				return false;
 			}
 		}
@@ -246,7 +248,7 @@ public class PublicHomeCheckFilter implements Filter {
 
 		// Validate file exists
 		if (!file.exists()) {
-			sendError(response, 404,
+			sendError(request, response, 404,
 					"Could not find file at path " + thisPortalsPath + (specificFile != null ? specificFile : ""));
 			return;
 		}
@@ -255,7 +257,7 @@ public class PublicHomeCheckFilter implements Filter {
 		if (file.isDirectory()) {
 			file = new File(file.getAbsolutePath() + "/index.html");
 			if (!file.exists()) {
-				sendError(response, 404, "Could not find index.html in directory " + thisPortalsPath
+				sendError(request, response, 404, "Could not find index.html in directory " + thisPortalsPath
 						+ (specificFile != null ? specificFile : ""));
 				return;
 			}
@@ -265,7 +267,7 @@ public class PublicHomeCheckFilter implements Filter {
 		Path filePath = file.toPath().toRealPath();
 		Path basePath = new File(realPath + thisPortalsPath).toPath().toRealPath();
 		if (!filePath.startsWith(basePath)) {
-			sendError(response, 403, "Access denied");
+			sendError(request, response, 403, "Access denied");
 			return;
 		}
 
@@ -459,11 +461,60 @@ public class PublicHomeCheckFilter implements Filter {
 	 * @param message
 	 * @throws IOException
 	 */
-	private void sendError(HttpServletResponse response, int statusCode, String message) throws IOException {
+	private void sendError(HttpServletRequest request, HttpServletResponse response, int statusCode, String message)
+			throws IOException {
+		String safeMessage = WebUtility.cleanHttpResponse(message);
+		String headline = statusCode == HttpServletResponse.SC_FORBIDDEN ? "Access Denied"
+				: statusCode == HttpServletResponse.SC_NOT_FOUND ? "Page Not Found" : "Request Failed";
+		String description = statusCode == HttpServletResponse.SC_FORBIDDEN
+				? "You do not have permission to view this public home resource."
+				: statusCode == HttpServletResponse.SC_NOT_FOUND ? "The requested resource could not be located."
+						: "The request could not be completed.";
+
+		StringBuilder html = new StringBuilder(2048);
+		html.append("<!doctype html>");
+		html.append("<html lang=\"en\"><head><meta charset=\"UTF-8\">");
+		html.append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">");
+		html.append("<title>").append(statusCode).append(" ").append(headline).append("</title>");
+		html.append("<style>");
+		html.append(
+				":root{--bg:#f5f7fb;--card:#ffffff;--text:#1b2a41;--muted:#5f6c7b;--line:#d9e0ea;--accent:#14532d;--warn:#7f1d1d;--gap:6px;}");
+		html.append("*{box-sizing:border-box;}");
+		html.append(
+				"body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at top,#eef4ff 0,#f5f7fb 45%,#eaf0f8 100%);font-family:\"Segoe UI\",Tahoma,Geneva,Verdana,sans-serif;color:var(--text);padding:24px;}");
+		html.append(
+				".card{width:min(760px,100%);background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:0 18px 40px rgba(16,24,40,.08);overflow:hidden;}");
+		html.append(
+				".header{display:flex;gap:14px;align-items:center;padding:20px 24px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#ffffff 0,#f8fbff 100%);}");
+		html.append(
+				".code{min-width:64px;padding:8px 12px;border-radius:10px;font-weight:700;text-align:center;color:#fff;background:")
+				.append(statusCode == HttpServletResponse.SC_FORBIDDEN ? "var(--warn)" : "var(--accent)").append(";}");
+		html.append(".title{margin:0;font-size:1.4rem;line-height:1.2;}");
+		html.append(".desc{margin:var(--gap) 0 0;color:var(--muted);font-size:.98rem;}");
+		html.append(".body{padding:var(--gap) 24px 0;}");
+		html.append(
+				".label{font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:var(--gap);}");
+		html.append(
+				".detail{background:#f7f9fc;border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:0 0 var(--gap);word-break:break-word;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:.88rem;}");
+		html.append(".footer{padding:0 24px 22px;color:var(--muted);font-size:.9rem;}");
+		html.append("</style></head><body>");
+		html.append("<main class=\"card\">");
+		html.append("<section class=\"header\">");
+		html.append("<div class=\"code\">").append(statusCode).append("</div>");
+		html.append("<div><h1 class=\"title\">").append(headline).append("</h1>");
+		html.append("<p class=\"desc\">").append(description).append("</p></div>");
+		html.append("</section>");
+		html.append("<section class=\"body\">");
+		html.append("<div class=\"label\">Details</div><p class=\"detail\">").append(safeMessage).append("</p>");
+		html.append("</section>");
+		html.append(
+				"<section class=\"footer\">If this seems unexpected, verify the path and access settings or request an administrator to republish the app.</section>");
+		html.append("</main></body></html>");
+
 		response.setStatus(statusCode);
 		response.setContentType("text/html; charset=UTF-8");
-		response.getWriter()
-				.write(String.format("<html><body><h1>%d Error</h1><p>%s</p></body></html>", statusCode, message));
+		response.setCharacterEncoding("UTF-8");
+		response.getWriter().write(html.toString());
 		response.flushBuffer();
 	}
 
