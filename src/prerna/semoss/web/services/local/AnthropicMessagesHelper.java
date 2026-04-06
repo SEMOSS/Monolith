@@ -39,7 +39,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import prerna.engine.impl.model.Room;
-import prerna.engine.impl.model.message.MessageUtils;
+import prerna.engine.impl.model.RoomUtils;
 import prerna.engine.impl.model.responses.AskModelEngineResponse;
 import prerna.engine.impl.model.responses.AskToolModelEngineResponse;
 import prerna.engine.impl.model.responses.AskToolModelEngineResponse.ToolResponse;
@@ -320,14 +320,13 @@ public final class AnthropicMessagesHelper {
 		return result;
 	}
 
-
-/**
-	 * Process an Anthropic user message and add to OpenAI message list.
-	 * Handles text, images, and tool_result blocks.
+	/**
+	 * Process an Anthropic user message and add to OpenAI message list. Handles
+	 * text, images, and tool_result blocks.
 	 * 
-	 * IMPORTANT: tool_result blocks MUST be added to the message list BEFORE
-	 * any text/image blocks from the same message, because the Anthropic API
-	 * requires tool_result to immediately follow the assistant's tool_use.
+	 * IMPORTANT: tool_result blocks MUST be added to the message list BEFORE any
+	 * text/image blocks from the same message, because the Anthropic API requires
+	 * tool_result to immediately follow the assistant's tool_use.
 	 */
 	@SuppressWarnings("unchecked")
 	private static void processUserMessage(Object content, List<Map<String, Object>> openAIMessages) {
@@ -365,11 +364,11 @@ public final class AnthropicMessagesHelper {
 
 		// ---------------------------------------------------------------
 		// 1. Process tool_result blocks FIRST.
-		//    These MUST appear immediately after the assistant's tool_use
-		//    message in the normalized output. If we emit text/image blocks
-		//    before tool results, the Anthropic API will reject the request
-		//    with: "tool_use ids were found without tool_result blocks
-		//    immediately after"
+		// These MUST appear immediately after the assistant's tool_use
+		// message in the normalized output. If we emit text/image blocks
+		// before tool results, the Anthropic API will reject the request
+		// with: "tool_use ids were found without tool_result blocks
+		// immediately after"
 		// ---------------------------------------------------------------
 		for (Map<String, Object> toolResultBlock : toolResultBlocks) {
 			Map<String, Object> toolMsg = new HashMap<>();
@@ -434,7 +433,6 @@ public final class AnthropicMessagesHelper {
 			openAIMessages.add(userMsg);
 		}
 	}
-
 
 	/**
 	 * Process an Anthropic assistant message and add to OpenAI message list.
@@ -524,24 +522,28 @@ public final class AnthropicMessagesHelper {
 	 */
 	@SuppressWarnings("unchecked")
 	private static String extractToolResultContent(Object toolContent) {
-	    if (toolContent instanceof String) {
-	        return (String) toolContent;
-	    }
-	    if (toolContent instanceof List) {
-	        StringBuilder textAggregator = new StringBuilder();
-	        for (Map<String, Object> innerBlock : (List<Map<String, Object>>) toolContent) {
-	            String innerType = (String) innerBlock.get("type");
-	            if ("text".equals(innerType)) {
-	                if (textAggregator.length() > 0) textAggregator.append("\n");
-	                textAggregator.append(innerBlock.get("text"));
-	            } else if ("tool_reference".equals(innerType)) {
-	                if (textAggregator.length() > 0) textAggregator.append("\n");
-	                textAggregator.append("Tool loaded: " + innerBlock.get("tool_name"));
-	            }
-	        }
-	        return textAggregator.toString();
-	    }
-	    return "";
+		if (toolContent instanceof String) {
+			return (String) toolContent;
+		}
+		if (toolContent instanceof List) {
+			StringBuilder textAggregator = new StringBuilder();
+			for (Map<String, Object> innerBlock : (List<Map<String, Object>>) toolContent) {
+				String innerType = (String) innerBlock.get("type");
+				if ("text".equals(innerType)) {
+					if (textAggregator.length() > 0) {
+						textAggregator.append("\n");
+					}
+					textAggregator.append(innerBlock.get("text"));
+				} else if ("tool_reference".equals(innerType)) {
+					if (textAggregator.length() > 0) {
+						textAggregator.append("\n");
+					}
+					textAggregator.append("Tool loaded: " + innerBlock.get("tool_name"));
+				}
+			}
+			return textAggregator.toString();
+		}
+		return "";
 	}
 
 	/**
@@ -867,7 +869,7 @@ public final class AnthropicMessagesHelper {
 
 	private static String uploadImageToRoom(String inputImage, Room room, Insight insight) {
 		Path roomPath = Path.of(room.getRoomFolderPath());
-		return MessageUtils.writeBase64ImageDataUriToDir(inputImage, roomPath);
+		return RoomUtils.writeBase64ImageDataUriToDir(inputImage, roomPath);
 	}
 
 	/**
