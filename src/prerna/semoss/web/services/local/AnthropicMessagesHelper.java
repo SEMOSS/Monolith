@@ -496,8 +496,7 @@ public final class AnthropicMessagesHelper {
 
 				Map<String, Object> function = new HashMap<>();
 				function.put("name", toolUse.get("name"));
-				function.put("arguments", toolUse.get("input")); // keep as Map, GSON will serialize once in
-																	// startAsyncModelRequest
+				function.put("arguments", toolUse.get("input"));
 
 				toolCall.put("function", function);
 				toolCalls.add(toolCall);
