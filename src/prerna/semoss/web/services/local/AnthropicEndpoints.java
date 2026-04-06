@@ -211,7 +211,7 @@ public class AnthropicEndpoints {
 				}
 			}
 		}
-		
+
 		if (insightId == null) {
 			insight = new Insight();
 			InsightStore.getInstance().put(insight);
@@ -236,7 +236,8 @@ public class AnthropicEndpoints {
 		Object systemPromptBlock = dataMap.remove("system");
 		String systemPromptString = AnthropicMessagesHelper.getSystemMessage(systemPromptBlock);
 
-		// Extract model ID from system prompt if present (injected by claude_code_client.py)
+		// Extract model ID from system prompt if present (injected by
+		// claude_code_client.py)
 		String systemModelId = SemossContextExtractor.extractModelId(systemPromptString);
 		Boolean appendFullPrompt = false;
 		if (systemModelId != null && !systemModelId.isEmpty()) {
@@ -244,7 +245,7 @@ public class AnthropicEndpoints {
 			classLogger.debug("Using model ID from system prompt: {}", engineId);
 			systemPromptString = SemossContextExtractor.stripModelTag(systemPromptString);
 			appendFullPrompt = true;
-		
+
 		}
 
 		Object messages = dataMap.remove("messages");
@@ -263,21 +264,20 @@ public class AnthropicEndpoints {
 
 		List<Map<String, Object>> messagesList = (List<Map<String, Object>>) messages;
 		Map<String, Object> latestMessage = messagesList.get(messagesList.size() - 1);
-		
+
 		SemossContextExtractor.ExtractionResult ctx = SemossContextExtractor.extractAndStripFromMessage(latestMessage);
 
 		// Use extracted IDs, falling back to what was in the request body
 		if (ctx.hasInsightId()) {
-		    insightId = ctx.getInsightId();
-		    classLogger.debug("Found-insightID::{}::{}",JOB_ID, insightId);
+			insightId = ctx.getInsightId();
+			classLogger.debug("Found-insightID::{}::{}", JOB_ID, insightId);
 		}
 		if (ctx.hasRoomId()) {
-		    roomId = ctx.getRoomId();
-		    classLogger.debug("Found-roomId::{}::{}",JOB_ID, roomId);
+			roomId = ctx.getRoomId();
+			classLogger.debug("Found-roomId::{}::{}", JOB_ID, roomId);
 		}
 
 		room = RoomUtils.createRoomIfNotExists(roomId, insight, engine, null);
-
 
 		Object tools = dataMap.remove("tools");
 
@@ -318,8 +318,9 @@ public class AnthropicEndpoints {
 			List<Map<String, Object>> openAIMessages = (List<Map<String, Object>>) openAIFormat.get("messages");
 			dataMap.put(AbstractModelEngine.FULL_PROMPT, openAIMessages);
 			Gson gson = new GsonBuilder().setPrettyPrinting().create();
-			classLogger.debug("OpenAI-Formatted-Message::{}::{},", JOB_ID, gson.toJson(openAIMessages));;
-			
+			classLogger.debug("OpenAI-Formatted-Message::{}::{},", JOB_ID, gson.toJson(openAIMessages));
+			;
+
 			if (openAIFormat.containsKey("tools")) {
 				dataMap.put("tools", openAIFormat.get("tools"));
 			}
@@ -328,7 +329,8 @@ public class AnthropicEndpoints {
 
 			dataMap.put("append_full_prompt", true);
 
-			return handleStreamingRequest(engine, finalInsight, finalRoom, dataMap, SESSION_ID, JOB_ID, engineId, response);
+			return handleStreamingRequest(engine, finalInsight, finalRoom, dataMap, SESSION_ID, JOB_ID, engineId,
+					response);
 		}
 	}
 
@@ -424,7 +426,8 @@ public class AnthropicEndpoints {
 												if (newContent != null && !newContent.isEmpty()) {
 													if (!started) {
 														long elapsed = System.currentTimeMillis() - streamStartTime;
-														classLogger.info("SSE first event after {}ms for job {}", elapsed, asyncJobId);
+														classLogger.info("SSE first event after {}ms for job {}",
+																elapsed, asyncJobId);
 														AnthropicMessagesHelper.writeMessageStart(messageId, engineId,
 																0, writer);
 														AnthropicMessagesHelper
