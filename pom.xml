@@ -590,7 +590,9 @@
 		<dependency>
 			<groupId>org.bouncycastle</groupId>
 			<artifactId>bcpkix-jdk18on</artifactId>
-			<version>1.78.1</version>
+			<!--<version>1.78.1</version>-->
+			<!-- Fix for MEND Security issue, 1.79.x would solve, 1.83 is the latest -->
+			<version>1.83</version>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/joda-time/joda-time -->
 		<dependency>
