@@ -381,8 +381,11 @@ public class AnthropicEndpoints {
 							asyncJobId = startAsyncModelRequest(engine, finalInsight, finalRoom, dataMap, sessionId);
 							classLogger.debug("Streaming job started: {}", asyncJobId);
 
-							boolean started = false;
+							// Send message_start IMMEDIATELY to prevent client timeout.
+							// The Anthropic API sends this event before any content is ready.
+							AnthropicMessagesHelper.writeMessageStart(messageId, engineId, 0, writer);
 							int contentBlockIndex = 0;
+							boolean textBlockStarted = false;
 
 							// Track tool data across chunks
 							Map<Integer, String> pendingToolIds = new HashMap<>();
@@ -412,7 +415,7 @@ public class AnthropicEndpoints {
 													}
 												}
 
-												if (started && toolBlockStarted.isEmpty()) {
+												if (textBlockStarted && toolBlockStarted.isEmpty()) {
 													AnthropicMessagesHelper.writeContentBlockStop(contentBlockIndex,
 															writer);
 												}
@@ -424,15 +427,13 @@ public class AnthropicEndpoints {
 											} else {
 												String newContent = (String) streamData.get("content");
 												if (newContent != null && !newContent.isEmpty()) {
-													if (!started) {
+													if (!textBlockStarted) {
 														long elapsed = System.currentTimeMillis() - streamStartTime;
-														classLogger.info("SSE first event after {}ms for job {}",
+														classLogger.info("SSE first content after {}ms for job {}",
 																elapsed, asyncJobId);
-														AnthropicMessagesHelper.writeMessageStart(messageId, engineId,
-																0, writer);
 														AnthropicMessagesHelper
 																.writeTextContentBlockStart(contentBlockIndex, writer);
-														started = true;
+														textBlockStarted = true;
 													}
 													AnthropicMessagesHelper.writeTextDelta(contentBlockIndex,
 															newContent, writer);
@@ -449,7 +450,7 @@ public class AnthropicEndpoints {
 													}
 												}
 
-												if (started && toolBlockStarted.isEmpty()) {
+												if (textBlockStarted && toolBlockStarted.isEmpty()) {
 													AnthropicMessagesHelper.writeContentBlockStop(contentBlockIndex,
 															writer);
 												}
@@ -459,12 +460,6 @@ public class AnthropicEndpoints {
 												AnthropicMessagesHelper.writeMessageStop(writer);
 												break STREAM_COMPLETE_LOOP;
 											} else {
-												if (!started) {
-													AnthropicMessagesHelper.writeMessageStart(messageId, engineId, 0,
-															writer);
-													started = true;
-												}
-
 												Integer toolIndex = streamData.get("index") != null
 														? ((Number) streamData.get("index")).intValue()
 														: 0;
@@ -521,20 +516,23 @@ public class AnthropicEndpoints {
 									}
 								}
 
-								// Send SSE keep-alive comment when no data is available
+								// Send proper SSE ping event when no data is available.
+								// Ping events count as real SSE events and reset client
+								// timeouts, unlike SSE comments which are ignored by
+								// event-based timeout logic.
 								if (partialResponseContent == null || partialResponseContent.isEmpty()) {
-									writer.write(": keepalive\n\n");
-									writer.flush();
+									AnthropicMessagesHelper.writePing(writer);
 								}
 
-								if (jobStatus == PixelJobStatus.PROGRESS_COMPLETE && started) {
+								if (jobStatus == PixelJobStatus.PROGRESS_COMPLETE
+										&& (textBlockStarted || !toolBlockStarted.isEmpty())) {
 									for (Integer idx : toolBlockStarted.keySet()) {
 										if (toolBlockStarted.get(idx)) {
 											AnthropicMessagesHelper.writeContentBlockStop(idx, writer);
 										}
 									}
 
-									if (toolBlockStarted.isEmpty()) {
+									if (toolBlockStarted.isEmpty() && textBlockStarted) {
 										AnthropicMessagesHelper.writeContentBlockStop(contentBlockIndex, writer);
 									}
 
@@ -542,7 +540,8 @@ public class AnthropicEndpoints {
 									AnthropicMessagesHelper.writeMessageDelta(stopReason, null, writer);
 									AnthropicMessagesHelper.writeMessageStop(writer);
 									break STREAM_COMPLETE_LOOP;
-								} else if (jobStatus == PixelJobStatus.PROGRESS_COMPLETE && !started) {
+								} else if (jobStatus == PixelJobStatus.PROGRESS_COMPLETE
+										&& !textBlockStarted && toolBlockStarted.isEmpty()) {
 									PixelRunner finalOutput = PixelJobManager.getManager().getOutput(asyncJobId);
 									NounMetadata finalNoun = finalOutput.getResults().get(0);
 									Object finalObject = finalNoun.getValue();
@@ -553,8 +552,6 @@ public class AnthropicEndpoints {
 										resultOutput = (Map<String, Object>) finalObject;
 										messageType = (String) resultOutput.get("messageType");
 									}
-
-									AnthropicMessagesHelper.writeMessageStart(messageId, engineId, 0, writer);
 
 									if ("TOOL".equals(messageType)) {
 										List<Map<String, Object>> toolResponses = (List<Map<String, Object>>) resultOutput
@@ -609,13 +606,12 @@ public class AnthropicEndpoints {
 							// would cause Tomcat to inject an HTML error page into
 							// the already-committed SSE stream, corrupting it.
 							classLogger.debug("Client disconnected from SSE stream: {}", e.getMessage());
-						} catch (Exception e) {
+						} catch (Throwable e) {
+							// Catch Throwable (not just Exception) because Errors
+							// like NoSuchMethodError from library version mismatches
+							// would otherwise escape to Tomcat, which injects its
+							// HTML error page into the already-committed SSE stream.
 							classLogger.error("Error in streaming response", e);
-							// Don't throw WebApplicationException — the response is
-							// already committed as text/event-stream. Throwing would
-							// cause Tomcat to append its HTML error page into the
-							// SSE stream body, which corrupts responses for other
-							// concurrent connections.
 						} finally {
 							if (asyncJobId != null) {
 								PixelJobManager.getManager().clearJob(asyncJobId);
