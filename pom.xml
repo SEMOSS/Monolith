@@ -530,6 +530,10 @@
 				    <artifactId>*</artifactId>
 				</exclusion>
 				<exclusion>
+					<groupId>org.assertj</groupId>
+					<artifactId>assertj-core</artifactId>
+				</exclusion>
+				<exclusion>
 					<groupId>org.openidentityplatform.commons.i18n-framework</groupId>
 					<artifactId>slf4j</artifactId>
 				</exclusion>
