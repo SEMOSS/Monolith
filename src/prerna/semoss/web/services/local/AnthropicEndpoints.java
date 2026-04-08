@@ -114,6 +114,17 @@ public class AnthropicEndpoints {
 	@Consumes({ "application/json" })
 	@Produces({ "application/json;charset=utf-8", "text/event-stream" })
 	public Response createMessage(@Context HttpServletRequest request, @Context HttpServletResponse response) {
+		
+	    java.util.Enumeration<String> headerNames = request.getHeaderNames();
+	    while (headerNames.hasMoreElements()) {
+	        String headerName = headerNames.nextElement();
+	        String headerValue = request.getHeader(headerName);
+	        classLogger.debug("Anthropic-Header::{}={}", headerName, headerValue);
+	    }
+		
+
+
+	    
 		HttpSession session = request.getSession(false);
 		User user = null;
 
@@ -132,7 +143,19 @@ public class AnthropicEndpoints {
 		Insight insight = null;
 		Room room = null;
 		ObjectMapper objectMapper = new ObjectMapper();
-
+		
+	  String claudeCodeSessionId = request.getHeader("x-claude-code-session-id");
+	  classLogger.debug("Anthropic-Session-Header::{}::{}", JOB_ID, claudeCodeSessionId);
+	  String roomIdHeader = request.getHeader("x-api-key");
+//	  classLogger.debug("Anthropic-X-API-Room-Header::{}::{}", JOB_ID, roomIdHeader);
+	  
+	  String parentRoomId= "";
+	  if (roomIdHeader.contains("room-")) {
+		  parentRoomId = roomIdHeader.substring(5);
+		  classLogger.debug("Anthropic-X-API-Room-Header::{}::{}", JOB_ID, parentRoomId);
+	  }
+	  
+		  
 		// Set the user timezone
 		ZoneId zoneId = null;
 		String strTz = WebUtility.inputSanitizer(request.getParameter("tz"));
@@ -225,7 +248,6 @@ public class AnthropicEndpoints {
 			}
 		}
 		insight.setUser(user);
-//		room = RoomUtils.createRoomIfNotExists(roomId, insight, engine, null);
 
 		ThreadStore.setInsightId(insight.getInsightId());
 		ThreadStore.setSessionId(SESSION_ID);
@@ -236,17 +258,13 @@ public class AnthropicEndpoints {
 		Object systemPromptBlock = dataMap.remove("system");
 		String systemPromptString = AnthropicMessagesHelper.getSystemMessage(systemPromptBlock);
 
-		// Extract model ID from system prompt if present (injected by
+		// Extract parent room ID from system prompt if present (injected by
 		// claude_code_client.py)
-		String systemModelId = SemossContextExtractor.extractModelId(systemPromptString);
-		Boolean appendFullPrompt = false;
-		if (systemModelId != null && !systemModelId.isEmpty()) {
-			engineId = systemModelId;
-			classLogger.debug("Using model ID from system prompt: {}", engineId);
-			systemPromptString = SemossContextExtractor.stripModelTag(systemPromptString);
-			appendFullPrompt = true;
-
-		}
+//		String parentRoomId = SemossContextExtractor.extractParentRoomId(systemPromptString);
+//		if (parentRoomId != null && !parentRoomId.isEmpty()) {
+//			classLogger.debug("Using parent room ID from system prompt: {}", parentRoomId);
+//			systemPromptString = SemossContextExtractor.stripParentRoomTag(systemPromptString);
+//		}
 
 		Object messages = dataMap.remove("messages");
 		if (messages == null) {
@@ -265,19 +283,19 @@ public class AnthropicEndpoints {
 		List<Map<String, Object>> messagesList = (List<Map<String, Object>>) messages;
 		Map<String, Object> latestMessage = messagesList.get(messagesList.size() - 1);
 
-		SemossContextExtractor.ExtractionResult ctx = SemossContextExtractor.extractAndStripFromMessage(latestMessage);
+//		SemossContextExtractor.ExtractionResult ctx = SemossContextExtractor.extractAndStripFromMessage(latestMessage);
 
 		// Use extracted IDs, falling back to what was in the request body
-		if (ctx.hasInsightId()) {
-			insightId = ctx.getInsightId();
-			classLogger.debug("Found-insightID::{}::{}", JOB_ID, insightId);
-		}
-		if (ctx.hasRoomId()) {
-			roomId = ctx.getRoomId();
-			classLogger.debug("Found-roomId::{}::{}", JOB_ID, roomId);
-		}
+//		if (ctx.hasInsightId()) {
+//			insightId = ctx.getInsightId();
+//			classLogger.debug("Found-insightID::{}::{}", JOB_ID, insightId);
+//		}
+//		if (ctx.hasRoomId()) {
+//			roomId = ctx.getRoomId();
+//			classLogger.debug("Found-roomId::{}::{}", JOB_ID, roomId);
+//		}
 
-		room = RoomUtils.createRoomIfNotExists(roomId, insight, engine, null);
+		room = RoomUtils.createRoomIfNotExists(roomId, insight, engine, null, null, null, null, null, parentRoomId);
 
 		Object tools = dataMap.remove("tools");
 
@@ -317,6 +335,9 @@ public class AnthropicEndpoints {
 
 			List<Map<String, Object>> openAIMessages = (List<Map<String, Object>>) openAIFormat.get("messages");
 			dataMap.put(AbstractModelEngine.FULL_PROMPT, openAIMessages);
+			if (!parentRoomId.isEmpty()) {
+				dataMap.put("PARENT_ROOM_ID", parentRoomId);
+			}
 			Gson gson = new GsonBuilder().setPrettyPrinting().create();
 			classLogger.debug("OpenAI-Formatted-Message::{}::{},", JOB_ID, gson.toJson(openAIMessages));
 			;
