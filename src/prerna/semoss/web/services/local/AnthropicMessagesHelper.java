@@ -35,11 +35,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 import prerna.engine.impl.model.Room;
-import prerna.engine.impl.model.message.MessageUtils;
+import prerna.engine.impl.model.RoomUtils;
 import prerna.engine.impl.model.responses.AskModelEngineResponse;
 import prerna.engine.impl.model.responses.AskToolModelEngineResponse;
 import prerna.engine.impl.model.responses.AskToolModelEngineResponse.ToolResponse;
@@ -58,16 +58,20 @@ import prerna.om.Insight;
  */
 public final class AnthropicMessagesHelper {
 
-	private static final ObjectMapper mapper = new ObjectMapper();
+	private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
 
 	/**
 	 * Writes an SSE event in Anthropic format. Format: event: {eventType}\ndata:
 	 * {json}\n\n
+	 *
+	 * Uses Gson instead of Jackson's ObjectMapper to avoid
+	 * NoSuchMethodError from Jackson core version mismatches
+	 * (e.g. BufferRecycler.releaseToPool added in 2.16+).
 	 */
 	public static void writeSSEEvent(String eventType, Map<String, Object> data, Writer writer)
-			throws JsonProcessingException, IOException {
+			throws IOException {
 		writer.write("event: " + eventType + "\n");
-		writer.write("data: " + mapper.writeValueAsString(data) + "\n\n");
+		writer.write("data: " + GSON.toJson(data) + "\n\n");
 		writer.flush();
 	}
 
@@ -78,7 +82,7 @@ public final class AnthropicMessagesHelper {
 	 * Contains a Message object with empty content array.
 	 */
 	public static void writeMessageStart(String messageId, String engineId, int inputTokens, Writer writer)
-			throws JsonProcessingException, IOException {
+			throws IOException {
 		Map<String, Object> messageStart = new HashMap<>();
 		messageStart.put("type", "message_start");
 
@@ -104,7 +108,7 @@ public final class AnthropicMessagesHelper {
 	 * Writes the message_delta event with final stop reason and usage.
 	 */
 	public static void writeMessageDelta(String stopReason, Integer outputTokens, Writer writer)
-			throws JsonProcessingException, IOException {
+			throws IOException {
 		Map<String, Object> messageDelta = new HashMap<>();
 		messageDelta.put("type", "message_delta");
 
@@ -123,10 +127,21 @@ public final class AnthropicMessagesHelper {
 	/**
 	 * Writes the final message_stop event.
 	 */
-	public static void writeMessageStop(Writer writer) throws JsonProcessingException, IOException {
+	public static void writeMessageStop(Writer writer) throws IOException {
 		Map<String, Object> messageStop = new HashMap<>();
 		messageStop.put("type", "message_stop");
 		writeSSEEvent("message_stop", messageStop, writer);
+	}
+
+	/**
+	 * Writes a ping event. Used as a keep-alive that counts as a proper
+	 * SSE event (unlike SSE comments), ensuring clients with event-based
+	 * timeouts do not disconnect prematurely.
+	 */
+	public static void writePing(Writer writer) throws IOException {
+		Map<String, Object> ping = new HashMap<>();
+		ping.put("type", "ping");
+		writeSSEEvent("ping", ping, writer);
 	}
 
 	// ==================== Content Block Events ====================
@@ -135,7 +150,7 @@ public final class AnthropicMessagesHelper {
 	 * Writes content_block_start for a text content block.
 	 */
 	public static void writeTextContentBlockStart(int index, Writer writer)
-			throws JsonProcessingException, IOException {
+			throws IOException {
 		Map<String, Object> event = new HashMap<>();
 		event.put("type", "content_block_start");
 		event.put("index", index);
@@ -152,7 +167,7 @@ public final class AnthropicMessagesHelper {
 	 * Writes content_block_start for a tool_use content block.
 	 */
 	public static void writeToolUseContentBlockStart(int index, String toolId, String toolName, Writer writer)
-			throws JsonProcessingException, IOException {
+			throws IOException {
 		Map<String, Object> event = new HashMap<>();
 		event.put("type", "content_block_start");
 		event.put("index", index);
@@ -171,7 +186,7 @@ public final class AnthropicMessagesHelper {
 	 * Writes content_block_start for a thinking content block.
 	 */
 	public static void writeThinkingContentBlockStart(int index, Writer writer)
-			throws JsonProcessingException, IOException {
+			throws IOException {
 		Map<String, Object> event = new HashMap<>();
 		event.put("type", "content_block_start");
 		event.put("index", index);
@@ -187,7 +202,7 @@ public final class AnthropicMessagesHelper {
 	/**
 	 * Writes content_block_stop event.
 	 */
-	public static void writeContentBlockStop(int index, Writer writer) throws JsonProcessingException, IOException {
+	public static void writeContentBlockStop(int index, Writer writer) throws IOException {
 		Map<String, Object> event = new HashMap<>();
 		event.put("type", "content_block_stop");
 		event.put("index", index);
@@ -200,7 +215,7 @@ public final class AnthropicMessagesHelper {
 	 * Writes a text_delta content block delta.
 	 */
 	public static void writeTextDelta(int index, String text, Writer writer)
-			throws JsonProcessingException, IOException {
+			throws IOException {
 		Map<String, Object> event = new HashMap<>();
 		event.put("type", "content_block_delta");
 		event.put("index", index);
@@ -217,7 +232,7 @@ public final class AnthropicMessagesHelper {
 	 * Writes an input_json_delta for tool use arguments.
 	 */
 	public static void writeInputJsonDelta(int index, String partialJson, Writer writer)
-			throws JsonProcessingException, IOException {
+			throws IOException {
 		Map<String, Object> event = new HashMap<>();
 		event.put("type", "content_block_delta");
 		event.put("index", index);
@@ -234,7 +249,7 @@ public final class AnthropicMessagesHelper {
 	 * Writes a thinking_delta for extended thinking content.
 	 */
 	public static void writeThinkingDelta(int index, String thinking, Writer writer)
-			throws JsonProcessingException, IOException {
+			throws IOException {
 		Map<String, Object> event = new HashMap<>();
 		event.put("type", "content_block_delta");
 		event.put("index", index);
@@ -320,14 +335,13 @@ public final class AnthropicMessagesHelper {
 		return result;
 	}
 
-
-/**
-	 * Process an Anthropic user message and add to OpenAI message list.
-	 * Handles text, images, and tool_result blocks.
+	/**
+	 * Process an Anthropic user message and add to OpenAI message list. Handles
+	 * text, images, and tool_result blocks.
 	 * 
-	 * IMPORTANT: tool_result blocks MUST be added to the message list BEFORE
-	 * any text/image blocks from the same message, because the Anthropic API
-	 * requires tool_result to immediately follow the assistant's tool_use.
+	 * IMPORTANT: tool_result blocks MUST be added to the message list BEFORE any
+	 * text/image blocks from the same message, because the Anthropic API requires
+	 * tool_result to immediately follow the assistant's tool_use.
 	 */
 	@SuppressWarnings("unchecked")
 	private static void processUserMessage(Object content, List<Map<String, Object>> openAIMessages) {
@@ -365,11 +379,11 @@ public final class AnthropicMessagesHelper {
 
 		// ---------------------------------------------------------------
 		// 1. Process tool_result blocks FIRST.
-		//    These MUST appear immediately after the assistant's tool_use
-		//    message in the normalized output. If we emit text/image blocks
-		//    before tool results, the Anthropic API will reject the request
-		//    with: "tool_use ids were found without tool_result blocks
-		//    immediately after"
+		// These MUST appear immediately after the assistant's tool_use
+		// message in the normalized output. If we emit text/image blocks
+		// before tool results, the Anthropic API will reject the request
+		// with: "tool_use ids were found without tool_result blocks
+		// immediately after"
 		// ---------------------------------------------------------------
 		for (Map<String, Object> toolResultBlock : toolResultBlocks) {
 			Map<String, Object> toolMsg = new HashMap<>();
@@ -434,7 +448,6 @@ public final class AnthropicMessagesHelper {
 			openAIMessages.add(userMsg);
 		}
 	}
-
 
 	/**
 	 * Process an Anthropic assistant message and add to OpenAI message list.
@@ -524,24 +537,28 @@ public final class AnthropicMessagesHelper {
 	 */
 	@SuppressWarnings("unchecked")
 	private static String extractToolResultContent(Object toolContent) {
-	    if (toolContent instanceof String) {
-	        return (String) toolContent;
-	    }
-	    if (toolContent instanceof List) {
-	        StringBuilder textAggregator = new StringBuilder();
-	        for (Map<String, Object> innerBlock : (List<Map<String, Object>>) toolContent) {
-	            String innerType = (String) innerBlock.get("type");
-	            if ("text".equals(innerType)) {
-	                if (textAggregator.length() > 0) textAggregator.append("\n");
-	                textAggregator.append(innerBlock.get("text"));
-	            } else if ("tool_reference".equals(innerType)) {
-	                if (textAggregator.length() > 0) textAggregator.append("\n");
-	                textAggregator.append("Tool loaded: " + innerBlock.get("tool_name"));
-	            }
-	        }
-	        return textAggregator.toString();
-	    }
-	    return "";
+		if (toolContent instanceof String) {
+			return (String) toolContent;
+		}
+		if (toolContent instanceof List) {
+			StringBuilder textAggregator = new StringBuilder();
+			for (Map<String, Object> innerBlock : (List<Map<String, Object>>) toolContent) {
+				String innerType = (String) innerBlock.get("type");
+				if ("text".equals(innerType)) {
+					if (textAggregator.length() > 0) {
+						textAggregator.append("\n");
+					}
+					textAggregator.append(innerBlock.get("text"));
+				} else if ("tool_reference".equals(innerType)) {
+					if (textAggregator.length() > 0) {
+						textAggregator.append("\n");
+					}
+					textAggregator.append("Tool loaded: " + innerBlock.get("tool_name"));
+				}
+			}
+			return textAggregator.toString();
+		}
+		return "";
 	}
 
 	/**
@@ -867,7 +884,7 @@ public final class AnthropicMessagesHelper {
 
 	private static String uploadImageToRoom(String inputImage, Room room, Insight insight) {
 		Path roomPath = Path.of(room.getRoomFolderPath());
-		return MessageUtils.writeBase64ImageDataUriToDir(inputImage, roomPath);
+		return RoomUtils.writeBase64ImageDataUriToDir(inputImage, roomPath);
 	}
 
 	/**
@@ -1015,7 +1032,7 @@ public final class AnthropicMessagesHelper {
 	 * for simple text responses.
 	 */
 	public static void writeCompleteTextStream(String messageId, String engineId, String text, Integer inputTokens,
-			Integer outputTokens, Writer writer) throws JsonProcessingException, IOException {
+			Integer outputTokens, Writer writer) throws IOException {
 		// 1. message_start
 		writeMessageStart(messageId, engineId, inputTokens != null ? inputTokens : 0, writer);
 
@@ -1054,7 +1071,7 @@ public final class AnthropicMessagesHelper {
 	 * Writes an error event for streaming responses.
 	 */
 	public static void writeErrorEvent(String errorType, String message, Writer writer)
-			throws JsonProcessingException, IOException {
+			throws IOException {
 		Map<String, Object> errorData = createErrorResponse(errorType, message);
 		writeSSEEvent("error", errorData, writer);
 	}
