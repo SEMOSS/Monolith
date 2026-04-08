@@ -389,6 +389,16 @@
 			<url>https://s3.amazonaws.com/redshift-maven-repository/release</url>
 		</repository>
 	</repositories>
+	<dependencyManagement>
+		<dependencies>
+			<!-- CVE force: CVE-2025-12183/CVE-2025-66566 - override transitive org.lz4:lz4-java version (1.8.0) -->
+			<dependency>
+				<groupId>org.lz4</groupId>
+				<artifactId>lz4-java</artifactId>
+				<version>1.8.1</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
 	<dependencies>
 		<dependency>
 			<groupId>org.semoss</groupId>
