@@ -48,7 +48,7 @@
       </init-param>
       <init-param>
          <param-name>excluded-paths</param-name>
-         <param-value>/api/model/openai,/api/ext,/api/model/anthropic,/api/model/ollama</param-value>
+         <param-value>/api/model/openai,/api/ext,/api/model/anthropic</param-value>
       </init-param>
    </filter>
    <filter-mapping>
@@ -72,7 +72,7 @@
       </init-param>
       <init-param>
          <param-name>antiClickJackingEnabled</param-name>
-         <param-value>true</param-value>
+         <param-value>false</param-value>
       </init-param>
       <init-param>
          <param-name>antiClickJackingOption</param-name>
@@ -83,18 +83,18 @@
          <param-value>true</param-value>
       </init-param>
    </filter>
-   <filter-mapping>
+  <filter-mapping>
       <filter-name>HeaderSecurityFilter</filter-name>
       <url-pattern>/*</url-pattern>
    </filter-mapping>
    <!-- CORS FILTER - MUST FILL IN cors.allowed.origins -->
-   <!-- 
+
    <filter>
       <filter-name>CorsFilter</filter-name>
       <filter-class>org.apache.catalina.filters.CorsFilter</filter-class>
       <init-param>
          <param-name>cors.allowed.origins</param-name>
-         <param-value>*</param-value>
+         <param-value>http://localhost:5173</param-value>
       </init-param>
       <init-param>
          <param-name>cors.allowed.methods</param-name>
@@ -110,7 +110,7 @@
       </init-param>
       <init-param>
          <param-name>cors.support.credentials</param-name>
-         <param-value>false</param-value>
+         <param-value>true</param-value>
       </init-param>
       <init-param>
          <param-name>cors.preflight.maxage</param-name>
@@ -121,7 +121,7 @@
       <filter-name>CorsFilter</filter-name>
       <url-pattern>/*</url-pattern>
    </filter-mapping>
-	-->
+
    <!-- general check that the databases loaded properly -->
    <filter>
       <filter-name>StartUpSuccessFilter</filter-name>
@@ -216,10 +216,6 @@
       <filter-name>OpenAIFilter</filter-name>
       <url-pattern>/api/model/anthropic/*</url-pattern>
    </filter-mapping>
-   <filter-mapping>
-      <filter-name>OpenAIFilter</filter-name>
-      <url-pattern>/api/model/ollama/*</url-pattern>
-   </filter-mapping>
 
    <!-- Code Assistant Filer -->
    <filter>
@@ -237,10 +233,6 @@
    <filter-mapping>
       <filter-name>CodeAssistantFilter</filter-name>
       <url-pattern>/api/model/anthropic/*</url-pattern>
-   </filter-mapping>
-   <filter-mapping>
-      <filter-name>CodeAssistantFilter</filter-name>
-      <url-pattern>/api/model/ollama/*</url-pattern>
    </filter-mapping>
 
    <!-- scheduler filter -->
@@ -677,7 +669,7 @@
    </context-param>
    <context-param>
 	   <param-name>log4jConfiguration</param-name>
-	   <param-value>file:///C:/workspace/Semoss/log4j2.xml</param-value>
+	   <param-value>file:////Users/rweiler/Documents/SEMOSS/workspace/Semoss/log4j2.xml</param-value>
    </context-param>
    <context-param>
       <param-name>admin-set-publisher</param-name>
@@ -703,17 +695,17 @@
    <context-param>
       <description>Location to store uploaded file</description>
       <param-name>file-upload</param-name>
-      <param-value>C:\\workspace\\Semoss\\</param-value>
+      <param-value>/Users/rweiler/Documents/SEMOSS/workspace/Semoss/</param-value>
    </context-param>
    <context-param>
       <description>Temporary - Location to store uploaded file</description>
       <param-name>temp-file-upload</param-name>
-      <param-value>C:\\Temp</param-value>
+      <param-value>/Users/rweiler/Documents/SEMOSS/workspace/Semoss/Temp</param-value>
    </context-param>
    <context-param>
       <description>The place where the core RDF Map gets picked from</description>
       <param-name>RDF-MAP</param-name>
-      <param-value>C:/workspace/Semoss/RDF_Map.prop</param-value>
+      <param-value>/Users/rweiler/Documents/SEMOSS/workspace/Semoss/RDF_Map.prop</param-value>
    </context-param>  
    <!-- listeners -->
    <listener>
