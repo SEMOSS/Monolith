@@ -114,17 +114,7 @@ public class AnthropicEndpoints {
 	@Consumes({ "application/json" })
 	@Produces({ "application/json;charset=utf-8", "text/event-stream" })
 	public Response createMessage(@Context HttpServletRequest request, @Context HttpServletResponse response) {
-		
-	    java.util.Enumeration<String> headerNames = request.getHeaderNames();
-	    while (headerNames.hasMoreElements()) {
-	        String headerName = headerNames.nextElement();
-	        String headerValue = request.getHeader(headerName);
-	        classLogger.debug("Anthropic-Header::{}={}", headerName, headerValue);
-	    }
-		
 
-
-	    
 		HttpSession session = request.getSession(false);
 		User user = null;
 
@@ -223,6 +213,25 @@ public class AnthropicEndpoints {
 		// ROOM & INSIGHT LOGIC START ---------
 		String insightId = WebUtility.inputSanitizer((String) dataMap.remove("insight_id"));
 		String roomId = WebUtility.inputSanitizer((String) dataMap.remove("room_id"));
+		
+		Object systemPromptBlock = dataMap.remove("system");
+		String systemPromptString = AnthropicMessagesHelper.getSystemMessage(systemPromptBlock);
+		
+		if (!parentRoomId.isEmpty()) {
+		    // Only use the parent room ID if the system prompt has 2 entries (main Claude Code session).
+		    // When it has 3 entries, it's a sub-agent (e.g., file search) and should get its own room.
+		    boolean useParentRoom = true;
+		    if (systemPromptBlock instanceof List) {
+		        int systemLength = ((List<?>) systemPromptBlock).size();
+		        classLogger.debug("Anthropic-System-Prompt-Length::{}::{}", JOB_ID, systemLength);
+		        if (systemLength >= 3) {
+		            useParentRoom = false;
+		        }
+		    }
+		    if (useParentRoom) {
+		        roomId = parentRoomId;
+		    }
+		}
 
 		if (roomId != null && insightId == null) {
 			String userId = user.getPrimaryLoginToken().getId();
@@ -255,16 +264,6 @@ public class AnthropicEndpoints {
 		ThreadStore.setUser(insight.getUser());
 		// ROOM & INSIGHT LOGIC END ---------
 
-		Object systemPromptBlock = dataMap.remove("system");
-		String systemPromptString = AnthropicMessagesHelper.getSystemMessage(systemPromptBlock);
-
-		// Extract parent room ID from system prompt if present (injected by
-		// claude_code_client.py)
-//		String parentRoomId = SemossContextExtractor.extractParentRoomId(systemPromptString);
-//		if (parentRoomId != null && !parentRoomId.isEmpty()) {
-//			classLogger.debug("Using parent room ID from system prompt: {}", parentRoomId);
-//			systemPromptString = SemossContextExtractor.stripParentRoomTag(systemPromptString);
-//		}
 
 		Object messages = dataMap.remove("messages");
 		if (messages == null) {
@@ -282,18 +281,6 @@ public class AnthropicEndpoints {
 
 		List<Map<String, Object>> messagesList = (List<Map<String, Object>>) messages;
 		Map<String, Object> latestMessage = messagesList.get(messagesList.size() - 1);
-
-//		SemossContextExtractor.ExtractionResult ctx = SemossContextExtractor.extractAndStripFromMessage(latestMessage);
-
-		// Use extracted IDs, falling back to what was in the request body
-//		if (ctx.hasInsightId()) {
-//			insightId = ctx.getInsightId();
-//			classLogger.debug("Found-insightID::{}::{}", JOB_ID, insightId);
-//		}
-//		if (ctx.hasRoomId()) {
-//			roomId = ctx.getRoomId();
-//			classLogger.debug("Found-roomId::{}::{}", JOB_ID, roomId);
-//		}
 
 		room = RoomUtils.createRoomIfNotExists(roomId, insight, engine, null, null, null, null, null, parentRoomId);
 
@@ -345,10 +332,6 @@ public class AnthropicEndpoints {
 			if (openAIFormat.containsKey("tools")) {
 				dataMap.put("tools", openAIFormat.get("tools"));
 			}
-
-//			classLogger.debug("finalDataMap: {}", GSON.toJson(dataMap));
-
-			dataMap.put("append_full_prompt", true);
 
 			return handleStreamingRequest(engine, finalInsight, finalRoom, dataMap, SESSION_ID, JOB_ID, engineId,
 					response);
