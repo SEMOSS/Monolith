@@ -608,23 +608,6 @@
       <servlet-name>TrustedTokenApplication</servlet-name>
       <url-pattern>/token/*</url-pattern>
    </servlet-mapping>
-   <!-- Servlet For External Applications Registering an API User -->
-   <servlet>
-      <servlet-name>APIApplication</servlet-name>
-      <servlet-class>org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher</servlet-class>
-      <init-param>
-         <param-name>javax.ws.rs.Application</param-name>
-         <param-value>prerna.semoss.web.app.APIApplication</param-value>
-      </init-param>
-      <init-param>
-	     <param-name>resteasy.servlet.mapping.prefix</param-name>
-	     <param-value>/token</param-value>
-	  </init-param>
-   </servlet>
-   <servlet-mapping>
-      <servlet-name>APIApplication</servlet-name>
-      <url-pattern>/data/*</url-pattern>
-   </servlet-mapping>
    <!-- SAML Response Handler -->
    <servlet>
       <servlet-name>SamlVerifierServlet</servlet-name>
