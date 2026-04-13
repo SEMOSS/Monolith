@@ -73,9 +73,30 @@ import prerna.util.Utility;
 import prerna.web.conf.AdminStartupFilter;
 import prerna.web.conf.util.SSOUtil;
 
+/**
+ * Receives the SAML assertion callback from the IdP and finalizes login in this
+ * application.
+ *
+ * <p>
+ * This servlet is the convergence point for both login entry paths:
+ *
+ * <ol>
+ * <li>{@code IdpSSOServlet}: IdP-initiated redirect flow.</li>
+ * <li>{@code SPSSOServlet}: SP-initiated AuthnRequest flow.</li>
+ * </ol>
+ *
+ * <p>
+ * High-level responsibilities:
+ *
+ * <ol>
+ * <li>Use OpenAM Fedlet APIs to validate/process the SAML response.</li>
+ * <li>Map SAML attributes into the local user/token model.</li>
+ * <li>Create/update the application session and redirect the user back.</li>
+ * </ol>
+ */
 public class SamlVerifierServlet extends HttpServlet {
 
-	private static final long serialVersionUID = -3853767230988751741L;
+	private static final long serialVersionUID = 1L;
 	private static final Logger classLogger = LogManager.getLogger(SamlVerifierServlet.class);
 
 	public SamlVerifierServlet() {
@@ -90,6 +111,20 @@ public class SamlVerifierServlet extends HttpServlet {
 		classLogger.info("Ending saml verification doPost.");
 	}
 
+	/**
+	 * Validates the IdP callback and converts it into an authenticated application
+	 * session.
+	 *
+	 * <p>
+	 * Connection between classes in the flow:
+	 *
+	 * <ol>
+	 * <li>{@link SSOUtil} is used to ensure Fedlet/OpenAM metadata is loaded.</li>
+	 * <li>OpenAM APIs parse and verify the incoming SAML response.</li>
+	 * <li>This servlet stores the resulting user/token in session and redirects to
+	 * the original URL.</li>
+	 * </ol>
+	 */
 	public void verifySamlOutput(HttpServletRequest request, HttpServletResponse response)
 			throws ServletException, IOException {
 
@@ -104,15 +139,14 @@ public class SamlVerifierServlet extends HttpServlet {
 		// "C:\\workspace\\Semoss_Dev\\saml\\mesoc\\conf\\debug\\Federation"
 		String federationLogPath = Utility.getDIHelperProperty(Constants.SAML_FEDERATION_LOG_PATH).trim();
 		SSOUtil util = SSOUtil.getInstance();
-		if (!util.isConfigured()) {
-			util.setSSODeployURI((request).getRequestURI());
-			util.configureSSO(request, response);
-		}
+		// Ensure SAML runtime configuration is ready before processing the callback.
+		util.configureSSO(request, response);
 		try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(federationLogPath), true))) {
 			// invoke the SAML processing logic. this will do all the
 			// necessary processing conforming to SAMLv2 specifications,
 			// such as XML signature validation, Audience and Recipient
 			// validation etc.
+			// OpenAM does XML signature, audience, recipient and protocol validation here.
 			map = SPACSUtils.processResponseForFedlet(request, response, new PrintWriter(out, true));
 
 			// Check for relay URL in case IDP needs to redirect to specific page in the
@@ -198,13 +232,14 @@ public class SamlVerifierServlet extends HttpServlet {
 				originalRedirect = SocialPropertiesUtil.getInstance().getLoginRedirect();
 			}
 
+			// Complete the SSO transaction by returning the user to their original target.
 			String encodedRedirectUrl = Encode.forHtml(originalRedirect);
 			AdminStartupFilter.setSuccessfulRedirectUrl(encodedRedirectUrl);
 			response.setHeader("redirect", encodedRedirectUrl);
 			response.sendRedirect(encodedRedirectUrl);
 
 		} catch (SAML2Exception | IOException | SessionException | ServletException sme) {
-			classLogger.error(Constants.STACKTRACE, sme);
+			classLogger.error("Failed to process SAML verification response.", sme);
 			SAMLUtils.sendError(request, response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
 					"failedToProcessSSOResponse", sme.getMessage());
 		}
@@ -224,8 +259,8 @@ public class SamlVerifierServlet extends HttpServlet {
 				try {
 					return AdminSecurityGroupUtils.getMatchingGroupsByType(mapper.getUserGroups(), groupType);
 				} catch (Exception e) {
-					classLogger.error(Constants.STACKTRACE, e);
-					throw new IllegalArgumentException("Error occurred to retrieve the valid groups for SAML login");
+					classLogger.error("Failed to retrieve valid SAML groups for user.", e);
+					throw new IllegalArgumentException("Error occurred to retrieve the valid groups for SAML login", e);
 				}
 			} else {
 				return new HashSet<>();
@@ -256,11 +291,12 @@ public class SamlVerifierServlet extends HttpServlet {
 	}
 
 	/**
-	 * Creates the user/token based on the application requirements from the
-	 * SamlDataObject. Puts the user object in the session.
-	 * 
-	 * @param SamlDataObject sdo
-	 * @param HttpSession    session
+	 * Converts verified SAML attributes into the app's User/AccessToken model and
+	 * stores them in HTTP session.
+	 *
+	 * <p>
+	 * This is where identity data from the IdP becomes local authenticated state
+	 * used by downstream filters/resources.
 	 */
 	private void establishUserInSession(SamlDataObjectMapper mapper, HttpServletRequest request, HttpSession session) {
 		AccessToken token = new AccessToken();
