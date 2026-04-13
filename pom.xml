@@ -391,6 +391,17 @@
 	</repositories>
 	<dependencyManagement>
 		<dependencies>
+			<!-- GHSA-2m67-wjpj-xhg9 / CVE-2026-29062: force transitive tools.jackson.core (Jackson 3.x) from mcp-json-jackson3 up to fixed version -->
+			<dependency>
+				<groupId>tools.jackson.core</groupId>
+				<artifactId>jackson-core</artifactId>
+				<version>3.1.1</version>
+			</dependency>
+			<dependency>
+				<groupId>tools.jackson.core</groupId>
+				<artifactId>jackson-databind</artifactId>
+				<version>3.1.1</version>
+			</dependency>
 			<!-- CVE force: CVE-2025-12183/CVE-2025-66566 - override transitive org.lz4:lz4-java version (1.8.0) -->
 			<dependency>
 				<groupId>org.lz4</groupId>
