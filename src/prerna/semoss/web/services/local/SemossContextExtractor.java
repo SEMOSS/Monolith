@@ -45,8 +45,8 @@ public class SemossContextExtractor {
         "\\[\\[SEMOSS_CONTEXT:(.*?)\\]\\]\\s*"
     );
 
-    private static final Pattern MODEL_PATTERN = Pattern.compile(
-        "\\[\\[SEMOSS_MODEL:(.*?)\\]\\]\\s*"
+    private static final Pattern PARENT_ROOM_PATTERN = Pattern.compile(
+        "\\[\\[PARENT_ROOM_ID=(.*?)\\]\\]\\s*"
     );
 
     private static final Pattern KV_PATTERN = Pattern.compile(
@@ -169,16 +169,16 @@ public class SemossContextExtractor {
     }
 
     /**
-     * Extract the model ID from a [[SEMOSS_MODEL:...]] tag in the system prompt.
+     * Extract the parent room ID from a [[PARENT_ROOM_ID=...]] tag in the system prompt.
      *
      * @param systemPrompt the full system prompt string
-     * @return the model ID, or null if no tag is present
+     * @return the parent room ID, or null if no tag is present
      */
-    public static String extractModelId(String systemPrompt) {
+    public static String extractParentRoomId(String systemPrompt) {
         if (systemPrompt == null || systemPrompt.isEmpty()) {
             return null;
         }
-        Matcher matcher = MODEL_PATTERN.matcher(systemPrompt);
+        Matcher matcher = PARENT_ROOM_PATTERN.matcher(systemPrompt);
         if (matcher.find()) {
             return matcher.group(1).trim();
         }
@@ -186,12 +186,12 @@ public class SemossContextExtractor {
     }
 
     /**
-     * Strip the [[SEMOSS_MODEL:...]] tag from a string.
+     * Strip the [[PARENT_ROOM_ID=...]] tag from a string.
      */
-    public static String stripModelTag(String text) {
+    public static String stripParentRoomTag(String text) {
         if (text == null || text.isEmpty()) {
             return text;
         }
-        return MODEL_PATTERN.matcher(text).replaceAll("").trim();
+        return PARENT_ROOM_PATTERN.matcher(text).replaceAll("").trim();
     }
 }
