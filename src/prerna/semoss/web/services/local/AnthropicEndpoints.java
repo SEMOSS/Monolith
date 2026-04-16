@@ -140,7 +140,7 @@ public class AnthropicEndpoints {
 //	  classLogger.debug("Anthropic-X-API-Room-Header::{}::{}", JOB_ID, roomIdHeader);
 	  
 	  String parentRoomId= "";
-	  if (roomIdHeader.contains("room-")) {
+	  if (roomIdHeader != null && roomIdHeader.contains("room-")) {
 		  parentRoomId = roomIdHeader.substring(5);
 		  classLogger.debug("Anthropic-X-API-Room-Header::{}::{}", JOB_ID, parentRoomId);
 	  }
