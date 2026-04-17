@@ -63,6 +63,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 
 	private static final Logger classLogger = LogManager.getLogger(AdminDatabaseAuthorizationResource.class);
 
+	@Deprecated
 	@Context
 	protected ServletContext context;
 
@@ -72,6 +73,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 	 * @param request
 	 * @return
 	 */
+	@Deprecated
 	@GET
 	@Produces("application/json")
 	@Path("getApps")
@@ -88,7 +90,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to get all databases when not an admin");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve user apps.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -98,6 +100,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		return WebUtility.getResponse(adminUtils.getAllEngineSettings(databaseId, eTypes, null, null, null, null), 200);
 	}
 
+	@Deprecated
 	@POST
 	@Path("/getAllUserApps")
 	@Produces("application/json")
@@ -119,7 +122,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		} catch (IllegalAccessException e) {
 			classLogger.warn(
 					"User is trying to pull the databases that user " + userId + " has access to when not an admin");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve all user apps.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -128,6 +131,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		return WebUtility.getResponse(adminUtils.getAllUserEngines(userId, engineTypes), 200);
 	}
 
+	@Deprecated
 	@POST
 	@Path("/grantAllApps")
 	@Produces("application/json")
@@ -146,7 +150,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to grant all the databases to user " + userId + " when not an admin");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to grant all apps.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -155,20 +159,21 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		try {
 			adminUtils.grantAllEngines(userId, permission, isAddNew, null, user);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to grant all apps.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has granted all databases to " + userId + "with permission " + permission);
+		classLogger.info("User has granted all databases to {} with permission {}", userId, permission);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
 
+	@Deprecated
 	@POST
 	@Path("/grantNewUsersAppAccess")
 	@Produces("application/json")
@@ -186,7 +191,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to grant database to new users when not an admin");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to grant new users app access.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -195,14 +200,14 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		try {
 			adminUtils.grantNewUsersEngineAccess(appId, permission, user, endDate);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to grant new users app access.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has granted database " + appId + "to new users with permission " + permission);
+		classLogger.info("User has granted database {} to new users with permission {}", appId, permission);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -216,6 +221,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 	 * @param form
 	 * @return
 	 */
+	@Deprecated
 	@GET
 	@Produces("application/json")
 	@Path("getAppUsers")
@@ -226,7 +232,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 				"CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/getEngineUsers with PARAM engineId");
 
 		appId = WebUtility.inputSanitizer(appId);
-		searchTerm = WebUtility.inputSanitizer(searchTerm);
+		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
 
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -235,7 +241,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to pull all the users who use database " + appId + " when not an admin");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve app users.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -251,6 +257,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 	 * @param form
 	 * @return
 	 */
+	@Deprecated
 	@POST
 	@Produces("application/json")
 	@Path("addAppUserPermission")
@@ -271,7 +278,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		} catch (IllegalAccessException e) {
 			classLogger
 					.warn("User is trying to add user " + newUserId + " to database " + appId + " when not an admin");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to add app user permission.", e);
 			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(ret, 401);
 		}
@@ -279,7 +286,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		try {
 			adminUtils.addEngineUser(newUserId, appId, permission, user, null, null, null, 0, 0.0);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to add app user permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
@@ -299,6 +306,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 	 * @param form
 	 * @return
 	 */
+	@Deprecated
 	@POST
 	@Produces("application/json")
 	@Path("addAllUsers")
@@ -323,7 +331,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to add all users to database " + appId + " when not an admin");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to add all users.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -332,14 +340,14 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		try {
 			adminUtils.addAllEngineUsers(appId, permission, user, endDate);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to add all users.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has added all users to database " + appId + " with permission " + permission);
+		classLogger.info("User has added all users to database {} with permission {}", appId, permission);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -353,6 +361,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 	 * @param form
 	 * @return
 	 */
+	@Deprecated
 	@POST
 	@Produces("application/json")
 	@Path("editAppUserPermission")
@@ -372,7 +381,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update app user permission.", e);
 			classLogger.warn("User is trying to edit user " + existingUserId + " permissions for database " + appId
 					+ " when not an admin");
 			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -382,14 +391,14 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		try {
 			adminUtils.editEngineUserPermission(existingUserId, appId, newPermission, user, null, null, null, 0, 0.0);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update app user permission.", e);
 			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(ret, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has edited user " + existingUserId + " permission to database " + appId + " with level "
-				+ newPermission);
+		classLogger.info("User has edited user {} permission to database {} with level {}", existingUserId, appId,
+				newPermission);
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
@@ -401,6 +410,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 	 * @param form
 	 * @return
 	 */
+	@Deprecated
 	@POST
 	@Produces("application/json")
 	@Path("updateAppUserPermissions")
@@ -417,7 +427,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update app user permissions.", e);
 			classLogger.warn("User is trying to edit user permissions for database " + appId + " when not an admin");
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -427,14 +437,14 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		try {
 			adminUtils.updateEngineUserPermissions(appId, newPermission, user, endDate);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update app user permissions.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has edited user permissions to database " + appId + " with level " + newPermission);
+		classLogger.info("User has edited user permissions to database {} with level {}", appId, newPermission);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -448,6 +458,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 	 * @param form
 	 * @return
 	 */
+	@Deprecated
 	@POST
 	@Produces("application/json")
 	@Path("removeAppUserPermission")
@@ -467,7 +478,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to remove user " + existingUserId + " from having access to database "
 					+ appId + " when not an admin");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to remove app user permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -476,20 +487,21 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		try {
 			adminUtils.removeEngineUser(existingUserId, appId);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to remove app user permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has removed user " + existingUserId + " from having access to database " + appId);
+		classLogger.info("User has removed user {} from having access to database {}", existingUserId, appId);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
 
+	@Deprecated
 	@POST
 	@Produces("application/json")
 	@Path("setAppGlobal")
@@ -509,7 +521,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to set the database " + appId + logPublic + " when not an admin");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update app global.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -518,14 +530,14 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		try {
 			adminUtils.setEngineGlobal(appId, isPublic);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update app global.", e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
 
 		// log the operation
-		classLogger.info("User has set the database " + appId + logPublic);
+		classLogger.info("User has set the database {} {}", appId, logPublic.trim());
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -539,6 +551,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 	 * @param form
 	 * @return
 	 */
+	@Deprecated
 	@POST
 	@Produces("application/json")
 	@Path("setAppDiscoverable")
@@ -558,7 +571,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to set the database " + appId + logDiscoverable + " when not an admin");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update app discoverable.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -567,14 +580,14 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		try {
 			adminUtils.setEngineDiscoverable(appId, isDiscoverable);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update app discoverable.", e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
 
 		// log the operation
-		classLogger.info("User has set the database " + appId + logDiscoverable);
+		classLogger.info("User has set the database {} {}", appId, logDiscoverable.trim());
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -588,6 +601,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 	 * @param form
 	 * @return
 	 */
+	@Deprecated
 	@GET
 	@Produces("application/json")
 	@Path("getAppUsersNoCredentials")
@@ -598,7 +612,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 				"CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/getEngineUsersNoCredentials with PARAM engineId");
 
 		appId = WebUtility.inputSanitizer(appId);
-		searchTerm = WebUtility.inputSanitizer(searchTerm);
+		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
 
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -607,13 +621,13 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to get all users when not an admin");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve app users no credentials.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 		List<Map<String, Object>> ret = adminUtils.getEngineUsersNoCredentials(appId,
-				WebUtility.inputSanitizer(searchTerm), limit, offset);
+				WebUtility.inputSQLSanitizer(searchTerm), limit, offset);
 		return WebUtility.getResponse(ret, 200);
 	}
 
