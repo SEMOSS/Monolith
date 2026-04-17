@@ -27,24 +27,20 @@
  *******************************************************************************/
 package prerna.websocket;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.file.FileSystems;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.StandardWatchEventKinds;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
 import java.util.function.Function;
-import java.util.stream.Stream;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.json.JSONObject;
 
-import prerna.util.Utility;
+import prerna.reactor.agent.ClaudeCodeTranscriptLocator;
 
 public class ClaudeCodeHistoryStreamer implements FileStreamer {
 
@@ -76,24 +72,7 @@ public class ClaudeCodeHistoryStreamer implements FileStreamer {
 	 * Returns null if the room dir or file doesn't exist yet.
 	 */
 	private Path findJsonlFile() {
-	    String roomFolderPath = Utility.getBaseFolder() + File.separator + "room" + File.separator + roomId;
-	    Path rootDir = Paths.get(roomFolderPath);
-
-	    if (!Files.isDirectory(rootDir)) {
-	        return null;
-	    }
-
-	    String targetFileName = roomId + ".jsonl";
-
-	    try (Stream<Path> walk = Files.walk(rootDir)) {
-	        return walk
-	            .filter(Files::isRegularFile)
-	            .filter(p -> p.getFileName().toString().equals(targetFileName))
-	            .findFirst()
-	            .orElse(null);
-	    } catch (IOException e) {
-	        return null;
-	    }
+		return ClaudeCodeTranscriptLocator.findJsonlFile(roomId);
 	}
 
 	/**
