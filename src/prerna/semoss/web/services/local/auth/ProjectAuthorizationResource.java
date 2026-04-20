@@ -99,7 +99,7 @@ public class ProjectAuthorizationResource {
 			// @QueryParam("metaFilters") Map<String, Object> metaFilters,
 			@QueryParam("noMeta") Boolean noMeta, @QueryParam("userT") Boolean includeUserTracking) {
 
-		searchTerm = WebUtility.inputSanitizer(searchTerm);
+		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
 		projectFilter = WebUtility.inputSanitizer(projectFilter);
 		metaKeys = WebUtility.inputSanitizer(metaKeys);
 
@@ -107,8 +107,7 @@ public class ProjectAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -182,8 +181,9 @@ public class ProjectAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
+			classLogger.error("Failed to resolve authenticated user while retrieving accessible projects from POST.",
+					e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -272,14 +272,13 @@ public class ProjectAuthorizationResource {
 			@QueryParam("projectId") String projectId, @QueryParam("searchTerm") String searchTerm) {
 
 		projectId = WebUtility.inputSanitizer(projectId);
-		searchTerm = WebUtility.inputSanitizer(searchTerm);
+		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
 
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -320,15 +319,14 @@ public class ProjectAuthorizationResource {
 			@QueryParam("offset") long offset) {
 		projectId = WebUtility.inputSanitizer(projectId);
 		userId = WebUtility.inputSQLSanitizer(userId);
-		searchTerm = WebUtility.inputSanitizer(searchTerm);
+		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
 		permission = WebUtility.inputSanitizer(permission);
 
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -344,7 +342,8 @@ public class ProjectAuthorizationResource {
 			ret.put("members", members);
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to pull users for project " + projectId + " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve users for project " + projectId
+					+ " because access validation failed for the requester.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -368,8 +367,7 @@ public class ProjectAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -391,15 +389,15 @@ public class ProjectAuthorizationResource {
 			SecurityProjectUtils.addProjectUser(user, newUserId, projectId, permission, endDate);
 		} catch (Exception e) {
 			classLogger.warn("User is trying to add a user for project " + projectId + " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to add user " + newUserId + " to project " + projectId + " with permission "
+					+ permission + ".", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info(
-				"User has added user " + newUserId + " to project " + projectId + " with permission " + permission);
+		classLogger.info("User has added user {} to project {} with permission {}", newUserId, projectId, permission);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -425,8 +423,9 @@ public class ProjectAuthorizationResource {
 			requester = ResourceUtility.getUser(request);
 			classLogger.info("User is attempting to modify engine permissions.");
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
+			classLogger.error("Failed to resolve authenticated user while propagating project dependency permission.",
+					e);
 			ret.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(ret, 401);
 		}
@@ -452,7 +451,8 @@ public class ProjectAuthorizationResource {
 			try {
 				maxTokens = Integer.parseInt(maxTokensStr);
 			} catch (NumberFormatException e) {
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.error("Failed to parse maxTokens value '" + maxTokensStr
+						+ "' while propagating project dependency permission.", e);
 				ret.put(Constants.ERROR_MESSAGE, "maxTokens must be a valid integer value");
 				return WebUtility.getResponse(ret, 400);
 			}
@@ -464,7 +464,8 @@ public class ProjectAuthorizationResource {
 			try {
 				maxResponseTime = Double.parseDouble(maxResponseTimeStr);
 			} catch (NumberFormatException e) {
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.error("Failed to parse maxResponseTime value '" + maxResponseTimeStr
+						+ "' while propagating project dependency permission.", e);
 				ret.put(Constants.ERROR_MESSAGE, "maxResponseTime must be a valid double value");
 				return WebUtility.getResponse(ret, 400);
 			}
@@ -505,8 +506,10 @@ public class ProjectAuthorizationResource {
 			requester = ResourceUtility.getUser(request);
 			classLogger.info("User is attempting to modify engine permissions.");
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
+			classLogger.error(
+					"Failed to resolve authenticated user while propagating project dependency permissions in bulk.",
+					e);
 			ret.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(ret, 401);
 		}
@@ -546,7 +549,8 @@ public class ProjectAuthorizationResource {
 				try {
 					maxTokens = Integer.parseInt(maxTokensStr);
 				} catch (NumberFormatException e) {
-					classLogger.error(Constants.STACKTRACE, e);
+					classLogger.error("Failed to parse maxTokens value '" + maxTokensStr + "' for user " + newUserId
+							+ " while propagating project dependency permissions in bulk.", e);
 					ret.put(Constants.ERROR_MESSAGE, "maxTokens must be a valid integer value");
 					return WebUtility.getResponse(ret, 400);
 				}
@@ -559,7 +563,8 @@ public class ProjectAuthorizationResource {
 				try {
 					maxResponseTime = Double.parseDouble(maxResponseTimeStr);
 				} catch (NumberFormatException e) {
-					classLogger.error(Constants.STACKTRACE, e);
+					classLogger.error("Failed to parse maxResponseTime value '" + maxResponseTimeStr + "' for user "
+							+ newUserId + " while propagating project dependency permissions in bulk.", e);
 					ret.put(Constants.ERROR_MESSAGE, "maxResponseTime must be a valid double value");
 					return WebUtility.getResponse(ret, 400);
 				}
@@ -592,8 +597,7 @@ public class ProjectAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -614,24 +618,27 @@ public class ProjectAuthorizationResource {
 		}
 
 		try {
-			SecurityProjectUtils.editProjectUserPermission(user, existingUserId, existingUserType, projectId, newPermission, endDate);
+			SecurityProjectUtils.editProjectUserPermission(user, existingUserId, existingUserType, projectId,
+					newPermission, endDate);
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to edit user " + existingUserId + " permissions for project " + projectId
 					+ " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update permission for user " + existingUserId + " in project " + projectId
+					+ " because access validation failed.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error(
+					"Failed to update permission for user " + existingUserId + " in project " + projectId + ".", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has edited user " + existingUserId + " permission to project " + projectId
-				+ " with level " + newPermission);
+		classLogger.info("User has edited user {} permission to project {} with level {}", existingUserId, projectId,
+				newPermission);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -654,8 +661,9 @@ public class ProjectAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
+			classLogger.error("Failed to resolve authenticated user while editing project user permissions in bulk.",
+					e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -678,19 +686,20 @@ public class ProjectAuthorizationResource {
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to edit user permissions for project " + projectId
 					+ " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update project user permissions in bulk for project " + projectId
+					+ " because access validation failed.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update project user permissions in bulk for project " + projectId + ".", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has edited user permission to project " + projectId);
+		classLogger.info("User has edited user permission to project {}", projectId);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -713,7 +722,7 @@ public class ProjectAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -735,19 +744,20 @@ public class ProjectAuthorizationResource {
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to remove user " + existingUserId + " from having access to project "
 					+ projectId + " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to remove user " + existingUserId + " from project " + projectId
+					+ " because access validation failed.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to remove user " + existingUserId + " from project " + projectId + ".", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has removed user " + existingUserId + " from having access to project " + projectId);
+		classLogger.info("User has removed user {} from having access to project {}", existingUserId, projectId);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -769,8 +779,7 @@ public class ProjectAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -792,19 +801,20 @@ public class ProjectAuthorizationResource {
 		} catch (IllegalAccessException e) {
 			classLogger.warn(
 					"User is trying to set the project " + projectId + logPublic + " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update global visibility for project " + projectId
+					+ " because access validation failed.", e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update global visibility for project " + projectId + ".", e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
 
 		// log the operation
-		classLogger.info("User has set the project " + projectId + logPublic);
+		classLogger.info("User has set the project {} {}", projectId, logPublic.trim());
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -822,13 +832,12 @@ public class ProjectAuthorizationResource {
 	@Produces("application/json")
 	@Path("setProjectDiscoverable")
 	public Response setProjectDiscoverable(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		classLogger.info("THIS IS CALLED HERE: " + request);
+		classLogger.info("THIS IS CALLED HERE: {}", request);
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -851,19 +860,21 @@ public class ProjectAuthorizationResource {
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to set the project " + projectId + logDiscoverable
 					+ " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error(
+					"Failed to update discoverability for project " + projectId + " because access validation failed.",
+					e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update discoverability for project " + projectId + ".", e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
 
 		// log the operation
-		classLogger.info("User has set the project " + projectId + logDiscoverable);
+		classLogger.info("User has set the project {} {}", projectId, logDiscoverable.trim());
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -885,8 +896,7 @@ public class ProjectAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -901,19 +911,20 @@ public class ProjectAuthorizationResource {
 		} catch (IllegalAccessException e) {
 			classLogger.warn(
 					"User is trying to set the project " + projectId + logVisible + " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error(
+					"Failed to update visibility for project " + projectId + " because access validation failed.", e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update visibility for project " + projectId + ".", e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
 
 		// log the operation
-		classLogger.info("User has set the project " + projectId + logVisible);
+		classLogger.info("User has set the project {} {}", projectId, logVisible.trim());
 
 		return WebUtility.getResponse(true, 200);
 	}
@@ -933,8 +944,7 @@ public class ProjectAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -949,19 +959,21 @@ public class ProjectAuthorizationResource {
 		} catch (IllegalAccessException e) {
 			classLogger.warn(
 					"User is trying to set the project " + projectId + logFavorited + " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error(
+					"Failed to update favorite status for project " + projectId + " because access validation failed.",
+					e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update favorite status for project " + projectId + ".", e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
 
 		// log the operation
-		classLogger.info("User has set the project " + projectId + logFavorited);
+		classLogger.info("User has set the project {} {}", projectId, logFavorited.trim());
 
 		return WebUtility.getResponse(true, 200);
 	}
@@ -980,14 +992,15 @@ public class ProjectAuthorizationResource {
 			@QueryParam("projectId") String projectId, @QueryParam("searchTerm") String searchTerm,
 			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
 		projectId = WebUtility.inputSanitizer(projectId);
-		searchTerm = WebUtility.inputSanitizer(searchTerm);
+		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
 
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User  invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error(
+					"Failed to resolve authenticated user while retrieving users without project credentials.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -1006,7 +1019,8 @@ public class ProjectAuthorizationResource {
 			} catch (IllegalAccessException e) {
 				classLogger.warn("User  is trying to pull users for " + projectId
 						+ " that do not have credentials without having proper access");
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.error("Failed to retrieve users without credentials for project " + projectId
+						+ " because access validation failed.", e);
 				Map<String, String> errorMap = new HashMap<String, String>();
 				errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 				return WebUtility.getResponse(errorMap, 401);
@@ -1020,7 +1034,9 @@ public class ProjectAuthorizationResource {
 					searchTerm, graphApiGroupId, limit, offset);
 			return WebUtility.getResponse(filteredUsers, 200);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error(
+					"Failed to retrieve users without credentials from Microsoft Graph for project " + projectId + ".",
+					e);
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 500);
@@ -1043,7 +1059,7 @@ public class ProjectAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -1066,19 +1082,21 @@ public class ProjectAuthorizationResource {
 		} catch (IllegalAccessException e) {
 			classLogger.warn(
 					"User is trying to grant user access to project " + projectId + " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error(
+					"Failed to approve access requests for project " + projectId + " because access validation failed.",
+					e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to approve access requests for project " + projectId + ".", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has approved user access and added user permissions to project " + projectId);
+		classLogger.info("User has approved user access and added user permissions to project {}", projectId);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -1101,7 +1119,7 @@ public class ProjectAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -1122,14 +1140,14 @@ public class ProjectAuthorizationResource {
 		try {
 			SecurityProjectUtils.denyProjectUserAccessRequests(user, projectId, requestids);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to deny access requests for project " + projectId + ".", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has denied user access requests to project " + projectId);
+		classLogger.info("User has denied user access requests to project {}", projectId);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -1152,7 +1170,7 @@ public class ProjectAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -1197,14 +1215,14 @@ public class ProjectAuthorizationResource {
 
 			SecurityProjectUtils.addProjectUserPermissions(user, projectId, permission, endDate);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to add project user permissions in bulk for project " + projectId + ".", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has added user permissions to project " + projectId);
+		classLogger.info("User has added user permissions to project {}", projectId);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -1227,7 +1245,7 @@ public class ProjectAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -1250,19 +1268,20 @@ public class ProjectAuthorizationResource {
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to remove users from having access to project " + projectId
 					+ " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to remove project users in bulk for project " + projectId
+					+ " because access validation failed.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to remove project users in bulk for project " + projectId + ".", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has removed users from having access to project " + projectId);
+		classLogger.info("User has removed users from having access to project {}", projectId);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -1277,8 +1296,7 @@ public class ProjectAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -1295,12 +1313,14 @@ public class ProjectAuthorizationResource {
 			project.setHasPortal(hasPortal);
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to " + logPortal + " for project " + projectId);
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error(
+					"Failed to update portal settings for project " + projectId + " because access validation failed.",
+					e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update portal settings for project " + projectId + ".", e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
@@ -1332,7 +1352,7 @@ public class ProjectAuthorizationResource {
 		}
 
 		// log the operation
-		classLogger.info("User is trying to " + logPortal + " for project " + projectId);
+		classLogger.info("User is trying to {} for project {}", logPortal, projectId);
 
 		return WebUtility.getResponse(true, 200);
 	}

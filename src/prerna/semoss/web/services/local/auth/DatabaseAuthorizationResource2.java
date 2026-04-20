@@ -69,6 +69,7 @@ public class DatabaseAuthorizationResource2 {
 
 	private static final Logger classLogger = LogManager.getLogger(DatabaseAuthorizationResource2.class);
 
+	@Deprecated
 	@Context
 	protected ServletContext context;
 
@@ -78,6 +79,7 @@ public class DatabaseAuthorizationResource2 {
 	 * @param request
 	 * @return
 	 */
+	@Deprecated
 	@GET
 	@Produces("application/json")
 	@Path("getDatabases")
@@ -90,15 +92,14 @@ public class DatabaseAuthorizationResource2 {
 		classLogger.warn(
 				"CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngines WITH PARAM engineTypes");
 		databaseFilter = WebUtility.inputSanitizer(databaseFilter);
-		searchTerm = WebUtility.inputSanitizer(searchTerm);
+		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
 		metaKeys = WebUtility.inputSanitizer(metaKeys);
 
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -109,7 +110,7 @@ public class DatabaseAuthorizationResource2 {
 		Insight temp = new Insight();
 		temp.setUser(user);
 		reactor.setInsight(temp);
-		searchTerm = WebUtility.inputSanitizer(searchTerm);
+		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
 		if (searchTerm != null) {
 			GenRowStruct struct = new GenRowStruct();
 			struct.add(new NounMetadata(searchTerm, PixelDataType.CONST_STRING));
@@ -166,6 +167,7 @@ public class DatabaseAuthorizationResource2 {
 	 * @param form
 	 * @return
 	 */
+	@Deprecated
 	@GET
 	@Produces("application/json")
 	@Path("getUserDatabasePermission")
@@ -180,8 +182,7 @@ public class DatabaseAuthorizationResource2 {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -208,6 +209,7 @@ public class DatabaseAuthorizationResource2 {
 	 * @param form
 	 * @return
 	 */
+	@Deprecated
 	@GET
 	@Produces("application/json")
 	@Path("getDatabaseUsers")
@@ -227,8 +229,7 @@ public class DatabaseAuthorizationResource2 {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -245,7 +246,7 @@ public class DatabaseAuthorizationResource2 {
 		} catch (IllegalAccessException e) {
 			classLogger
 					.warn("User is trying to pull users for database " + databaseId + " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve database users.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -261,6 +262,7 @@ public class DatabaseAuthorizationResource2 {
 	 * @param form
 	 * @return
 	 */
+	@Deprecated
 	@POST
 	@Produces("application/json")
 	@Path("addDatabaseUserPermission")
@@ -275,8 +277,7 @@ public class DatabaseAuthorizationResource2 {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			ret.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(ret, 401);
 		}
@@ -297,14 +298,13 @@ public class DatabaseAuthorizationResource2 {
 		} catch (Exception e) {
 			classLogger
 					.warn("User is trying to add users for database " + databaseId + " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to add database user permission.", e);
 			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(ret, 400);
 		}
 
 		// log the operation
-		classLogger.info(
-				"User has added user " + newUserId + " to database " + databaseId + " with permission " + permission);
+		classLogger.info("User has added user {} to database {} with permission {}", newUserId, databaseId, permission);
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
@@ -316,6 +316,7 @@ public class DatabaseAuthorizationResource2 {
 	 * @param form
 	 * @return
 	 */
+	@Deprecated
 	@POST
 	@Produces("application/json")
 	@Path("addDatabaseUserPermissions")
@@ -328,7 +329,7 @@ public class DatabaseAuthorizationResource2 {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -349,14 +350,14 @@ public class DatabaseAuthorizationResource2 {
 		try {
 			SecurityEngineUtils.addEngineUserPermissions(user, databaseId, permission);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to add database user permissions.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has added user permissions to database " + databaseId);
+		classLogger.info("User has added user permissions to database {}", databaseId);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -370,6 +371,7 @@ public class DatabaseAuthorizationResource2 {
 	 * @param form
 	 * @return
 	 */
+	@Deprecated
 	@POST
 	@Produces("application/json")
 	@Path("editDatabaseUserPermission")
@@ -382,8 +384,7 @@ public class DatabaseAuthorizationResource2 {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -403,25 +404,25 @@ public class DatabaseAuthorizationResource2 {
 		}
 
 		try {
-			SecurityEngineUtils.editEngineUserPermission(user, existingUserId, existingUserType, databaseId, newPermission, null, null,
-					null, 0, 0.0);
+			SecurityEngineUtils.editEngineUserPermission(user, existingUserId, existingUserType, databaseId,
+					newPermission, null, null, null, 0, 0.0);
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to edit user " + existingUserId + " permissions for database " + databaseId
 					+ " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update database user permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update database user permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has edited user " + existingUserId + " permission to database " + databaseId
-				+ " with level " + newPermission);
+		classLogger.info("User has edited user {} permission to database {} with level {}", existingUserId, databaseId,
+				newPermission);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -435,6 +436,7 @@ public class DatabaseAuthorizationResource2 {
 	 * @param form
 	 * @return
 	 */
+	@Deprecated
 	@POST
 	@Produces("application/json")
 	@Path("editDatabaseUserPermissions")
@@ -447,8 +449,7 @@ public class DatabaseAuthorizationResource2 {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -470,19 +471,19 @@ public class DatabaseAuthorizationResource2 {
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to edit user permissions for database " + databaseId
 					+ " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update database user permissions.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update database user permissions.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has edited user permission to database " + databaseId);
+		classLogger.info("User has edited user permission to database {}", databaseId);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -496,6 +497,7 @@ public class DatabaseAuthorizationResource2 {
 	 * @param form
 	 * @return
 	 */
+	@Deprecated
 	@POST
 	@Produces("application/json")
 	@Path("removeDatabaseUserPermission")
@@ -508,7 +510,7 @@ public class DatabaseAuthorizationResource2 {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -530,19 +532,19 @@ public class DatabaseAuthorizationResource2 {
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to remove user " + existingUserId + " from having access to database "
 					+ databaseId + " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to remove database user permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to remove database user permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has removed user " + existingUserId + " from having access to database " + databaseId);
+		classLogger.info("User has removed user {} from having access to database {}", existingUserId, databaseId);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -556,6 +558,7 @@ public class DatabaseAuthorizationResource2 {
 	 * @param form
 	 * @return
 	 */
+	@Deprecated
 	@POST
 	@Produces("application/json")
 	@Path("removeDatabaseUserPermissions")
@@ -568,7 +571,7 @@ public class DatabaseAuthorizationResource2 {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -592,19 +595,19 @@ public class DatabaseAuthorizationResource2 {
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to remove users from having access to database " + databaseId
 					+ " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to remove database user permissions.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to remove database user permissions.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has removed users from having access to database " + databaseId);
+		classLogger.info("User has removed users from having access to database {}", databaseId);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -618,6 +621,7 @@ public class DatabaseAuthorizationResource2 {
 	 * @param form
 	 * @return
 	 */
+	@Deprecated
 	@POST
 	@Produces("application/json")
 	@Path("setDatabaseGlobal")
@@ -629,8 +633,7 @@ public class DatabaseAuthorizationResource2 {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -652,19 +655,19 @@ public class DatabaseAuthorizationResource2 {
 		} catch (IllegalAccessException e) {
 			classLogger.warn(
 					"User is trying to set the database " + databaseId + logPublic + " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update database global.", e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update database global.", e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
 
 		// log the operation
-		classLogger.info("User has set the database " + databaseId + logPublic);
+		classLogger.info("User has set the database {} {}", databaseId, logPublic.trim());
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -678,6 +681,7 @@ public class DatabaseAuthorizationResource2 {
 	 * @param form
 	 * @return
 	 */
+	@Deprecated
 	@POST
 	@Produces("application/json")
 	@Path("setDatabaseDiscoverable")
@@ -689,8 +693,7 @@ public class DatabaseAuthorizationResource2 {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -713,19 +716,19 @@ public class DatabaseAuthorizationResource2 {
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to set the database " + databaseId + logDiscoverable
 					+ " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update database discoverable.", e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update database discoverable.", e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
 
 		// log the operation
-		classLogger.info("User has set the database " + databaseId + logDiscoverable);
+		classLogger.info("User has set the database {} {}", databaseId, logDiscoverable.trim());
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -739,6 +742,7 @@ public class DatabaseAuthorizationResource2 {
 	 * @param form
 	 * @return
 	 */
+	@Deprecated
 	@POST
 	@Produces("application/json")
 	@Path("setDatabaseVisibility")
@@ -750,8 +754,7 @@ public class DatabaseAuthorizationResource2 {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -766,19 +769,19 @@ public class DatabaseAuthorizationResource2 {
 		} catch (IllegalAccessException e) {
 			classLogger.warn(
 					"User is trying to set the database " + databaseId + logVisible + " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update database visibility.", e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update database visibility.", e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
 
 		// log the operation
-		classLogger.info("User has set the database " + databaseId + logVisible);
+		classLogger.info("User has set the database {} {}", databaseId, logVisible.trim());
 
 		return WebUtility.getResponse(true, 200);
 	}
@@ -790,6 +793,7 @@ public class DatabaseAuthorizationResource2 {
 	 * @param form
 	 * @return
 	 */
+	@Deprecated
 	@POST
 	@Produces("application/json")
 	@Path("setDatabaseFavorite")
@@ -801,8 +805,7 @@ public class DatabaseAuthorizationResource2 {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -817,19 +820,19 @@ public class DatabaseAuthorizationResource2 {
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to set the database " + databaseId + logFavorited
 					+ " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update database favorite.", e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update database favorite.", e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
 
 		// log the operation
-		classLogger.info("User has set the database " + databaseId + logFavorited);
+		classLogger.info("User has set the database {} {}", databaseId, logFavorited.trim());
 
 		return WebUtility.getResponse(true, 200);
 	}
@@ -841,6 +844,7 @@ public class DatabaseAuthorizationResource2 {
 	 * @param form
 	 * @return
 	 */
+	@Deprecated
 	@GET
 	@Produces("application/json")
 	@Path("getDatabaseUsersNoCredentials")
@@ -851,14 +855,14 @@ public class DatabaseAuthorizationResource2 {
 				"CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/engine/getEngineUsersNoCredentials with PARAM engineId");
 
 		databaseId = WebUtility.inputSanitizer(databaseId);
-		searchTerm = WebUtility.inputSanitizer(searchTerm);
+		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
 
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User  invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve database users no credentials.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -870,7 +874,7 @@ public class DatabaseAuthorizationResource2 {
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User  is trying to pull users for " + databaseId
 					+ " that do not have credentials without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve database users no credentials.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -886,6 +890,7 @@ public class DatabaseAuthorizationResource2 {
 	 * @param form
 	 * @return
 	 */
+	@Deprecated
 	@POST
 	@Produces("application/json")
 	@Path("approveDatabaseUserAccessRequest")
@@ -898,7 +903,7 @@ public class DatabaseAuthorizationResource2 {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -922,19 +927,19 @@ public class DatabaseAuthorizationResource2 {
 		} catch (IllegalAccessException e) {
 			classLogger.warn(
 					"User is trying to grant user access to database " + databaseId + " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to approve database user access request.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to approve database user access request.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has approved user access and added user permissions to database " + databaseId);
+		classLogger.info("User has approved user access and added user permissions to database {}", databaseId);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -948,6 +953,7 @@ public class DatabaseAuthorizationResource2 {
 	 * @param form
 	 * @return
 	 */
+	@Deprecated
 	@POST
 	@Produces("application/json")
 	@Path("denyDatabaseUserAccessRequest")
@@ -960,7 +966,7 @@ public class DatabaseAuthorizationResource2 {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -981,14 +987,14 @@ public class DatabaseAuthorizationResource2 {
 		try {
 			SecurityEngineUtils.denyEngineUserAccessRequests(user, databaseId, requestIds);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to deny database user access request.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has denied user access requests to database " + databaseId);
+		classLogger.info("User has denied user access requests to database {}", databaseId);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
