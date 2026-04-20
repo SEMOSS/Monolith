@@ -29,11 +29,9 @@ package prerna.websocket;
 
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.nio.file.FileSystems;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardWatchEventKinds;
-import java.nio.file.WatchKey;
-import java.nio.file.WatchService;
 import java.util.function.Function;
 
 import org.apache.logging.log4j.LogManager;
@@ -124,61 +122,93 @@ public class ClaudeCodeHistoryStreamer implements FileStreamer {
 	}
 
 	/**
-	 * Tail the JSONL file, reading new lines as they are appended.
+	 * Tail the JSONL file by re-stat + re-open on each cycle.
 	 *
-	 * Uses poll(timeout) instead of take() so we always attempt a read
-	 * on each cycle. This avoids a race condition on macOS where the
-	 * WatchService (which is poll-based, not native) can miss events
-	 * that happen before its internal baseline scan completes.
+	 * A single long-lived RandomAccessFile handle does not see appends
+	 * from another process on CSI/NFS-backed volumes (common on Kubernetes):
+	 * the NFS client caches file attributes per-open-handle and readLine
+	 * returns null forever against the stale EOF. Re-stat via Files.size
+	 * + fresh open each cycle bypasses that cache and works on every
+	 * filesystem we target.
 	 */
 	private void tailFile(Path filePath) {
-		Path dir = filePath.getParent();
-
-		try (WatchService watcher = FileSystems.getDefault().newWatchService();
-				RandomAccessFile raf = new RandomAccessFile(filePath.toFile(), "r")) {
-
-			dir.register(watcher,
-					StandardWatchEventKinds.ENTRY_MODIFY,
-					StandardWatchEventKinds.ENTRY_CREATE);
-
-			raf.seek(raf.length());
-			logger.info("Tailing {} for insightId={}", filePath, insightId);
-
-			String partialLine = "";
-
-			while (running) {
-				WatchKey key;
-				try {
-					key = watcher.poll(POLL_INTERVAL_MS, java.util.concurrent.TimeUnit.MILLISECONDS);
-				} catch (InterruptedException e) {
-					Thread.currentThread().interrupt();
-					break;
-				}
-
-				if (key != null) {
-					key.pollEvents();
-					if (!key.reset()) {
-						logger.warn("Watch key no longer valid for {}", dir);
-						break;
-					}
-				}
-
-				String line;
-				while ((line = raf.readLine()) != null) {
-					line = partialLine + line;
-					partialLine = "";
-
-					line = line.trim();
-					if (line.isEmpty()) {
-						continue;
-					}
-
-					processLine(line);
-				}
-			}
+		long lastOffset;
+		try {
+			lastOffset = Files.size(filePath);
 		} catch (IOException e) {
-			logger.error("Error tailing JSONL file {}", filePath, e);
+			logger.warn("Could not stat {} on startup, starting from offset 0", filePath);
+			lastOffset = 0;
 		}
+		logger.info("Tailing {} for insightId={} (start offset={})", filePath, insightId, lastOffset);
+
+		while (running) {
+			try {
+				Thread.sleep(POLL_INTERVAL_MS);
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+				break;
+			}
+
+			long currentSize;
+			try {
+				currentSize = Files.size(filePath);
+			} catch (IOException e) {
+				logger.warn("Could not stat {}: {}", filePath, e.toString());
+				continue;
+			}
+
+			if (currentSize < lastOffset) {
+				logger.info("File {} truncated or rotated, resetting offset", filePath);
+				lastOffset = 0;
+			}
+
+			if (currentSize == lastOffset) {
+				continue;
+			}
+
+			lastOffset = readNewLines(filePath, lastOffset, currentSize);
+		}
+	}
+
+	/**
+	 * Read bytes from {@code fromOffset} up to {@code toOffset}, process every
+	 * complete line (terminated by {@code \n}), and return the offset just
+	 * after the last complete line. Any trailing bytes past the final newline
+	 * stay on disk and are re-read on the next cycle once more data arrives.
+	 */
+	private long readNewLines(Path filePath, long fromOffset, long toOffset) {
+		int length = (int) (toOffset - fromOffset);
+		byte[] buf = new byte[length];
+
+		try (RandomAccessFile raf = new RandomAccessFile(filePath.toFile(), "r")) {
+			raf.seek(fromOffset);
+			raf.readFully(buf);
+		} catch (IOException e) {
+			logger.error("Error reading {}", filePath, e);
+			return fromOffset;
+		}
+
+		int lastNewline = -1;
+		for (int i = length - 1; i >= 0; i--) {
+			if (buf[i] == '\n') {
+				lastNewline = i;
+				break;
+			}
+		}
+
+		if (lastNewline < 0) {
+			return fromOffset;
+		}
+
+		String complete = new String(buf, 0, lastNewline, StandardCharsets.UTF_8);
+		for (String line : complete.split("\n")) {
+			String trimmed = line.trim();
+			if (!trimmed.isEmpty()) {
+				processLine(trimmed);
+			}
+		}
+
+		return fromOffset + lastNewline + 1;
 	}
 
 	/**
