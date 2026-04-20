@@ -49,10 +49,27 @@ import com.sun.identity.saml2.profile.SPSSOFederate;
 import prerna.web.conf.util.SSOUtil;
 
 /**
- * Servlet implementation class for SP Initiated SAML
+ * Handles Service Provider (SP)-initiated SAML authentication.
+ *
+ * <p>
+ * This servlet starts SSO from this application (the SP) toward an IdP. It
+ * prepares request parameters, chooses a target IdP, and delegates request
+ * construction/signing to the OpenAM federation library.
+ *
+ * <p>
+ * How it connects to the rest of the SAML flow:
+ *
+ * <ol>
+ * <li>SSO runtime metadata is loaded through {@link SSOUtil}.</li>
+ * <li>This servlet sends the AuthnRequest to the IdP.</li>
+ * <li>After IdP authentication, the browser posts back to
+ * {@code SamlVerifierServlet} for assertion validation and local session
+ * creation.</li>
+ * </ol>
  */
 @WebServlet("/SPSSOServlet")
 public class SPSSOServlet extends HttpServlet {
+
 	private static final long serialVersionUID = 1L;
 
 	public SPSSOServlet() {
@@ -60,20 +77,31 @@ public class SPSSOServlet extends HttpServlet {
 	}
 
 	/**
-	 * The below doGet is called from the SSOFilter via the samlLogin/index.html page. 
-	 * Once called, it gets all the required openAM params from the SSOUtil class and 
-	 * does a call to the IDP with the SAML assertions.
+	 * Entry point for SP-initiated login.
+	 *
+	 * <p>
+	 * Ensures SSO config exists and then starts AuthnRequest creation/dispatch.
 	 */
+	@Override
 	protected void doGet(HttpServletRequest request, HttpServletResponse response)
 			throws ServletException, IOException {
 		SSOUtil util = SSOUtil.getInstance();
-		if (!util.isConfigured()) {
-			util.setSSODeployURI((request).getRequestURI());
-			util.configureSSO(request, response);
-		}
+		// Reads metadata and caches core values needed by the OpenAM flow.
+		util.configureSSO(request, response);
 		initiateSSO(request, response);
 	}
 
+	/**
+	 * Builds the SAML request context and delegates the final AuthnRequest send.
+	 *
+	 * <p>
+	 * This method supports both:
+	 *
+	 * <ol>
+	 * <li>Fresh login requests (no {@code requestID}).</li>
+	 * <li>Follow-up requests after IdP discovery (with {@code requestID}).</li>
+	 * </ol>
+	 */
 	public void initiateSSO(HttpServletRequest request, HttpServletResponse response) {
 		// Retreive the Request Query Parameters
 		// metaAlias and idpEntiyID are the required query parameters
@@ -158,8 +186,9 @@ public class SPSSOServlet extends HttpServlet {
 					return;
 				}
 			}
+			// Final handoff to the OpenAM SAML library which creates/sends the
+			// AuthnRequest.
 			SPSSOFederate.initiateAuthnRequest(request, response, metaAlias, idpEntityID, paramsMap, null);
-			System.out.println("IDP call initiated successfully. Waiting for IDP callback.");
 		} catch (SAML2Exception sse) {
 			SAML2Utils.debug.error("Error sending AuthnRequest ", sse);
 			SAMLUtils.sendError(request, response, HttpServletResponse.SC_BAD_REQUEST, "requestProcessingError",
