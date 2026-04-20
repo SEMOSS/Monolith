@@ -27,13 +27,28 @@
  *******************************************************************************/
 package prerna.websocket;
 
-import java.util.concurrent.ConcurrentHashMap;
+/**
+ * Interface for any class that tails/streams file changes and broadcasts
+ * updates to WebSocket clients.
+ *
+ * Implementations are expected to:
+ * <ul>
+ *   <li>Block the calling thread in {@link #start()} until stopped</li>
+ *   <li>Use {@link SocketSessionHandlerFactory} to broadcast to WS clients</li>
+ *   <li>Clean up resources when {@link #stop()} is called</li>
+ * </ul>
+ *
+ * Register implementations with {@link StreamerRegistry} so they can be
+ * resolved by type from WebSocket messages.
+ */
+public interface FileStreamer {
 
-public class SocketSessionHandlerFactory {
+	/** Begin streaming. Blocks the calling thread until {@link #stop()} is called. */
+	void start();
 
-    private static ConcurrentHashMap<String, SocketSessionHandler> sessionHandlers = new ConcurrentHashMap<>();
-	
-	public static SocketSessionHandler getHandler(String insightId) {
-		return sessionHandlers.computeIfAbsent(insightId, k -> new SocketSessionHandler());
-	}
+	/** Signal the streamer to stop after the current cycle. */
+	void stop();
+
+	/** Whether the streamer is currently running. */
+	boolean isRunning();
 }

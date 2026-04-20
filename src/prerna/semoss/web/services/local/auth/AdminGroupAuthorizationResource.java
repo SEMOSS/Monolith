@@ -76,7 +76,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			groupUtils = AdminSecurityGroupUtils.getInstance(user);
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to get list of groups");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve groups.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -102,7 +102,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(ret, 200);
 		} catch (Exception e) {
 			classLogger.warn("User is trying to get details about a specific group");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve group details.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -121,7 +121,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			groupUtils = AdminSecurityGroupUtils.getInstance(user);
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to get list of groups");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve num groups.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -173,11 +173,11 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			AdminSecurityGroupUtils.getInstance(user).addGroup(user, newGroupId, newGroupType, description);
 			success = true;
 		} catch (IllegalArgumentException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to add group.", e);
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to add group.", e);
 			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
 			errorRet.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 500);
@@ -217,11 +217,11 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			AdminSecurityGroupUtils.getInstance(user).deleteGroupAndPropagate(groupId, groupType);
 			success = true;
 		} catch (IllegalArgumentException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to delete group.", e);
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to delete group.", e);
 			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
 			errorRet.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 500);
@@ -272,11 +272,11 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 					newType, newDescription);
 			success = true;
 		} catch (IllegalArgumentException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update group.", e);
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update group.", e);
 			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
 			errorRet.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 500);
@@ -323,11 +323,11 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 					newDescription);
 			success = true;
 		} catch (IllegalArgumentException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update group details.", e);
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update group details.", e);
 			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
 			errorRet.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 500);
@@ -354,7 +354,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			groupUtils = AdminSecurityGroupUtils.getInstance(user);
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to get users assigned to a group");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve group members.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -370,12 +370,12 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			List<Map<String, Object>> ret = groupUtils.getGroupMembers(groupId, searchTerm, limit, offset);
 			return WebUtility.getResponse(ret, 200);
 		} catch (IllegalArgumentException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve group members.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve group members.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
 			errorMap.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
@@ -397,7 +397,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			groupUtils = AdminSecurityGroupUtils.getInstance(user);
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to the number of users assinged to a group");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve num members in group.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -413,12 +413,12 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			Long numUsers = groupUtils.getNumMembersInGroup(groupId, searchTerm);
 			return WebUtility.getResponse(numUsers, 200);
 		} catch (IllegalArgumentException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve num members in group.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve num members in group.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
 			errorMap.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
@@ -441,7 +441,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			groupUtils = AdminSecurityGroupUtils.getInstance(user);
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to users who are not assigned to a group");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve non group members.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -457,12 +457,12 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			List<Map<String, Object>> ret = groupUtils.getNonGroupMembers(groupId, searchTerm, limit, offset);
 			return WebUtility.getResponse(ret, 200);
 		} catch (IllegalArgumentException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve non group members.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve non group members.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
 			errorMap.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
@@ -484,7 +484,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			groupUtils = AdminSecurityGroupUtils.getInstance(user);
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to the number of users assinged to a group");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve num non members in group.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -500,12 +500,12 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			Long numUsers = groupUtils.getNumNonMembersInGroup(groupId, searchTerm);
 			return WebUtility.getResponse(numUsers, 200);
 		} catch (IllegalArgumentException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve num non members in group.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve num non members in group.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
 			errorMap.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
@@ -553,11 +553,11 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			AdminSecurityGroupUtils.getInstance(user).addUserToGroup(user, groupId, userId, userLoginType, endDate);
 			success = true;
 		} catch (IllegalArgumentException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to add group member.", e);
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to add group member.", e);
 			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
 			errorRet.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 500);
@@ -604,11 +604,11 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			AdminSecurityGroupUtils.getInstance(user).removeUserFromGroup(groupId, userId, userLoginType);
 			success = true;
 		} catch (IllegalArgumentException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to delete group member.", e);
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to delete group member.", e);
 			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
 			errorRet.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 500);
@@ -662,7 +662,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			try {
 				permission = Integer.parseInt(permissionStr);
 			} catch (NumberFormatException nbe) {
-				classLogger.error(Constants.STACKTRACE, nbe);
+				classLogger.error("Failed to add group project permission.", nbe);
 				throw new IllegalArgumentException(
 						"Must pass a valid integer value. Received value = " + permissionStr);
 			}
@@ -674,11 +674,11 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 					permission, endDate);
 			success = true;
 		} catch (IllegalArgumentException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to add group project permission.", e);
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to add group project permission.", e);
 			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
 			errorRet.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 500);
@@ -726,7 +726,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			try {
 				permission = Integer.parseInt(permissionStr);
 			} catch (NumberFormatException nbe) {
-				classLogger.error(Constants.STACKTRACE, nbe);
+				classLogger.error("Failed to update group project permission.", nbe);
 				throw new IllegalArgumentException(
 						"Must pass a valid integer value. Received value = " + permissionStr);
 			}
@@ -738,11 +738,11 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 					permission, endDate);
 			success = true;
 		} catch (IllegalArgumentException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update group project permission.", e);
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update group project permission.", e);
 			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
 			errorRet.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 500);
@@ -786,11 +786,11 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			AdminSecurityGroupUtils.getInstance(user).removeGroupProjectPermission(user, groupId, groupType, projectId);
 			success = true;
 		} catch (IllegalArgumentException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to remove group project permission.", e);
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to remove group project permission.", e);
 			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
 			errorRet.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 500);
@@ -815,7 +815,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			groupUtils = AdminSecurityGroupUtils.getInstance(user);
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to get projects assinged to a group");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve projects for group.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -832,12 +832,12 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 					offset, onlyApps);
 			return WebUtility.getResponse(ret, 200);
 		} catch (IllegalArgumentException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve projects for group.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve projects for group.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
 			errorMap.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
@@ -861,7 +861,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			groupUtils = AdminSecurityGroupUtils.getInstance(user);
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to get projects assinged to a group");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve num projects for group.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -877,12 +877,12 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			Long numProjects = groupUtils.getNumProjectsForGroup(groupId, groupType, searchTerm, onlyApps);
 			return WebUtility.getResponse(numProjects, 200);
 		} catch (IllegalArgumentException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve num projects for group.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve num projects for group.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
 			errorMap.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
@@ -907,7 +907,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			groupUtils = AdminSecurityGroupUtils.getInstance(user);
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to get projects assinged to a group");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve available projects for group.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -924,12 +924,12 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 					limit, offset, onlyApps);
 			return WebUtility.getResponse(ret, 200);
 		} catch (IllegalArgumentException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve available projects for group.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve available projects for group.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
 			errorMap.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
@@ -953,7 +953,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			groupUtils = AdminSecurityGroupUtils.getInstance(user);
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to get projects assinged to a group");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve num available projects for group.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -969,12 +969,12 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			Long numProjects = groupUtils.getNumAvailableProjectsForGroup(groupId, groupType, searchTerm, onlyApps);
 			return WebUtility.getResponse(numProjects, 200);
 		} catch (IllegalArgumentException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve num available projects for group.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve num available projects for group.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
 			errorMap.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
@@ -1028,7 +1028,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			try {
 				permission = Integer.parseInt(permissionStr);
 			} catch (NumberFormatException nbe) {
-				classLogger.error(Constants.STACKTRACE, nbe);
+				classLogger.error("Failed to add group engine permission.", nbe);
 				throw new IllegalArgumentException(
 						"Must pass a valid integer value. Received value = " + permissionStr);
 			}
@@ -1040,11 +1040,11 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 					permission, endDate);
 			success = true;
 		} catch (IllegalArgumentException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to add group engine permission.", e);
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to add group engine permission.", e);
 			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
 			errorRet.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 500);
@@ -1092,7 +1092,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			try {
 				permission = Integer.parseInt(permissionStr);
 			} catch (NumberFormatException nbe) {
-				classLogger.error(Constants.STACKTRACE, nbe);
+				classLogger.error("Failed to update group engine permission.", nbe);
 				throw new IllegalArgumentException(
 						"Must pass a valid integer value. Received value = " + permissionStr);
 			}
@@ -1104,11 +1104,11 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 					permission, endDate);
 			success = true;
 		} catch (IllegalArgumentException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update group engine permission.", e);
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update group engine permission.", e);
 			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
 			errorRet.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 500);
@@ -1152,11 +1152,11 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			AdminSecurityGroupUtils.getInstance(user).removeGroupEnginePermission(user, groupId, groupType, engineId);
 			success = true;
 		} catch (IllegalArgumentException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to remove group engine permission.", e);
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to remove group engine permission.", e);
 			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
 			errorRet.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 500);
@@ -1180,7 +1180,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			groupUtils = AdminSecurityGroupUtils.getInstance(user);
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to get engines assinged to a group");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve engines for group.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -1197,12 +1197,12 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 					offset);
 			return WebUtility.getResponse(ret, 200);
 		} catch (IllegalArgumentException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve engines for group.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve engines for group.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
 			errorMap.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
@@ -1225,7 +1225,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			groupUtils = AdminSecurityGroupUtils.getInstance(user);
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to get engines assinged to a group");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve num engines for group.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -1241,12 +1241,12 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			Long numEngines = groupUtils.getNumEnginesForGroup(groupId, groupType, searchTerm);
 			return WebUtility.getResponse(numEngines, 200);
 		} catch (IllegalArgumentException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve num engines for group.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve num engines for group.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
 			errorMap.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
@@ -1271,7 +1271,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			groupUtils = AdminSecurityGroupUtils.getInstance(user);
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to get engines assinged to a group");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve available engines for group.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -1288,12 +1288,12 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 					limit, offset);
 			return WebUtility.getResponse(ret, 200);
 		} catch (IllegalArgumentException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve available engines for group.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve available engines for group.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
 			errorMap.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
@@ -1317,7 +1317,7 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			groupUtils = AdminSecurityGroupUtils.getInstance(user);
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to get engines assinged to a group");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve num available engines for group.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -1333,12 +1333,12 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			Long numEngines = groupUtils.getNumAvailableEnginesForGroup(groupId, groupType, searchTerm);
 			return WebUtility.getResponse(numEngines, 200);
 		} catch (IllegalArgumentException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve num available engines for group.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve num available engines for group.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
 			errorMap.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
