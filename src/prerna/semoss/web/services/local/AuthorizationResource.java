@@ -70,7 +70,7 @@ public class AuthorizationResource {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User  invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to search for user.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -89,7 +89,7 @@ public class AuthorizationResource {
 			} catch (IllegalAccessException e) {
 				classLogger.warn("User is trying to pull users for " + engineId
 						+ " that do not have credentials without having proper access");
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.error("Failed to search for user.", e);
 				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 				return WebUtility.getResponse(errorMap, 401);
@@ -116,7 +116,7 @@ public class AuthorizationResource {
 					graphApiGroupId, sessionData);
 			return WebUtility.getResponse(filteredUsers, 200);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to search for user.", e);
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 500);
