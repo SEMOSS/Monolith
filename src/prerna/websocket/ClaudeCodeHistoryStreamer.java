@@ -27,18 +27,21 @@
  *******************************************************************************/
 package prerna.websocket;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.function.Function;
+import java.util.stream.Stream;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.json.JSONObject;
 
-import prerna.reactor.agent.ClaudeCodeTranscriptLocator;
+import prerna.util.Utility;
 
 public class ClaudeCodeHistoryStreamer implements FileStreamer {
 
@@ -68,9 +71,34 @@ public class ClaudeCodeHistoryStreamer implements FileStreamer {
 	/**
 	 * Search the room folder for the JSONL file.
 	 * Returns null if the room dir or file doesn't exist yet.
+	 *
+	 * Inlined (not delegating to ClaudeCodeTranscriptLocator in Semoss) so this
+	 * Monolith class doesn't depend on a Semoss-side class that may not yet be
+	 * present in the published Semoss JAR at CI build time.
 	 */
 	private Path findJsonlFile() {
-		return ClaudeCodeTranscriptLocator.findJsonlFile(roomId);
+		if (roomId == null || roomId.isEmpty()) {
+			return null;
+		}
+
+		String roomFolderPath = Utility.getBaseFolder() + File.separator + "room" + File.separator + roomId;
+		Path rootDir = Paths.get(roomFolderPath);
+
+		if (!Files.isDirectory(rootDir)) {
+			return null;
+		}
+
+		String targetFileName = roomId + ".jsonl";
+
+		try (Stream<Path> walk = Files.walk(rootDir)) {
+			return walk
+					.filter(Files::isRegularFile)
+					.filter(p -> p.getFileName().toString().equals(targetFileName))
+					.findFirst()
+					.orElse(null);
+		} catch (IOException e) {
+			return null;
+		}
 	}
 
 	/**
