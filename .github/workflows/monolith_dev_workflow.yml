@@ -39,17 +39,14 @@ jobs:
           ls -lah
           pwd
       - name: Build Semoss Workflow Dispatch
-        uses: convictional/trigger-workflow-and-wait@v1.6.5
+        uses: the-actions-org/workflow-dispatch@v4
         with:
-          owner: SEMOSS
-          repo: Semoss
-          github_token: ${{ secrets.SEMOSS_GITHUB_TOKEN }}
-          workflow_file_name: dev_workflow.yml
+          workflow: dev_workflow.yml
+          repo: SEMOSS/Semoss
           ref: dev
-          wait_interval: 15
-          propagate_failure: true
-          trigger_workflow: true
-          wait_workflow: true
+          token: ${{ secrets.SEMOSS_GITHUB_TOKEN }}
+          wait-for-completion: true
+          wait-for-completion-interval: 15s
 
   build_monolith_dev:
     needs: build_semoss
