@@ -47,7 +47,6 @@ jobs:
           token: ${{ secrets.SEMOSS_GITHUB_TOKEN }}
           wait-for-completion: true
           wait-for-completion-interval: 15s
-          propagate-failure: true
 
   build_monolith_dev:
     needs: build_semoss
