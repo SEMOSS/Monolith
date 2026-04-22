@@ -93,6 +93,7 @@ import prerna.io.connector.google.GoogleTokenFiller;
 import prerna.io.connector.ms.MicrosoftTokenFiller;
 import prerna.io.connector.okta.OktaTokenFiller;
 import prerna.io.connector.salesforce.SalesforceTokenFiller;
+import prerna.io.connector.servicenow.ServiceNowTokenFiller;
 import prerna.io.connector.surveymonkey.MonkeyProfile;
 import prerna.sablecc2.om.execptions.SemossPixelException;
 import prerna.security.HttpHelperUtility;
@@ -445,6 +446,62 @@ public class UserResource {
 		} catch (Exception e) {
 			classLogger.error("Failed to fetch Salesforce user info", e);
 			ret.put(Constants.ERROR_MESSAGE, "Log into your Salesforce account");
+			return WebUtility.getResponse(ret, 401);
+		}
+
+	}
+	
+	/**
+	 * Gets user info for ServiceNow
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("/userinfo/servicenow")
+	public Response userinfoServiceNow(@Context HttpServletRequest request) {
+		Map<String, String> ret = new HashMap<>();
+		HttpSession session = request.getSession(false);
+		User semossUser = null;
+		if (session != null) {
+			semossUser = (User) session.getAttribute(Constants.SESSION_USER);
+		}
+
+		if (semossUser == null) {
+			List<NewCookie> newCookies = new ArrayList<>();
+			// not authenticated
+			// remove any cookies we shouldn't have
+			WebUtility.expireSessionCookies(request, newCookies);
+
+			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
+				session.invalidate();
+			}
+
+			ret.put(Constants.ERROR_MESSAGE, "Log into your ServiceNow account");
+			return WebUtility.getResponseNoCache(ret, 200, newCookies.toArray(new NewCookie[] {}));
+		}
+
+		String[] beanProps = { "name" };
+		String jsonPattern = "[result.name]";
+
+		String accessString = null;
+		try {
+			AccessToken servicenowToken = semossUser.getAccessToken(AuthProvider.SERVICENOW);
+			accessString = servicenowToken.getAccess_token();
+			String prefix = "servicenow_";
+			String userinfoUrl = socialData.getProperty(prefix + "userinfo_url");
+			Map<String, Object> params = new HashMap<>();
+			params.put("access_token", accessString);
+			params.put("alt", "json");
+
+			String output = HttpHelperUtility.makeGetCall(userinfoUrl, accessString, params, true);
+			AccessToken accessToken2 = (AccessToken) BeanFiller.fillFromJson(output, jsonPattern, beanProps,
+					new AccessToken());
+			String name = accessToken2.getName();
+			ret.put("name", name);
+			return WebUtility.getResponse(ret, 200);
+
+		} catch (Exception e) {
+			classLogger.error("Failed to fetch ServiceNow user info", e);
+			ret.put(Constants.ERROR_MESSAGE, "Log into your ServiceNow account");
 			return WebUtility.getResponse(ret, 401);
 		}
 
@@ -1007,7 +1064,7 @@ public class UserResource {
 		setMainPageRedirect(request, response);
 		return null;
 	}
-
+	
 	/**
 	 * 
 	 * @param request
@@ -1041,6 +1098,259 @@ public class UserResource {
 				+ state;
 
 		if (classLogger.isDebugEnabled()) {
+			classLogger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
+		}
+		return redirectUrl;
+	}
+	
+	/**
+	 * Logs user in through servicenow
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("/login/servicenow")
+	public Response loginServiceNow(@Context HttpServletRequest request, @Context HttpServletResponse response)
+			throws IOException {
+		if (socialData.getLoginsAllowed().get("servicenow") == null
+				|| !socialData.getLoginsAllowed().get("servicenow")) {
+			Map<String, Object> ret = new HashMap<>();
+			ret.put(Constants.ERROR_MESSAGE, "Servicenow login is not allowed");
+			return WebUtility.getResponse(ret, 400);
+		}
+		/*
+		 * Try to log in the user If they are not logged in Redirect the FE
+		 */
+
+		HttpSession session = request.getSession(false);
+		User userObj = null;
+		if (session != null) {
+			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		}
+		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
+		if (customRedirect != null && !customRedirect.isEmpty()) {
+			if (session == null) {
+				session = request.getSession();
+			}
+			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
+		}
+		String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
+		if (queryString != null && queryString.contains("code")) {
+			if (userObj == null || userObj.getAccessToken(AuthProvider.SERVICENOW) == null) {
+				String[] outputs = HttpHelperUtility.getCodes(queryString);
+
+				// oauth code should match [ -~]+ (1 or more ascii)
+				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
+				String code = URLDecoder.decode(outputs[0], StandardCharsets.UTF_8);
+				if (code.matches("[ -~]+")) {
+					String prefix = "servicenow_";
+					String clientId = socialData.getProperty(prefix + "client_id");
+					String clientSecret = socialData.getProperty(prefix + "secret_key");
+					String redirectUri = socialData.getProperty(prefix + "redirect_uri");
+					String instanceUrl = socialData.getProperty(prefix + "instance_url");
+					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
+
+					if (classLogger.isDebugEnabled()) {
+						classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
+					}
+
+					Map<String, String> params = new HashMap<>();
+					params.put("client_id", clientId);
+					params.put("grant_type", "authorization_code");
+					params.put("redirect_uri", redirectUri);
+					params.put("code", code);
+					params.put("client_secret", clientSecret);
+
+					String url = instanceUrl + "/oauth_token.do";
+
+					AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, true, true);
+					if (accessToken == null) {
+						// not authenticated
+						response.setStatus(302);
+						response.sendRedirect(getServiceNowRedirect(request));
+						return null;
+					}
+					accessToken.setProvider(AuthProvider.SERVICENOW);
+
+					// fill the access token with the other properties so we can properly create the user
+					ServiceNowTokenFiller profiler = new ServiceNowTokenFiller();
+					profiler.fillAccessToken(accessToken, null, null, null, null);
+					addAccessToken(accessToken, request, autoAdd);
+
+					if (classLogger.isDebugEnabled()) {
+						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
+					}
+				}
+			}
+		}
+
+		// grab the user again
+		if (session != null || (session = request.getSession(false)) != null) {
+			userObj = (User) session.getAttribute(Constants.SESSION_USER);
+		}
+		if (userObj == null || userObj.getAccessToken(AuthProvider.SERVICENOW) == null) {
+			// not authenticated
+			response.setStatus(302);
+			response.sendRedirect(getServiceNowRedirect(request));
+			return null;
+		}
+
+		setMainPageRedirect(request, response);
+		return null;
+	}
+
+	private String getServiceNowRedirect(HttpServletRequest request) throws UnsupportedEncodingException {
+		String prefix = "servicenow_";
+		String clientId = socialData.getProperty(prefix + "client_id");
+		String redirectUri = socialData.getProperty(prefix + "redirect_uri");
+		String instanceUrl = socialData.getProperty(prefix + "instance_url");
+
+		String redirectUrl = instanceUrl + "/oauth_auth.do?" + "client_id=" + clientId
+				+ "&response_type=code" + "&redirect_uri=" + redirectUri;
+
+		if (classLogger.isDebugEnabled()) {
+			classLogger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
+		}
+		return redirectUrl;
+	}
+	
+	/**
+	 * Logs user in through servicenow using dynamic credentials in security db
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("/login2/servicenow")
+	public Response loginServiceNowDynamic(@Context HttpServletRequest request, @Context HttpServletResponse response) throws IOException {
+		HttpSession session = request.getSession(false);
+		User userObj = null;
+		if(session != null) {
+			userObj = (User) request.getSession().getAttribute(Constants.SESSION_USER);
+		}
+		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
+		if(customRedirect != null && !customRedirect.isEmpty()) {
+			if(session == null) {
+				session = request.getSession();
+			}
+			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
+		}
+		String queryString = WebUtility.encodeHTTPUri(request.getQueryString());
+		if (queryString != null && queryString.contains("code")) {
+			if (userObj == null || userObj.getAccessToken(AuthProvider.SERVICENOW) == null) {
+				String[] outputs = HttpHelperUtility.getCodes(queryString);
+
+				// oauth code should match [ -~]+ (1 or more ascii)
+				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
+				String code = URLDecoder.decode(outputs[0], StandardCharsets.UTF_8);
+				if(code.matches("[ -~]+")) {
+					String state = outputs[1];
+					String connectionId = session == null ? null : (String) session.getAttribute("sn_state_" + state);
+					if (connectionId == null) {
+						// invalid or tampered state
+						response.setStatus(400);
+						return null;
+					}
+					session.removeAttribute("sn_state_" + state);
+
+					// get credentials by UUID (ID) from SERVICENOW_CREDENTIALS table
+					String redirectUri = WebUtility.getCurrentCallbackUrl(request);
+					boolean autoAdd = true;
+					
+					Map<String, String> details = SecurityExternalConnectorsUtils
+							.getServiceNowConnectionDetails(connectionId);
+					String instanceUrl = details.get("instanceUrl");
+					String clientId = details.get("clientId");
+					String clientSecret = details.get("clientSecret");
+		            String userInfoUrl = details.get("userProfileUrl"); //to pass to fillAccessToken method
+
+		            if (instanceUrl == null || clientId == null || clientSecret == null || redirectUri == null) {
+		            	response.setStatus(400);
+		                response.getWriter().write("ServiceNow credentials not found for connection id =" + connectionId);
+		                return null;
+		            }
+
+		            if(classLogger.isDebugEnabled()) {
+						classLogger.debug(">> " + Utility.cleanLogString(request.getQueryString()));
+					}
+
+					Map<String, String> params = new HashMap<>();
+					params.put("client_id", clientId);
+					params.put("grant_type", "authorization_code");
+					params.put("redirect_uri", redirectUri);
+					params.put("code", code);
+					params.put("client_secret", clientSecret);
+
+					String url = instanceUrl + "/oauth_token.do";
+
+					AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, true, true);
+					if (accessToken == null) {
+						// not authenticated
+						response.setStatus(302);
+						response.sendRedirect(getServiceNowRedirectDynamic(request, response, connectionId));
+						return null;
+					}
+					accessToken.setProvider(AuthProvider.SERVICENOW);
+
+					// fill the access token with the other properties so we can properly create the user
+					ServiceNowTokenFiller profiler = new ServiceNowTokenFiller();
+					profiler.fillAccessToken(accessToken, userInfoUrl, null, null, null);
+					
+					addAccessToken(accessToken, request, autoAdd);
+
+					if(classLogger.isDebugEnabled()) {
+						classLogger.debug("Access Token is.. " + accessToken.getAccess_token());
+					}
+				}
+			}
+		}
+
+		// grab the user again
+		if(session != null || (session=request.getSession(false)) != null) {
+			userObj = (User) session.getAttribute(Constants.SESSION_USER);
+		}
+		if (userObj == null || userObj.getAccessToken(AuthProvider.SERVICENOW) == null) {
+			// not authenticated
+			response.setStatus(302);
+			response.sendRedirect(getServiceNowRedirectDynamic(request, response, null));
+			return null;
+		}
+
+		setMainPageRedirect(request, response);
+		return null;
+	}
+
+	/**
+	 * 
+	 * @param request
+	 * @param response
+	 * @param connectionId
+	 * @return
+	 * @throws UnsupportedEncodingException
+	 * @throws IOException
+	 */
+	private String getServiceNowRedirectDynamic(HttpServletRequest request, @Context HttpServletResponse response, String connectionId) throws UnsupportedEncodingException, IOException {
+		String redirectUri = WebUtility.getCurrentCallbackUrl(request);
+		if (connectionId == null) {
+			connectionId = request.getParameter("connectionId");
+		}
+		if (connectionId == null || connectionId.isEmpty()) {
+			response.setStatus(400);
+			response.getWriter().write("Missing required parameter: connectionId");
+			return null;
+		}
+		
+		String state = UUID.randomUUID().toString();
+		// store the connection id in session
+		request.getSession().setAttribute("sn_state_" + state, connectionId);
+		
+		Map<String, String> details = SecurityExternalConnectorsUtils
+				.getServiceNowConnectionDetails(connectionId);
+		String instanceUrl = details.get("instanceUrl");
+		String clientId = details.get("clientId");
+
+        String redirectUrl = instanceUrl + "/oauth_auth.do?" + "client_id=" + URLEncoder.encode(clientId, "UTF-8")
+				+ "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, "UTF-8") + "&state="
+				+ state;
+
+		if(classLogger.isDebugEnabled()) {
 			classLogger.debug("Sending redirect.. " + Utility.cleanLogString(redirectUrl));
 		}
 		return redirectUrl;
