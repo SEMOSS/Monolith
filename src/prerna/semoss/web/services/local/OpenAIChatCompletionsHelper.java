@@ -146,7 +146,8 @@ public final class OpenAIChatCompletionsHelper {
 	public static void writeToolChunk(String engineId, String messageId, long creationTimestamp,
 			Map<String, Object> dataMap, boolean firstChunk, Writer writer)
 			throws JsonProcessingException, IOException {
-		Long curToolIndex = ((Number) dataMap.get("index")).longValue();
+		Number indexNum = (Number) dataMap.get("index");
+		Long curToolIndex = indexNum != null ? indexNum.longValue() : 0L;
 		// formatting as OpenAI streaming chunk
 		// tool_call is the lowest level
 		Map<String, Object> toolCall = new HashMap<>();

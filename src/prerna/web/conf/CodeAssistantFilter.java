@@ -92,9 +92,13 @@ public class CodeAssistantFilter implements Filter {
 
 			if (bearerToken != null && !bearerToken.isEmpty()) {
 				String[] split = bearerToken.split(":");
-				if (split != null && split.length == 2) {
+				if (split != null && (split.length == 2 || split.length == 3)) {
 					String accessKey = split[0];
 					String secretKey = split[1];
+					// Optional 3rd segment: "room-{parentRoomId}" for linking sub-conversations
+					if (split.length == 3 && split[2].startsWith("room-")) {
+						request.setAttribute("roomId", split[2].substring(5));
+					}
 
 					if (LocalUserStore.getInstance().validate(accessKey, secretKey)) {
 						try {
