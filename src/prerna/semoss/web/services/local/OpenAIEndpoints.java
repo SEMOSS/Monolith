@@ -250,7 +250,11 @@ public class OpenAIEndpoints {
 		// set the user
 		insight.setUser(user);
 
+		// Room ID from JSON body, or from bearer token 3rd segment (GitHubCopilotManager)
 		String roomId = WebUtility.inputSanitizer((String) dataMap.remove("room_id"));
+		if (roomId == null) {
+			roomId = (String) request.getAttribute("roomId");
+		}
 		// room name gets updated during parsing of full prompt
 		room = RoomUtils.createRoomIfNotExists(roomId, insight, engine, null);
 		// this is if you are passing full prompt but want us to maintain the history
@@ -341,6 +345,18 @@ public class OpenAIEndpoints {
 														started = true;
 													}
 												}
+											// TODO: handle "thinking" stream type from models like Gemini/Claude
+											// that emit reasoning chunks separately. These would need to be
+											// forwarded as content chunks since OpenAI chat completions format
+											// has no dedicated thinking field.
+//										} else if (streamType.equalsIgnoreCase("thinking")) {
+//											String thinkingContent = (String) dataMap.get("thinking");
+//											if (thinkingContent != null && !thinkingContent.isEmpty()) {
+//												OpenAIChatCompletionsHelper.writeContentChunk(engineId,
+//														messageId, creationTimestamp, thinkingContent, started,
+//														writer);
+//												started = true;
+//											}
 											} else {
 												// assuming only other type is tool at the moment
 												if (dataMap.containsKey("finish_reason")) {
@@ -554,7 +570,11 @@ public class OpenAIEndpoints {
 		}
 		insight.setUser(user);
 
+		// Room ID from JSON body, or from bearer token 3rd segment (GitHubCopilotManager)
 		String roomId = WebUtility.inputSanitizer((String) dataMap.remove("room_id"));
+		if (roomId == null) {
+			roomId = (String) request.getAttribute("roomId");
+		}
 		room = RoomUtils.createRoomIfNotExists(roomId, insight, engine, null);
 
 		ThreadStore.setInsightId(insight.getInsightId());
@@ -571,7 +591,7 @@ public class OpenAIEndpoints {
 				ResponseMessage response = room.ask(msg, engine);
 				AskModelEngineResponse llmResponse = response.getModelEngineResponse();
 
-				Map<String, Object> processedResponse = OpenAIChatCompletionsHelper
+				Map<String, Object> processedResponse = OpenAIResponsesHelper
 						.processAskModelEngineResponse(engineId, llmResponse);
 				return WebUtility.getResponse(processedResponse, 200);
 			} catch (Exception e) {
