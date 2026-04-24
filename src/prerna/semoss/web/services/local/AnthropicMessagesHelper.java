@@ -200,6 +200,46 @@ public final class AnthropicMessagesHelper {
 	}
 
 	/**
+	 * Writes content_block_start for an image content block. Used for streaming
+	 * images from the Python image tier (gpt-image, bedrock image, etc). Anthropic's
+	 * public API does not currently stream images, so each partial/final image is
+	 * emitted as its own atomic image content block (start → stop) carrying a full
+	 * base64 payload; {@code partialImageIndex} is non-null on intermediate frames
+	 * and null on the final image.
+	 */
+	public static void writeImageContentBlockStart(int index, Map<String, Object> mediaInfo,
+			Object partialImageIndex, Writer writer) throws IOException {
+		Map<String, Object> event = new HashMap<>();
+		event.put("type", "content_block_start");
+		event.put("index", index);
+
+		Map<String, Object> contentBlock = new HashMap<>();
+		contentBlock.put("type", "image");
+		if (partialImageIndex != null) {
+			contentBlock.put("partial_image_index", partialImageIndex);
+		}
+
+		Map<String, Object> source = new HashMap<>();
+		if (mediaInfo != null) {
+			Object base64Data = mediaInfo.get("base64Data");
+			Object url = mediaInfo.get("url");
+			Object mimeType = mediaInfo.get("mimeType");
+			if (base64Data != null) {
+				source.put("type", "base64");
+				source.put("media_type", mimeType != null ? mimeType : "image/png");
+				source.put("data", base64Data);
+			} else if (url != null) {
+				source.put("type", "url");
+				source.put("url", url);
+			}
+		}
+		contentBlock.put("source", source);
+		event.put("content_block", contentBlock);
+
+		writeSSEEvent("content_block_start", event, writer);
+	}
+
+	/**
 	 * Writes content_block_stop event.
 	 */
 	public static void writeContentBlockStop(int index, Writer writer) throws IOException {
