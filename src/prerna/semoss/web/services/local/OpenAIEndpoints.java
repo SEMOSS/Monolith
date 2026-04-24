@@ -357,6 +357,19 @@ public class OpenAIEndpoints {
 //														writer);
 //												started = true;
 //											}
+											} else if ("media".equalsIgnoreCase(streamType)) {
+												// Image/media chunks from the Python image tier (partial + final).
+												// OpenAI chat-completions has no native image delta, so this emits
+												// a SEMOSS-proprietary delta.images[] payload.
+												if (dataMap.containsKey("finish_reason")) {
+													String finishReason = (String) dataMap.get("finish_reason");
+													OpenAIChatCompletionsHelper.writeFinishReason(engineId, messageId,
+															creationTimestamp, finishReason, writer);
+													break STREAM_COMPLETE_LOOP;
+												}
+												OpenAIChatCompletionsHelper.writeMediaChunk(engineId, messageId,
+														creationTimestamp, dataMap, started, writer);
+												started = true;
 											} else {
 												// assuming only other type is tool at the moment
 												if (dataMap.containsKey("finish_reason")) {
@@ -652,9 +665,65 @@ public class OpenAIEndpoints {
 	                                for (Map<String, Object> streamObj : partialResponseContent) {
 	                                    classLogger.info("Stream chunk received: {}", new ObjectMapper().writeValueAsString(streamObj));
 
-	                                    
+
 	                                    String streamType = (String) streamObj.get("stream_type");
 	                                    Map<String, Object> streamData = (Map<String, Object>) streamObj.get("data");
+
+	                                    // Media (image) chunks: flush any in-progress text/tool item, then emit
+	                                    // a self-contained image_generation_call triplet (added → partial or
+	                                    // completed → done). Reset item state so the next non-media chunk
+	                                    // opens a fresh item.
+	                                    if ("media".equalsIgnoreCase(streamType)) {
+	                                        if (currentItemId != null) {
+	                                            if ("message".equals(currentItemType) && isContentPartOpen) {
+	                                                OpenAIResponsesHelper.sendTextDone(writer, seq++, responseId, currentItemId, outputIndex, contentIndex, currentAccumulator.toString());
+	                                                OpenAIResponsesHelper.sendContentPartDone(writer, seq++, responseId, currentItemId, outputIndex, contentIndex, currentAccumulator.toString());
+	                                                isContentPartOpen = false;
+	                                            }
+	                                            OpenAIResponsesHelper.sendItemDone(writer, seq++, responseId, currentItemId, outputIndex, currentItemType, currentAccumulator.toString(), currentToolName);
+	                                            outputIndex++;
+	                                            currentAccumulator.setLength(0);
+	                                            currentItemId = null;
+	                                            currentItemType = null;
+	                                            currentToolName = null;
+	                                        }
+
+	                                        String imgItemId = "img_" + GUID.v7().toUUID().toString();
+	                                        Map<String, Object> mediaInfo = (Map<String, Object>) streamData.get("media_info");
+	                                        Object partialIdx = streamData.get("partial_image_index");
+
+	                                        Map<String, Object> imgItem = new HashMap<>();
+	                                        imgItem.put("id", imgItemId);
+	                                        imgItem.put("type", "image_generation_call");
+	                                        imgItem.put("status", partialIdx == null ? "completed" : "in_progress");
+	                                        Map<String, Object> addedEvent = new HashMap<>();
+	                                        addedEvent.put("type", "response.output_item.added");
+	                                        addedEvent.put("sequence_number", seq++);
+	                                        addedEvent.put("response_id", responseId);
+	                                        addedEvent.put("output_index", outputIndex);
+	                                        addedEvent.put("item", imgItem);
+	                                        OpenAIResponsesHelper.writeSSEEvent(addedEvent, writer);
+
+	                                        if (partialIdx != null) {
+	                                            OpenAIResponsesHelper.sendImageGenerationPartialImage(writer, seq++, responseId, imgItemId, outputIndex, mediaInfo, partialIdx);
+	                                        } else {
+	                                            OpenAIResponsesHelper.sendImageGenerationCompleted(writer, seq++, responseId, imgItemId, outputIndex, mediaInfo);
+	                                        }
+
+	                                        Map<String, Object> doneItem = new HashMap<>(imgItem);
+	                                        doneItem.put("status", "completed");
+	                                        Map<String, Object> doneEvent = new HashMap<>();
+	                                        doneEvent.put("type", "response.output_item.done");
+	                                        doneEvent.put("sequence_number", seq++);
+	                                        doneEvent.put("response_id", responseId);
+	                                        doneEvent.put("output_index", outputIndex);
+	                                        doneEvent.put("item", doneItem);
+	                                        OpenAIResponsesHelper.writeSSEEvent(doneEvent, writer);
+	                                        outputIndex++;
+
+	                                        if (streamData.containsKey("finish_reason")) break STREAM_LOOP;
+	                                        continue;
+	                                    }
 
 	                                    boolean isChunkTool = "tool".equalsIgnoreCase(streamType) || "function_call".equalsIgnoreCase(streamType);
 	                                    String targetType = isChunkTool ? "function_call" : "message";

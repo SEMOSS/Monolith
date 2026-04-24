@@ -197,7 +197,69 @@ public final class OpenAIChatCompletionsHelper {
 	}
 
 	/**
-	 * 
+	 * Writes a streaming chunk carrying image data produced by the Python image
+	 * tier. OpenAI's public chat-completions streaming protocol has no image delta,
+	 * so this emits a SEMOSS-proprietary shape: {@code delta.images: [{...}]} with
+	 * either {@code b64_json} or {@code url}, plus {@code partial_image_index}
+	 * when the chunk is an intermediate partial (null on the final).
+	 *
+	 * Python-side source: {@code StreamUtil.create_media_chunk(media_info, partial_image_index)}
+	 * in {@code semoss_streaming_util.py}, emitted with {@code stream_type="media"}.
+	 */
+	public static void writeMediaChunk(String engineId, String messageId, long creationTimestamp,
+			Map<String, Object> dataMap, boolean firstChunk, Writer writer)
+			throws JsonProcessingException, IOException {
+		Map<String, Object> mediaInfo = (Map<String, Object>) dataMap.get("media_info");
+		if (mediaInfo == null) {
+			return;
+		}
+
+		Map<String, Object> imageEntry = new HashMap<>();
+		Object partialIdx = dataMap.get("partial_image_index");
+		imageEntry.put("partial_image_index", partialIdx);
+		if (mediaInfo.containsKey("base64Data")) {
+			imageEntry.put("b64_json", mediaInfo.get("base64Data"));
+		}
+		if (mediaInfo.containsKey("url")) {
+			imageEntry.put("url", mediaInfo.get("url"));
+		}
+		if (mediaInfo.containsKey("mimeType")) {
+			imageEntry.put("mime_type", mediaInfo.get("mimeType"));
+		}
+		if (mediaInfo.containsKey("fileName")) {
+			imageEntry.put("file_name", mediaInfo.get("fileName"));
+		}
+
+		List<Map<String, Object>> images = new ArrayList<>();
+		images.add(imageEntry);
+
+		Map<String, Object> delta = new HashMap<>();
+		if (!firstChunk) {
+			delta.put("role", "assistant");
+		}
+		delta.put("content", null);
+		delta.put("images", images);
+
+		Map<String, Object> choice = new HashMap<>();
+		choice.put("index", 0);
+		choice.put("delta", delta);
+		choice.put("finish_reason", null);
+		List<Map<String, Object>> choices = new ArrayList<>();
+		choices.add(choice);
+
+		Map<String, Object> chunk = new HashMap<>();
+		chunk.put("id", messageId);
+		chunk.put("object", "chat.completion.chunk");
+		chunk.put("created", creationTimestamp);
+		chunk.put("model", engineId);
+		chunk.put("choices", choices);
+
+		writer.write("data: " + mapper.writeValueAsString(chunk) + "\n\n");
+		writer.flush();
+	}
+
+	/**
+	 *
 	 * @param engineId
 	 * @param messageId
 	 * @param creationTimestamp

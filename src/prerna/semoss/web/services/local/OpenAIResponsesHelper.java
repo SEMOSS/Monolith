@@ -218,6 +218,69 @@ public final class OpenAIResponsesHelper {
 		writeSSEEvent(event, w);
 	}
 
+	// --- 5. Image Generation Events ---
+
+	/**
+	 * Sends a {@code response.image_generation_call.partial_image} SSE event
+	 * mirroring OpenAI's own image-generation event shape. Used for intermediate
+	 * frames streamed by the gpt-image models.
+	 */
+	public static void sendImageGenerationPartialImage(Writer w, int seq, String respId, String itemId, int outputIdx,
+			Map<String, Object> mediaInfo, Object partialImageIndex) throws IOException {
+		Map<String, Object> event = new HashMap<>();
+		event.put("type", "response.image_generation_call.partial_image");
+		event.put("sequence_number", seq);
+		event.put("response_id", respId);
+		event.put("item_id", itemId);
+		event.put("output_index", outputIdx);
+		event.put("partial_image_index", partialImageIndex);
+		if (mediaInfo != null) {
+			if (mediaInfo.containsKey("base64Data")) {
+				event.put("b64_json", mediaInfo.get("base64Data"));
+			}
+			if (mediaInfo.containsKey("url")) {
+				event.put("url", mediaInfo.get("url"));
+			}
+			if (mediaInfo.containsKey("mimeType")) {
+				event.put("mime_type", mediaInfo.get("mimeType"));
+			}
+			if (mediaInfo.containsKey("fileName")) {
+				event.put("file_name", mediaInfo.get("fileName"));
+			}
+		}
+		writeSSEEvent(event, w);
+	}
+
+	/**
+	 * Sends a {@code response.image_generation_call.completed} SSE event carrying
+	 * the final image. Emitted once per image-generation call.
+	 */
+	public static void sendImageGenerationCompleted(Writer w, int seq, String respId, String itemId, int outputIdx,
+			Map<String, Object> mediaInfo) throws IOException {
+		Map<String, Object> event = new HashMap<>();
+		event.put("type", "response.image_generation_call.completed");
+		event.put("sequence_number", seq);
+		event.put("response_id", respId);
+		event.put("item_id", itemId);
+		event.put("output_index", outputIdx);
+		if (mediaInfo != null) {
+			if (mediaInfo.containsKey("base64Data")) {
+				event.put("b64_json", mediaInfo.get("base64Data"));
+			}
+			if (mediaInfo.containsKey("url")) {
+				event.put("url", mediaInfo.get("url"));
+			}
+			if (mediaInfo.containsKey("mimeType")) {
+				event.put("mime_type", mediaInfo.get("mimeType"));
+			}
+			if (mediaInfo.containsKey("fileName")) {
+				event.put("file_name", mediaInfo.get("fileName"));
+			}
+		}
+		writeSSEEvent(event, w);
+	}
+
+
 	/**
 	 * Normalizes Codex/Responses API message format to standard OpenAI Chat format.
 	 * Converts: content: [{ "type": "input_text", "text": "..." }] To: content:
