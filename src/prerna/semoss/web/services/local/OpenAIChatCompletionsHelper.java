@@ -155,11 +155,22 @@ public final class OpenAIChatCompletionsHelper {
 		if (dataMap.containsKey("id")) {
 			toolCall.put("id", dataMap.get("id"));
 		}
-		if (dataMap.containsKey("type")) {
-			toolCall.put("type", dataMap.get("type"));
-		}
+		// Chat-completions wire requires type="function". Responses-API engines
+		// emit "function_call"; normalize unconditionally.
+		toolCall.put("type", "function");
 		if (dataMap.containsKey("function")) {
-			toolCall.put("function", dataMap.get("function"));
+			Object fn = dataMap.get("function");
+			if (fn instanceof Map) {
+				@SuppressWarnings("unchecked")
+				Map<String, Object> fnMap = new HashMap<>((Map<String, Object>) fn);
+				Object args = fnMap.get("arguments");
+				if (args != null && !(args instanceof String)) {
+					fnMap.put("arguments", GSON.toJson(args));
+				}
+				toolCall.put("function", fnMap);
+			} else {
+				toolCall.put("function", fn);
+			}
 		} else {
 			toolCall.put("function", new HashMap<>());
 		}
@@ -271,7 +282,7 @@ public final class OpenAIChatCompletionsHelper {
 			for (ToolResponse t : tools) {
 				Map<String, Object> thisToolMap = new HashMap<>();
 				thisToolMap.put("id", t.getId());
-				thisToolMap.put("type", t.getType());
+				thisToolMap.put("type", "function");
 				Map<String, Object> functionMap = new HashMap<>();
 				functionMap.put("name", t.getName());
 				functionMap.put("arguments", GSON.toJson(t.getArguments()));
