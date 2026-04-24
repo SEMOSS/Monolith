@@ -42,7 +42,7 @@ import javax.servlet.http.HttpSessionListener;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import prerna.auth.SyncUserAppsThread;
+import prerna.auth.SyncUserAssetsThread;
 import prerna.auth.User;
 import prerna.cluster.util.ClusterUtil;
 import prerna.engine.impl.model.Room;
@@ -109,9 +109,9 @@ public class UserSessionLoader implements HttpSessionListener {
 			// remove the user memory
 			thisUser.removeUserMemory();
 		}
-		// back up the workspace and asset apps
+		// back up the user asset apps
 		try {
-			SyncUserAppsThread.execute(session);
+			SyncUserAssetsThread.execute(session);
 		} catch (Exception e) {
 			classLogger.error("Failed to back up user apps during session cleanup", e);
 		}
