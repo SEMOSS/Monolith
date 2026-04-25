@@ -171,7 +171,7 @@ public class UserSessionLoader implements HttpSessionListener {
 				IRUserConnection rserve = thisUser.getRcon();
 				if (rserve != null && !rserve.isStopped()) {
 					classLogger.info("Dropping user r serve");
-					ExecutorService executor = Executors.newSingleThreadExecutor();
+					ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
 					try {
 						executor.submit(new Callable<Void>() {
 							@Override

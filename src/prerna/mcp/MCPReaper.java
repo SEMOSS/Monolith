@@ -59,8 +59,8 @@ import prerna.om.ThreadStore;
 import prerna.reactor.agent.mcp.MCPErrorCode;
 import prerna.sablecc2.PixelRunner;
 import prerna.sablecc2.comm.PixelJobManager;
+import prerna.sablecc2.comm.PixelJobRunner;
 import prerna.sablecc2.comm.PixelJobStatus;
-import prerna.sablecc2.comm.PixelJobThread;
 import prerna.sablecc2.om.execptions.SemossMCPException;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.web.services.util.WebUtility;
@@ -320,11 +320,12 @@ public class MCPReaper implements Runnable {
 	private static Object runPixelJob(User user, Insight insight, String expression, String jobId, String insightId,
 			String sessionId, String routeId, boolean dropLogging) {
 		PixelJobManager manager = PixelJobManager.getManager();
-		PixelJobThread jt = manager.makeJob(WebUtility.inputSanitizer(insightId), insight, sessionId, routeId);
-		jobId = jt.getJobId();
-		jt.addPixel(expression);
-		jt.run();
-		PixelRunner pixelRunner = jt.getRunner();
+		PixelJobRunner jobRunner = manager.makeJob(WebUtility.inputSanitizer(insightId), insight, sessionId, routeId);
+		jobId = jobRunner.getJobId();
+		jobRunner.addPixel(expression);
+		// this just runs as a method call
+		jobRunner.run();
+		PixelRunner pixelRunner = jobRunner.getRunner();
 		List<NounMetadata> output = pixelRunner.getResults();
 		// there are times when we spin up
 		// other runPixel requests on the same
@@ -332,7 +333,7 @@ public class MCPReaper implements Runnable {
 		// console logging
 		// example is ExportToExcel grids
 		if (dropLogging) {
-			jt.setStatus(PixelJobStatus.COMPLETE);
+			jobRunner.setStatus(PixelJobStatus.COMPLETE);
 			manager.clearJob(jobId);
 			manager.removeJob(jobId);
 		}
