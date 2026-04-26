@@ -106,10 +106,11 @@ public class OllamaEndpoints {
 		try {
 			dataMap = readRequestData(request);
 		} catch (JsonProcessingException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to parse JSON payload for Ollama /generate request: {}", e.getOriginalMessage(),
+					e);
 			return errorResponse(400, "Error processing JSON data: " + e.getMessage());
 		} catch (IOException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to read request body for Ollama /generate endpoint: {}", e.getMessage(), e);
 			return errorResponse(400, "Bad Request: Could not read request body.");
 		}
 
@@ -165,7 +166,8 @@ public class OllamaEndpoints {
 				Map<String, Object> payload = OllamaResponsesHelper.processGenerateResponse(engineId, llmResponse);
 				return WebUtility.getResponse(payload, 200);
 			} catch (Exception e) {
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.error("Synchronous Ollama /generate call failed for engine '{}': {}", engineId,
+						e.getMessage(), e);
 				return errorResponse(400, e.getMessage());
 			}
 		}
@@ -200,7 +202,8 @@ public class OllamaEndpoints {
 							doneReason, llmResponse);
 					OllamaResponsesHelper.writeJsonLine(done, writer);
 				} catch (Exception e) {
-					classLogger.error("Error in Ollama /generate stream", e);
+					classLogger.error("Streaming Ollama /generate call failed for engine '{}': {}", finalEngineId,
+							e.getMessage(), e);
 					throw new WebApplicationException(e, 500);
 				}
 			}
@@ -208,6 +211,14 @@ public class OllamaEndpoints {
 
 		return Response.ok().header("Content-Type", "application/x-ndjson").header("Cache-Control", "no-cache")
 				.header("Connection", "keep-alive").entity(output).build();
+	}
+
+	@POST
+	@Path("/api/chat")
+	@Consumes({ "application/json" })
+	@Produces({ "application/json;charset=utf-8", "application/x-ndjson" })
+	public Response apiChat(@Context HttpServletRequest request) {
+		return chat(request);
 	}
 
 	@POST
@@ -227,10 +238,10 @@ public class OllamaEndpoints {
 		try {
 			dataMap = readRequestData(request);
 		} catch (JsonProcessingException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to parse JSON payload for Ollama /chat request: {}", e.getOriginalMessage(), e);
 			return errorResponse(400, "Error processing JSON data: " + e.getMessage());
 		} catch (IOException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to read request body for Ollama /chat endpoint: {}", e.getMessage(), e);
 			return errorResponse(400, "Bad Request: Could not read request body.");
 		}
 
@@ -295,7 +306,8 @@ public class OllamaEndpoints {
 				Map<String, Object> payload = OllamaResponsesHelper.processChatResponse(engineId, llmResponse);
 				return WebUtility.getResponse(payload, 200);
 			} catch (Exception e) {
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.error("Synchronous Ollama /chat call failed for engine '{}': {}", engineId, e.getMessage(),
+						e);
 				return errorResponse(400, e.getMessage());
 			}
 		}
@@ -332,7 +344,8 @@ public class OllamaEndpoints {
 							true, doneReason, llmResponse);
 					OllamaResponsesHelper.writeJsonLine(done, writer);
 				} catch (Exception e) {
-					classLogger.error("Error in Ollama /chat stream", e);
+					classLogger.error("Streaming Ollama /chat call failed for engine '{}': {}", finalEngineId,
+							e.getMessage(), e);
 					throw new WebApplicationException(e, 500);
 				}
 			}
@@ -359,10 +372,11 @@ public class OllamaEndpoints {
 		try {
 			dataMap = readRequestData(request);
 		} catch (JsonProcessingException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to parse JSON payload for Ollama /embeddings request: {}", e.getOriginalMessage(),
+					e);
 			return errorResponse(400, "Error processing JSON data: " + e.getMessage());
 		} catch (IOException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to read request body for Ollama /embeddings endpoint: {}", e.getMessage(), e);
 			return errorResponse(400, "Bad Request: Could not read request body.");
 		}
 
@@ -408,7 +422,7 @@ public class OllamaEndpoints {
 					stringsToEncode.size() == 1);
 			return WebUtility.getResponse(payload, 200);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Ollama /embeddings call failed for engine '{}': {}", engineId, e.getMessage(), e);
 			return errorResponse(400, e.getMessage());
 		}
 	}
@@ -463,7 +477,9 @@ public class OllamaEndpoints {
 			try {
 				zoneId = ZoneId.of(strTz);
 			} catch (Exception e) {
-				classLogger.warn("Error parsing out users timezone value: {}", strTz);
+				classLogger.warn(
+						"Invalid timezone value '{}' for Ollama request; falling back to application default '{}': {}",
+						strTz, Utility.getApplicationZoneId(), e.getMessage(), e);
 				zoneId = ZoneId.of(Utility.getApplicationZoneId());
 			}
 		}
@@ -502,7 +518,8 @@ public class OllamaEndpoints {
 		try {
 			modelType = engine.getModelType() == null ? null : engine.getModelType().toString();
 		} catch (Exception e) {
-			classLogger.warn("Unable to determine model type for provider-specific param sanitization", e);
+			classLogger.warn("Unable to determine model type for provider-specific param sanitization: {}",
+					e.getMessage(), e);
 		}
 
 		boolean isOllamaModel = modelType != null && modelType.toUpperCase().contains("OLLAMA");
