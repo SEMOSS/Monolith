@@ -169,9 +169,9 @@ public class OpenAIEndpoints {
 			while ((line = reader.readLine()) != null) {
 				requestData.append(line);
 			}
-
 		} catch (IOException e) {
-			classLogger.error("Failed to read chat completions request body", e);
+			classLogger.error("Failed to read chat completions request body for path '{}': {}", request.getRequestURI(),
+					e.getMessage(), e);
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Bad Request: The 'data' parameter is missing.");
 			return WebUtility.getResponse(errorMap, 400);
@@ -186,7 +186,8 @@ public class OpenAIEndpoints {
 		try {
 			dataMap = objectMapper.readValue(WebUtility.jsonSanitizer(requestData.toString()), mapType);
 		} catch (JsonProcessingException e) {
-			classLogger.error("Failed to parse chat completions request JSON", e);
+			classLogger.error("Failed to parse chat completions request JSON for path '{}': {}",
+					request.getRequestURI(), e.getOriginalMessage(), e);
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Error processing JSON data: " + e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
@@ -437,7 +438,9 @@ public class OpenAIEndpoints {
 									}
 								}
 							} catch (Exception e) {
-								classLogger.error("Error in streaming response", e);
+								classLogger.error(
+										"Streaming chat completions response failed for engine '{}' and job '{}': {}",
+										engineId, jobId, e.getMessage(), e);
 								throw new WebApplicationException(e, 500);
 							} finally {
 								if (jobId != null) {
@@ -493,7 +496,9 @@ public class OpenAIEndpoints {
 			try {
 				zoneId = ZoneId.of(strTz);
 			} catch (Exception e) {
-				classLogger.error("Error parsing timezone", e);
+				classLogger.error(
+						"Invalid timezone value '{}' for /responses request; falling back to application default '{}': {}",
+						strTz, Utility.getApplicationZoneId(), e.getMessage(), e);
 				zoneId = ZoneId.of(Utility.getApplicationZoneId());
 			}
 		}
@@ -508,7 +513,8 @@ public class OpenAIEndpoints {
 				requestData.append(line);
 			}
 		} catch (IOException e) {
-			classLogger.error("Failed to read responses request body", e);
+			classLogger.error("Failed to read responses request body for path '{}': {}", request.getRequestURI(),
+					e.getMessage(), e);
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Bad Request: Data parameter missing.");
 			return WebUtility.getResponse(errorMap, 400);
@@ -606,7 +612,6 @@ public class OpenAIEndpoints {
 
 	private Response handleStreamingResponse(IModelEngine engine, Insight finalInsight, Room finalRoom,
 			Map<String, Object> dataMap, String SESSION_ID, String JOB_ID, String engineId) {
-
 		classLogger.info("Starting responses streaming for engine: {}", engineId);
 
 		return Response.ok().header("Content-Type", "text/event-stream").header("Cache-Control", "no-cache")
@@ -835,7 +840,8 @@ public class OpenAIEndpoints {
 			Thread.ofVirtual().start(jobRunner);
 			return jobId;
 		} catch (Exception e) {
-			classLogger.error("Failed to start async model request", e);
+			classLogger.error("Failed to start async model request for engine '{}': {}",
+					engine == null ? "unknown" : engine.getEngineId(), e.getMessage(), e);
 			throw new IllegalArgumentException(e.getMessage());
 		}
 	}
@@ -895,9 +901,9 @@ public class OpenAIEndpoints {
 			while ((line = reader.readLine()) != null) {
 				requestData.append(line);
 			}
-
 		} catch (IOException e) {
-			classLogger.error("Failed to read completions request body", e);
+			classLogger.error("Failed to read completions request body for path '{}': {}", request.getRequestURI(),
+					e.getMessage(), e);
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Bad Request: The 'data' parameter is missing.");
 			return WebUtility.getResponse(errorMap, 400);
@@ -910,7 +916,8 @@ public class OpenAIEndpoints {
 		try {
 			dataMap = objectMapper.readValue(WebUtility.jsonSanitizer(requestData.toString()), mapType);
 		} catch (JsonProcessingException e) {
-			classLogger.error("Failed to parse completions request JSON", e);
+			classLogger.error("Failed to parse completions request JSON for path '{}': {}", request.getRequestURI(),
+					e.getOriginalMessage(), e);
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Error processing JSON data: " + e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
@@ -1099,7 +1106,8 @@ public class OpenAIEndpoints {
 							writer.flush();
 
 						} catch (Exception e) {
-							classLogger.error("Error in fake streaming response", e);
+							classLogger.error("Fake streaming completion response failed for engine '{}': {}", engineId,
+									e.getMessage(), e);
 							throw new WebApplicationException(e, 500);
 						}
 					}).build();
@@ -1158,7 +1166,8 @@ public class OpenAIEndpoints {
 				requestData.append(line);
 			}
 		} catch (IOException e) {
-			classLogger.error("Failed to read embeddings request body", e);
+			classLogger.error("Failed to read embeddings request body for path '{}': {}", request.getRequestURI(),
+					e.getMessage(), e);
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Bad Request: The 'data' parameter is missing.");
 			return WebUtility.getResponse(errorMap, 400);
@@ -1171,7 +1180,8 @@ public class OpenAIEndpoints {
 		try {
 			dataMap = objectMapper.readValue(WebUtility.jsonSanitizer(requestData.toString()), mapType);
 		} catch (JsonProcessingException e) {
-			classLogger.error("Failed to parse embeddings request JSON", e);
+			classLogger.error("Failed to parse embeddings request JSON for path '{}': {}", request.getRequestURI(),
+					e.getOriginalMessage(), e);
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Error processing JSON data: " + e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
@@ -1283,6 +1293,14 @@ public class OpenAIEndpoints {
 	}
 
 	@GET
+	@Path("/v1/models")
+	@Consumes({ "application/json" })
+	@Produces("application/json;charset=utf-8")
+	public Response listV1Models(@Context HttpServletRequest request) {
+		return listModels(request);
+	}
+
+	@GET
 	@Path("/models")
 	@Consumes({ "application/json" })
 	@Produces("application/json;charset=utf-8")
@@ -1330,6 +1348,14 @@ public class OpenAIEndpoints {
 		returnObject.put("object", "list");
 		returnObject.put("data", openAiResponse);
 		return WebUtility.getResponse(returnObject, 200);
+	}
+
+	@GET
+	@Path("/v1/models/{modelId}")
+	@Consumes({ "application/json" })
+	@Produces("application/json;charset=utf-8")
+	public Response retrieveV1Model(@Context HttpServletRequest request, @PathParam("modelId") String modelId) {
+		return retrieveModel(request, modelId);
 	}
 
 	@GET
