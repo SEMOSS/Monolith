@@ -77,7 +77,7 @@ import com.google.gson.reflect.TypeToken;
 
 import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
-import prerna.auth.SyncUserAppsThread;
+import prerna.auth.SyncUserAssetsThread;
 import prerna.auth.User;
 import prerna.auth.external.ExternalAuthorizationHelper;
 import prerna.auth.utils.AbstractSecurityUtils;
@@ -198,26 +198,19 @@ public class UserResource {
 		} else {
 			AuthProvider token = AuthProvider.valueOf(provider.toUpperCase());
 			String assetEngineId = null;
-			String workspaceEngineId = null;
 
 			// TODO: what does this part do?
 			// TODO: feel like when logout need to adjust the asset id
 			if (thisUser.getLogins().size() == 1) {
 				thisUser.getAssetProjectId(token);
-				thisUser.getWorkspaceProjectId(token);
 			}
 			removed = thisUser.dropAccessToken(token);
 			if (thisUser.getLogins().isEmpty()) {
 				noUser = true;
 			} else {
 				request.getSession().setAttribute(Constants.SESSION_USER, thisUser);
-
-				SyncUserAppsThread sync = new SyncUserAppsThread(workspaceEngineId, assetEngineId);
-				Thread t = new Thread(sync);
-				t.start();
-
+				Thread.ofVirtual().start(new SyncUserAssetsThread(assetEngineId));
 				// put the new map for the user space
-				session.setAttribute(Constants.USER_WORKSPACE_IDS, thisUser.getWorkspaceEngineMap());
 				session.setAttribute(Constants.USER_ASSET_IDS, thisUser.getAssetEngineMap());
 			}
 		}
