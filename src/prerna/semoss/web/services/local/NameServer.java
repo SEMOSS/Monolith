@@ -98,8 +98,8 @@ import prerna.sablecc2.PixelRunner;
 import prerna.sablecc2.PixelStreamUtility;
 import prerna.sablecc2.PixelUtility;
 import prerna.sablecc2.comm.PixelJobManager;
+import prerna.sablecc2.comm.PixelJobRunner;
 import prerna.sablecc2.comm.PixelJobStatus;
-import prerna.sablecc2.comm.PixelJobThread;
 import prerna.sablecc2.om.execptions.SemossMCPException;
 import prerna.semoss.web.services.remote.CentralNameServer;
 import prerna.semoss.web.services.remote.EngineRemoteResource;
@@ -145,7 +145,7 @@ public class NameServer {
 		dataFrameType = WebUtility.inputSanitizer(dataFrameType);
 		insightID = WebUtility.inputSanitizer(insightID);
 
-		classLogger.debug("Came into this point.. " + insightID);
+		classLogger.debug("Processing pixel runner request for insight: {}", insightID);
 
 		Insight existingInsight = null;
 		if (insightID != null && !insightID.isEmpty() && !insightID.startsWith("new")) {
@@ -421,7 +421,7 @@ public class NameServer {
 				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put(Constants.ERROR_MESSAGE, "Could not find the insight id");
 				errorMap.put(ERROR_TYPE, INSIGHT_NOT_FOUND);
-				classLogger.error("Insight not found for insightId " + insightId);
+				classLogger.error("Insight not found for insightId: {}", insightId);
 				return WebUtility.getResponse(errorMap, 400);
 			}
 		}
@@ -437,8 +437,7 @@ public class NameServer {
 			try {
 				zoneId = ZoneId.of(strTz);
 			} catch (Exception e) {
-				classLogger.warn("Error parsing out users timezone value: " + strTz);
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.warn("Invalid timezone value '{}', falling back to application default", strTz, e);
 				zoneId = ZoneId.of(Utility.getApplicationTimeZoneId());
 			}
 		}
@@ -536,7 +535,7 @@ public class NameServer {
 
 			root = new JSONObject(jsonBuffer.toString());
 		} catch (IOException | org.json.JSONException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to parse MCP request JSON", e);
 			/*
 			 * { "jsonrpc": "2.0", "id": null, "error": { "code": -32700, "message":
 			 * "Parse error - Invalid JSON was received by the server" } }
@@ -586,7 +585,7 @@ public class NameServer {
 				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put(Constants.ERROR_MESSAGE, "Could not find the insight id");
 				errorMap.put(ERROR_TYPE, INSIGHT_NOT_FOUND);
-				classLogger.error("Insight not found for insightId " + insightId);
+				classLogger.error("Insight not found for insightId: {}", insightId);
 				return WebUtility.getResponse(errorMap, 400);
 			}
 		}
@@ -602,8 +601,7 @@ public class NameServer {
 			try {
 				zoneId = ZoneId.of(strTz);
 			} catch (Exception e) {
-				classLogger.warn("Error parsing out users timezone value: " + strTz);
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.warn("Invalid timezone value '{}', falling back to application default", strTz, e);
 				zoneId = ZoneId.of(Utility.getApplicationTimeZoneId());
 			}
 		}
@@ -646,7 +644,7 @@ public class NameServer {
 			resultMap.put("isError", false);
 			response.put("result", resultMap);
 		} catch (SemossMCPException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("MCP tool execution failed: {}", e.getMessage(), e);
 			statusCode = 400;
 			/*
 			 * { "jsonrpc": "2.0", "id": 3, "error": { "code": <example code>, "message":
@@ -661,7 +659,7 @@ public class NameServer {
 			}
 			response.put("error", error);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Unexpected error during MCP tool execution", e);
 			statusCode = 400;
 			JSONObject error = new JSONObject();
 			error.put("code", MCPErrorCode.TOOL_EXECUTION_FAILED.getCode());
@@ -704,7 +702,7 @@ public class NameServer {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Could not find the insight id");
 			errorMap.put(ERROR_TYPE, INSIGHT_NOT_FOUND);
-			classLogger.error("Insight not found for insightId " + insightId);
+			classLogger.error("Insight not found for insightId: {}", insightId);
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
@@ -732,14 +730,14 @@ public class NameServer {
 	public static Response runPixelJob(User user, Insight insight, String expression, String insightId,
 			String sessionId, String routeId, boolean dropLogging) {
 		PixelJobManager manager = PixelJobManager.getManager();
-		PixelJobThread jt = manager.makeJob(WebUtility.inputSanitizer(insightId), insight, sessionId, routeId);
-		String jobId = jt.getJobId();
-		jt.addPixel(expression);
-		jt.run();
-		PixelRunner pixelRunner = jt.getRunner();
+		PixelJobRunner jobRunner = manager.makeJob(WebUtility.inputSanitizer(insightId), insight, sessionId, routeId);
+		String jobId = jobRunner.getJobId();
+		jobRunner.addPixel(expression);
+		jobRunner.run();
+		PixelRunner pixelRunner = jobRunner.getRunner();
 
 		try {
-			return Response.status(200).entity(PixelStreamUtility.collectPixelData(pixelRunner, jt))
+			return Response.status(200).entity(PixelStreamUtility.collectPixelData(pixelRunner, jobRunner))
 					.header("Cache-Control",
 							"no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0")
 					.header("Pragma", "no-cache").build();
@@ -757,7 +755,7 @@ public class NameServer {
 			// insight but don't want to drop the master insight
 			// console logging
 			// example is ExportToExcel grids
-			jt.setStatus(PixelJobStatus.COMPLETE);
+			jobRunner.setStatus(PixelJobStatus.COMPLETE);
 			if (dropLogging) {
 				manager.clearJob(jobId);
 				manager.removeJob(jobId);
@@ -783,7 +781,7 @@ public class NameServer {
 				return Response.status(200)
 						.entity(GsonUtility.getDefaultGson().toJson(PixelUtility.generatePipeline(insight))).build();
 			} catch (Exception e) {
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.error("Failed to generate pipeline for insight", e);
 				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 				return WebUtility.getResponse(errorMap, 400);
@@ -922,7 +920,7 @@ public class NameServer {
 				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put(Constants.ERROR_MESSAGE, "Could not find the insight id");
 				errorMap.put(ERROR_TYPE, INSIGHT_NOT_FOUND);
-				classLogger.error("Insight not found for insightId " + insightId);
+				classLogger.error("Insight not found for insightId: {}", insightId);
 				return WebUtility.getResponse(errorMap, 400);
 			}
 		}
@@ -936,8 +934,7 @@ public class NameServer {
 			try {
 				zoneId = ZoneId.of(strTz);
 			} catch (Exception e) {
-				classLogger.warn("Error parsing out users timezone value: " + strTz);
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.warn("Invalid timezone value '{}', falling back to application default", strTz, e);
 				zoneId = ZoneId.of(Utility.getApplicationTimeZoneId());
 			}
 		}
@@ -948,15 +945,15 @@ public class NameServer {
 
 		insight.setUser(user);
 		PixelJobManager manager = PixelJobManager.getManager();
-		PixelJobThread jt = manager.makeJob(insight, sessionId, routeId);
-		jt.addPixel(expression);
+		PixelJobRunner jobRunner = manager.makeJob(insight, sessionId, routeId);
+		jobRunner.addPixel(expression);
 		// set the job id in the session
 		// this is required so you can call /result only within the same session
-		session.setAttribute(jt.getJobId(), "TRUE");
-		jt.start();
+		session.setAttribute(jobRunner.getJobId(), "TRUE");
+		Thread.ofVirtual().start(jobRunner);
 
 		Map<String, String> dataReturn = new HashMap<>();
-		dataReturn.put("jobId", jt.getJobId());
+		dataReturn.put("jobId", jobRunner.getJobId());
 		return WebUtility.getResponse(dataReturn, 200);
 	}
 
@@ -974,15 +971,15 @@ public class NameServer {
 		HttpSession session = request.getSession(true);
 		String jobId = WebUtility.inputSQLSanitizer(form.getFirst("jobId"));
 		if (session.getAttribute(jobId) == null) {
-			classLogger.warn("Calling result but the jobId " + jobId + " does not exist within the session");
+			classLogger.warn("Result requested for jobId '{}' which does not exist in the session", jobId);
 			return WebUtility.getSO("NULL");
 		}
 		session.removeAttribute(jobId);
 
-		PixelJobThread jt = PixelJobManager.getManager().getJob(jobId);
+		PixelJobRunner jobRunner = PixelJobManager.getManager().getJob(jobId);
 		PixelRunner dataReturn = PixelJobManager.getManager().getOutput(jobId);
 		try {
-			return PixelStreamUtility.collectPixelData(dataReturn, jt);
+			return PixelStreamUtility.collectPixelData(dataReturn, jobRunner);
 		} finally {
 			PixelJobManager.getManager().clearJob(jobId);
 			PixelJobManager.getManager().removeJob(jobId);
@@ -1004,11 +1001,11 @@ public class NameServer {
 		HttpSession session = request.getSession(true);
 		String jobId = WebUtility.inputSQLSanitizer(form.getFirst("jobId"));
 		if (session.getAttribute(jobId) != null) {
-			PixelJobThread jt = PixelJobManager.getManager().getJob(jobId);
-			if (jt == null) {
+			PixelJobRunner jobRunner = PixelJobManager.getManager().getJob(jobId);
+			if (jobRunner == null) {
 				dataReturn = PixelJobStatus.UNKNOWN_JOB.getValue();
 			} else {
-				dataReturn = jt.getStatus();
+				dataReturn = jobRunner.getStatus();
 			}
 		}
 		return WebUtility.getResponseNoCache(dataReturn, 200);
@@ -1029,10 +1026,10 @@ public class NameServer {
 		// HttpSession session = request.getSession(true);
 		// if(session.getAttribute(jobId) != null) {
 		// if(jobId != null)
-		PixelJobThread jt = PixelJobManager.getManager().getJob(jobId);
+		PixelJobRunner jobRunner = PixelJobManager.getManager().getJob(jobId);
 		List<String> console = PixelJobManager.getManager().getStdOut(jobId);
 		Map<String, Object> dataReturn = new HashMap<>();
-		dataReturn.put("status", jt == null ? PixelJobStatus.UNKNOWN_JOB.getValue() : jt.getStatus());
+		dataReturn.put("status", jobRunner == null ? PixelJobStatus.UNKNOWN_JOB.getValue() : jobRunner.getStatus());
 		dataReturn.put("message", console);
 		// }
 		return WebUtility.getResponseNoCache(dataReturn, 200);
@@ -1052,10 +1049,10 @@ public class NameServer {
 		String jobId = WebUtility.inputSQLSanitizer(form.getFirst("jobId"));
 		// HttpSession session = request.getSession(true);
 		// if(session.getAttribute(jobId) != null) {
-		PixelJobThread jt = PixelJobManager.getManager().getJob(jobId);
+		PixelJobRunner jobRunner = PixelJobManager.getManager().getJob(jobId);
 		List<String> console = PixelJobManager.getManager().getError(jobId);
 		Map<String, Object> dataReturn = new HashMap<>();
-		dataReturn.put("status", jt == null ? PixelJobStatus.UNKNOWN_JOB.getValue() : jt.getStatus());
+		dataReturn.put("status", jobRunner == null ? PixelJobStatus.UNKNOWN_JOB.getValue() : jobRunner.getStatus());
 		dataReturn.put("message", console);
 		// }
 		return WebUtility.getResponseNoCache(dataReturn, 200);
@@ -1078,10 +1075,10 @@ public class NameServer {
 		// HttpSession session = request.getSession(true);
 		// if(session.getAttribute(jobId) != null) {
 		// if(jobId != null)
-		PixelJobThread jt = PixelJobManager.getManager().getJob(jobId);
+		PixelJobRunner jobRunner = PixelJobManager.getManager().getJob(jobId);
 		Map<String, String> console = PixelJobManager.getManager().getPartial(jobId);
 		Map<String, Object> dataReturn = new HashMap<>();
-		dataReturn.put("status", jt == null ? PixelJobStatus.UNKNOWN_JOB.getValue() : jt.getStatus());
+		dataReturn.put("status", jobRunner == null ? PixelJobStatus.UNKNOWN_JOB.getValue() : jobRunner.getStatus());
 		dataReturn.put("message", console);
 		// }
 		return WebUtility.getResponseNoCache(dataReturn, 200);
@@ -1095,10 +1092,10 @@ public class NameServer {
 		// HttpSession session = request.getSession(true);
 		// if(session.getAttribute(jobId) != null) {
 		// if(jobId != null)
-		PixelJobThread jt = PixelJobManager.getManager().getJob(jobId);
+		PixelJobRunner jobRunner = PixelJobManager.getManager().getJob(jobId);
 		List<Map<String, Object>> console = PixelJobManager.getManager().getStreamOut(jobId);
 		Map<String, Object> dataReturn = new HashMap<>();
-		dataReturn.put("status", jt == null ? PixelJobStatus.UNKNOWN_JOB.getValue() : jt.getStatus());
+		dataReturn.put("status", jobRunner == null ? PixelJobStatus.UNKNOWN_JOB.getValue() : jobRunner.getStatus());
 		dataReturn.put("message", console);
 		// }
 		return WebUtility.getResponseNoCache(dataReturn, 200);
@@ -1196,7 +1193,7 @@ public class NameServer {
 						}
 					}
 				} catch (ClientProtocolException e) {
-					classLogger.error(Constants.STACKTRACE, e);
+					classLogger.error("HTTP client protocol error during remote engine request", e);
 				} finally {
 					if (httpClient != null) {
 						httpClient.close();
@@ -1206,7 +1203,7 @@ public class NameServer {
 					}
 				}
 			} catch (IOException e) {
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.error("I/O error during remote engine request", e);
 			}
 		}
 
@@ -1249,7 +1246,7 @@ public class NameServer {
 		// this needs to return stuff
 		db = WebUtility.inputSQLSanitizer(db);
 
-		classLogger.debug(" Getting DB... " + db);
+		classLogger.debug("Getting database: {}", db);
 		HttpSession session = request.getSession();
 		IDatabaseEngine engine = (IDatabaseEngine) session.getAttribute(db);
 		EngineRemoteResource res = new EngineRemoteResource();
@@ -1266,7 +1263,7 @@ public class NameServer {
 
 		url = WebUtility.inputSQLSanitizer(url);
 
-		classLogger.debug(" Going to central name server ... " + url);
+		classLogger.debug("Connecting to central name server: {}", url);
 		CentralNameServer cns = new CentralNameServer();
 		cns.setCentralApi(url);
 		return cns;
@@ -1400,7 +1397,7 @@ public class NameServer {
 					out.println("</body>");
 					out.println("</html>");
 				} catch (Exception e) {
-					classLogger.error(Constants.STACKTRACE, e);
+					classLogger.error("Error generating insights page", e);
 				}
 			}
 		};
@@ -1497,7 +1494,7 @@ public class NameServer {
 				appIds = filterMap.get("app_id");
 				tags = filterMap.get("tags");
 			} catch (Exception e) {
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.error("Failed to parse insight filter JSON", e);
 				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put(Constants.ERROR_MESSAGE, "Invalid filter map");
 				return WebUtility.getSO(errorMap);
@@ -1524,8 +1521,8 @@ public class NameServer {
 		if (!file.exists()) {
 			Boolean success = file.mkdir();
 			if (!success) {
-				classLogger.info("Unable to created insight tuple space at: "
-						+ Utility.cleanLogString(normalizedInsightSpecificFolder));
+				classLogger.info("Unable to create insight tuple space at: {}",
+						Utility.cleanLogString(normalizedInsightSpecificFolder));
 			}
 			String command = "addFolder@@" + normalizedInsightSpecificFolder;
 			String normalizedCmdFilePath = WebUtility.normalizePath(baseFolder + "/" + insightId + ".admin");
@@ -1534,7 +1531,7 @@ public class NameServer {
 			try {
 				FileUtils.writeStringToFile(cmdFile, command);
 			} catch (IOException ioe) {
-				classLogger.error(Constants.STACKTRACE, ioe);
+				classLogger.error("Failed to write insight tuple space command file", ioe);
 			}
 		}
 		return normalizedInsightSpecificFolder;

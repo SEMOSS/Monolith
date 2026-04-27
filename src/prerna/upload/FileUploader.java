@@ -60,6 +60,7 @@ import org.apache.tika.mime.MimeTypes;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
+import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
@@ -80,6 +81,7 @@ import prerna.util.AssetUtility;
 import prerna.util.Constants;
 import prerna.util.EngineUtility;
 import prerna.util.Utility;
+import prerna.util.git.GitRepoUtils;
 import prerna.web.services.util.WebUtility;
 
 @Path("/uploadFile")
@@ -362,7 +364,7 @@ public class FileUploader extends Uploader {
 				AuthProvider provider = user.getPrimaryLogin();
 				projectId = user.getAssetProjectId(provider);
 				String projectName = "Asset";
-				assetFolder = AssetUtility.getUserAssetAndWorkspaceAppRootFolder(projectName, projectId);
+				assetFolder = AssetUtility.getUserAssetAppRootFolder(projectName, projectId);
 				pushUser = true;
 			} else {
 				engine = Utility.getProject(projectId);
@@ -405,7 +407,7 @@ public class FileUploader extends Uploader {
 		} else if (pushRoom) {
 			ClusterUtil.pushRoom(in.getRoomId());
 		} else if (pushUser) {
-			ClusterUtil.pushUserWorkspace(projectId, true);
+			ClusterUtil.pushUserAsset(projectId);
 		}
 		return retData;
 	}
@@ -648,6 +650,35 @@ public class FileUploader extends Uploader {
 		}
 
 		List<Map<String, String>> retData = processFileItems(fileItems, filePath, fePath);
+
+		// Track uploaded files in git for all engine types
+		try {
+			String gitFolder = EngineUtility.getSpecificEngineVersionFolder(engine.getCatalogType(),
+					engine.getEngineId(), engine.getEngineName());
+			List<String> gitRelativeFilePaths = new ArrayList<>();
+			for (Map<String, String> fileMap : retData) {
+				String fileName = fileMap.get("fileName");
+				String gitRelPath;
+				if (relativePath != null && !relativePath.isEmpty() && !relativePath.equals("/")) {
+					String cleanRelPath = relativePath.replaceAll("^/+|/+$", "");
+					gitRelPath = Constants.ASSETS_FOLDER + DIR_SEPARATOR + cleanRelPath + DIR_SEPARATOR + fileName;
+				} else {
+					gitRelPath = Constants.ASSETS_FOLDER + DIR_SEPARATOR + fileName;
+				}
+				gitRelativeFilePaths.add(gitRelPath);
+			}
+			if (!gitRelativeFilePaths.isEmpty()) {
+				AccessToken accessToken = user.getAccessToken(user.getPrimaryLogin());
+				String author = accessToken.getUsername();
+				String email = accessToken.getEmail();
+				String fileNames = String.join(", ", gitRelativeFilePaths);
+				GitRepoUtils.addSpecificFiles(gitFolder, gitRelativeFilePaths);
+				GitRepoUtils.commitAddedFiles(gitFolder, "add: uploaded " + fileNames, author, email);
+			}
+		} catch (Exception e) {
+			classLogger.error("Error committing uploaded files to git for engine {}", engine.getEngineId(), e);
+		}
+
 		if (engine instanceof IProject) {
 			ClusterUtil.pushProjectFolder((IProject) engine, filePath);
 		} else {
