@@ -364,7 +364,7 @@ public class FileUploader extends Uploader {
 				AuthProvider provider = user.getPrimaryLogin();
 				projectId = user.getAssetProjectId(provider);
 				String projectName = "Asset";
-				assetFolder = AssetUtility.getUserAssetAndWorkspaceAppRootFolder(projectName, projectId);
+				assetFolder = AssetUtility.getUserAssetAppRootFolder(projectName, projectId);
 				pushUser = true;
 			} else {
 				engine = Utility.getProject(projectId);
@@ -407,7 +407,7 @@ public class FileUploader extends Uploader {
 		} else if (pushRoom) {
 			ClusterUtil.pushRoom(in.getRoomId());
 		} else if (pushUser) {
-			ClusterUtil.pushUserWorkspace(projectId, true);
+			ClusterUtil.pushUserAsset(projectId);
 		}
 		return retData;
 	}
@@ -653,8 +653,8 @@ public class FileUploader extends Uploader {
 
 		// Track uploaded files in git for all engine types
 		try {
-			String gitFolder = EngineUtility.getSpecificEngineVersionFolder(
-					engine.getCatalogType(), engine.getEngineId(), engine.getEngineName());
+			String gitFolder = EngineUtility.getSpecificEngineVersionFolder(engine.getCatalogType(),
+					engine.getEngineId(), engine.getEngineName());
 			List<String> gitRelativeFilePaths = new ArrayList<>();
 			for (Map<String, String> fileMap : retData) {
 				String fileName = fileMap.get("fileName");
@@ -673,8 +673,7 @@ public class FileUploader extends Uploader {
 				String email = accessToken.getEmail();
 				String fileNames = String.join(", ", gitRelativeFilePaths);
 				GitRepoUtils.addSpecificFiles(gitFolder, gitRelativeFilePaths);
-				GitRepoUtils.commitAddedFiles(gitFolder,
-						"add: uploaded " + fileNames, author, email);
+				GitRepoUtils.commitAddedFiles(gitFolder, "add: uploaded " + fileNames, author, email);
 			}
 		} catch (Exception e) {
 			classLogger.error("Error committing uploaded files to git for engine {}", engine.getEngineId(), e);

@@ -77,8 +77,8 @@ import prerna.om.InsightStore;
 import prerna.om.ThreadStore;
 import prerna.sablecc2.PixelRunner;
 import prerna.sablecc2.comm.PixelJobManager;
+import prerna.sablecc2.comm.PixelJobRunner;
 import prerna.sablecc2.comm.PixelJobStatus;
-import prerna.sablecc2.comm.PixelJobThread;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.util.Constants;
 import prerna.util.Utility;
@@ -133,19 +133,18 @@ public class AnthropicEndpoints {
 		Insight insight = null;
 		Room room = null;
 		ObjectMapper objectMapper = new ObjectMapper();
-		
-	  String claudeCodeSessionId = request.getHeader("x-claude-code-session-id");
-	  classLogger.debug("Anthropic-Session-Header::{}::{}", JOB_ID, claudeCodeSessionId);
-	  String roomIdHeader = request.getHeader("x-api-key");
+
+		String claudeCodeSessionId = request.getHeader("x-claude-code-session-id");
+		classLogger.debug("Anthropic-Session-Header::{}::{}", JOB_ID, claudeCodeSessionId);
+		String roomIdHeader = request.getHeader("x-api-key");
 //	  classLogger.debug("Anthropic-X-API-Room-Header::{}::{}", JOB_ID, roomIdHeader);
-	  
-	  String parentRoomId= "";
-	  if (roomIdHeader != null && roomIdHeader.contains("room-")) {
-		  parentRoomId = roomIdHeader.substring(5);
-		  classLogger.debug("Anthropic-X-API-Room-Header::{}::{}", JOB_ID, parentRoomId);
-	  }
-	  
-		  
+
+		String parentRoomId = "";
+		if (roomIdHeader != null && roomIdHeader.contains("room-")) {
+			parentRoomId = roomIdHeader.substring(5);
+			classLogger.debug("Anthropic-X-API-Room-Header::{}::{}", JOB_ID, parentRoomId);
+		}
+
 		// Set the user timezone
 		ZoneId zoneId = null;
 		String strTz = WebUtility.inputSanitizer(request.getParameter("tz"));
@@ -155,7 +154,7 @@ public class AnthropicEndpoints {
 			try {
 				zoneId = ZoneId.of(strTz);
 			} catch (Exception e) {
-				classLogger.warn("Invalid timezone provided: " + strTz + ", using system default");
+				classLogger.warn("Invalid timezone provided '{}', using system default", strTz);
 				zoneId = ZoneId.systemDefault();
 			}
 		}
@@ -213,24 +212,26 @@ public class AnthropicEndpoints {
 		// ROOM & INSIGHT LOGIC START ---------
 		String insightId = WebUtility.inputSanitizer((String) dataMap.remove("insight_id"));
 		String roomId = WebUtility.inputSanitizer((String) dataMap.remove("room_id"));
-		
+
 		Object systemPromptBlock = dataMap.remove("system");
 		String systemPromptString = AnthropicMessagesHelper.getSystemMessage(systemPromptBlock);
-		
+
 		if (!parentRoomId.isEmpty()) {
-		    // Only use the parent room ID if the system prompt has 2 entries (main Claude Code session).
-		    // When it has 3 entries, it's a sub-agent (e.g., file search) and should get its own room.
-		    boolean useParentRoom = true;
-		    if (systemPromptBlock instanceof List) {
-		        int systemLength = ((List<?>) systemPromptBlock).size();
-		        classLogger.debug("Anthropic-System-Prompt-Length::{}::{}", JOB_ID, systemLength);
-		        if (systemLength >= 3) {
-		            useParentRoom = false;
-		        }
-		    }
-		    if (useParentRoom) {
-		        roomId = parentRoomId;
-		    }
+			// Only use the parent room ID if the system prompt has 2 entries (main Claude
+			// Code session).
+			// When it has 3 entries, it's a sub-agent (e.g., file search) and should get
+			// its own room.
+			boolean useParentRoom = true;
+			if (systemPromptBlock instanceof List) {
+				int systemLength = ((List<?>) systemPromptBlock).size();
+				classLogger.debug("Anthropic-System-Prompt-Length::{}::{}", JOB_ID, systemLength);
+				if (systemLength >= 3) {
+					useParentRoom = false;
+				}
+			}
+			if (useParentRoom) {
+				roomId = parentRoomId;
+			}
 		}
 
 		if (roomId != null && insightId == null) {
@@ -263,7 +264,6 @@ public class AnthropicEndpoints {
 		ThreadStore.setJobId(JOB_ID);
 		ThreadStore.setUser(insight.getUser());
 		// ROOM & INSIGHT LOGIC END ---------
-
 
 		Object messages = dataMap.remove("messages");
 		if (messages == null) {
@@ -348,7 +348,7 @@ public class AnthropicEndpoints {
 			ResponseMessage response = room.ask(msg, engine);
 			llmResponse = response.getModelEngineResponse();
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Synchronous model call failed for engine '{}'", engineId, e);
 			Map<String, Object> errorMap = AnthropicMessagesHelper.createErrorResponse("api_error",
 					"Error processing request: " + e.getMessage());
 			return WebUtility.getResponse(errorMap, 500);
@@ -398,7 +398,7 @@ public class AnthropicEndpoints {
 							Map<Integer, Boolean> toolBlockStarted = new HashMap<>();
 
 							STREAM_COMPLETE_LOOP: while (true) {
-								PixelJobThread jt = PixelJobManager.getManager().getJob(asyncJobId);
+								PixelJobRunner jt = PixelJobManager.getManager().getJob(asyncJobId);
 								List<Map<String, Object>> partialResponseContent = PixelJobManager.getManager()
 										.getStreamOut(asyncJobId);
 								PixelJobStatus jobStatus = jt == null ? PixelJobStatus.UNKNOWN_JOB
@@ -562,8 +562,8 @@ public class AnthropicEndpoints {
 									AnthropicMessagesHelper.writeMessageDelta(stopReason, null, writer);
 									AnthropicMessagesHelper.writeMessageStop(writer);
 									break STREAM_COMPLETE_LOOP;
-								} else if (jobStatus == PixelJobStatus.PROGRESS_COMPLETE
-										&& !textBlockStarted && toolBlockStarted.isEmpty()) {
+								} else if (jobStatus == PixelJobStatus.PROGRESS_COMPLETE && !textBlockStarted
+										&& toolBlockStarted.isEmpty()) {
 									PixelRunner finalOutput = PixelJobManager.getManager().getOutput(asyncJobId);
 									NounMetadata finalNoun = finalOutput.getResults().get(0);
 									Object finalObject = finalNoun.getValue();
@@ -672,17 +672,16 @@ public class AnthropicEndpoints {
 			String sessionId) {
 		try {
 			PixelJobManager manager = PixelJobManager.getManager();
-			PixelJobThread jt = manager.makeJob(insight, sessionId, null);
-			String jobId = jt.getJobId();
+			PixelJobRunner jobRunner = manager.makeJob(insight, sessionId, null);
+			String jobId = jobRunner.getJobId();
 
 			String modelPixel = "LLM(engine='" + engine.getEngineId() + "',roomId='" + room.getId()
 					+ "',command='<encode>ignore</encode>'" + ",paramValues=[" + GSON.toJson(dataMap) + "]);";
-			jt.addPixel(modelPixel);
-			jt.start();
+			jobRunner.addPixel(modelPixel);
+			Thread.ofVirtual().start(jobRunner);
 			return jobId;
 		} catch (Exception e) {
-			classLogger.warn("Failed to start async job");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to start async model request", e);
 			throw new IllegalArgumentException(e.getMessage());
 		}
 	}
