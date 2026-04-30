@@ -28,6 +28,7 @@
 package prerna.websocket;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -53,6 +54,7 @@ import prerna.sablecc2.PixelRunner;
 import prerna.sablecc2.PixelStreamUtility;
 import prerna.reactor.agent.ClaudeCodeTranscriptParser;
 import prerna.util.Constants;
+import prerna.util.Utility;
 
 @ServerEndpoint(value="/insightSocket", configurator=WSConfigurator.class)
 public class InsightWebsocket {
@@ -171,8 +173,10 @@ public class InsightWebsocket {
 		switch (type) {
 			case "claude_code": {
 				String roomId = json.getString("roomId");
+				String roomFolderPath = Utility.getBaseFolder() + File.separator + "room"
+						+ File.separator + roomId;
 				return new ClaudeCodeHistoryStreamer(roomId, insightId,
-						ClaudeCodeTranscriptParser::parse);
+						raw -> ClaudeCodeTranscriptParser.parse(raw, roomFolderPath));
 			}
 			default:
 				return null;

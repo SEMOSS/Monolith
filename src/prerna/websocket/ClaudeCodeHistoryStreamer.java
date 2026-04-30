@@ -34,6 +34,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -52,17 +53,18 @@ public class ClaudeCodeHistoryStreamer implements FileStreamer {
 
 	private final String roomId;
 	private final String insightId;
-	private final Function<JSONObject, JSONObject> transform;
+	private final Function<JSONObject, List<JSONObject>> transform;
 	private volatile boolean running = false;
 
 	/**
 	 * @param roomId     the room whose JSONL transcript to tail
 	 * @param insightId  the insightId whose WS clients should receive updates
-	 * @param transform  a function that reshapes each raw JSON line before it is
-	 *                   sent to the client; return {@code null} to skip a line
+	 * @param transform  a function that reshapes each raw JSON line into zero or
+	 *                   more events to send to the client; return an empty list
+	 *                   (or {@code null}) to skip a line
 	 */
 	public ClaudeCodeHistoryStreamer(String roomId, String insightId,
-			Function<JSONObject, JSONObject> transform) {
+			Function<JSONObject, List<JSONObject>> transform) {
 		this.roomId = roomId;
 		this.insightId = insightId;
 		this.transform = transform;
@@ -245,14 +247,18 @@ public class ClaudeCodeHistoryStreamer implements FileStreamer {
 	private void processLine(String line) {
 		try {
 			JSONObject raw = new JSONObject(line);
-			JSONObject transformed = transform.apply(raw);
+			List<JSONObject> transformed = transform.apply(raw);
 
-			if (transformed == null) {
+			if (transformed == null || transformed.isEmpty()) {
 				return;
 			}
 
 			SocketSessionHandler handler = SocketSessionHandlerFactory.getHandler(insightId);
-			handler.updateRecipe(transformed.toString());
+			for (JSONObject event : transformed) {
+				if (event != null) {
+					handler.updateRecipe(event.toString());
+				}
+			}
 		} catch (Exception e) {
 			logger.warn("Failed to process JSONL line: {}", line, e);
 		}
