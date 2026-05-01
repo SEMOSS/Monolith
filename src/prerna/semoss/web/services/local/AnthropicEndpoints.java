@@ -379,6 +379,14 @@ public class AnthropicEndpoints {
 							Map<Integer, Boolean> toolBlockStarted = new HashMap<>();
 							Map<Integer, String> pendingToolSignatures = new HashMap<>();
 
+							// Token usage forwarded by Python via stream_type="usage".
+							// Surfaced in the final message_delta.usage so Anthropic
+							// SDK clients can overlay them onto the running Message.
+							Integer capturedInputTokens = null;
+							Integer capturedOutputTokens = null;
+							Integer capturedCacheReadTokens = null;
+							Integer capturedCacheCreationTokens = null;
+
 							STREAM_COMPLETE_LOOP: while (true) {
 								PixelJobRunner jt = PixelJobManager.getManager().getJob(asyncJobId);
 								List<Map<String, Object>> partialResponseContent = PixelJobManager.getManager()
@@ -390,6 +398,26 @@ public class AnthropicEndpoints {
 									for (Map<String, Object> streamObj : partialResponseContent) {
 										String streamType = (String) streamObj.get("stream_type");
 										Map<String, Object> streamData = (Map<String, Object>) streamObj.get("data");
+
+										if ("usage".equalsIgnoreCase(streamType)) {
+											Object inT = streamData.get("input_tokens");
+											if (inT instanceof Number) {
+												capturedInputTokens = ((Number) inT).intValue();
+											}
+											Object outT = streamData.get("output_tokens");
+											if (outT instanceof Number) {
+												capturedOutputTokens = ((Number) outT).intValue();
+											}
+											Object crT = streamData.get("cache_read_input_tokens");
+											if (crT instanceof Number) {
+												capturedCacheReadTokens = ((Number) crT).intValue();
+											}
+											Object ccT = streamData.get("cache_creation_input_tokens");
+											if (ccT instanceof Number) {
+												capturedCacheCreationTokens = ((Number) ccT).intValue();
+											}
+											continue;
+										}
 
 										if ("content".equalsIgnoreCase(streamType)) {
 											if (streamData.containsKey("finish_reason")) {
@@ -407,7 +435,7 @@ public class AnthropicEndpoints {
 												}
 
 												String stopReason = mapFinishReasonToStopReason(finishReason);
-												AnthropicMessagesHelper.writeMessageDelta(stopReason, null, writer);
+												AnthropicMessagesHelper.writeMessageDelta(stopReason, capturedInputTokens, capturedOutputTokens, capturedCacheReadTokens, capturedCacheCreationTokens, writer);
 												AnthropicMessagesHelper.writeMessageStop(writer);
 												break STREAM_COMPLETE_LOOP;
 											} else {
@@ -454,7 +482,7 @@ public class AnthropicEndpoints {
 												}
 
 												String stopReason = mapFinishReasonToStopReason(finishReason);
-												AnthropicMessagesHelper.writeMessageDelta(stopReason, null, writer);
+												AnthropicMessagesHelper.writeMessageDelta(stopReason, capturedInputTokens, capturedOutputTokens, capturedCacheReadTokens, capturedCacheCreationTokens, writer);
 												AnthropicMessagesHelper.writeMessageStop(writer);
 												break STREAM_COMPLETE_LOOP;
 											} else {
@@ -550,7 +578,7 @@ public class AnthropicEndpoints {
 									}
 
 									String stopReason = toolBlockStarted.isEmpty() ? "end_turn" : "tool_use";
-									AnthropicMessagesHelper.writeMessageDelta(stopReason, null, writer);
+									AnthropicMessagesHelper.writeMessageDelta(stopReason, capturedInputTokens, capturedOutputTokens, capturedCacheReadTokens, capturedCacheCreationTokens, writer);
 									AnthropicMessagesHelper.writeMessageStop(writer);
 									break STREAM_COMPLETE_LOOP;
 								} else if (jobStatus == PixelJobStatus.PROGRESS_COMPLETE && !textBlockStarted
@@ -594,7 +622,7 @@ public class AnthropicEndpoints {
 												}
 											}
 										}
-										AnthropicMessagesHelper.writeMessageDelta("tool_use", null, writer);
+										AnthropicMessagesHelper.writeMessageDelta("tool_use", capturedInputTokens, capturedOutputTokens, capturedCacheReadTokens, capturedCacheCreationTokens, writer);
 									} else {
 										String content = resultOutput != null ? (String) resultOutput.get("response")
 												: "";
@@ -604,7 +632,7 @@ public class AnthropicEndpoints {
 											AnthropicMessagesHelper.writeTextDelta(0, content, writer);
 										}
 										AnthropicMessagesHelper.writeContentBlockStop(0, writer);
-										AnthropicMessagesHelper.writeMessageDelta("end_turn", null, writer);
+										AnthropicMessagesHelper.writeMessageDelta("end_turn", capturedInputTokens, capturedOutputTokens, capturedCacheReadTokens, capturedCacheCreationTokens, writer);
 									}
 
 									AnthropicMessagesHelper.writeMessageStop(writer);
