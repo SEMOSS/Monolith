@@ -379,9 +379,6 @@ public class AnthropicEndpoints {
 							Map<Integer, Boolean> toolBlockStarted = new HashMap<>();
 							Map<Integer, String> pendingToolSignatures = new HashMap<>();
 
-							// Token usage forwarded by Python via stream_type="usage".
-							// Surfaced in the final message_delta.usage so Anthropic
-							// SDK clients can overlay them onto the running Message.
 							Integer capturedInputTokens = null;
 							Integer capturedOutputTokens = null;
 							Integer capturedCacheReadTokens = null;
