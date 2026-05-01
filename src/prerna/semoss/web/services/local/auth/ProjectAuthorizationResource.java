@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
+import java.time.ZonedDateTime;
 
 import javax.annotation.security.PermitAll;
 import javax.servlet.ServletContext;
@@ -59,6 +60,7 @@ import prerna.auth.utils.SecurityProjectUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
 import prerna.cluster.util.ClusterUtil;
+import prerna.engine.impl.model.inferencetracking.ModelInferenceLogsUtils;
 import prerna.graph.utility.MsGraphUtility;
 import prerna.om.Insight;
 import prerna.project.api.IProject;
@@ -470,6 +472,30 @@ public class ProjectAuthorizationResource {
 				return WebUtility.getResponse(ret, 400);
 			}
 		}
+		int maxInputTokens = 0;
+		String maxInputTokensStr = WebUtility.inputSanitizer(request.getParameter("maxInputTokens"));
+		if (maxInputTokensStr != null && !(maxInputTokensStr = maxInputTokensStr.trim()).isEmpty()) {
+			try {
+				maxInputTokens = Integer.parseInt(maxInputTokensStr);
+			} catch (NumberFormatException e) {
+				classLogger.error("Failed to parse maxInputTokens value '" + maxInputTokensStr
+						+ "' while propagating project dependency permission.", e);
+				ret.put(Constants.ERROR_MESSAGE, "maxInputTokens must be a valid integer value");
+				return WebUtility.getResponse(ret, 400);
+			}
+		}
+		int maxOutputTokens = 0;
+		String maxOutputTokensStr = WebUtility.inputSanitizer(request.getParameter("maxOutputTokens"));
+		if (maxOutputTokensStr != null && !(maxOutputTokensStr = maxOutputTokensStr.trim()).isEmpty()) {
+			try {
+				maxOutputTokens = Integer.parseInt(maxOutputTokensStr);
+			} catch (NumberFormatException e) {
+				classLogger.error("Failed to parse maxOutputTokens value '" + maxOutputTokensStr
+						+ "' while propagating project dependency permission.", e);
+				ret.put(Constants.ERROR_MESSAGE, "maxOutputTokens must be a valid integer value");
+				return WebUtility.getResponse(ret, 400);
+			}
+		}
 
 		// Determine if admin right are required to add users and, if so, if requester
 		// has those rights.
@@ -482,7 +508,7 @@ public class ProjectAuthorizationResource {
 
 		Map<String, Object> responses = SecurityProjectUtils.propagateProjectPermission(requester, projectId, newUserId,
 				newUserType, requestedPermission, endDate, usageRestriction, usageFrequency, maxTokens,
-				maxResponseTime);
+				maxResponseTime, maxInputTokens, maxOutputTokens);
 
 		return WebUtility.getResponse(responses, 200);
 	}
@@ -569,9 +595,33 @@ public class ProjectAuthorizationResource {
 					return WebUtility.getResponse(ret, 400);
 				}
 			}
+			int maxInputTokens = 0;
+			String maxInputTokensStr = userRequest.containsKey("maxInputTokens") ? userRequest.get("maxInputTokens") : null;
+			if (maxInputTokensStr != null && !(maxInputTokensStr = maxInputTokensStr.trim()).isEmpty()) {
+				try {
+					maxInputTokens = Integer.parseInt(maxInputTokensStr);
+				} catch (NumberFormatException e) {
+					classLogger.error("Failed to parse maxInputTokens value '" + maxInputTokensStr + "' for user "
+							+ newUserId + " while propagating project dependency permissions in bulk.", e);
+					ret.put(Constants.ERROR_MESSAGE, "maxInputTokens must be a valid integer value");
+					return WebUtility.getResponse(ret, 400);
+				}
+			}
+			int maxOutputTokens = 0;
+			String maxOutputTokensStr = userRequest.containsKey("maxOutputTokens") ? userRequest.get("maxOutputTokens") : null;
+			if (maxOutputTokensStr != null && !(maxOutputTokensStr = maxOutputTokensStr.trim()).isEmpty()) {
+				try {
+					maxOutputTokens = Integer.parseInt(maxOutputTokensStr);
+				} catch (NumberFormatException e) {
+					classLogger.error("Failed to parse maxOutputTokens value '" + maxOutputTokensStr + "' for user "
+							+ newUserId + " while propagating project dependency permissions in bulk.", e);
+					ret.put(Constants.ERROR_MESSAGE, "maxOutputTokens must be a valid integer value");
+					return WebUtility.getResponse(ret, 400);
+				}
+			}
 			Map<String, Object> responses = SecurityProjectUtils.propagateProjectPermission(requester, projectId,
 					newUserId, newUserType, requestedPermission, endDate, usageRestriction, usageFrequency, maxTokens,
-					maxResponseTime);
+					maxResponseTime, maxInputTokens, maxOutputTokens);
 			userRet.put(newUserId, responses);
 		}
 
@@ -680,7 +730,7 @@ public class ProjectAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
+		List<Map<String, Object>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
 			SecurityProjectUtils.editProjectUserPermissions(user, projectId, requests, endDate);
 		} catch (IllegalAccessException e) {
@@ -1189,24 +1239,24 @@ public class ProjectAuthorizationResource {
 				.parseBoolean("" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_lookup"));
 
 		// adding user permissions in bulk
-		List<Map<String, String>> permission = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
+		List<Map<String, Object>> permission = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
 			// if we are doing the grpah api
 			// then the users might not already exist in the security db
 			if (graphApi) {
 				// filter out users that already exist
-				List<Map<String, String>> filteredUsers = permission.stream()
-						.filter(map -> !SecurityQueryUtils.checkUserExist(map.get(Constants.MAP_USERID)))
+				List<Map<String, Object>> filteredUsers = permission.stream()
+						.filter(map -> !SecurityQueryUtils.checkUserExist((String) map.get(Constants.MAP_USERID)))
 						.collect(Collectors.toList());
 				if (filteredUsers != null && !filteredUsers.isEmpty()) {
 					AccessToken token = null;
 					// Add new users to OAuth if they don't exist
-					for (Map<String, String> map : filteredUsers) {
+					for (Map<String, Object> map : filteredUsers) {
 						token = new AccessToken();
-						token.setId(map.get(Constants.MAP_USERID));
-						token.setEmail(map.get(Constants.MAP_EMAIL));
-						token.setName(map.get(Constants.MAP_NAME));
-						token.setUsername(map.get(Constants.MAP_USERNAME));
+						token.setId((String) map.get(Constants.MAP_USERID));
+						token.setEmail((String) map.get(Constants.MAP_EMAIL));
+						token.setName((String) map.get(Constants.MAP_NAME));
+						token.setUsername((String) map.get(Constants.MAP_USERNAME));
 						token.setProvider(AuthProvider.MICROSOFT);
 						SecurityUpdateUtils.addOAuthUser(token);
 					}
@@ -1355,6 +1405,175 @@ public class ProjectAuthorizationResource {
 		classLogger.info("User is trying to {} for project {}", logPortal, projectId);
 
 		return WebUtility.getResponse(true, 200);
+	}
+
+	/**
+	 * Reset token usage for a user on a specific project.
+	 * Zeros out accumulated MESSAGE_TOKENS in inference logs for all rooms in the project.
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("resetProjectUserTokenUsage")
+	public Response resetProjectUserTokenUsage(@Context HttpServletRequest request,
+			MultivaluedMap<String, String> form) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			classLogger.error("Invalid user session trying to access authorization resources", e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String targetUserId = WebUtility.inputSQLSanitizer(form.getFirst("userId"));
+
+		// Only editors/owners or admins can reset
+		if (!SecurityProjectUtils.userCanEditProject(user, projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Insufficient privileges to reset token usage.");
+			return WebUtility.getResponse(errorMap, 403);
+		}
+
+		try {
+			ModelInferenceLogsUtils.resetUserTokenUsageForProject(targetUserId, projectId);
+		} catch (Exception e) {
+			classLogger.error("Failed to reset token usage for user " + targetUserId + " on project " + projectId, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		classLogger.info("User reset token usage for user {} on project {}", targetUserId, projectId);
+
+		Map<String, Object> ret = new HashMap<String, Object>();
+		ret.put("success", true);
+		return WebUtility.getResponse(ret, 200);
+	}
+
+	@GET
+	@Produces("application/json")
+	@Path("getProjectTokenUsage")
+	public Response getProjectTokenUsage(@Context HttpServletRequest request,
+			@QueryParam("projectId") String projectId) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			classLogger.error("Invalid user session trying to access authorization resources", e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		projectId = WebUtility.inputSanitizer(projectId);
+		if (projectId == null || projectId.trim().isEmpty()) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Must provide a projectId");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		// Verify user has access to the project
+		if (!SecurityProjectUtils.userCanViewProject(user, projectId)) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Project does not exist or user does not have access");
+			return WebUtility.getResponse(errorMap, 403);
+		}
+
+		Map<String, Object> ret = new HashMap<String, Object>();
+		try {
+			// Get project usage permission settings (limit, frequency, restriction type)
+			List<Map<String, Object>> projectPermission = SecurityProjectUtils.getProjectUsagePermissionMap(user, projectId);
+			if (projectPermission == null || projectPermission.isEmpty()) {
+				ret.put("tokensUsed", 0);
+				ret.put("tokenLimit", null);
+				ret.put("configured", false);
+				return WebUtility.getResponse(ret, 200);
+			}
+
+			Map<String, Object> projMap = projectPermission.get(0);
+			String projRestriction = (String) projMap.get(Constants.PROJECT_USAGE_RESTRICTION_KEY);
+			if (projRestriction == null || projRestriction.trim().isEmpty()) {
+				ret.put("tokensUsed", 0);
+				ret.put("tokenLimit", null);
+				ret.put("configured", false);
+				return WebUtility.getResponse(ret, 200);
+			}
+
+			String projFrequency = (String) projMap.get(Constants.PROJECT_USAGE_FREQUENCY_KEY);
+			Number projMaxTokens = (Number) projMap.get(Constants.PROJECT_MAX_TOKEN_KEY);
+			Number projMaxInputTokens = (Number) projMap.get(Constants.PROJECT_MAX_INPUT_TOKEN_KEY);
+			Number projMaxOutputTokens = (Number) projMap.get(Constants.PROJECT_MAX_OUTPUT_TOKEN_KEY);
+			Number projMaxResponseTime = (Number) projMap.get(Constants.PROJECT_MAX_RESPONSE_TIME_KEY);
+			Object restrictPerModelObj = projMap.get(Constants.PROJECT_RESTRICT_PER_MODEL_KEY);
+			boolean restrictPerModel = restrictPerModelObj != null && Boolean.TRUE.equals(restrictPerModelObj);
+
+			// For project-level usage without a specific model context, pass null engineId
+			String scopedEngineId = null;
+
+			ZonedDateTime currentDateTime = Utility.getCurrentZonedDateTimeUTC();
+
+			// Return all defined limits and their current usage
+			ret.put("restrictionType", projRestriction);
+			ret.put("frequency", projFrequency);
+			ret.put("configured", true);
+
+			// Combined token usage
+			if (projMaxTokens != null && projMaxTokens.intValue() > 0) {
+				Number combinedUsage = ModelInferenceLogsUtils.getTotalTokensForProject(
+						Constants.MODEL_TOKEN_RESTRICTION_VALUE, user, projectId, scopedEngineId, currentDateTime,
+						projFrequency, null);
+				ret.put("tokensUsed", combinedUsage != null ? combinedUsage.intValue() : 0);
+				ret.put("tokenLimit", projMaxTokens.intValue());
+			} else {
+				ret.put("tokensUsed", 0);
+				ret.put("tokenLimit", null);
+			}
+
+			// Input token usage
+			if (projMaxInputTokens != null && projMaxInputTokens.intValue() > 0) {
+				Number inputUsage = ModelInferenceLogsUtils.getTotalTokensForProject(
+						Constants.MODEL_TOKEN_RESTRICTION_VALUE, user, projectId, scopedEngineId, currentDateTime,
+						projFrequency, "INPUT");
+				ret.put("inputTokensUsed", inputUsage != null ? inputUsage.intValue() : 0);
+				ret.put("inputTokenLimit", projMaxInputTokens.intValue());
+			} else {
+				ret.put("inputTokensUsed", 0);
+				ret.put("inputTokenLimit", null);
+			}
+
+			// Output token usage
+			if (projMaxOutputTokens != null && projMaxOutputTokens.intValue() > 0) {
+				Number outputUsage = ModelInferenceLogsUtils.getTotalTokensForProject(
+						Constants.MODEL_TOKEN_RESTRICTION_VALUE, user, projectId, scopedEngineId, currentDateTime,
+						projFrequency, "RESPONSE");
+				ret.put("outputTokensUsed", outputUsage != null ? outputUsage.intValue() : 0);
+				ret.put("outputTokenLimit", projMaxOutputTokens.intValue());
+			} else {
+				ret.put("outputTokensUsed", 0);
+				ret.put("outputTokenLimit", null);
+			}
+
+			// Compute time usage
+			if (projMaxResponseTime != null && projMaxResponseTime.intValue() > 0) {
+				Number computeUsage = ModelInferenceLogsUtils.getTotalTokensForProject(
+						Constants.MODEL_COMPUTE_TIME_RESTRICTION_VALUE, user, projectId, scopedEngineId, currentDateTime,
+						projFrequency, null);
+				ret.put("computeTimeUsed", computeUsage != null ? computeUsage.doubleValue() : 0.0);
+				ret.put("computeTimeLimit", projMaxResponseTime.doubleValue());
+			} else {
+				ret.put("computeTimeUsed", 0.0);
+				ret.put("computeTimeLimit", null);
+			}
+		} catch (Exception e) {
+			classLogger.error("Failed to get project token usage for project " + projectId, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 500);
+		}
+
+		return WebUtility.getResponse(ret, 200);
 	}
 
 }
