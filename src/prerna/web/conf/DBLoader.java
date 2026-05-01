@@ -88,7 +88,7 @@ public class DBLoader implements ServletContextListener {
 	private static String customLogoutUrl = null;
 
 	// keep track of all the watcher threads to kill
-	private static List<AbstractFileWatcher> watcherList = new ArrayList<>();
+	private static List<Thread> watcherList = new ArrayList<>();
 
 	@Override
 	public void contextInitialized(ServletContextEvent arg0) {
@@ -165,14 +165,14 @@ public class DBLoader implements ServletContextListener {
 			}
 		}
 
-		classLogger.log(STARTUP, "Initializing application context..." + Utility.cleanLogString(contextPath));
+		classLogger.log(STARTUP, "Initializing application context... {}", Utility.cleanLogString(contextPath));
 
 		// Set default file separator system variable
 		classLogger.log(STARTUP, "Changing file separator value to: '/'");
 		System.setProperty("file.separator", "/");
 
 		// Load RDF_Map.prop file
-		classLogger.log(STARTUP, "Loading RDF_Map.prop: " + Utility.cleanLogString(rdfPropFile));
+		classLogger.log(STARTUP, "Loading RDF_Map.prop: {}", Utility.cleanLogString(rdfPropFile));
 		DIHelper.getInstance().loadCoreProp(rdfPropFile);
 
 		if (RserveUtil.R_KILL_ON_STARTUP) {
@@ -180,7 +180,7 @@ public class DBLoader implements ServletContextListener {
 			try {
 				RserveUtil.endR();
 			} catch (Exception e) {
-				classLogger.log(STARTUP, "Unable to kill existing RServes running on the machine");
+				classLogger.log(STARTUP, "Unable to kill existing RServes running on the machine", e);
 			}
 		}
 
@@ -300,7 +300,7 @@ public class DBLoader implements ServletContextListener {
 				try {
 					SchedulerDatabaseUtility.executeAllTriggerOnLoads();
 				} catch (Exception e) {
-					// ignore
+					classLogger.warn("Failed to execute triggerOnLoad scheduler jobs", e);
 				}
 			}
 		}
@@ -346,17 +346,16 @@ public class DBLoader implements ServletContextListener {
 					}
 					watcherInstance.init();
 					// start the watcher thread with MDC
-					Thread thread = new Thread(() -> {
+					Thread watcherThread = Thread.ofPlatform().daemon().start(() -> {
 						try (var ctx = org.apache.logging.log4j.CloseableThreadContext.putAll(parentMDC)) {
 							watcherInstance.run();
 						}
 					});
-					thread.start();
-					watcherList.add(watcherInstance);
+					watcherList.add(watcherThread);
 				}
 			}
 		} catch (Exception ex) {
-			classLogger.log(STARTUP, Constants.STACKTRACE, ex);
+			classLogger.log(STARTUP, "Failed to init and start thread for file watchers", ex);
 		}
 	}
 
@@ -368,32 +367,40 @@ public class DBLoader implements ServletContextListener {
 		ThreadContext.put(SemossLogUtils.SESSION_ID, "SHUTDOWN");
 		ThreadContext.put(SemossLogUtils.CLIENT_IP, "SHUTDOWN");
 
-		classLogger.log(SHUTDOWN, "Start shutdown");
+		classLogger.log(SHUTDOWN, "Starting application shutdown");
 
 		Set<String> insights = new HashSet<>(InsightStore.getInstance().getAllInsights());
 		for (String id : insights) {
 			Insight in = InsightStore.getInstance().get(id);
-			classLogger.log(SHUTDOWN, "Closing insight " + id);
+			classLogger.log(SHUTDOWN, "Closing insight {}", id);
 			InsightUtility.dropInsight(in);
 		}
 
 		// close watchers
-		for (AbstractFileWatcher watcher : watcherList) {
-			watcher.shutdown();
+		for (Thread watcherThread : watcherList) {
+			watcherThread.interrupt();
 		}
+		for (Thread watcherThread : watcherList) {
+			try {
+				watcherThread.join(2000); // Wait up to 2 seconds per thread
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+			}
+		}
+		watcherList.clear();
 
 		// we need to close all the engine ids
 		List<String> eIds = MasterDatabaseUtility.getAllDatabaseIds();
 		for (String id : eIds) {
 			// grab only loaded engines
-			IDatabaseEngine engine = (IDatabaseEngine) DIHelper.getInstance().getEngineProperty(id);
+			IEngine engine = (IEngine) DIHelper.getInstance().getEngineProperty(id);
 			if (engine != null) {
 				// if it is loaded, close it
-				classLogger.log(SHUTDOWN, "Closing database " + id);
+				classLogger.log(SHUTDOWN, "Closing engine {}", id);
 				try {
 					engine.close();
 				} catch (IOException e) {
-					classLogger.error(Constants.STACKTRACE, e);
+					classLogger.error("Unable to close engine {}", engine.getEngineId(), e);
 				}
 			}
 		}
@@ -402,30 +409,28 @@ public class DBLoader implements ServletContextListener {
 				SystemEngineRegistry.getLocalMasterDb(), SystemEngineRegistry.getLocalMasterDb() };
 		for (IDatabaseEngine engine : autoLoadedDbs) {
 			if (engine != null) {
-				classLogger.log(SHUTDOWN, "Closing database " + engine.getEngineId());
+				classLogger.log(SHUTDOWN, "Closing database {}", engine.getEngineId());
 				try {
 					engine.close();
 				} catch (IOException e) {
-					classLogger.error(Constants.STACKTRACE, e);
+					classLogger.error("Unable to close engine {}", engine.getEngineId(), e);
 				}
-			} else {
-				classLogger.log(SHUTDOWN, "Couldn't find database " + engine.getEngineId());
 			}
 		}
 
 		if (SchedulerFactorySingleton.isInit()) {
 			classLogger.log(SHUTDOWN, "Closing scheduler");
 			SchedulerFactorySingleton.getInstance().shutdownScheduler(true);
-			IDatabaseEngine engine = Utility.getDatabase(Constants.SCHEDULER_DB, false);
+			IDatabaseEngine engine = SystemEngineRegistry.getSchedulerDb();
 			if (engine != null) {
-				classLogger.log(SHUTDOWN, "Closing database " + Constants.SCHEDULER_DB);
+				classLogger.log(SHUTDOWN, "Closing database {}", Constants.SCHEDULER_DB);
 				try {
 					engine.close();
 				} catch (IOException e) {
-					classLogger.error(Constants.STACKTRACE, e);
+					classLogger.error("Unable to close engine {}", Constants.SCHEDULER_DB, e);
 				}
 			} else {
-				classLogger.log(SHUTDOWN, "Couldn't find database " + Constants.SCHEDULER_DB);
+				classLogger.warn("Couldn't find database {} during shutdown", Constants.SCHEDULER_DB);
 			}
 		}
 
@@ -433,10 +438,10 @@ public class DBLoader implements ServletContextListener {
 		try {
 			RJavaTranslatorFactory.stopRConnection();
 		} catch (Exception e) {
-			classLogger.log(SHUTDOWN, Constants.STACKTRACE, e);
+			classLogger.log(SHUTDOWN, "Error occurred closing R connections", e);
 		}
 
-		classLogger.log(SHUTDOWN, "Finished shutdown");
+		classLogger.log(SHUTDOWN, "Application shutdown complete");
 	}
 
 	/**
@@ -458,6 +463,11 @@ public class DBLoader implements ServletContextListener {
 		return DBLoader.useLogoutPage;
 	}
 
+	/**
+	 * Get a custom logout url
+	 * 
+	 * @return
+	 */
 	public static String getCustomLogoutUrl() {
 		return DBLoader.customLogoutUrl;
 	}

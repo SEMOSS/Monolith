@@ -136,14 +136,6 @@ public class AnthropicEndpoints {
 
 		String claudeCodeSessionId = request.getHeader("x-claude-code-session-id");
 		classLogger.debug("Anthropic-Session-Header::{}::{}", JOB_ID, claudeCodeSessionId);
-		String roomIdHeader = request.getHeader("x-api-key");
-//	  classLogger.debug("Anthropic-X-API-Room-Header::{}::{}", JOB_ID, roomIdHeader);
-
-		String parentRoomId = "";
-		if (roomIdHeader != null && roomIdHeader.contains("room-")) {
-			parentRoomId = roomIdHeader.substring(5);
-			classLogger.debug("Anthropic-X-API-Room-Header::{}::{}", JOB_ID, parentRoomId);
-		}
 
 		// Set the user timezone
 		ZoneId zoneId = null;
@@ -212,27 +204,14 @@ public class AnthropicEndpoints {
 		// ROOM & INSIGHT LOGIC START ---------
 		String insightId = WebUtility.inputSanitizer((String) dataMap.remove("insight_id"));
 		String roomId = WebUtility.inputSanitizer((String) dataMap.remove("room_id"));
+		if (roomId == null) {
+			// Fallback: roomId may be set as a request attribute by CodeAssistantFilter
+			// when it parses the "room-{roomId}" segment from the x-api-key header.
+			roomId = (String) request.getAttribute("roomId");
+		}
 
 		Object systemPromptBlock = dataMap.remove("system");
 		String systemPromptString = AnthropicMessagesHelper.getSystemMessage(systemPromptBlock);
-
-		if (!parentRoomId.isEmpty()) {
-			// Only use the parent room ID if the system prompt has 2 entries (main Claude
-			// Code session).
-			// When it has 3 entries, it's a sub-agent (e.g., file search) and should get
-			// its own room.
-			boolean useParentRoom = true;
-			if (systemPromptBlock instanceof List) {
-				int systemLength = ((List<?>) systemPromptBlock).size();
-				classLogger.debug("Anthropic-System-Prompt-Length::{}::{}", JOB_ID, systemLength);
-				if (systemLength >= 3) {
-					useParentRoom = false;
-				}
-			}
-			if (useParentRoom) {
-				roomId = parentRoomId;
-			}
-		}
 
 		if (roomId != null && insightId == null) {
 			String userId = user.getPrimaryLoginToken().getId();
@@ -282,9 +261,14 @@ public class AnthropicEndpoints {
 		List<Map<String, Object>> messagesList = (List<Map<String, Object>>) messages;
 		Map<String, Object> latestMessage = messagesList.get(messagesList.size() - 1);
 
-		room = RoomUtils.createRoomIfNotExists(roomId, insight, engine, null, null, null, null, null, parentRoomId);
+		room = RoomUtils.createRoomIfNotExists(roomId, insight, engine, null);
 
 		Object tools = dataMap.remove("tools");
+
+		// Load any persisted Vertex/Gemini thought_signatures for this room so we
+		// can re-attach them to replayed tool_use blocks. Empty map for non-Vertex
+		// paths (no file written) — no-op then.
+		Map<String, String> thoughtSigMap = ThoughtSignatureSidecar.load(room.getRoomFolderPath());
 
 		// HANDLE NON-STREAMING REQUESTS THROUGH askRoomIN
 		if (!isStreamingRequest) {
@@ -294,7 +278,7 @@ public class AnthropicEndpoints {
 			List<String> copiedImages = (List<String>) normalizedLatest.get("images");
 
 			Map<String, Object> openAIFormat = AnthropicMessagesHelper
-					.normalizeAllAnthropicMessagesToOpenAI(messagesList, systemPromptString, tools);
+					.normalizeAllAnthropicMessagesToOpenAI(messagesList, systemPromptString, tools, thoughtSigMap);
 
 			List<Map<String, Object>> openAIMessages = (List<Map<String, Object>>) openAIFormat.get("messages");
 			dataMap.put(AbstractModelEngine.FULL_PROMPT, openAIMessages);
@@ -318,13 +302,10 @@ public class AnthropicEndpoints {
 			final Room finalRoom = room;
 
 			Map<String, Object> openAIFormat = AnthropicMessagesHelper
-					.normalizeAllAnthropicMessagesToOpenAI(messagesList, systemPromptString, tools);
+					.normalizeAllAnthropicMessagesToOpenAI(messagesList, systemPromptString, tools, thoughtSigMap);
 
 			List<Map<String, Object>> openAIMessages = (List<Map<String, Object>>) openAIFormat.get("messages");
 			dataMap.put(AbstractModelEngine.FULL_PROMPT, openAIMessages);
-			if (!parentRoomId.isEmpty()) {
-				dataMap.put("PARENT_ROOM_ID", parentRoomId);
-			}
 			Gson gson = new GsonBuilder().setPrettyPrinting().create();
 			classLogger.debug("OpenAI-Formatted-Message::{}::{},", JOB_ID, gson.toJson(openAIMessages));
 			;
@@ -396,6 +377,7 @@ public class AnthropicEndpoints {
 							Map<Integer, String> pendingToolNames = new HashMap<>();
 							Map<Integer, StringBuilder> pendingToolArgs = new HashMap<>();
 							Map<Integer, Boolean> toolBlockStarted = new HashMap<>();
+							Map<Integer, String> pendingToolSignatures = new HashMap<>();
 
 							STREAM_COMPLETE_LOOP: while (true) {
 								PixelJobRunner jt = PixelJobManager.getManager().getJob(asyncJobId);
@@ -477,6 +459,18 @@ public class AnthropicEndpoints {
 															writer);
 												}
 
+												// Persist any captured Vertex thought_signatures
+												// Anthropic SSE has no slot for these bytes, so they would otherwise be lost the moment the SDK writes its JSONL transcript.
+												if (!pendingToolSignatures.isEmpty() && finalRoom != null) {
+													String roomFolder = finalRoom.getRoomFolderPath();
+													for (Map.Entry<Integer, String> sigEntry : pendingToolSignatures
+															.entrySet()) {
+														String toolId = pendingToolIds.get(sigEntry.getKey());
+														ThoughtSignatureSidecar.append(roomFolder, toolId,
+																sigEntry.getValue());
+													}
+												}
+
 												String stopReason = mapFinishReasonToStopReason(finishReason);
 												AnthropicMessagesHelper.writeMessageDelta(stopReason, null, writer);
 												AnthropicMessagesHelper.writeMessageStop(writer);
@@ -488,6 +482,13 @@ public class AnthropicEndpoints {
 
 												if (streamData.containsKey("id")) {
 													pendingToolIds.put(toolIndex, (String) streamData.get("id"));
+												}
+
+												if (streamData.containsKey("thought_signature")) {
+													Object sig = streamData.get("thought_signature");
+													if (sig instanceof String && !((String) sig).isEmpty()) {
+														pendingToolSignatures.put(toolIndex, (String) sig);
+													}
 												}
 
 												Map<String, Object> functionMap = (Map<String, Object>) streamData
@@ -558,6 +559,14 @@ public class AnthropicEndpoints {
 										AnthropicMessagesHelper.writeContentBlockStop(contentBlockIndex, writer);
 									}
 
+									if (!pendingToolSignatures.isEmpty() && finalRoom != null) {
+										String roomFolder = finalRoom.getRoomFolderPath();
+										for (Map.Entry<Integer, String> sigEntry : pendingToolSignatures.entrySet()) {
+											String toolId = pendingToolIds.get(sigEntry.getKey());
+											ThoughtSignatureSidecar.append(roomFolder, toolId, sigEntry.getValue());
+										}
+									}
+
 									String stopReason = toolBlockStarted.isEmpty() ? "end_turn" : "tool_use";
 									AnthropicMessagesHelper.writeMessageDelta(stopReason, null, writer);
 									AnthropicMessagesHelper.writeMessageStop(writer);
@@ -578,6 +587,7 @@ public class AnthropicEndpoints {
 									if ("TOOL".equals(messageType)) {
 										List<Map<String, Object>> toolResponses = (List<Map<String, Object>>) resultOutput
 												.get("response");
+										String roomFolder = finalRoom != null ? finalRoom.getRoomFolderPath() : null;
 										if (toolResponses != null) {
 											for (int i = 0; i < toolResponses.size(); i++) {
 												Map<String, Object> toolResp = toolResponses.get(i);
@@ -595,6 +605,11 @@ public class AnthropicEndpoints {
 														toolName, writer);
 												AnthropicMessagesHelper.writeInputJsonDelta(i, argsJson, writer);
 												AnthropicMessagesHelper.writeContentBlockStop(i, writer);
+
+												Object sig = toolResp.get("thought_signature");
+												if (sig instanceof String && !((String) sig).isEmpty()) {
+													ThoughtSignatureSidecar.append(roomFolder, toolId, (String) sig);
+												}
 											}
 										}
 										AnthropicMessagesHelper.writeMessageDelta("tool_use", null, writer);
@@ -622,17 +637,8 @@ public class AnthropicEndpoints {
 								}
 							}
 						} catch (org.apache.catalina.connector.ClientAbortException e) {
-							// Client (Claude Code) closed the connection — this is
-							// expected when it retries after its ~6s timeout. Just
-							// log at debug level and return silently. Throwing here
-							// would cause Tomcat to inject an HTML error page into
-							// the already-committed SSE stream, corrupting it.
 							classLogger.debug("Client disconnected from SSE stream: {}", e.getMessage());
 						} catch (Throwable e) {
-							// Catch Throwable (not just Exception) because Errors
-							// like NoSuchMethodError from library version mismatches
-							// would otherwise escape to Tomcat, which injects its
-							// HTML error page into the already-committed SSE stream.
 							classLogger.error("Error in streaming response", e);
 						} finally {
 							if (asyncJobId != null) {
