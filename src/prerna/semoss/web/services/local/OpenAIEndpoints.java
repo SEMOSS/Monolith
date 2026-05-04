@@ -307,6 +307,16 @@ public class OpenAIEndpoints {
 
 								boolean started = false;
 
+								// Token usage forwarded by Python via stream_type="usage".
+								// Surfaced as a usage-only chunk before the terminal [DONE].
+								// Names follow Anthropic/Responses-API spelling on the wire
+								// from Python; we translate to Chat-Completions wire fields
+								// (prompt/completion) inside writeFinishReason.
+								Integer capturedPromptTokens = null;
+								Integer capturedCompletionTokens = null;
+								Integer capturedCachedTokens = null;
+								Integer capturedReasoningTokens = null;
+
 								// polling streaming endpoint until response complete
 								STREAM_COMPLETE_LOOP: while (true) {
 									PixelJobRunner jt = PixelJobManager.getManager().getJob(jobId);
@@ -330,12 +340,31 @@ public class OpenAIEndpoints {
 										for (Map<String, Object> streamObj : partialResponseContent) {
 											String streamType = (String) streamObj.get("stream_type");
 											Map<String, Object> dataMap = (Map<String, Object>) streamObj.get("data");
+											if ("usage".equalsIgnoreCase(streamType)) {
+												Object inT = dataMap.get("input_tokens");
+												if (inT instanceof Number) {
+													capturedPromptTokens = ((Number) inT).intValue();
+												}
+												Object outT = dataMap.get("output_tokens");
+												if (outT instanceof Number) {
+													capturedCompletionTokens = ((Number) outT).intValue();
+												}
+												Object crT = dataMap.get("cache_read_input_tokens");
+												if (crT instanceof Number) {
+													capturedCachedTokens = ((Number) crT).intValue();
+												}
+												Object rT = dataMap.get("reasoning_tokens");
+												if (rT instanceof Number) {
+													capturedReasoningTokens = ((Number) rT).intValue();
+												}
+												continue;
+											}
 											if (streamType.equalsIgnoreCase("content")) {
 												if (dataMap.containsKey("finish_reason")) {
 													String finishReason = (String) dataMap.get("finish_reason");
 													// this is a map only on finish reason
 													OpenAIChatCompletionsHelper.writeFinishReason(engineId, messageId,
-															creationTimestamp, finishReason, writer);
+															creationTimestamp, finishReason, capturedPromptTokens, capturedCompletionTokens, capturedCachedTokens, capturedReasoningTokens, writer);
 													break STREAM_COMPLETE_LOOP;
 												} else {
 													String newContent = (String) dataMap.get("content");
@@ -377,7 +406,7 @@ public class OpenAIEndpoints {
 													// send the finish chunk
 													String finishReason = (String) dataMap.get("finish_reason");
 													OpenAIChatCompletionsHelper.writeFinishReason(engineId, messageId,
-															creationTimestamp, finishReason, writer);
+															creationTimestamp, finishReason, capturedPromptTokens, capturedCompletionTokens, capturedCachedTokens, capturedReasoningTokens, writer);
 													break STREAM_COMPLETE_LOOP;
 												} else {
 													OpenAIChatCompletionsHelper.writeToolChunk(engineId, messageId,
@@ -393,7 +422,7 @@ public class OpenAIEndpoints {
 									if (jobStatus == PixelJobStatus.PROGRESS_COMPLETE && started) {
 										// send final chunk with empty delta && finish_reason="stop"
 										OpenAIChatCompletionsHelper.writeFinishReason(engineId, messageId,
-												creationTimestamp, "stop", writer);
+												creationTimestamp, "stop", capturedPromptTokens, capturedCompletionTokens, capturedCachedTokens, capturedReasoningTokens, writer);
 										break STREAM_COMPLETE_LOOP;
 									} else if (jobStatus == PixelJobStatus.PROGRESS_COMPLETE && !started) {
 										// we didn't start
@@ -421,7 +450,7 @@ public class OpenAIEndpoints {
 														messageId, creationTimestamp, response, writer);
 											}
 											OpenAIChatCompletionsHelper.writeFinishReason(engineId, messageId,
-													creationTimestamp, "tool_calls", writer);
+													creationTimestamp, "tool_calls", capturedPromptTokens, capturedCompletionTokens, capturedCachedTokens, capturedReasoningTokens, writer);
 										} else {
 											// Handle regular text response
 											String content = null;
@@ -435,7 +464,7 @@ public class OpenAIEndpoints {
 
 											// send final chunk with empty delta && finish_reason="stop"
 											OpenAIChatCompletionsHelper.writeFinishReason(engineId, messageId,
-													creationTimestamp, "stop", writer);
+													creationTimestamp, "stop", capturedPromptTokens, capturedCompletionTokens, capturedCachedTokens, capturedReasoningTokens, writer);
 										}
 
 										// job is marked complete, always break
@@ -648,6 +677,13 @@ public class OpenAIEndpoints {
 						int contentIndex = 0;
 						StringBuilder currentAccumulator = new StringBuilder();
 
+						// Token usage forwarded by Python via stream_type="usage".
+						// Attached to response.completed.response.usage at end of stream.
+						Integer capturedInputTokens = null;
+						Integer capturedOutputTokens = null;
+						Integer capturedCachedTokens = null;
+						Integer capturedReasoningTokens = null;
+
 						try (Writer writer = new BufferedWriter(
 								new OutputStreamWriter(output, StandardCharsets.UTF_8))) {
 
@@ -738,6 +774,26 @@ public class OpenAIEndpoints {
 
 											if (streamData.containsKey("finish_reason")) {
 												break STREAM_LOOP;
+											}
+											continue;
+										}
+
+										if ("usage".equalsIgnoreCase(streamType)) {
+											Object inT = streamData.get("input_tokens");
+											if (inT instanceof Number) {
+												capturedInputTokens = ((Number) inT).intValue();
+											}
+											Object outT = streamData.get("output_tokens");
+											if (outT instanceof Number) {
+												capturedOutputTokens = ((Number) outT).intValue();
+											}
+											Object crT = streamData.get("cache_read_input_tokens");
+											if (crT instanceof Number) {
+												capturedCachedTokens = ((Number) crT).intValue();
+											}
+											Object rT = streamData.get("reasoning_tokens");
+											if (rT instanceof Number) {
+												capturedReasoningTokens = ((Number) rT).intValue();
 											}
 											continue;
 										}
@@ -881,6 +937,8 @@ public class OpenAIEndpoints {
 							Map<String, Object> completedEvent = OpenAIResponsesHelper.createBaseEvent(
 									"response.completed", seq++, responseId, engineId, creationTimestamp);
 							completedEvent.put("status", "completed");
+							OpenAIResponsesHelper.attachUsage(completedEvent, capturedInputTokens, capturedOutputTokens,
+									capturedCachedTokens, capturedReasoningTokens);
 							OpenAIResponsesHelper.writeSSEEvent(completedEvent, writer);
 
 						} catch (Exception e) {

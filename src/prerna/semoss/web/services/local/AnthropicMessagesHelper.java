@@ -107,9 +107,14 @@ public final class AnthropicMessagesHelper {
 
 	/**
 	 * Writes the message_delta event with final stop reason and usage.
+	 *
+	 * Anthropic clients overlay these usage fields onto the running Message,
+	 * so passing input/cache token counts here is how we surface the values
+	 * the early {@code message_start} (written before Python had them) could
+	 * not include.
 	 */
-	public static void writeMessageDelta(String stopReason, Integer outputTokens, Writer writer)
-			throws IOException {
+	public static void writeMessageDelta(String stopReason, Integer inputTokens, Integer outputTokens,
+			Integer cacheReadInputTokens, Integer cacheCreationInputTokens, Writer writer) throws IOException {
 		Map<String, Object> messageDelta = new HashMap<>();
 		messageDelta.put("type", "message_delta");
 
@@ -119,10 +124,28 @@ public final class AnthropicMessagesHelper {
 		messageDelta.put("delta", delta);
 
 		Map<String, Object> usage = new HashMap<>();
+		if (inputTokens != null) {
+			usage.put("input_tokens", inputTokens);
+		}
+		if (cacheReadInputTokens != null) {
+			usage.put("cache_read_input_tokens", cacheReadInputTokens);
+		}
+		if (cacheCreationInputTokens != null) {
+			usage.put("cache_creation_input_tokens", cacheCreationInputTokens);
+		}
 		usage.put("output_tokens", outputTokens != null ? outputTokens : 0);
 		messageDelta.put("usage", usage);
 
 		writeSSEEvent("message_delta", messageDelta, writer);
+	}
+
+	/**
+	 * Backwards-compatible overload for callers that only know the stop reason
+	 * and output tokens. Delegates to the full 6-arg form.
+	 */
+	public static void writeMessageDelta(String stopReason, Integer outputTokens, Writer writer)
+			throws IOException {
+		writeMessageDelta(stopReason, null, outputTokens, null, null, writer);
 	}
 
 	/**
