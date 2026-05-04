@@ -195,6 +195,10 @@ public final class OpenAIChatCompletionsHelper {
 			throws JsonProcessingException, IOException {
 		Number indexNum = (Number) dataMap.get("index");
 		Long curToolIndex = indexNum != null ? indexNum.longValue() : 0L;
+		// Thinking is not part of the chat completions wire format — drop it.
+		if (dataMap.containsKey("thinking")) {
+			return;
+		}
 		// formatting as OpenAI streaming chunk
 		// tool_call is the lowest level
 		Map<String, Object> toolCall = new HashMap<>();
@@ -273,7 +277,7 @@ public final class OpenAIChatCompletionsHelper {
 		for (Map<String, Object> toolResponseMap : toolsResponseList) {
 			Map<String, Object> dataMap = new HashMap<>();
 			dataMap.put("index", index);
-			dataMap.put("id", dataMap.get(AskToolModelEngineResponse.ID_KEY));
+			dataMap.put("id", toolResponseMap.get(AskToolModelEngineResponse.ID_KEY));
 			dataMap.put("type", toolResponseMap.get(AskToolModelEngineResponse.TYPE_KEY));
 			Map<String, Object> functionMap = new HashMap<>();
 			functionMap.put("name", toolResponseMap.get(AskToolModelEngineResponse.NAME_KEY));
