@@ -263,12 +263,22 @@ public final class OpenAIResponsesHelper {
 	// --- 5. Image Generation Events ---
 
 	/**
-	 * Sends a {@code response.image_generation_call.partial_image} SSE event
-	 * mirroring OpenAI's own image-generation event shape. Used for intermediate
-	 * frames streamed by the gpt-image models.
+	 * Sends a {@code response.image_generation_call.partial_image} SSE event,
+	 * matching the wire shape the {@code openai} SDK parses
+	 * ({@code event.partial_image_b64}, {@code event.partial_image_index}).
+	 * Only base64 partials are expressible in this event — the OpenAI spec
+	 * defines no URL alternative on partial_image, so URL-only media chunks
+	 * are skipped.
 	 */
 	public static void sendImageGenerationPartialImage(Writer w, int seq, String respId, String itemId, int outputIdx,
 			Map<String, Object> mediaInfo, Object partialImageIndex) throws IOException {
+		if (mediaInfo == null) {
+			return;
+		}
+		Object b64 = mediaInfo.get("base64Data");
+		if (!(b64 instanceof String) || ((String) b64).isEmpty()) {
+			return;
+		}
 		Map<String, Object> event = new HashMap<>();
 		event.put("type", "response.image_generation_call.partial_image");
 		event.put("sequence_number", seq);
@@ -276,49 +286,26 @@ public final class OpenAIResponsesHelper {
 		event.put("item_id", itemId);
 		event.put("output_index", outputIdx);
 		event.put("partial_image_index", partialImageIndex);
-		if (mediaInfo != null) {
-			if (mediaInfo.containsKey("base64Data")) {
-				event.put("b64_json", mediaInfo.get("base64Data"));
-			}
-			if (mediaInfo.containsKey("url")) {
-				event.put("url", mediaInfo.get("url"));
-			}
-			if (mediaInfo.containsKey("mimeType")) {
-				event.put("mime_type", mediaInfo.get("mimeType"));
-			}
-			if (mediaInfo.containsKey("fileName")) {
-				event.put("file_name", mediaInfo.get("fileName"));
-			}
-		}
+		event.put("partial_image_b64", b64);
 		writeSSEEvent(event, w);
 	}
 
 	/**
-	 * Sends a {@code response.image_generation_call.completed} SSE event carrying
-	 * the final image. Emitted once per image-generation call.
+	 * Sends a bare {@code response.image_generation_call.completed} SSE event.
+	 * The actual image bytes are not carried on this event in OpenAI's
+	 * Responses API protocol — the final base64 lives on the
+	 * {@code image_generation_call} item's {@code result} field, delivered via
+	 * the subsequent {@code response.output_item.done} event. This event is
+	 * just the lifecycle signal.
 	 */
-	public static void sendImageGenerationCompleted(Writer w, int seq, String respId, String itemId, int outputIdx,
-			Map<String, Object> mediaInfo) throws IOException {
+	public static void sendImageGenerationCompleted(Writer w, int seq, String respId, String itemId, int outputIdx)
+			throws IOException {
 		Map<String, Object> event = new HashMap<>();
 		event.put("type", "response.image_generation_call.completed");
 		event.put("sequence_number", seq);
 		event.put("response_id", respId);
 		event.put("item_id", itemId);
 		event.put("output_index", outputIdx);
-		if (mediaInfo != null) {
-			if (mediaInfo.containsKey("base64Data")) {
-				event.put("b64_json", mediaInfo.get("base64Data"));
-			}
-			if (mediaInfo.containsKey("url")) {
-				event.put("url", mediaInfo.get("url"));
-			}
-			if (mediaInfo.containsKey("mimeType")) {
-				event.put("mime_type", mediaInfo.get("mimeType"));
-			}
-			if (mediaInfo.containsKey("fileName")) {
-				event.put("file_name", mediaInfo.get("fileName"));
-			}
-		}
 		writeSSEEvent(event, w);
 	}
 

@@ -387,19 +387,6 @@ public class OpenAIEndpoints {
 //														writer);
 //												started = true;
 //											}
-											} else if ("media".equalsIgnoreCase(streamType)) {
-												// Image/media chunks from the Python image tier (partial + final).
-												// OpenAI chat-completions has no native image delta, so this emits
-												// a SEMOSS-proprietary delta.images[] payload.
-												if (dataMap.containsKey("finish_reason")) {
-													String finishReason = (String) dataMap.get("finish_reason");
-													OpenAIChatCompletionsHelper.writeFinishReason(engineId, messageId,
-															creationTimestamp, finishReason, writer);
-													break STREAM_COMPLETE_LOOP;
-												}
-												OpenAIChatCompletionsHelper.writeMediaChunk(engineId, messageId,
-														creationTimestamp, dataMap, started, writer);
-												started = true;
 											} else {
 												// assuming only other type is tool at the moment
 												if (dataMap.containsKey("finish_reason")) {
@@ -673,6 +660,11 @@ public class OpenAIEndpoints {
 						String currentToolName = null;
 						boolean isContentPartOpen = false;
 
+						// Image-generation item id; non-null while partial frames are
+						// streaming for the same image. Cleared after the completed/done
+						// pair so a subsequent image opens a fresh item.
+						String imgItemId = null;
+
 						int outputIndex = 0;
 						int contentIndex = 0;
 						StringBuilder currentAccumulator = new StringBuilder();
@@ -711,10 +703,16 @@ public class OpenAIEndpoints {
 										String streamType = (String) streamObj.get("stream_type");
 										Map<String, Object> streamData = (Map<String, Object>) streamObj.get("data");
 
-										// Media (image) chunks: flush any in-progress text/tool item, then emit
-										// a self-contained image_generation_call triplet (added → partial or
-										// completed → done). Reset item state so the next non-media chunk
-										// opens a fresh item.
+										// Media (image) chunks. The Responses API protocol expects:
+										//   output_item.added (status=in_progress) — once
+										//   image_generation_call.partial_image — zero or more, all under
+										//     the same item_id, each carrying partial_image_b64 and an
+										//     incrementing partial_image_index
+										//   image_generation_call.completed — once (bare lifecycle event)
+										//   output_item.done (status=completed, item.result=<base64>) — once
+										// We open the item lazily on the first media chunk and close it on
+										// the final (partial_image_index == null), so the openai SDK sees
+										// one image item from added → done.
 										if ("media".equalsIgnoreCase(streamType)) {
 											if (currentItemId != null) {
 												if ("message".equals(currentItemType) && isContentPartOpen) {
@@ -736,41 +734,53 @@ public class OpenAIEndpoints {
 												currentToolName = null;
 											}
 
-											String imgItemId = "img_" + GUID.v7().toUUID().toString();
 											Map<String, Object> mediaInfo = (Map<String, Object>) streamData
 													.get("media_info");
 											Object partialIdx = streamData.get("partial_image_index");
 
-											Map<String, Object> imgItem = new HashMap<>();
-											imgItem.put("id", imgItemId);
-											imgItem.put("type", "image_generation_call");
-											imgItem.put("status", partialIdx == null ? "completed" : "in_progress");
-											Map<String, Object> addedEvent = new HashMap<>();
-											addedEvent.put("type", "response.output_item.added");
-											addedEvent.put("sequence_number", seq++);
-											addedEvent.put("response_id", responseId);
-											addedEvent.put("output_index", outputIndex);
-											addedEvent.put("item", imgItem);
-											OpenAIResponsesHelper.writeSSEEvent(addedEvent, writer);
+											if (imgItemId == null) {
+												imgItemId = "img_" + GUID.v7().toUUID().toString();
+												Map<String, Object> imgItem = new HashMap<>();
+												imgItem.put("id", imgItemId);
+												imgItem.put("type", "image_generation_call");
+												imgItem.put("status", "in_progress");
+												Map<String, Object> addedEvent = new HashMap<>();
+												addedEvent.put("type", "response.output_item.added");
+												addedEvent.put("sequence_number", seq++);
+												addedEvent.put("response_id", responseId);
+												addedEvent.put("output_index", outputIndex);
+												addedEvent.put("item", imgItem);
+												OpenAIResponsesHelper.writeSSEEvent(addedEvent, writer);
+											}
 
 											if (partialIdx != null) {
 												OpenAIResponsesHelper.sendImageGenerationPartialImage(writer, seq++,
 														responseId, imgItemId, outputIndex, mediaInfo, partialIdx);
 											} else {
 												OpenAIResponsesHelper.sendImageGenerationCompleted(writer, seq++,
-														responseId, imgItemId, outputIndex, mediaInfo);
-											}
+														responseId, imgItemId, outputIndex);
 
-											Map<String, Object> doneItem = new HashMap<>(imgItem);
-											doneItem.put("status", "completed");
-											Map<String, Object> doneEvent = new HashMap<>();
-											doneEvent.put("type", "response.output_item.done");
-											doneEvent.put("sequence_number", seq++);
-											doneEvent.put("response_id", responseId);
-											doneEvent.put("output_index", outputIndex);
-											doneEvent.put("item", doneItem);
-											OpenAIResponsesHelper.writeSSEEvent(doneEvent, writer);
-											outputIndex++;
+												Map<String, Object> doneItem = new HashMap<>();
+												doneItem.put("id", imgItemId);
+												doneItem.put("type", "image_generation_call");
+												doneItem.put("status", "completed");
+												if (mediaInfo != null) {
+													Object b64 = mediaInfo.get("base64Data");
+													if (b64 instanceof String && !((String) b64).isEmpty()) {
+														doneItem.put("result", b64);
+													}
+												}
+												Map<String, Object> doneEvent = new HashMap<>();
+												doneEvent.put("type", "response.output_item.done");
+												doneEvent.put("sequence_number", seq++);
+												doneEvent.put("response_id", responseId);
+												doneEvent.put("output_index", outputIndex);
+												doneEvent.put("item", doneItem);
+												OpenAIResponsesHelper.writeSSEEvent(doneEvent, writer);
+
+												outputIndex++;
+												imgItemId = null;
+											}
 
 											if (streamData.containsKey("finish_reason")) {
 												break STREAM_LOOP;
