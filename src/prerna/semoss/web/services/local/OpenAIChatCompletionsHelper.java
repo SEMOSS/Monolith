@@ -35,6 +35,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.ToNumberPolicy;
@@ -48,6 +50,8 @@ public final class OpenAIChatCompletionsHelper {
 	private static final Gson GSON = new GsonBuilder().setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE)
 			.disableHtmlEscaping().create();
 
+	private static ObjectMapper mapper = new ObjectMapper();
+
 	/**
 	 * 
 	 * @param engineId
@@ -56,10 +60,10 @@ public final class OpenAIChatCompletionsHelper {
 	 * @param finishReason
 	 * @param writer
 	 * @throws IOException
-
+	 * @throws JsonProcessingException
 	 */
 	public static void writeFinishReason(String engineId, String messageId, long creationTimestamp, String finishReason,
-			Writer writer) throws IOException {
+			Writer writer) throws JsonProcessingException, IOException {
 		writeFinishReason(engineId, messageId, creationTimestamp, finishReason, null, null, null, null, writer);
 	}
 
@@ -71,7 +75,7 @@ public final class OpenAIChatCompletionsHelper {
 	 */
 	public static void writeFinishReason(String engineId, String messageId, long creationTimestamp, String finishReason,
 			Integer promptTokens, Integer completionTokens, Integer cachedTokens, Integer reasoningTokens,
-			Writer writer) throws IOException {
+			Writer writer) throws JsonProcessingException, IOException {
 
 		// delta is empty
 		Map<String, Object> delta = new HashMap<>();
@@ -91,7 +95,7 @@ public final class OpenAIChatCompletionsHelper {
 		finalChunk.put("model", engineId);
 		finalChunk.put("choices", choices);
 
-		writer.write("data: " + GSON.toJson(finalChunk) + "\n\n");
+		writer.write("data: " + mapper.writeValueAsString(finalChunk) + "\n\n");
 
 		boolean hasAnyUsage = promptTokens != null || completionTokens != null || cachedTokens != null
 				|| reasoningTokens != null;
@@ -125,7 +129,7 @@ public final class OpenAIChatCompletionsHelper {
 			usageChunk.put("choices", new ArrayList<>());
 			usageChunk.put("usage", usage);
 
-			writer.write("data: " + GSON.toJson(usageChunk) + "\n\n");
+			writer.write("data: " + mapper.writeValueAsString(usageChunk) + "\n\n");
 		}
 
 		writer.write("data: [DONE]\n\n");
@@ -140,11 +144,11 @@ public final class OpenAIChatCompletionsHelper {
 	 * @param newContent
 	 * @param firstChunk
 	 * @param writer
-
+	 * @throws JsonProcessingException
 	 * @throws IOException
 	 */
 	public static void writeContentChunk(String engineId, String messageId, long creationTimestamp, String newContent,
-			boolean firstChunk, Writer writer) throws IOException {
+			boolean firstChunk, Writer writer) throws JsonProcessingException, IOException {
 		// delta is lowest unit
 		Map<String, Object> delta = new HashMap<>();
 		// if first chunk include role
@@ -171,7 +175,7 @@ public final class OpenAIChatCompletionsHelper {
 		chunk.put("choices", choices);
 
 		// sending chunk as SSE event
-		writer.write("data: " + GSON.toJson(chunk) + "\n\n");
+		writer.write("data: " + mapper.writeValueAsString(chunk) + "\n\n");
 		writer.flush();
 	}
 
@@ -183,12 +187,12 @@ public final class OpenAIChatCompletionsHelper {
 	 * @param dataMap
 	 * @param firstChunk
 	 * @param writer
-
+	 * @throws JsonProcessingException
 	 * @throws IOException
 	 */
 	public static void writeToolChunk(String engineId, String messageId, long creationTimestamp,
 			Map<String, Object> dataMap, boolean firstChunk, Writer writer)
-			throws IOException {
+			throws JsonProcessingException, IOException {
 		Number indexNum = (Number) dataMap.get("index");
 		Long curToolIndex = indexNum != null ? indexNum.longValue() : 0L;
 		// Thinking is not part of the chat completions wire format — drop it.
@@ -250,84 +254,22 @@ public final class OpenAIChatCompletionsHelper {
 		chunk.put("choices", choices);
 
 		// sending chunk as SSE event
-		writer.write("data: " + GSON.toJson(chunk) + "\n\n");
+		writer.write("data: " + mapper.writeValueAsString(chunk) + "\n\n");
 		writer.flush();
 	}
 
 	/**
-	 * Writes a streaming chunk carrying image data produced by the Python image
-	 * tier. OpenAI's public chat-completions streaming protocol has no image delta,
-	 * so this emits a SEMOSS-proprietary shape: {@code delta.images: [{...}]} with
-	 * either {@code b64_json} or {@code url}, plus {@code partial_image_index}
-	 * when the chunk is an intermediate partial (null on the final).
-	 *
-	 * Python-side source: {@code StreamUtil.create_media_chunk(media_info, partial_image_index)}
-	 * in {@code semoss_streaming_util.py}, emitted with {@code stream_type="media"}.
-	 */
-	public static void writeMediaChunk(String engineId, String messageId, long creationTimestamp,
-			Map<String, Object> dataMap, boolean firstChunk, Writer writer)
-			throws IOException {
-		Map<String, Object> mediaInfo = (Map<String, Object>) dataMap.get("media_info");
-		if (mediaInfo == null) {
-			return;
-		}
-
-		Map<String, Object> imageEntry = new HashMap<>();
-		Object partialIdx = dataMap.get("partial_image_index");
-		imageEntry.put("partial_image_index", partialIdx);
-		if (mediaInfo.containsKey("base64Data")) {
-			imageEntry.put("b64_json", mediaInfo.get("base64Data"));
-		}
-		if (mediaInfo.containsKey("url")) {
-			imageEntry.put("url", mediaInfo.get("url"));
-		}
-		if (mediaInfo.containsKey("mimeType")) {
-			imageEntry.put("mime_type", mediaInfo.get("mimeType"));
-		}
-		if (mediaInfo.containsKey("fileName")) {
-			imageEntry.put("file_name", mediaInfo.get("fileName"));
-		}
-
-		List<Map<String, Object>> images = new ArrayList<>();
-		images.add(imageEntry);
-
-		Map<String, Object> delta = new HashMap<>();
-		if (!firstChunk) {
-			delta.put("role", "assistant");
-		}
-		delta.put("content", null);
-		delta.put("images", images);
-
-		Map<String, Object> choice = new HashMap<>();
-		choice.put("index", 0);
-		choice.put("delta", delta);
-		choice.put("finish_reason", null);
-		List<Map<String, Object>> choices = new ArrayList<>();
-		choices.add(choice);
-
-		Map<String, Object> chunk = new HashMap<>();
-		chunk.put("id", messageId);
-		chunk.put("object", "chat.completion.chunk");
-		chunk.put("created", creationTimestamp);
-		chunk.put("model", engineId);
-		chunk.put("choices", choices);
-
-		writer.write("data: " + GSON.toJson(chunk) + "\n\n");
-		writer.flush();
-	}
-
-	/**
-	 *
+	 * 
 	 * @param engineId
 	 * @param messageId
 	 * @param creationTimestamp
 	 * @param toolsResponseList
 	 * @param writer
-
+	 * @throws JsonProcessingException
 	 * @throws IOException
 	 */
 	public static void writeFullToolResponseAsChunk(String engineId, String messageId, long creationTimestamp,
-			List<Map<String, Object>> toolsResponseList, Writer writer) throws IOException {
+			List<Map<String, Object>> toolsResponseList, Writer writer) throws JsonProcessingException, IOException {
 
 		// there might be multiple tools
 		// loop through and send each one as a chunk
