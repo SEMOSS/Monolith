@@ -34,8 +34,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 import prerna.engine.impl.model.message.MediaMessagePart;
 import prerna.engine.impl.model.message.MessagePart;
@@ -43,15 +43,14 @@ import prerna.engine.impl.model.responses.AskModelEngineResponse;
 
 public final class OpenAIImagesHelper {
 
-	private static final ObjectMapper MAPPER = new ObjectMapper();
+	private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
 
 	/**
 	 * Writes a single SSE event block: "event: <type>\ndata: <json>\n\n"
 	 */
-	private static void writeSSE(Writer w, String eventType, Map<String, Object> data)
-			throws JsonProcessingException, IOException {
+	private static void writeSSE(Writer w, String eventType, Map<String, Object> data) throws IOException {
 		w.write("event: " + eventType + "\n");
-		w.write("data: " + MAPPER.writeValueAsString(data) + "\n\n");
+		w.write("data: " + GSON.toJson(data) + "\n\n");
 		w.flush();
 	}
 
