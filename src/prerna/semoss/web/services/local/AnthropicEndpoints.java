@@ -450,24 +450,6 @@ public class AnthropicEndpoints {
 															newContent, writer);
 												}
 											}
-										} else if ("media".equalsIgnoreCase(streamType)) {
-											// Image/media chunks from the Python image tier. Flush any open text
-											// block first, then emit each partial/final as its own atomic image
-											// content_block (start → stop) at its own block index so it never
-											// interleaves with text accumulation.
-											if (textBlockStarted && toolBlockStarted.isEmpty()) {
-												AnthropicMessagesHelper.writeContentBlockStop(contentBlockIndex,
-														writer);
-												textBlockStarted = false;
-												contentBlockIndex++;
-											}
-											Map<String, Object> mediaInfo = (Map<String, Object>) streamData
-													.get("media_info");
-											Object partialImageIndex = streamData.get("partial_image_index");
-											AnthropicMessagesHelper.writeImageContentBlockStart(contentBlockIndex,
-													mediaInfo, partialImageIndex, writer);
-											AnthropicMessagesHelper.writeContentBlockStop(contentBlockIndex, writer);
-											contentBlockIndex++;
 										} else {
 											// Tool streaming
 											if (streamData.containsKey("finish_reason")) {
