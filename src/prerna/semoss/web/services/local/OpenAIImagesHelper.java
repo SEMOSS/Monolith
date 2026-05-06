@@ -63,7 +63,7 @@ public final class OpenAIImagesHelper {
 	 */
 	public static void writePartialImageEvent(Writer w, String b64Json, int partialIdx,
 			String model, long createdAt, String outputFormat, String quality, String size)
-			throws JsonProcessingException, IOException {
+			throws IOException {
 		Map<String, Object> event = new HashMap<>();
 		event.put("b64_json", b64Json);
 		event.put("partial_image_index", partialIdx);
@@ -90,7 +90,7 @@ public final class OpenAIImagesHelper {
 	public static void writeCompletedEvent(Writer w, String b64Json, String model, long createdAt,
 			String outputFormat, String quality, String size,
 			Integer inputTokens, Integer outputTokens)
-			throws JsonProcessingException, IOException {
+			throws IOException {
 		Map<String, Object> event = new HashMap<>();
 		event.put("b64_json", b64Json);
 		if (model != null) {
