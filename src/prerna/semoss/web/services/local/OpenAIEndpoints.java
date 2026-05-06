@@ -61,12 +61,10 @@ import javax.ws.rs.core.StreamingOutput;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.f4b6a3.uuid.alt.GUID;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
 
 import prerna.auth.User;
 import prerna.auth.utils.SecurityEngineUtils;
@@ -141,7 +139,6 @@ public class OpenAIEndpoints {
 		final String JOB_ID = GUID.v7().toUUID().toString();
 		Insight insight = null;
 		Room room = null;
-		ObjectMapper objectMapper = new ObjectMapper();
 
 		// set the user timezone
 		ZoneId zoneId = null;
@@ -180,14 +177,12 @@ public class OpenAIEndpoints {
 		classLogger.info("Chat completion request data: {}", requestData);
 
 		// Convert the JSON string to a Map
-		TypeReference<Map<String, Object>> mapType = new TypeReference<Map<String, Object>>() {
-		};
 		Map<String, Object> dataMap;
 		try {
-			dataMap = objectMapper.readValue(WebUtility.jsonSanitizer(requestData.toString()), mapType);
-		} catch (JsonProcessingException e) {
+			dataMap = GSON.fromJson(WebUtility.jsonSanitizer(requestData.toString()), new TypeToken<Map<String, Object>>(){}.getType());
+		} catch (Exception e) {
 			classLogger.error("Failed to parse chat completions request JSON for path '{}': {}",
-					request.getRequestURI(), e.getOriginalMessage(), e);
+					request.getRequestURI(), e.getMessage(), e);
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Error processing JSON data: " + e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
@@ -515,7 +510,6 @@ public class OpenAIEndpoints {
 		final String JOB_ID = GUID.v7().toUUID().toString();
 		Insight insight = null;
 		Room room = null;
-		ObjectMapper objectMapper = new ObjectMapper();
 
 		ZoneId zoneId = null;
 		String strTz = WebUtility.inputSanitizer(request.getParameter("tz"));
@@ -549,12 +543,10 @@ public class OpenAIEndpoints {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
-		TypeReference<Map<String, Object>> mapType = new TypeReference<Map<String, Object>>() {
-		};
 		Map<String, Object> dataMap;
 		try {
-			dataMap = objectMapper.readValue(WebUtility.jsonSanitizer(requestData.toString()), mapType);
-		} catch (JsonProcessingException e) {
+			dataMap = GSON.fromJson(WebUtility.jsonSanitizer(requestData.toString()), new TypeToken<Map<String, Object>>(){}.getType());
+		} catch (Exception e) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Error processing JSON: " + e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
@@ -698,7 +690,7 @@ public class OpenAIEndpoints {
 								if (partialResponseContent != null && !partialResponseContent.isEmpty()) {
 									for (Map<String, Object> streamObj : partialResponseContent) {
 										classLogger.info("Stream chunk received: {}",
-												new ObjectMapper().writeValueAsString(streamObj));
+												GSON.toJson(streamObj));
 
 										String streamType = (String) streamObj.get("stream_type");
 										Map<String, Object> streamData = (Map<String, Object>) streamObj.get("data");
@@ -906,7 +898,7 @@ public class OpenAIEndpoints {
 
 											if (argsObj != null) {
 												String argsString = (argsObj instanceof String) ? (String) argsObj
-														: new ObjectMapper().writeValueAsString(argsObj);
+														: GSON.toJson(argsObj);
 												if (!argsString.isEmpty()) {
 													currentAccumulator.append(argsString);
 													OpenAIResponsesHelper.sendToolDelta(writer, seq++, responseId,
@@ -998,7 +990,6 @@ public class OpenAIEndpoints {
 		final String JOB_ID = GUID.v7().toUUID().toString();
 		Insight insight = null;
 		Room room = null;
-		ObjectMapper objectMapper = new ObjectMapper();
 
 		ZoneId zoneId = null;
 		String strTz = WebUtility.inputSanitizer(request.getParameter("tz"));
@@ -1029,12 +1020,10 @@ public class OpenAIEndpoints {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
-		TypeReference<Map<String, Object>> mapType = new TypeReference<Map<String, Object>>() {
-		};
 		Map<String, Object> dataMap;
 		try {
-			dataMap = objectMapper.readValue(WebUtility.jsonSanitizer(requestData.toString()), mapType);
-		} catch (JsonProcessingException e) {
+			dataMap = GSON.fromJson(WebUtility.jsonSanitizer(requestData.toString()), new TypeToken<Map<String, Object>>(){}.getType());
+		} catch (Exception e) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Error processing JSON: " + e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
@@ -1285,7 +1274,6 @@ public class OpenAIEndpoints {
 		final String JOB_ID = GUID.v7().toUUID().toString();
 		Insight insight = null;
 		Room room = null;
-		ObjectMapper objectMapper = new ObjectMapper();
 
 		// set the user timezone
 		ZoneId zoneId = null;
@@ -1322,14 +1310,12 @@ public class OpenAIEndpoints {
 		}
 
 		// Convert the JSON string to a Map
-		TypeReference<Map<String, Object>> mapType = new TypeReference<Map<String, Object>>() {
-		};
 		Map<String, Object> dataMap;
 		try {
-			dataMap = objectMapper.readValue(WebUtility.jsonSanitizer(requestData.toString()), mapType);
-		} catch (JsonProcessingException e) {
+			dataMap = GSON.fromJson(WebUtility.jsonSanitizer(requestData.toString()), new TypeToken<Map<String, Object>>(){}.getType());
+		} catch (Exception e) {
 			classLogger.error("Failed to parse completions request JSON for path '{}': {}", request.getRequestURI(),
-					e.getOriginalMessage(), e);
+					e.getMessage(), e);
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Error processing JSON data: " + e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
@@ -1474,7 +1460,7 @@ public class OpenAIEndpoints {
 			final Room FINAL_ROOM = room;
 			return Response.ok().header("Content-Type", "text/event-stream").header("Cache-Control", "no-cache")
 					.header("Connection", "keep-alive").entity((StreamingOutput) output -> {
-						ObjectMapper mapper = new ObjectMapper();
+	
 						try (Writer writer = new BufferedWriter(
 								new OutputStreamWriter(output, StandardCharsets.UTF_8))) {
 							// Get full completion from your model in one go
@@ -1513,7 +1499,7 @@ public class OpenAIEndpoints {
 							}
 							chunk.put("usage", usage);
 
-							writer.write("data: " + mapper.writeValueAsString(chunk) + "\n\n");
+							writer.write("data: " + GSON.toJson(chunk) + "\n\n");
 							writer.write("data: [DONE]\n\n");
 							writer.flush();
 
@@ -1550,7 +1536,6 @@ public class OpenAIEndpoints {
 		final String SESSION_ID = session.getId();
 		final String JOB_ID = GUID.v7().toUUID().toString();
 		Insight insight = null;
-		ObjectMapper objectMapper = new ObjectMapper();
 
 		// set the user timezone
 		ZoneId zoneId = null;
@@ -1586,14 +1571,12 @@ public class OpenAIEndpoints {
 		}
 
 		// Convert the JSON string to a Map
-		TypeReference<Map<String, Object>> mapType = new TypeReference<Map<String, Object>>() {
-		};
 		Map<String, Object> dataMap;
 		try {
-			dataMap = objectMapper.readValue(WebUtility.jsonSanitizer(requestData.toString()), mapType);
-		} catch (JsonProcessingException e) {
+			dataMap = GSON.fromJson(WebUtility.jsonSanitizer(requestData.toString()), new TypeToken<Map<String, Object>>(){}.getType());
+		} catch (Exception e) {
 			classLogger.error("Failed to parse embeddings request JSON for path '{}': {}", request.getRequestURI(),
-					e.getOriginalMessage(), e);
+					e.getMessage(), e);
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Error processing JSON data: " + e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);

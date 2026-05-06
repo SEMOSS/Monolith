@@ -36,7 +36,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.ToNumberPolicy;
@@ -56,20 +55,12 @@ public final class OpenAIResponsesHelper {
 	private static final Gson GSON = new GsonBuilder().setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE)
 			.disableHtmlEscaping().create();
 
-	private static ObjectMapper mapper = new ObjectMapper();
-
 	public static void writeSSEEvent(Map<String, Object> rawEvent, Writer writer) throws IOException {
 		String eventType = (String) rawEvent.get("type");
 		if (eventType != null) {
 			writer.write("event: " + eventType + "\n");
 		}
-		String eventJson;
-		try {
-			eventJson = mapper.writeValueAsString(rawEvent);
-		} catch (Exception e) {
-			eventJson = GSON.toJson(rawEvent);
-		}
-		writer.write("data: " + eventJson + "\n\n");
+		writer.write("data: " + GSON.toJson(rawEvent) + "\n\n");
 		writer.flush();
 	}
 
