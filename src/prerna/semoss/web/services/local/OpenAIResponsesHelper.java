@@ -34,12 +34,15 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.ToNumberPolicy;
 
+import prerna.engine.impl.model.message.MediaMessagePart;
+import prerna.engine.impl.model.message.MessagePart;
 import prerna.engine.impl.model.responses.AskModelEngineResponse;
 import prerna.engine.impl.model.responses.AskToolModelEngineResponse;
 import prerna.engine.impl.model.responses.AskToolModelEngineResponse.ToolResponse;
@@ -60,7 +63,12 @@ public final class OpenAIResponsesHelper {
 		if (eventType != null) {
 			writer.write("event: " + eventType + "\n");
 		}
-		String eventJson = mapper.writeValueAsString(rawEvent);
+		String eventJson;
+		try {
+			eventJson = mapper.writeValueAsString(rawEvent);
+		} catch (Exception e) {
+			eventJson = GSON.toJson(rawEvent);
+		}
 		writer.write("data: " + eventJson + "\n\n");
 		writer.flush();
 	}
@@ -468,12 +476,42 @@ public final class OpenAIResponsesHelper {
 
 			responsesMap.put("status", "completed");
 		} else {
-			String response = llmResponse.getStringResponse();
+			// Check for image parts before falling back to text (image generation models
+			// return parts containing MediaMessagePart with base64 data)
+			@SuppressWarnings("unchecked")
+			List<MessagePart> parts = llmResponse.getParts(); // getParts() always returns non-null list
+			boolean hasImageParts = parts.stream().anyMatch(p -> p instanceof MediaMessagePart);
 
-			Map<String, Object> textOutput = new HashMap<>();
-			textOutput.put("type", "text");
-			textOutput.put("text", response);
-			output.add(textOutput);
+			if (hasImageParts) {
+				for (MessagePart part : parts) {
+					if (!(part instanceof MediaMessagePart)) {
+						continue;
+					}
+					MediaMessagePart mediaPart = (MediaMessagePart) part;
+					if (mediaPart.getMediaInfo() == null) {
+						continue;
+					}
+					String b64 = mediaPart.getMediaInfo().getBase64Data();
+					String url = mediaPart.getMediaInfo().getSourceUrl();
+					Map<String, Object> imgOutput = new HashMap<>();
+					imgOutput.put("type", "image_generation_call");
+					imgOutput.put("id", "img_" + UUID.randomUUID().toString());
+					imgOutput.put("status", "completed");
+					if (b64 != null && !b64.isEmpty()) {
+						imgOutput.put("result", b64);
+					} else if (url != null && !url.isEmpty()) {
+						imgOutput.put("result", url);
+					}
+					output.add(imgOutput);
+				}
+			} else {
+				String response = llmResponse.getStringResponse();
+
+				Map<String, Object> textOutput = new HashMap<>();
+				textOutput.put("type", "text");
+				textOutput.put("text", response);
+				output.add(textOutput);
+			}
 
 			responsesMap.put("status", "completed");
 		}
