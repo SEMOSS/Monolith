@@ -339,7 +339,7 @@ public class UserResource {
 	 * @param ap         authentication provider used for login
 	 */
 	public static void userTrackingLogin(HttpServletRequest request, User semossUser, AuthProvider ap) {
-		String ip = WebUtility.inputSanitizer(ResourceUtility.getClientIp(request));
+		String ip = WebUtility.getClientIp(request);
 		if (request.getSession() != null && request.getSession().getId() != null) {
 			UserTrackingUtils.registerLogin(request.getSession().getId(), ip, semossUser, ap);
 		} else {

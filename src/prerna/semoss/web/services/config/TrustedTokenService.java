@@ -52,7 +52,6 @@ import prerna.auth.utils.SecurityAPIUserUtils;
 import prerna.auth.utils.SecurityTokenUtils;
 import prerna.cluster.util.ClusterUtil;
 import prerna.date.SemossDate;
-import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
@@ -81,7 +80,7 @@ public class TrustedTokenService {
 			return WebUtility.getResponse(ret, 401);
 		}
 		String clientId = WebUtility.inputSanitizer(request.getParameter("client_id"));
-		String ip = ResourceUtility.getClientIp(request);
+		String ip = WebUtility.getClientIp(request);
 		Object[] tokenDetails = null;
 		if (ClusterUtil.IS_CLUSTER) {
 			tokenDetails = getClusterToken(ip, clientId);
@@ -111,7 +110,7 @@ public class TrustedTokenService {
 				return WebUtility.getResponse(ret, 401);
 			}
 		}
-		String ip = ResourceUtility.getClientIp(request);
+		String ip = WebUtility.getClientIp(request);
 		Object[] tokenDetails = null;
 		if (ClusterUtil.IS_CLUSTER) {
 			tokenDetails = getClusterToken(ip, clientId);
