@@ -90,6 +90,7 @@ public class ResourceUtility {
 
 		allowAccessWithoutLogin.add("config");
 		allowAccessWithoutLogin.add("config/fetchCsrf");
+		allowAccessWithoutLogin.add("config/endpoints");
 		allowAccessWithoutLogin.add("auth/logins");
 		allowAccessWithoutLogin.add("auth/loginsAllowed");
 		allowAccessWithoutLogin.add("auth/login");
@@ -217,7 +218,8 @@ public class ResourceUtility {
 		}
 
 		final PixelJobManager manager = PixelJobManager.getManager();
-		final PixelJobRunner jobRunner = manager.makeJob(WebUtility.inputSanitizer(insightId), insight, sessionId, null);
+		final PixelJobRunner jobRunner = manager.makeJob(WebUtility.inputSanitizer(insightId), insight, sessionId,
+				null);
 		final String jobId = jobRunner.getJobId();
 		jobRunner.addPixel(expression);
 		jobRunner.run();
@@ -245,8 +247,7 @@ public class ResourceUtility {
 		}
 
 		return Response.status(status).entity(stream)
-				.header("Cache-Control",
-						"no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0")
+				.header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0")
 				.header("Pragma", "no-cache").build();
 	}
 
@@ -260,8 +261,7 @@ public class ResourceUtility {
 	 * {@link ModelEngineResource#llmStreaming}) can share the same post-stream
 	 * cleanup contract.
 	 */
-	static void cleanupAfterPixel(Insight insight, PixelJobManager manager, String jobId,
-			PixelJobRunner jobRunner) {
+	static void cleanupAfterPixel(Insight insight, PixelJobManager manager, String jobId, PixelJobRunner jobRunner) {
 		try {
 			if (jobRunner != null) {
 				jobRunner.setStatus(PixelJobStatus.COMPLETE);
