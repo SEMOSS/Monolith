@@ -688,6 +688,39 @@ public final class WebUtility {
 	}
 
 	/**
+	 * Build the SPA-relative base URL for the current request by reading the
+	 * incoming {@code Referer} header and appending {@code #!/}. The Referer is the
+	 * FE page that originated the call, which (unlike the API's own context path)
+	 * reflects wherever the SemossWeb / semoss-ui webapp is actually deployed -
+	 * e.g. {@code /semoss-ui/packages/client/dist/} or
+	 * {@code /SemossWeb/packages/client/dist/}.
+	 * <p>
+	 * Resolved per-request (no static cache) so each insight gets a base URL that
+	 * matches how its own request arrived. Returns {@code null} when the request
+	 * has no Referer (curl, scheduled jobs, server-to-server) - the downstream
+	 * {@link prerna.om.Insight} just won't have a click-through URL in those cases.
+	 * <p>
+	 * Used to seed {@link prerna.om.Insight#setBaseURL(String)} so that the
+	 * export-to-Excel/PPT reactors can embed click-through links back to the
+	 * insight.
+	 *
+	 * @param request the incoming HTTP request
+	 * @return the SPA base URL ending in {@code #!/}, or {@code null} if the
+	 *         request is null or has no {@code Referer} header
+	 */
+	public static String getRefererURL(HttpServletRequest request) {
+		if (request == null) {
+			return null;
+		}
+		String referer = request.getHeader("referer");
+		if (referer == null || referer.isEmpty()) {
+			return null;
+		}
+		// http://localhost:8080/semoss-ui/packages/client/dist/ -> .../dist/#!/
+		return referer + "#!/";
+	}
+
+	/**
 	 * Resolve the client IP for the request, preferring the X-FORWARDED-FOR header
 	 * when present (for requests that came through a proxy / load balancer) and
 	 * falling back to the direct remote address.

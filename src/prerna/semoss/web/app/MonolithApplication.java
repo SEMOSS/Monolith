@@ -36,6 +36,7 @@ import javax.ws.rs.core.Application;
 import prerna.cluster.RawSelectWrapperService;
 import prerna.semoss.web.form.FormResource;
 import prerna.semoss.web.services.config.ServerConfigurationResource;
+import prerna.semoss.web.services.local.AdminThemeResource;
 import prerna.semoss.web.services.local.AnthropicEndpoints;
 import prerna.semoss.web.services.local.AuthorizationResource;
 import prerna.semoss.web.services.local.DatabaseEngineResource;
@@ -53,7 +54,6 @@ import prerna.semoss.web.services.local.SchedulerResource;
 import prerna.semoss.web.services.local.SessionResource;
 import prerna.semoss.web.services.local.ShareInsightResource;
 import prerna.semoss.web.services.local.StorageEngineResource;
-import prerna.semoss.web.services.local.ThemeResource;
 import prerna.semoss.web.services.local.UserResource;
 import prerna.semoss.web.services.local.VectorEngineResource;
 import prerna.semoss.web.services.local.auth.AdminDatabaseAuthorizationResource;
@@ -122,7 +122,7 @@ public class MonolithApplication extends Application {
 		singletons.add(new ShareInsightResource());
 		singletons.add(new SchedulerResource());
 		// other
-		singletons.add(new ThemeResource());
+		singletons.add(new AdminThemeResource());
 		singletons.add(new ServerConfigurationResource());
 		singletons.add(new RawSelectWrapperService());
 		// legacy forms - still used in production - RDF specific
