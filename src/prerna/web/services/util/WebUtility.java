@@ -36,6 +36,7 @@ import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URL;
 import java.text.Normalizer;
 import java.text.Normalizer.Form;
@@ -79,7 +80,6 @@ import com.google.json.JsonSanitizer;
 import prerna.auth.User;
 import prerna.logging.SemossLogUtils;
 import prerna.om.ThreadStore;
-import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
 import prerna.util.FstUtil;
 import prerna.util.Utility;
@@ -113,9 +113,12 @@ public final class WebUtility {
 	}
 
 	/**
-	 * 
-	 * @param vec
-	 * @return
+	 * Serialize the given object to JSON (UTF-8) and return it as a
+	 * {@link StreamingOutput} that can be used as the entity of a JAX-RS response.
+	 *
+	 * @param vec the value to serialize
+	 * @return a streaming output of the JSON bytes, or {@code null} if {@code vec}
+	 *         is null or serialization fails
 	 */
 	public static StreamingOutput getSO(Object vec) {
 		if (vec != null) {
@@ -131,7 +134,7 @@ public final class WebUtility {
 					}
 				};
 			} catch (UnsupportedEncodingException e) {
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.error("Failed to serialize response payload to UTF-8 bytes", e);
 			}
 		}
 
@@ -139,9 +142,13 @@ public final class WebUtility {
 	}
 
 	/**
-	 * 
-	 * @param fileLocation
-	 * @return
+	 * Stream the contents of a file as the body of a JAX-RS response. The file is
+	 * deleted after the stream is fully written, making this useful for serving
+	 * temp files generated for a single download.
+	 *
+	 * @param fileLocation absolute path to the file to stream (will be normalized)
+	 * @return a streaming output that writes the file's contents, or {@code null}
+	 *         if {@code fileLocation} is null or the file cannot be opened
 	 */
 	public static StreamingOutput getSOFile(String fileLocation) {
 		if (fileLocation != null) {
@@ -165,36 +172,77 @@ public final class WebUtility {
 					}
 				};
 			} catch (Exception e) {
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.error("Failed to open file '{}' for streaming response", fileLocation, e);
 			}
 		}
 
 		return null;
 	}
 
+	/**
+	 * Build a JSON response with the given entity and status code. Convenience
+	 * overload for {@link #getResponse(Object, int, List, NewCookie...)} with no
+	 * extra headers and no cookies.
+	 *
+	 * @param vec    the entity to serialize as JSON
+	 * @param status the HTTP status code
+	 * @return JAX-RS Response, or {@code null} if {@code vec} is null
+	 */
 	public static Response getResponse(Object vec, int status) {
 		return getResponse(vec, status, null);
 	}
 
+	/**
+	 * Build a JSON response with the given entity, status code, and cookies.
+	 * Convenience overload for
+	 * {@link #getResponse(Object, int, List, NewCookie...)} with no extra headers.
+	 *
+	 * @param vec     the entity to serialize as JSON
+	 * @param status  the HTTP status code
+	 * @param cookies cookies to attach to the response (may be null)
+	 * @return JAX-RS Response, or {@code null} if {@code vec} is null
+	 */
 	public static Response getResponse(Object vec, int status, NewCookie[] cookies) {
 		return getResponse(vec, status, null, cookies);
 	}
 
+	/**
+	 * Build a JSON response that includes a {@code Cache-Control: private} header
+	 * to prevent shared caches (e.g. proxies) from caching the payload.
+	 *
+	 * @param vec    the entity to serialize as JSON
+	 * @param status the HTTP status code
+	 * @return JAX-RS Response, or {@code null} if {@code vec} is null
+	 */
 	public static Response getResponseNoCache(Object vec, int status) {
 		return getResponse(vec, status, noCacheHeaders);
 	}
 
+	/**
+	 * Build a JSON response with no-cache headers and the given cookies. See
+	 * {@link #getResponseNoCache(Object, int)}.
+	 *
+	 * @param vec     the entity to serialize as JSON
+	 * @param status  the HTTP status code
+	 * @param cookies cookies to attach to the response (may be null)
+	 * @return JAX-RS Response, or {@code null} if {@code vec} is null
+	 */
 	public static Response getResponseNoCache(Object vec, int status, NewCookie[] cookies) {
 		return getResponse(vec, status, noCacheHeaders, cookies);
 	}
 
 	/**
-	 * 
-	 * @param vec
-	 * @param status
-	 * @param addHeaders
-	 * @param cookies
-	 * @return
+	 * Build a JSON response with the given entity, status code, optional extra
+	 * headers, and optional cookies. Cookies are written via {@code Set-Cookie}
+	 * headers so that {@code SameSite} attributes from
+	 * {@link #convertCookieToHeader(NewCookie)} are preserved.
+	 *
+	 * @param vec        the entity to serialize as JSON
+	 * @param status     the HTTP status code
+	 * @param addHeaders extra headers to attach as {@code [name, value]} pairs (may
+	 *                   be null)
+	 * @param cookies    cookies to attach via {@code Set-Cookie} headers
+	 * @return JAX-RS Response, or {@code null} if {@code vec} is null
 	 */
 	public static Response getResponse(Object vec, int status, List<String[]> addHeaders, NewCookie... cookies) {
 		if (vec != null) {
@@ -222,7 +270,7 @@ public final class WebUtility {
 				}
 				return builder.build();
 			} catch (UnsupportedEncodingException e) {
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.error("Failed to serialize response payload to UTF-8 bytes for status {}", status, e);
 			}
 			return Response.status(200).entity(WebUtility.getSO(vec)).build();
 		}
@@ -231,9 +279,13 @@ public final class WebUtility {
 	}
 
 	/**
-	 * 
-	 * @param cookie
-	 * @return
+	 * Render a {@link NewCookie} as a {@code Set-Cookie} header value, including a
+	 * {@code SameSite=Strict} attribute (which JAX-RS's {@code NewCookie} cannot
+	 * express directly). Used to satisfy the modern Chromium SameSite cookie
+	 * requirements.
+	 *
+	 * @param cookie the cookie to serialize
+	 * @return a string suitable for a {@code Set-Cookie} response header
 	 */
 	public static String convertCookieToHeader(NewCookie cookie) {
 		StringBuilder c = new StringBuilder(64 + cookie.getValue().length());
@@ -277,9 +329,13 @@ public final class WebUtility {
 	}
 
 	/**
-	 * 
-	 * @param maxAge
-	 * @return
+	 * Compute an HTTP-format {@code Expires} date for a cookie that should live for
+	 * {@code maxAge} seconds from now (in GMT). Returned in the format required by
+	 * RFC 7231 / cookie specs.
+	 *
+	 * @param maxAge the cookie's max-age in seconds (negative values are treated as
+	 *               a session cookie expiring immediately)
+	 * @return an RFC-formatted expires date string
 	 */
 	private static String getExpires(int maxAge) {
 		if (maxAge < 0) {
@@ -292,9 +348,11 @@ public final class WebUtility {
 	}
 
 	/**
-	 * 
-	 * @param output
-	 * @return
+	 * Wrap a pre-built byte array as a {@link StreamingOutput} so it can be used as
+	 * the entity of a JAX-RS response without re-serializing.
+	 *
+	 * @param output the raw bytes to write to the response
+	 * @return a streaming output that writes {@code output} verbatim
 	 */
 	public static StreamingOutput getSO(byte[] output) {
 		try {
@@ -307,16 +365,20 @@ public final class WebUtility {
 				}
 			};
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Unexpected error wrapping byte[] payload as a streaming response", e);
 		}
 
 		return null;
 	}
 
 	/**
-	 * 
-	 * @param obj
-	 * @return
+	 * Serialize {@code obj} with FST (a fast Java binary serializer) and return it
+	 * as a {@link StreamingOutput} for binary JAX-RS responses. Used by internal
+	 * endpoints that exchange Java objects directly rather than JSON.
+	 *
+	 * @param obj the object to FST-serialize
+	 * @return a streaming output of the serialized bytes, or {@code null} if
+	 *         {@code obj} is null or serialization fails
 	 */
 	public static StreamingOutput getBinarySO(Object obj) {
 		if (obj != null) {
@@ -329,22 +391,24 @@ public final class WebUtility {
 							outputStream.write(output);
 							outputStream.flush();
 						} catch (Exception ex) {
-							classLogger.error(Constants.STACKTRACE, ex);
+							classLogger.error("Failed to write binary payload to response output stream", ex);
 						}
 					}
 				};
 			} catch (Exception ex) {
-				classLogger.error(Constants.STACKTRACE, ex);
+				classLogger.error("Failed to serialize object as binary response payload", ex);
 			}
 		}
 		return null;
 	}
 
 	/**
-	 * Ensure no CRLF injection into responses for malicious attacks
-	 * 
-	 * @param message
-	 * @return
+	 * Ensure no CRLF injection into responses for malicious attacks. Replaces
+	 * newline, carriage-return, tab, and their URL-encoded forms with underscores,
+	 * then HTML-encodes the result.
+	 *
+	 * @param message the candidate response string
+	 * @return the cleaned string, or {@code null} if {@code message} is null
 	 */
 	public static String cleanHttpResponse(String message) {
 		if (message == null) {
@@ -358,10 +422,11 @@ public final class WebUtility {
 	}
 
 	/**
-	 * Encoding parameters to be safely parsed and then used
-	 * 
-	 * @param message
-	 * @return
+	 * Percent-encode a value so it can be safely embedded as a URI component.
+	 *
+	 * @param message the value to encode
+	 * @return the URI-component-encoded value, or {@code null} if {@code message}
+	 *         is null
 	 */
 	public static String encodeHTTPUri(String message) {
 		if (message == null) {
@@ -371,14 +436,16 @@ public final class WebUtility {
 	}
 
 	/**
-	 * This is to remove scripts from being passed also removed sql injection
-	 * 
-	 * @param stringToSanitize
-	 * @return
+	 * Strip HTML/JS that could be used for XSS while preserving common safe markup
+	 * (formatting, links, blocks, styles, images, tables). Use this for untrusted
+	 * user input that may end up in HTML responses.
+	 *
+	 * @param stringToSanitize the candidate input
+	 * @return the sanitized string, or {@code null} if input is null
 	 */
 	public static String inputSanitizer(String stringToSanitize) {
 		if (stringToSanitize == null) {
-			classLogger.debug("input to sanitzer is null, returning null");
+			classLogger.debug("Input to inputSanitizer is null, returning null");
 			return stringToSanitize;
 		}
 
@@ -389,14 +456,15 @@ public final class WebUtility {
 	}
 
 	/**
-	 * This is to just escape for sql, not remove scripts.
-	 * 
-	 * @param stringToSanitize
-	 * @return
+	 * Escape a string for use in a SQL literal (ANSI / MySQL flavor) using ESAPI.
+	 * Does not strip HTML/JS — use {@link #inputSanitizer(String)} for that.
+	 *
+	 * @param stringToSanitize the candidate input
+	 * @return the SQL-escaped string, or {@code null} if input is null
 	 */
 	public static String inputSQLSanitizer(String stringToSanitize) {
 		if (stringToSanitize == null) {
-			classLogger.debug("Input to sql sanitzer is null, returning null");
+			classLogger.debug("Input to inputSQLSanitizer is null, returning null");
 			return stringToSanitize;
 		}
 
@@ -405,10 +473,11 @@ public final class WebUtility {
 	}
 
 	/**
-	 * This is to just escape for sql, not remove scripts.
-	 * 
-	 * @param stringToNormalize
-	 * @return
+	 * Apply {@link #inputSQLSanitizer(String)} to each element of the list.
+	 *
+	 * @param listToSanitize the list of candidate strings
+	 * @return a new list with each element SQL-escaped, or {@code null} if input is
+	 *         null
 	 */
 	public static List<String> inputSQLSanitizer(List<String> listToSanitize) {
 		if (listToSanitize == null) {
@@ -423,9 +492,11 @@ public final class WebUtility {
 	}
 
 	/**
-	 * 
-	 * @param listToSanitize
-	 * @return
+	 * Apply {@link #inputSanitizer(String)} to each element of the list.
+	 *
+	 * @param listToSanitize the list of candidate strings
+	 * @return a new list with each element HTML-sanitized, or {@code null} if input
+	 *         is null
 	 */
 	public static List<String> inputSanitizer(List<String> listToSanitize) {
 		if (listToSanitize == null) {
@@ -439,9 +510,11 @@ public final class WebUtility {
 	}
 
 	/**
-	 * 
-	 * @param listToSanitize
-	 * @return
+	 * Apply {@link #inputSanitizer(String)} to each element of the set.
+	 *
+	 * @param listToSanitize the set of candidate strings
+	 * @return a new set with each element HTML-sanitized, or {@code null} if input
+	 *         is null
 	 */
 	public static HashSet<String> inputSanitizer(HashSet<String> listToSanitize) {
 		if (listToSanitize == null) {
@@ -455,9 +528,12 @@ public final class WebUtility {
 	}
 
 	/**
-	 * 
-	 * @param listToSanitize
-	 * @return
+	 * Apply {@link #inputSanitizer(String)} to each element of the set, preserving
+	 * iteration order.
+	 *
+	 * @param listToSanitize the ordered set of candidate strings
+	 * @return a new linked set with each element HTML-sanitized, or {@code null} if
+	 *         input is null
 	 */
 	public static LinkedHashSet<String> inputSanitizer(LinkedHashSet<String> listToSanitize) {
 		if (listToSanitize == null) {
@@ -471,20 +547,27 @@ public final class WebUtility {
 	}
 
 	/**
-	 * Given JSON-like content, produces a string of JSON that is safe to embed,
-	 * safe to pass to JavaScript's {@code eval} operator.
-	 * 
-	 * @param jsonStringToSanitize
-	 * @return
+	 * Given JSON-like content, produce a string of JSON that is safe to embed and
+	 * safe to pass to JavaScript's {@code eval} operator. Uses Google's
+	 * {@code JsonSanitizer} which fixes common issues (unquoted keys, trailing
+	 * commas, etc.) and rejects content that cannot be made safe.
+	 *
+	 * @param jsonStringToSanitize the candidate JSON string
+	 * @return a sanitized, embed-safe JSON string
 	 */
 	public static String jsonSanitizer(String jsonStringToSanitize) {
 		return JsonSanitizer.sanitize(jsonStringToSanitize);
 	}
 
 	/**
-	 * 
-	 * @param stringToNormalize
-	 * @return
+	 * Normalize a file path: convert backslashes to forward slashes, collapse
+	 * repeated slashes, and run NFKC + commons {@code FilenameUtils.normalize} to
+	 * resolve {@code .} / {@code ..} segments. Throws if normalization resolves to
+	 * {@code null} (e.g. path attempts to escape its root).
+	 *
+	 * @param stringToNormalize the path to normalize
+	 * @return the normalized path, or {@code null} if input is null
+	 * @throws IllegalArgumentException if the path normalizes to null
 	 */
 	public static String normalizePath(String stringToNormalize) {
 		if (stringToNormalize == null) {
@@ -500,7 +583,7 @@ public final class WebUtility {
 		String normalizedString = Normalizer.normalize(stringToNormalize, Form.NFKC);
 		normalizedString = FilenameUtils.normalize(normalizedString);
 		if (normalizedString == null) {
-			classLogger.error("File path is null");
+			classLogger.error("File path normalization returned null for input '{}'", stringToNormalize);
 			throw new IllegalArgumentException("The filepath passed in is invalid");
 		}
 		normalizedString = normalizedString.replace("\\", "/");
@@ -509,9 +592,12 @@ public final class WebUtility {
 	}
 
 	/**
-	 * 
-	 * @param request
-	 * @param newCookies
+	 * Append expired-clone cookies to {@code newCookies} for every cookie on the
+	 * incoming request whose name looks like a session cookie (e.g. JSESSIONID).
+	 * Used during logout / session invalidation so the client clears them.
+	 *
+	 * @param request    the incoming request whose cookies should be inspected
+	 * @param newCookies the list to append the expiring cookie clones to
 	 */
 	public static void expireSessionCookies(HttpServletRequest request, List<NewCookie> newCookies) {
 		if (request == null || newCookies == null) {
@@ -555,8 +641,13 @@ public final class WebUtility {
 	}
 
 	/**
-	 * 
-	 * @param urlString
+	 * Validate that {@code urlString} points to a top-private domain present in the
+	 * configured whitelist ({@link Constants#WHITE_LIST_DOMAINS}). If the whitelist
+	 * is empty/unset all URLs are accepted.
+	 *
+	 * @param urlString the URL to check
+	 * @throws IllegalArgumentException if the URL is malformed or its domain is not
+	 *                                  whitelisted
 	 */
 	public static void checkIfValidDomain(String urlString) {
 		String whiteListDomains = Utility.getDIHelperProperty(Constants.WHITE_LIST_DOMAINS);
@@ -565,24 +656,26 @@ public final class WebUtility {
 		}
 
 		List<String> domainList = Arrays.stream(whiteListDomains.split(",")).collect(Collectors.toList());
-		URL url = null;
 		try {
-			url = new URL(urlString);
+			URL url = URI.create(urlString).toURL();
 			final String host = url.getHost();
 			final InternetDomainName domainName = InternetDomainName.from(host).topPrivateDomain();
 			if (!domainList.contains(domainName.toString())) {
 				throw new IllegalArgumentException("You are not allowed to make requests to the URL: " + urlString);
 			}
 		} catch (MalformedURLException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid URL '{}' provided to domain whitelist check", urlString, e);
 			throw new IllegalArgumentException("Invalid URL: " + urlString + ". Detailed message: " + e.getMessage());
 		}
 	}
 
 	/**
-	 * 
-	 * @param request
-	 * @return
+	 * Pick the SPA fragment to redirect to for unauthenticated requests. Most
+	 * requests get {@code #/login}, but requests coming from the public home page
+	 * get a different fragment so the user lands back on the public site.
+	 *
+	 * @param request the incoming request (uses the {@code referer} header)
+	 * @return the SPA fragment path to redirect to (e.g. {@code "#/login"})
 	 */
 	public static String determineLoginExtension(HttpServletRequest request) {
 		String referer = request.getHeader("referer");
@@ -595,14 +688,36 @@ public final class WebUtility {
 	}
 
 	/**
-	 * 
-	 * @param servletRequest
+	 * Resolve the client IP for the request, preferring the X-FORWARDED-FOR header
+	 * when present (for requests that came through a proxy / load balancer) and
+	 * falling back to the direct remote address.
+	 */
+	public static String getClientIp(HttpServletRequest request) {
+		String remoteAddr = "";
+		if (request != null) {
+			remoteAddr = inputSanitizer(request.getHeader("X-FORWARDED-FOR"));
+			if (remoteAddr == null || "".equals(remoteAddr)) {
+				remoteAddr = request.getRemoteAddr();
+			}
+		}
+
+		return inputSanitizer(remoteAddr);
+	}
+
+	/**
+	 * Populate the SLF4J/Log4j {@link ThreadContext} (MDC) with per-request fields
+	 * used by the structured logger: a fresh request id, client ip,
+	 * service/method/endpoint, host, and login event fields. Also stores local
+	 * hostname/port/protocol on {@link ThreadStore}. Should be called at the start
+	 * of every servlet/filter that wants request-scoped log fields.
+	 *
+	 * @param servletRequest the incoming request to derive context from
 	 */
 	public static void loggingContext(ServletRequest servletRequest) {
 		ThreadContext.put(SemossLogUtils.REQUEST_ID, GUID.v7().toUUID().toString());
 
 		HttpServletRequest request = (HttpServletRequest) servletRequest;
-		ThreadContext.put(SemossLogUtils.CLIENT_IP, ResourceUtility.getClientIp(request));
+		ThreadContext.put(SemossLogUtils.CLIENT_IP, getClientIp(request));
 		ThreadContext.put(SemossLogUtils.SERVICE_NAME, request.getContextPath());
 		ThreadContext.put(SemossLogUtils.METHOD, request.getMethod());
 		ThreadContext.put(SemossLogUtils.ENDPOINT, request.getRequestURI());
@@ -616,8 +731,11 @@ public final class WebUtility {
 	}
 
 	/**
-	 * 
-	 * @param servletRequest
+	 * Add login-event fields (user id, login type) to the logging
+	 * {@link ThreadContext} based on the user attached to the given session. A
+	 * no-op if the session is null or has no logged-in user.
+	 *
+	 * @param session the current HTTP session (may be null)
 	 */
 	public static void loggingContextLoginEvent(HttpSession session) {
 		if (session != null) {
@@ -683,10 +801,11 @@ public final class WebUtility {
 	}
 
 	/**
-	 * Get the protocol (http or https)
-	 * 
-	 * @param request
-	 * @return protocol string
+	 * Get the protocol the client used to reach us ({@code http} or {@code https}).
+	 * Honors {@code X-Forwarded-Proto} for requests behind a proxy / load balancer.
+	 *
+	 * @param request the incoming request
+	 * @return the protocol string seen by the client
 	 */
 	public static String getProtocol(HttpServletRequest request) {
 		// Check if behind a proxy/load balancer
@@ -705,10 +824,12 @@ public final class WebUtility {
 	}
 
 	/**
-	 * Get the hostname
-	 * 
-	 * @param request
-	 * @return hostname string
+	 * Get the hostname the client used to reach us. Honors {@code X-Forwarded-Host}
+	 * (and the {@code Host} header) so we report the external hostname rather than
+	 * the internal container hostname.
+	 *
+	 * @param request the incoming request
+	 * @return the hostname string seen by the client
 	 */
 	public static String getHostname(HttpServletRequest request) {
 		// Check X-Forwarded-Host header (for proxied requests)
@@ -730,10 +851,12 @@ public final class WebUtility {
 	}
 
 	/**
-	 * Get the port number
-	 * 
-	 * @param request
-	 * @return port number
+	 * Get the port the client used to reach us. Honors {@code X-Forwarded-Port} for
+	 * requests behind a proxy / load balancer, falling back to the request's server
+	 * port.
+	 *
+	 * @param request the incoming request
+	 * @return the port number seen by the client
 	 */
 	public static int getPort(HttpServletRequest request) {
 		// Check X-Forwarded-Port header (for proxied requests)
@@ -768,10 +891,12 @@ public final class WebUtility {
 	}
 
 	/**
-	 * Get the local protocol (http or https) on the container
-	 * 
-	 * @param request
-	 * @return protocol string
+	 * Get the protocol the request actually arrived on at the container (ignoring
+	 * any {@code X-Forwarded-Proto} header). Useful when we need to know how the
+	 * request landed locally rather than what the client saw.
+	 *
+	 * @param request the incoming request
+	 * @return the local protocol ({@code http} or {@code https})
 	 */
 	public static String getLocalProtocol(HttpServletRequest request) {
 		// Use request.isSecure() which reflects the actual connection to this container
@@ -784,10 +909,12 @@ public final class WebUtility {
 	}
 
 	/**
-	 * Get the local hostname of the container
-	 * 
-	 * @param request
-	 * @return hostname string
+	 * Get the hostname the request actually arrived on at the container (ignoring
+	 * any {@code X-Forwarded-Host} header). Useful when we need the container-local
+	 * hostname rather than the externally-visible one.
+	 *
+	 * @param request the incoming request
+	 * @return the local hostname string
 	 */
 	public static String getLocalHostname(HttpServletRequest request) {
 		// request.getServerName() returns the actual server name that received the
@@ -802,10 +929,12 @@ public final class WebUtility {
 	}
 
 	/**
-	 * Get the local port number of the container
-	 * 
-	 * @param request
-	 * @return port number
+	 * Get the port the request actually arrived on at the container (ignoring any
+	 * {@code X-Forwarded-Port} header). Useful when we need the container-local
+	 * port rather than the externally-visible one.
+	 *
+	 * @param request the incoming request
+	 * @return the local port number
 	 */
 	public static int getLocalPort(HttpServletRequest request) {
 		// request.getLocalPort() returns the actual port this container is listening
