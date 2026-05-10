@@ -49,7 +49,6 @@ import org.apache.logging.log4j.Logger;
 import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
-import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
 import prerna.util.Utility;
 import prerna.web.conf.util.CACTrackingUtil;
@@ -232,7 +231,7 @@ public class SSOFilter implements Filter {
 				// grab the ip address
 				userLogger.addToQueue(new String[] { token.getId(), token.getName(),
 						LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
-						ResourceUtility.getClientIp((HttpServletRequest) request) });
+						WebUtility.getClientIp((HttpServletRequest) request) });
 			}
 		}
 

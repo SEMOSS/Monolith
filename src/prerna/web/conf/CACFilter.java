@@ -70,12 +70,12 @@ import prerna.engine.api.IRDBMSEngine;
 import prerna.engine.api.IRawSelectWrapper;
 import prerna.forms.FormBuilder;
 import prerna.rdf.engine.wrappers.WrapperManager;
-import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.semoss.web.services.local.UserResource;
 import prerna.util.Constants;
 import prerna.util.Utility;
 import prerna.web.conf.util.CACTrackingUtil;
 import prerna.web.conf.util.UserFileLogUtil;
+import prerna.web.services.util.WebUtility;
 
 public class CACFilter implements Filter {
 
@@ -249,7 +249,7 @@ public class CACFilter implements Filter {
 						// grab the ip address
 						userLogger.addToQueue(new String[] { cacId, name,
 								LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
-								ResourceUtility.getClientIp((HttpServletRequest) arg0) });
+								WebUtility.getClientIp((HttpServletRequest) arg0) });
 					}
 				}
 			}
