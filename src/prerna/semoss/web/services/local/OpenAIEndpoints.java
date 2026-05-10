@@ -609,6 +609,9 @@ public class OpenAIEndpoints {
 		if (roomId == null) {
 			roomId = (String) request.getAttribute("roomId");
 		}
+		if (roomId == null) {
+			roomId = resolveRoomIdFromCodexHeaders(request);
+		}
 		room = RoomUtils.createRoomIfNotExists(roomId, insight, engine, null);
 
 		ThreadStore.setInsightId(insight.getInsightId());
@@ -637,6 +640,19 @@ public class OpenAIEndpoints {
 		} else {
 			return handleStreamingResponse(engine, insight, room, dataMap, SESSION_ID, JOB_ID, engineId);
 		}
+	}
+
+	private String resolveRoomIdFromCodexHeaders(HttpServletRequest request) {
+		String threadId = getSanitizedHeader(request, "thread_id");
+		if (threadId != null) {
+			return threadId;
+		}
+
+		return getSanitizedHeader(request, "session_id");
+	}
+
+	private String getSanitizedHeader(HttpServletRequest request, String headerName) {
+		return WebUtility.inputSanitizer(request.getHeader(headerName));
 	}
 
 	private Response handleStreamingResponse(IModelEngine engine, Insight finalInsight, Room finalRoom,
