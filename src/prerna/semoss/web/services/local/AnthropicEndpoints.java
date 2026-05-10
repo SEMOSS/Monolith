@@ -204,10 +204,16 @@ public class AnthropicEndpoints {
 		// ROOM & INSIGHT LOGIC START ---------
 		String insightId = WebUtility.inputSanitizer((String) dataMap.remove("insight_id"));
 		String roomId = WebUtility.inputSanitizer((String) dataMap.remove("room_id"));
-		if (roomId == null) {
+		if (roomId == null || roomId.isEmpty()) {
 			// Fallback: roomId may be set as a request attribute by CodeAssistantFilter
 			// when it parses the "room-{roomId}" segment from the x-api-key header.
 			roomId = (String) request.getAttribute("roomId");
+		}
+		if (roomId == null || roomId.isEmpty()) {
+			roomId = WebUtility.inputSanitizer(request.getHeader("x-semoss-room-id"));
+		}
+		if (roomId == null || roomId.isEmpty()) {
+			roomId = WebUtility.inputSanitizer(claudeCodeSessionId);
 		}
 
 		Object systemPromptBlock = dataMap.remove("system");
