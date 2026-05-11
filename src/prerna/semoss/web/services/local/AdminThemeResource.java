@@ -27,7 +27,6 @@
  *******************************************************************************/
 package prerna.semoss.web.services.local;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -50,21 +49,14 @@ import prerna.web.services.util.WebUtility;
 
 @Path("/themes")
 @PermitAll
-public class ThemeResource {
+public class AdminThemeResource {
 
-	/**
-	 * Get the user
-	 * @param request
-	 * @return
-	 * @throws IllegalAccessException 
-	 * @throws IOException
-	 */
 	private static void checkInit() throws IllegalAccessException {
-		if(!AbstractThemeUtils.isInitalized()) {
+		if (!AbstractThemeUtils.isInitalized()) {
 			throw new IllegalAccessException("Theming database was not found to perform these operations");
 		}
 	}
-	
+
 	@GET
 	@Path("/getActiveAdminTheme")
 	@Produces("application/json")
@@ -76,16 +68,15 @@ public class ThemeResource {
 			errorMap.put("error", e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
-		
+
 		Object activeTheme = AdminThemeUtils.getActiveAdminTheme();
 		return WebUtility.getResponse(activeTheme, 200);
 	}
-	
+
 	@GET
 	@Path("/getAdminThemes")
 	@Produces("application/json")
-	public Response getAdminThemes(@Context HttpServletRequest request,
-			@QueryParam("limit") Integer limit,
+	public Response getAdminThemes(@Context HttpServletRequest request, @QueryParam("limit") Integer limit,
 			@QueryParam("offset") Integer offset) {
 		try {
 			checkInit();
@@ -102,9 +93,9 @@ public class ThemeResource {
 			errorMap.put("error", e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		AdminThemeUtils instance = AdminThemeUtils.getInstance(user);
-		if(instance == null) {
+		if (instance == null) {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("error", "User is not an admin");
 			return WebUtility.getResponse(errorMap, 401);
@@ -112,7 +103,7 @@ public class ThemeResource {
 		List<Map<String, Object>> themes = instance.getAdminThemes(limit, offset);
 		return WebUtility.getResponse(themes, 200);
 	}
-	
+
 	@POST
 	@Path("/createAdminTheme")
 	@Produces("application/json")
@@ -132,14 +123,14 @@ public class ThemeResource {
 			errorMap.put("error", e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		AdminThemeUtils instance = AdminThemeUtils.getInstance(user);
-		if(instance == null) {
+		if (instance == null) {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("error", "User is not an admin");
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		String themeName = WebUtility.inputSanitizer(form.getFirst("name"));
 		String themeMap = WebUtility.inputSQLSanitizer(form.getFirst("json"));
 		boolean isActive = Boolean.parseBoolean(form.getFirst("isActive"));
@@ -150,7 +141,7 @@ public class ThemeResource {
 			return WebUtility.getResponse(false, 400);
 		}
 	}
-	
+
 	@POST
 	@Path("/editAdminTheme")
 	@Produces("application/json")
@@ -170,14 +161,14 @@ public class ThemeResource {
 			errorMap.put("error", e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		AdminThemeUtils instance = AdminThemeUtils.getInstance(user);
-		if(instance == null) {
+		if (instance == null) {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("error", "User is not an admin");
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		String themeId = WebUtility.inputSanitizer(form.getFirst("id"));
 		String themeName = WebUtility.inputSanitizer(form.getFirst("name"));
 		String themeMap = WebUtility.inputSQLSanitizer(form.getFirst("json"));
@@ -189,7 +180,7 @@ public class ThemeResource {
 			return WebUtility.getResponse(success, 400);
 		}
 	}
-	
+
 	@POST
 	@Path("/deleteAdminTheme")
 	@Produces("application/json")
@@ -209,14 +200,14 @@ public class ThemeResource {
 			errorMap.put("error", e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		AdminThemeUtils instance = AdminThemeUtils.getInstance(user);
-		if(instance == null) {
+		if (instance == null) {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("error", "User is not an admin");
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		String themeId = WebUtility.inputSanitizer(form.getFirst("id"));
 		boolean success = instance.deleteAdminTheme(themeId);
 		if (success) {
@@ -225,7 +216,7 @@ public class ThemeResource {
 			return WebUtility.getResponse(success, 400);
 		}
 	}
-	
+
 	@POST
 	@Path("/setActiveAdminTheme")
 	@Produces("application/json")
@@ -245,14 +236,14 @@ public class ThemeResource {
 			errorMap.put("error", e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		AdminThemeUtils instance = AdminThemeUtils.getInstance(user);
-		if(instance == null) {
+		if (instance == null) {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("error", "User is not an admin");
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		String themeId = WebUtility.inputSanitizer(form.getFirst("id"));
 		boolean success = instance.setActiveTheme(themeId);
 		if (success) {
@@ -261,7 +252,7 @@ public class ThemeResource {
 			return WebUtility.getResponse(success, 400);
 		}
 	}
-	
+
 	@POST
 	@Path("/setAllAdminThemesInactive")
 	@Produces("application/json")
@@ -281,14 +272,14 @@ public class ThemeResource {
 			errorMap.put("error", e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		AdminThemeUtils instance = AdminThemeUtils.getInstance(user);
-		if(instance == null) {
+		if (instance == null) {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("error", "User is not an admin");
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		
+
 		boolean success = instance.setAllThemesInactive();
 		if (success) {
 			return WebUtility.getResponse(success, 200);
@@ -296,6 +287,5 @@ public class ThemeResource {
 			return WebUtility.getResponse(success, 400);
 		}
 	}
-
 
 }

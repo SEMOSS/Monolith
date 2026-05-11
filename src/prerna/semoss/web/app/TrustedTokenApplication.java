@@ -37,15 +37,15 @@ import prerna.semoss.web.services.config.TrustedTokenService;
 
 @ApplicationPath("/token")
 public class TrustedTokenApplication extends Application {
-	
-   private Set<Object> singletons = new HashSet<Object>();
 
-   public TrustedTokenApplication() {
-      singletons.add(new TrustedTokenService());
-   }
+	private Set<Object> singletons = new HashSet<Object>();
 
-   @Override
-   public Set<Object> getSingletons() {
-      return singletons;
-   }
+	public TrustedTokenApplication() {
+		singletons.add(new TrustedTokenService());
+	}
+
+	@Override
+	public Set<Object> getSingletons() {
+		return singletons;
+	}
 }
