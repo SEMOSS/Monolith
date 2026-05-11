@@ -377,7 +377,7 @@ public class UserAuthorizationResource {
 		String email = null;
 		String type = null;
 		String resetEmailUrl = null;
-		String sender = null;
+		String subject = null;
 
 		String contentType = request.getContentType();
 		if (contentType != null && contentType.startsWith("application/json")) {
@@ -393,7 +393,7 @@ public class UserAuthorizationResource {
 				email = root.has("email") ? root.getString("email") : null;
 				type = root.has("type") ? root.getString("type") : null;
 				resetEmailUrl = root.has("url") ? root.getString("url") : null;
-				sender = root.has("sender") ? root.getString("sender") : null;
+				subject = root.has("subject") ? root.getString("subject") : null;
 			} catch (IOException | org.json.JSONException e) {
 				classLogger.error("Failed to setup reset password.", e);
 				Map<String, String> errorMap = new HashMap<String, String>();
@@ -404,13 +404,13 @@ public class UserAuthorizationResource {
 			email = request.getParameter("email");
 			type = request.getParameter("type");
 			resetEmailUrl = request.getParameter("url");
-			sender = request.getParameter("sender");
+			subject = request.getParameter("subject");
 		}
 
 		email = WebUtility.inputSQLSanitizer(email);
 		type = WebUtility.inputSQLSanitizer(type);
 		resetEmailUrl = WebUtility.inputSQLSanitizer(resetEmailUrl);
-		sender = WebUtility.inputSQLSanitizer(sender);
+		subject = WebUtility.inputSQLSanitizer(subject);
 
 		String uniqueToken = null;
 		try {
@@ -431,7 +431,7 @@ public class UserAuthorizationResource {
 			resetEmailUrl += "?token=" + uniqueToken;
 		}
 
-		if (!UserRegistrationEmailService.getInstance().sendPasswordResetRequestEmail(email, resetEmailUrl, sender)) {
+		if (!UserRegistrationEmailService.getInstance().sendPasswordResetRequestEmail(email, resetEmailUrl, subject)) {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Error occurred sending email to " + email);
 			SecurityPasswordResetUtils.deleteToken(uniqueToken);

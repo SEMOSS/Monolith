@@ -45,94 +45,103 @@ import org.apache.logging.log4j.Logger;
 
 import prerna.web.services.util.WebUtility;
 
-@Path("/storage-{storageId}")
+@Path("/vector-{vectorId}")
 @PermitAll
-public class StorageEngineResource {
+public class VectorEngineResource {
 
-	private static final Logger classLogger = LogManager.getLogger(StorageEngineResource.class);
+	private static final Logger classLogger = LogManager.getLogger(VectorEngineResource.class);
 
 	/**
-	 * ListStoragePath(storage=[storageId], storagePath=[...])
+	 * VectorDatabaseQuery(engine=[vectorId], command=[...], limit=[...],
+	 * paramValues=[{...}])
 	 */
 	@POST
-	@Path("/list")
+	@Path("/query")
 	@Consumes({ "application/x-www-form-urlencoded", "application/json" })
 	@Produces("application/json;charset=utf-8")
-	public Response list(@Context HttpServletRequest request, @PathParam("storageId") String storageId) {
-		storageId = WebUtility.inputSanitizer(storageId);
+	public Response query(@Context HttpServletRequest request, @PathParam("vectorId") String vectorId) {
+		vectorId = WebUtility.inputSanitizer(vectorId);
 
 		Map<String, Object> body;
 		try {
 			body = ResourceUtility.parseRequestBody(request);
 		} catch (IOException e) {
-			classLogger.error("Failed to read request body for /list on storage engine '{}'", storageId, e);
+			classLogger.error("Failed to read request body for /query on vector engine '{}'", vectorId, e);
 			return EngineRouteResource.error("Invalid request body: " + e.getMessage(), 400);
 		}
 
-		Object storagePath = body.get("storagePath");
-		if (storagePath == null || storagePath.toString().trim().isEmpty()) {
-			return EngineRouteResource.error("Must pass in 'storagePath' to list", 400);
+		Object command = body.get("command");
+		if (command == null || command.toString().trim().isEmpty()) {
+			return EngineRouteResource.error("Must pass in 'command' containing the search statement", 400);
 		}
 
-		String pixel = "ListStoragePath(storage=" + EngineRouteResource.GSON.toJson(storageId) + ", storagePath="
-				+ EngineRouteResource.GSON.toJson(storagePath) + ")";
-		return ResourceUtility.runPixel(request, pixel);
+		StringBuilder pixel = new StringBuilder("VectorDatabaseQuery(engine=");
+		pixel.append(EngineRouteResource.GSON.toJson(vectorId));
+		pixel.append(", command=").append(EngineRouteResource.GSON.toJson(command));
+		EngineRouteResource.appendIfPresent(pixel, body, "limit");
+		EngineRouteResource.appendIfPresent(pixel, body, "paramValues");
+		pixel.append(")");
+
+		return ResourceUtility.runPixel(request, pixel.toString());
 	}
 
 	/**
-	 * ListStoragePathDetails(storage=[storageId], storagePath=[...])
+	 * ListDocumentsInVectorDatabase(engine=[vectorId], paramValues=[{...}])
 	 */
 	@POST
-	@Path("/listDetails")
+	@Path("/listDocuments")
 	@Consumes({ "application/x-www-form-urlencoded", "application/json" })
 	@Produces("application/json;charset=utf-8")
-	public Response listDetails(@Context HttpServletRequest request, @PathParam("storageId") String storageId) {
-		storageId = WebUtility.inputSanitizer(storageId);
+	public Response listDocuments(@Context HttpServletRequest request, @PathParam("vectorId") String vectorId) {
+		vectorId = WebUtility.inputSanitizer(vectorId);
 
 		Map<String, Object> body;
 		try {
 			body = ResourceUtility.parseRequestBody(request);
 		} catch (IOException e) {
-			classLogger.error("Failed to read request body for /listDetails on storage engine '{}'", storageId, e);
+			classLogger.error("Failed to read request body for /listDocuments on vector engine '{}'", vectorId, e);
 			return EngineRouteResource.error("Invalid request body: " + e.getMessage(), 400);
 		}
 
-		Object storagePath = body.get("storagePath");
-		if (storagePath == null || storagePath.toString().trim().isEmpty()) {
-			return EngineRouteResource.error("Must pass in 'storagePath' to list", 400);
-		}
+		StringBuilder pixel = new StringBuilder("ListDocumentsInVectorDatabase(engine=");
+		pixel.append(EngineRouteResource.GSON.toJson(vectorId));
+		EngineRouteResource.appendIfPresent(pixel, body, "paramValues");
+		pixel.append(")");
 
-		String pixel = "ListStoragePathDetails(storage=" + EngineRouteResource.GSON.toJson(storageId) + ", storagePath="
-				+ EngineRouteResource.GSON.toJson(storagePath) + ")";
-		return ResourceUtility.runPixel(request, pixel);
+		return ResourceUtility.runPixel(request, pixel.toString());
 	}
 
 	/**
-	 * DeleteFromStorage(storage=[storageId], storagePath=[...])
+	 * RemoveDocumentFromVectorDatabase(engine=[vectorId], fileNames=[...],
+	 * paramValues=[{...}])
 	 */
 	@POST
-	@Path("/delete")
+	@Path("/removeDocument")
 	@Consumes({ "application/x-www-form-urlencoded", "application/json" })
 	@Produces("application/json;charset=utf-8")
-	public Response delete(@Context HttpServletRequest request, @PathParam("storageId") String storageId) {
-		storageId = WebUtility.inputSanitizer(storageId);
+	public Response removeDocument(@Context HttpServletRequest request, @PathParam("vectorId") String vectorId) {
+		vectorId = WebUtility.inputSanitizer(vectorId);
 
 		Map<String, Object> body;
 		try {
 			body = ResourceUtility.parseRequestBody(request);
 		} catch (IOException e) {
-			classLogger.error("Failed to read request body for /delete on storage engine '{}'", storageId, e);
+			classLogger.error("Failed to read request body for /removeDocument on vector engine '{}'", vectorId, e);
 			return EngineRouteResource.error("Invalid request body: " + e.getMessage(), 400);
 		}
 
-		Object storagePath = body.get("storagePath");
-		if (storagePath == null || storagePath.toString().trim().isEmpty()) {
-			return EngineRouteResource.error("Must pass in 'storagePath' to delete", 400);
+		Object fileNames = body.get("fileNames");
+		if (fileNames == null) {
+			return EngineRouteResource.error("Must pass in 'fileNames' containing the document(s) to remove", 400);
 		}
 
-		String pixel = "DeleteFromStorage(storage=" + EngineRouteResource.GSON.toJson(storageId) + ", storagePath="
-				+ EngineRouteResource.GSON.toJson(storagePath) + ")";
-		return ResourceUtility.runPixel(request, pixel);
+		StringBuilder pixel = new StringBuilder("RemoveDocumentFromVectorDatabase(engine=");
+		pixel.append(EngineRouteResource.GSON.toJson(vectorId));
+		pixel.append(", fileNames=").append(EngineRouteResource.GSON.toJson(fileNames));
+		EngineRouteResource.appendIfPresent(pixel, body, "paramValues");
+		pixel.append(")");
+
+		return ResourceUtility.runPixel(request, pixel.toString());
 	}
 
 }
