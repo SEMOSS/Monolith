@@ -1,3 +1,30 @@
+/*******************************************************************************
+ * Copyright 2015 Defense Health Agency (DHA)
+ *
+ * If your use of this software does not include any GPLv2 components:
+ * 	Licensed under the Apache License, Version 2.0 (the "License");
+ * 	you may not use this file except in compliance with the License.
+ * 	You may obtain a copy of the License at
+ *
+ * 	  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * 	Unless required by applicable law or agreed to in writing, software
+ * 	distributed under the License is distributed on an "AS IS" BASIS,
+ * 	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * 	See the License for the specific language governing permissions and
+ * 	limitations under the License.
+ * ----------------------------------------------------------------------------
+ * If your use of this software includes any GPLv2 components:
+ * 	This program is free software; you can redistribute it and/or
+ * 	modify it under the terms of the GNU General Public License
+ * 	as published by the Free Software Foundation; either version 2
+ * 	of the License, or (at your option) any later version.
+ *
+ * 	This program is distributed in the hope that it will be useful,
+ * 	but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * 	GNU General Public License for more details.
+ *******************************************************************************/
 package prerna.semoss.web.services.local;
 
 import java.util.HashMap;
@@ -18,8 +45,8 @@ public class SemossContextExtractor {
         "\\[\\[SEMOSS_CONTEXT:(.*?)\\]\\]\\s*"
     );
 
-    private static final Pattern MODEL_PATTERN = Pattern.compile(
-        "\\[\\[SEMOSS_MODEL:(.*?)\\]\\]\\s*"
+    private static final Pattern PARENT_ROOM_PATTERN = Pattern.compile(
+        "\\[\\[PARENT_ROOM_ID=(.*?)\\]\\]\\s*"
     );
 
     private static final Pattern KV_PATTERN = Pattern.compile(
@@ -142,16 +169,16 @@ public class SemossContextExtractor {
     }
 
     /**
-     * Extract the model ID from a [[SEMOSS_MODEL:...]] tag in the system prompt.
+     * Extract the parent room ID from a [[PARENT_ROOM_ID=...]] tag in the system prompt.
      *
      * @param systemPrompt the full system prompt string
-     * @return the model ID, or null if no tag is present
+     * @return the parent room ID, or null if no tag is present
      */
-    public static String extractModelId(String systemPrompt) {
+    public static String extractParentRoomId(String systemPrompt) {
         if (systemPrompt == null || systemPrompt.isEmpty()) {
             return null;
         }
-        Matcher matcher = MODEL_PATTERN.matcher(systemPrompt);
+        Matcher matcher = PARENT_ROOM_PATTERN.matcher(systemPrompt);
         if (matcher.find()) {
             return matcher.group(1).trim();
         }
@@ -159,12 +186,12 @@ public class SemossContextExtractor {
     }
 
     /**
-     * Strip the [[SEMOSS_MODEL:...]] tag from a string.
+     * Strip the [[PARENT_ROOM_ID=...]] tag from a string.
      */
-    public static String stripModelTag(String text) {
+    public static String stripParentRoomTag(String text) {
         if (text == null || text.isEmpty()) {
             return text;
         }
-        return MODEL_PATTERN.matcher(text).replaceAll("").trim();
+        return PARENT_ROOM_PATTERN.matcher(text).replaceAll("").trim();
     }
 }

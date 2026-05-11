@@ -65,6 +65,48 @@ public final class OpenAIResponsesHelper {
 		writer.flush();
 	}
 
+	/**
+	 * Attaches a Responses-API usage object to the inner {@code response} map
+	 * of a {@code response.completed} (or similar) event. No-op if all token
+	 * counts are null. Use this so streaming clients see real
+	 * {@code response.usage.input_tokens} / {@code output_tokens} instead of
+	 * the field being absent.
+	 */
+	@SuppressWarnings("unchecked")
+	public static void attachUsage(Map<String, Object> event, Integer inputTokens, Integer outputTokens,
+			Integer cachedTokens, Integer reasoningTokens) {
+		if (inputTokens == null && outputTokens == null && cachedTokens == null && reasoningTokens == null) {
+			return;
+		}
+		Object respObj = event.get("response");
+		if (!(respObj instanceof Map)) {
+			return;
+		}
+		Map<String, Object> resp = (Map<String, Object>) respObj;
+
+		Map<String, Object> usage = new HashMap<>();
+		if (inputTokens != null) {
+			usage.put("input_tokens", inputTokens);
+		}
+		if (outputTokens != null) {
+			usage.put("output_tokens", outputTokens);
+		}
+		if (inputTokens != null && outputTokens != null) {
+			usage.put("total_tokens", inputTokens + outputTokens);
+		}
+		if (cachedTokens != null) {
+			Map<String, Object> inputDetails = new HashMap<>();
+			inputDetails.put("cached_tokens", cachedTokens);
+			usage.put("input_tokens_details", inputDetails);
+		}
+		if (reasoningTokens != null) {
+			Map<String, Object> outputDetails = new HashMap<>();
+			outputDetails.put("reasoning_tokens", reasoningTokens);
+			usage.put("output_tokens_details", outputDetails);
+		}
+		resp.put("usage", usage);
+	}
+
 	// --- 1. Top Level Response Events ---
 
 	public static Map<String, Object> createBaseEvent(String type, int seq, String respId, String model, long ts) {

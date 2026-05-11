@@ -31,15 +31,16 @@ import java.io.IOException;
 import java.io.Writer;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 import prerna.engine.impl.model.Room;
-import prerna.engine.impl.model.message.MessageUtils;
+import prerna.engine.impl.model.RoomUtils;
 import prerna.engine.impl.model.responses.AskModelEngineResponse;
 import prerna.engine.impl.model.responses.AskToolModelEngineResponse;
 import prerna.engine.impl.model.responses.AskToolModelEngineResponse.ToolResponse;
@@ -58,16 +59,20 @@ import prerna.om.Insight;
  */
 public final class AnthropicMessagesHelper {
 
-	private static final ObjectMapper mapper = new ObjectMapper();
+	private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
 
 	/**
 	 * Writes an SSE event in Anthropic format. Format: event: {eventType}\ndata:
 	 * {json}\n\n
+	 *
+	 * Uses Gson instead of Jackson's ObjectMapper to avoid
+	 * NoSuchMethodError from Jackson core version mismatches
+	 * (e.g. BufferRecycler.releaseToPool added in 2.16+).
 	 */
 	public static void writeSSEEvent(String eventType, Map<String, Object> data, Writer writer)
-			throws JsonProcessingException, IOException {
+			throws IOException {
 		writer.write("event: " + eventType + "\n");
-		writer.write("data: " + mapper.writeValueAsString(data) + "\n\n");
+		writer.write("data: " + GSON.toJson(data) + "\n\n");
 		writer.flush();
 	}
 
@@ -78,7 +83,7 @@ public final class AnthropicMessagesHelper {
 	 * Contains a Message object with empty content array.
 	 */
 	public static void writeMessageStart(String messageId, String engineId, int inputTokens, Writer writer)
-			throws JsonProcessingException, IOException {
+			throws IOException {
 		Map<String, Object> messageStart = new HashMap<>();
 		messageStart.put("type", "message_start");
 
@@ -102,9 +107,14 @@ public final class AnthropicMessagesHelper {
 
 	/**
 	 * Writes the message_delta event with final stop reason and usage.
+	 *
+	 * Anthropic clients overlay these usage fields onto the running Message,
+	 * so passing input/cache token counts here is how we surface the values
+	 * the early {@code message_start} (written before Python had them) could
+	 * not include.
 	 */
-	public static void writeMessageDelta(String stopReason, Integer outputTokens, Writer writer)
-			throws JsonProcessingException, IOException {
+	public static void writeMessageDelta(String stopReason, Integer inputTokens, Integer outputTokens,
+			Integer cacheReadInputTokens, Integer cacheCreationInputTokens, Writer writer) throws IOException {
 		Map<String, Object> messageDelta = new HashMap<>();
 		messageDelta.put("type", "message_delta");
 
@@ -114,6 +124,15 @@ public final class AnthropicMessagesHelper {
 		messageDelta.put("delta", delta);
 
 		Map<String, Object> usage = new HashMap<>();
+		if (inputTokens != null) {
+			usage.put("input_tokens", inputTokens);
+		}
+		if (cacheReadInputTokens != null) {
+			usage.put("cache_read_input_tokens", cacheReadInputTokens);
+		}
+		if (cacheCreationInputTokens != null) {
+			usage.put("cache_creation_input_tokens", cacheCreationInputTokens);
+		}
 		usage.put("output_tokens", outputTokens != null ? outputTokens : 0);
 		messageDelta.put("usage", usage);
 
@@ -121,12 +140,32 @@ public final class AnthropicMessagesHelper {
 	}
 
 	/**
+	 * Backwards-compatible overload for callers that only know the stop reason
+	 * and output tokens. Delegates to the full 6-arg form.
+	 */
+	public static void writeMessageDelta(String stopReason, Integer outputTokens, Writer writer)
+			throws IOException {
+		writeMessageDelta(stopReason, null, outputTokens, null, null, writer);
+	}
+
+	/**
 	 * Writes the final message_stop event.
 	 */
-	public static void writeMessageStop(Writer writer) throws JsonProcessingException, IOException {
+	public static void writeMessageStop(Writer writer) throws IOException {
 		Map<String, Object> messageStop = new HashMap<>();
 		messageStop.put("type", "message_stop");
 		writeSSEEvent("message_stop", messageStop, writer);
+	}
+
+	/**
+	 * Writes a ping event. Used as a keep-alive that counts as a proper
+	 * SSE event (unlike SSE comments), ensuring clients with event-based
+	 * timeouts do not disconnect prematurely.
+	 */
+	public static void writePing(Writer writer) throws IOException {
+		Map<String, Object> ping = new HashMap<>();
+		ping.put("type", "ping");
+		writeSSEEvent("ping", ping, writer);
 	}
 
 	// ==================== Content Block Events ====================
@@ -135,7 +174,7 @@ public final class AnthropicMessagesHelper {
 	 * Writes content_block_start for a text content block.
 	 */
 	public static void writeTextContentBlockStart(int index, Writer writer)
-			throws JsonProcessingException, IOException {
+			throws IOException {
 		Map<String, Object> event = new HashMap<>();
 		event.put("type", "content_block_start");
 		event.put("index", index);
@@ -152,7 +191,7 @@ public final class AnthropicMessagesHelper {
 	 * Writes content_block_start for a tool_use content block.
 	 */
 	public static void writeToolUseContentBlockStart(int index, String toolId, String toolName, Writer writer)
-			throws JsonProcessingException, IOException {
+			throws IOException {
 		Map<String, Object> event = new HashMap<>();
 		event.put("type", "content_block_start");
 		event.put("index", index);
@@ -171,7 +210,7 @@ public final class AnthropicMessagesHelper {
 	 * Writes content_block_start for a thinking content block.
 	 */
 	public static void writeThinkingContentBlockStart(int index, Writer writer)
-			throws JsonProcessingException, IOException {
+			throws IOException {
 		Map<String, Object> event = new HashMap<>();
 		event.put("type", "content_block_start");
 		event.put("index", index);
@@ -187,7 +226,7 @@ public final class AnthropicMessagesHelper {
 	/**
 	 * Writes content_block_stop event.
 	 */
-	public static void writeContentBlockStop(int index, Writer writer) throws JsonProcessingException, IOException {
+	public static void writeContentBlockStop(int index, Writer writer) throws IOException {
 		Map<String, Object> event = new HashMap<>();
 		event.put("type", "content_block_stop");
 		event.put("index", index);
@@ -200,7 +239,7 @@ public final class AnthropicMessagesHelper {
 	 * Writes a text_delta content block delta.
 	 */
 	public static void writeTextDelta(int index, String text, Writer writer)
-			throws JsonProcessingException, IOException {
+			throws IOException {
 		Map<String, Object> event = new HashMap<>();
 		event.put("type", "content_block_delta");
 		event.put("index", index);
@@ -217,7 +256,7 @@ public final class AnthropicMessagesHelper {
 	 * Writes an input_json_delta for tool use arguments.
 	 */
 	public static void writeInputJsonDelta(int index, String partialJson, Writer writer)
-			throws JsonProcessingException, IOException {
+			throws IOException {
 		Map<String, Object> event = new HashMap<>();
 		event.put("type", "content_block_delta");
 		event.put("index", index);
@@ -234,7 +273,7 @@ public final class AnthropicMessagesHelper {
 	 * Writes a thinking_delta for extended thinking content.
 	 */
 	public static void writeThinkingDelta(int index, String thinking, Writer writer)
-			throws JsonProcessingException, IOException {
+			throws IOException {
 		Map<String, Object> event = new HashMap<>();
 		event.put("type", "content_block_delta");
 		event.put("index", index);
@@ -285,6 +324,19 @@ public final class AnthropicMessagesHelper {
 	@SuppressWarnings("unchecked")
 	public static Map<String, Object> normalizeAllAnthropicMessagesToOpenAI(List<Map<String, Object>> messages,
 			String systemPrompt, Object tools) {
+		return normalizeAllAnthropicMessagesToOpenAI(messages, systemPrompt, tools, Collections.emptyMap());
+	}
+
+	/**
+	 * Variant that re-attaches Vertex/Gemini {@code thought_signature} bytes to
+	 * each replayed assistant {@code tool_use} block. {@code thoughtSigMap} is
+	 * keyed by tool_use_id and is typically loaded from the room's sidecar via
+	 * {@link ThoughtSignatureSidecar#load(String)}. Pass an empty map (or use
+	 * the 3-arg overload) for non-Vertex paths — no-op when empty.
+	 */
+	@SuppressWarnings("unchecked")
+	public static Map<String, Object> normalizeAllAnthropicMessagesToOpenAI(List<Map<String, Object>> messages,
+			String systemPrompt, Object tools, Map<String, String> thoughtSigMap) {
 
 		Map<String, Object> result = new HashMap<>();
 		List<Map<String, Object>> openAIMessages = new ArrayList<>();
@@ -296,6 +348,8 @@ public final class AnthropicMessagesHelper {
 			openAIMessages.add(systemMessage);
 		}
 
+		Map<String, String> safeSigMap = thoughtSigMap != null ? thoughtSigMap : Collections.emptyMap();
+
 		for (Map<String, Object> message : messages) {
 			String role = (String) message.get("role");
 			Object content = message.get("content");
@@ -303,7 +357,7 @@ public final class AnthropicMessagesHelper {
 			if ("user".equals(role)) {
 				processUserMessage(content, openAIMessages);
 			} else if ("assistant".equals(role)) {
-				processAssistantMessage(content, openAIMessages);
+				processAssistantMessage(content, openAIMessages, safeSigMap);
 			}
 		}
 
@@ -320,14 +374,13 @@ public final class AnthropicMessagesHelper {
 		return result;
 	}
 
-
-/**
-	 * Process an Anthropic user message and add to OpenAI message list.
-	 * Handles text, images, and tool_result blocks.
+	/**
+	 * Process an Anthropic user message and add to OpenAI message list. Handles
+	 * text, images, and tool_result blocks.
 	 * 
-	 * IMPORTANT: tool_result blocks MUST be added to the message list BEFORE
-	 * any text/image blocks from the same message, because the Anthropic API
-	 * requires tool_result to immediately follow the assistant's tool_use.
+	 * IMPORTANT: tool_result blocks MUST be added to the message list BEFORE any
+	 * text/image blocks from the same message, because the Anthropic API requires
+	 * tool_result to immediately follow the assistant's tool_use.
 	 */
 	@SuppressWarnings("unchecked")
 	private static void processUserMessage(Object content, List<Map<String, Object>> openAIMessages) {
@@ -365,11 +418,11 @@ public final class AnthropicMessagesHelper {
 
 		// ---------------------------------------------------------------
 		// 1. Process tool_result blocks FIRST.
-		//    These MUST appear immediately after the assistant's tool_use
-		//    message in the normalized output. If we emit text/image blocks
-		//    before tool results, the Anthropic API will reject the request
-		//    with: "tool_use ids were found without tool_result blocks
-		//    immediately after"
+		// These MUST appear immediately after the assistant's tool_use
+		// message in the normalized output. If we emit text/image blocks
+		// before tool results, the Anthropic API will reject the request
+		// with: "tool_use ids were found without tool_result blocks
+		// immediately after"
 		// ---------------------------------------------------------------
 		for (Map<String, Object> toolResultBlock : toolResultBlocks) {
 			Map<String, Object> toolMsg = new HashMap<>();
@@ -435,13 +488,23 @@ public final class AnthropicMessagesHelper {
 		}
 	}
 
-
 	/**
 	 * Process an Anthropic assistant message and add to OpenAI message list.
 	 * Handles text, thinking, and tool_use blocks.
 	 */
-	@SuppressWarnings("unchecked")
 	private static void processAssistantMessage(Object content, List<Map<String, Object>> openAIMessages) {
+		processAssistantMessage(content, openAIMessages, Collections.emptyMap());
+	}
+
+	/**
+	 * Variant that re-attaches Vertex/Gemini {@code thought_signature} to each
+	 * tool_use block by looking up its id in {@code thoughtSigMap}. The
+	 * signature flows through to the SEMOSS Python builders, which re-attach
+	 * it to the corresponding {@code function_call} Part on the next request.
+	 */
+	@SuppressWarnings("unchecked")
+	private static void processAssistantMessage(Object content, List<Map<String, Object>> openAIMessages,
+			Map<String, String> thoughtSigMap) {
 		if (content instanceof String) {
 			Map<String, Object> assistantMsg = new HashMap<>();
 			assistantMsg.put("role", "assistant");
@@ -491,7 +554,8 @@ public final class AnthropicMessagesHelper {
 
 			for (Map<String, Object> toolUse : toolUseBlocks) {
 				Map<String, Object> toolCall = new HashMap<>();
-				toolCall.put("id", toolUse.get("id"));
+				String toolUseId = (String) toolUse.get("id");
+				toolCall.put("id", toolUseId);
 				toolCall.put("type", "function");
 
 				Map<String, Object> function = new HashMap<>();
@@ -499,6 +563,17 @@ public final class AnthropicMessagesHelper {
 				function.put("arguments", toolUse.get("input"));
 
 				toolCall.put("function", function);
+
+				// Re-attach the Vertex thought_signature for this tool_use_id
+				// if we have one cached. Consumed in Python at
+				// google_genai_builder.py: tool_call.get("thought_signature").
+				if (toolUseId != null && thoughtSigMap != null) {
+					String sig = thoughtSigMap.get(toolUseId);
+					if (sig != null && !sig.isEmpty()) {
+						toolCall.put("thought_signature", sig);
+					}
+				}
+
 				toolCalls.add(toolCall);
 			}
 
@@ -524,24 +599,28 @@ public final class AnthropicMessagesHelper {
 	 */
 	@SuppressWarnings("unchecked")
 	private static String extractToolResultContent(Object toolContent) {
-	    if (toolContent instanceof String) {
-	        return (String) toolContent;
-	    }
-	    if (toolContent instanceof List) {
-	        StringBuilder textAggregator = new StringBuilder();
-	        for (Map<String, Object> innerBlock : (List<Map<String, Object>>) toolContent) {
-	            String innerType = (String) innerBlock.get("type");
-	            if ("text".equals(innerType)) {
-	                if (textAggregator.length() > 0) textAggregator.append("\n");
-	                textAggregator.append(innerBlock.get("text"));
-	            } else if ("tool_reference".equals(innerType)) {
-	                if (textAggregator.length() > 0) textAggregator.append("\n");
-	                textAggregator.append("Tool loaded: " + innerBlock.get("tool_name"));
-	            }
-	        }
-	        return textAggregator.toString();
-	    }
-	    return "";
+		if (toolContent instanceof String) {
+			return (String) toolContent;
+		}
+		if (toolContent instanceof List) {
+			StringBuilder textAggregator = new StringBuilder();
+			for (Map<String, Object> innerBlock : (List<Map<String, Object>>) toolContent) {
+				String innerType = (String) innerBlock.get("type");
+				if ("text".equals(innerType)) {
+					if (textAggregator.length() > 0) {
+						textAggregator.append("\n");
+					}
+					textAggregator.append(innerBlock.get("text"));
+				} else if ("tool_reference".equals(innerType)) {
+					if (textAggregator.length() > 0) {
+						textAggregator.append("\n");
+					}
+					textAggregator.append("Tool loaded: " + innerBlock.get("tool_name"));
+				}
+			}
+			return textAggregator.toString();
+		}
+		return "";
 	}
 
 	/**
@@ -867,7 +946,7 @@ public final class AnthropicMessagesHelper {
 
 	private static String uploadImageToRoom(String inputImage, Room room, Insight insight) {
 		Path roomPath = Path.of(room.getRoomFolderPath());
-		return MessageUtils.writeBase64ImageDataUriToDir(inputImage, roomPath);
+		return RoomUtils.writeBase64ImageDataUriToDir(inputImage, roomPath);
 	}
 
 	/**
@@ -1015,7 +1094,7 @@ public final class AnthropicMessagesHelper {
 	 * for simple text responses.
 	 */
 	public static void writeCompleteTextStream(String messageId, String engineId, String text, Integer inputTokens,
-			Integer outputTokens, Writer writer) throws JsonProcessingException, IOException {
+			Integer outputTokens, Writer writer) throws IOException {
 		// 1. message_start
 		writeMessageStart(messageId, engineId, inputTokens != null ? inputTokens : 0, writer);
 
@@ -1054,7 +1133,7 @@ public final class AnthropicMessagesHelper {
 	 * Writes an error event for streaming responses.
 	 */
 	public static void writeErrorEvent(String errorType, String message, Writer writer)
-			throws JsonProcessingException, IOException {
+			throws IOException {
 		Map<String, Object> errorData = createErrorResponse(errorType, message);
 		writeSSEEvent("error", errorData, writer);
 	}

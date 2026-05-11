@@ -27,7 +27,11 @@
  *******************************************************************************/
 package prerna.semoss.web.services.config;
 
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,9 +41,12 @@ import javax.servlet.FilterChain;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
+import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
+import javax.ws.rs.HttpMethod;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
+import javax.ws.rs.core.Application;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.NewCookie;
 import javax.ws.rs.core.Response;
@@ -51,6 +58,7 @@ import prerna.auth.AccessPermissionEnum;
 import prerna.auth.PasswordRequirements;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
+import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityInsightUtils;
 import prerna.auth.utils.SecurityProjectUtils;
@@ -169,7 +177,8 @@ public class ServerConfigurationResource {
 			try {
 				loadConfig.put("file-limit", Integer.parseInt(fileTransferMax));
 			} catch (Exception e) {
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.error("Failed to parse {}='{}' as an integer; skipping 'file-limit' config",
+						Constants.FILE_TRANSFER_LIMIT, fileTransferMax, e);
 			}
 		}
 
@@ -179,7 +188,8 @@ public class ServerConfigurationResource {
 			try {
 				loadConfig.put("fileSharedPath", sharedFilePath);
 			} catch (Exception e) {
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.error("Failed to set 'fileSharedPath' config from {}='{}'", Constants.SHARED_FILE_PATH,
+						sharedFilePath, e);
 			}
 		}
 
@@ -188,7 +198,8 @@ public class ServerConfigurationResource {
 			Map<String, String> versionMap = VersionReactor.getVersionMap(false);
 			loadConfig.put("version", versionMap);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to load application version map; 'version' will be omitted from server config",
+					e);
 		}
 
 		// send the default frame type
@@ -268,7 +279,9 @@ public class ServerConfigurationResource {
 		try {
 			clientConfig.put("passwordRequirements", PasswordRequirements.getInstance().getAllPasswordRequirements());
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error(
+					"Failed to load password requirements; 'passwordRequirements' will be omitted from server config",
+					e);
 		}
 		// current logins
 		// TODO: added 2022-02-25
@@ -330,6 +343,144 @@ public class ServerConfigurationResource {
 		// create the session
 		request.getSession(true);
 		return WebUtility.getResponse(true, 200);
+	}
+
+	/**
+	 * Return every JAX-RS endpoint registered with this application as a flat JSON
+	 * list, sorted by path. Discovery is reflection-driven: we walk the resource
+	 * singletons, read each class's {@code @Path}, and for every method carrying an
+	 * HTTP-method annotation (anything meta-annotated with {@link HttpMethod}) we
+	 * emit verb, path, owning resource class, Java method name, and the
+	 * {@code @Consumes}/{@code @Produces} content types.
+	 * <p>
+	 * Resources whose simple class name starts with {@code "Admin"} are only
+	 * included when the calling user is logged in and an admin. Anonymous and
+	 * non-admin users get the rest of the catalog without those entries.
+	 *
+	 * @param request     the incoming HTTP request (used only to prefix the
+	 *                    application context path on each path so callers see real
+	 *                    URLs, not relative paths)
+	 * @param application the JAX-RS application, injected by the container
+	 * @return 200 with {@code {"contextPath": "...", "endpoints": [...]}}
+	 */
+	@GET
+	@Path("/endpoints")
+	@Produces("application/json")
+	public Response listEndpoints(@Context HttpServletRequest request, @Context Application application) {
+		// admin gating: anonymous users and non-admin logged-in users do not
+		// see endpoints from resources whose simple class name starts with
+		// "Admin" (e.g. AdminUserAuthorizationResource).
+		boolean includeAdminResources = false;
+		try {
+			User user = ResourceUtility.getUser(request);
+			includeAdminResources = Boolean.TRUE.equals(SecurityAdminUtils.userIsAdmin(user));
+		} catch (IllegalAccessException e) {
+			// no user in session - leave includeAdminResources = false
+		}
+
+		List<Map<String, Object>> endpoints = new ArrayList<>();
+
+		for (Object resource : application.getSingletons()) {
+			Class<?> cls = resource.getClass();
+			if (!includeAdminResources && cls.getSimpleName().startsWith("Admin")) {
+				continue;
+			}
+			Path classPath = cls.getAnnotation(Path.class);
+			String basePath = classPath == null ? "" : classPath.value();
+			String[] classConsumes = consumesValues(cls.getAnnotation(Consumes.class));
+			String[] classProduces = producesValues(cls.getAnnotation(Produces.class));
+
+			for (Method method : cls.getMethods()) {
+				String httpMethod = resolveHttpMethod(method);
+				if (httpMethod == null) {
+					continue;
+				}
+				Path methodPath = method.getAnnotation(Path.class);
+				String fullPath = joinPath(basePath, methodPath == null ? "" : methodPath.value());
+
+				String[] consumes = orFallback(consumesValues(method.getAnnotation(Consumes.class)), classConsumes);
+				String[] produces = orFallback(producesValues(method.getAnnotation(Produces.class)), classProduces);
+
+				Map<String, Object> entry = new HashMap<>();
+				entry.put("method", httpMethod);
+				entry.put("path", fullPath);
+				entry.put("resource", cls.getSimpleName());
+				entry.put("operation", method.getName());
+				if (consumes.length > 0) {
+					entry.put("consumes", Arrays.asList(consumes));
+				}
+				if (produces.length > 0) {
+					entry.put("produces", Arrays.asList(produces));
+				}
+				endpoints.add(entry);
+			}
+		}
+
+		endpoints.sort(Comparator.comparing((Map<String, Object> e) -> (String) e.get("path"))
+				.thenComparing(e -> (String) e.get("method")));
+
+		Map<String, Object> result = new HashMap<>();
+		result.put("contextPath", request.getContextPath());
+		result.put("count", endpoints.size());
+		result.put("includesAdminResources", includeAdminResources);
+		result.put("endpoints", endpoints);
+		return WebUtility.getResponse(result, 200);
+	}
+
+	/**
+	 * Walk the method's annotations looking for one whose annotation type is itself
+	 * meta-annotated with {@link HttpMethod} - that's the contract every standard
+	 * verb annotation ({@code @GET}, {@code @POST}, ...) follows.
+	 *
+	 * @param method the candidate resource method
+	 * @return the HTTP verb string (e.g. {@code "GET"}), or {@code null} when the
+	 *         method is not a JAX-RS endpoint
+	 */
+	private static String resolveHttpMethod(Method method) {
+		for (Annotation ann : method.getAnnotations()) {
+			HttpMethod hm = ann.annotationType().getAnnotation(HttpMethod.class);
+			if (hm != null) {
+				return hm.value();
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Concatenate a class-level and method-level {@code @Path} value, ensuring
+	 * exactly one slash between them and no trailing slash on the result.
+	 */
+	private static String joinPath(String base, String suffix) {
+		String b = base == null ? "" : base.trim();
+		String s = suffix == null ? "" : suffix.trim();
+		if (!b.startsWith("/")) {
+			b = "/" + b;
+		}
+		while (b.endsWith("/")) {
+			b = b.substring(0, b.length() - 1);
+		}
+		if (s.isEmpty()) {
+			return b.isEmpty() ? "/" : b;
+		}
+		if (!s.startsWith("/")) {
+			s = "/" + s;
+		}
+		while (s.length() > 1 && s.endsWith("/")) {
+			s = s.substring(0, s.length() - 1);
+		}
+		return b + s;
+	}
+
+	private static String[] consumesValues(Consumes ann) {
+		return ann == null ? new String[0] : ann.value();
+	}
+
+	private static String[] producesValues(Produces ann) {
+		return ann == null ? new String[0] : ann.value();
+	}
+
+	private static String[] orFallback(String[] primary, String[] fallback) {
+		return primary != null && primary.length > 0 ? primary : fallback;
 	}
 
 }
