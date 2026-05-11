@@ -467,10 +467,8 @@ public final class OpenAIResponsesHelper {
 
 			responsesMap.put("status", "completed");
 		} else {
-			// Check for image parts before falling back to text (image generation models
-			// return parts containing MediaMessagePart with base64 data)
 			@SuppressWarnings("unchecked")
-			List<MessagePart> parts = llmResponse.getParts(); // getParts() always returns non-null list
+			List<MessagePart> parts = llmResponse.getParts();
 			boolean hasImageParts = parts.stream().anyMatch(p -> p instanceof MediaMessagePart);
 
 			if (hasImageParts) {

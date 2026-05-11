@@ -1104,7 +1104,6 @@ public class OpenAIEndpoints {
 		ThreadStore.setJobId(JOB_ID);
 		ThreadStore.setUser(insight.getUser());
 
-		// Wrap prompt as a single-user-message list that the Python client unpacks
 		List<Map<String, Object>> messages = new ArrayList<>();
 		Map<String, Object> userMsg = new HashMap<>();
 		userMsg.put("role", "user");
@@ -1112,7 +1111,6 @@ public class OpenAIEndpoints {
 		messages.add(userMsg);
 		dataMap.put(AbstractModelEngine.FULL_PROMPT, messages);
 
-		// Extract metadata fields used in SSE event bodies
 		final String finalEngineId = engineId;
 		final String outputFormat = (String) dataMap.get("output_format");
 		final String quality = (String) dataMap.get("quality");
