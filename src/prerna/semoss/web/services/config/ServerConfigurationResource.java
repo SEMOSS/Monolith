@@ -302,8 +302,8 @@ public class ServerConfigurationResource {
 		clientConfig.put("engineMetaKeys", SecurityEngineUtils.getMetakeyOptions(null));
 		clientConfig.put("projectMetaKeys", SecurityProjectUtils.getMetakeyOptions(null));
 		clientConfig.put("insightMetaKeys", SecurityInsightUtils.getMetakeyOptions(null));
-    clientConfig.put("userMetaKeys", SecurityUserUtils.getMetakeyOptions(null));
-    clientConfig.put("notificationEnabled", Utility.isNotificationDatabaseEnabled());
+		clientConfig.put("userMetaKeys", SecurityUserUtils.getMetakeyOptions(null));
+		clientConfig.put("notificationEnabled", Utility.isNotificationDatabaseEnabled());
 		clientConfig.put("auditLogEnabled", Utility.isAuditLogsDatabaseEnabled());
 		// current date
 		clientConfig.put("systemDate", new SemossDate(Utility.getCurrentZonedDateTimeUTC()));

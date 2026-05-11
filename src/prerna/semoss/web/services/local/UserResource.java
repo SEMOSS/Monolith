@@ -158,6 +158,34 @@ public class UserResource {
 		Map<String, String> retMap = User.getLoginNames(semossUser);
 		return WebUtility.getResponse(retMap, 200, newCookies.toArray(new NewCookie[] {}));
 	}
+	/**
+	 * Returns the active connection providers for the current session user.
+	 *
+	 * @param request inbound HTTP request
+	 * @return provider-name map response
+	 */
+	@GET
+	@Path("/connections")
+	public Response getAllConnections(@Context HttpServletRequest request) {
+		List<NewCookie> newCookies = new ArrayList<>();
+		HttpSession session = request.getSession(false);
+		User semossUser = null;
+		if (session != null) {
+			semossUser = (User) session.getAttribute(Constants.SESSION_USER);
+		}
+
+		if (semossUser == null) {
+			// not authenticated
+			// remove any cookies we shouldn't have
+			WebUtility.expireSessionCookies(request, newCookies);
+
+			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
+				session.invalidate();
+			}
+		}
+		Map<String, String> retMap = User.getConnectionsNames(semossUser);
+		return WebUtility.getResponse(retMap, 200, newCookies.toArray(new NewCookie[] {}));
+	}
 
 	/**
 	 * Logs a user out of one provider or all providers in the current session.
@@ -197,21 +225,33 @@ public class UserResource {
 			noUser = true;
 		} else {
 			AuthProvider token = AuthProvider.valueOf(provider.toUpperCase());
-			String assetEngineId = null;
+			boolean loginToken = thisUser.getAccessToken(token) != null;
+			boolean resourceToken = thisUser.getResourceAccessToken(token) != null;
 
-			// TODO: what does this part do?
-			// TODO: feel like when logout need to adjust the asset id
-			if (thisUser.getLogins().size() == 1) {
-				thisUser.getAssetProjectId(token);
+			if (resourceToken) {
+				thisUser.dropResourceAccessToken(token);
+				removed = true;
+				if (!loginToken) {
+					session.setAttribute(Constants.SESSION_USER, thisUser);
+				}
 			}
-			removed = thisUser.dropAccessToken(token);
-			if (thisUser.getLogins().isEmpty()) {
-				noUser = true;
-			} else {
-				request.getSession().setAttribute(Constants.SESSION_USER, thisUser);
-				Thread.ofVirtual().start(new SyncUserAssetsThread(assetEngineId));
-				// put the new map for the user space
-				session.setAttribute(Constants.USER_ASSET_IDS, thisUser.getAssetEngineMap());
+			if (loginToken) {
+				String assetEngineId = null;
+
+				// TODO: what does this part do?
+				// TODO: feel like when logout need to adjust the asset id
+				if (thisUser.getLogins().size() == 1) {
+					thisUser.getAssetProjectId(token);
+				}
+				removed = thisUser.dropAccessToken(token) || removed;
+				if (thisUser.getLogins().isEmpty()) {
+					noUser = true;
+				} else {
+					session.setAttribute(Constants.SESSION_USER, thisUser);
+					Thread.ofVirtual().start(new SyncUserAssetsThread(assetEngineId));
+					// put the new map for the user space
+					session.setAttribute(Constants.USER_ASSET_IDS, thisUser.getAssetEngineMap());
+				}
 			}
 		}
 
@@ -274,6 +314,28 @@ public class UserResource {
 		}
 
 		return WebUtility.getResponseNoCache(ret, 200, nullCookies.toArray(new NewCookie[] {}));
+	}
+	/**
+	 * Adds or updates a resource access token in the current user session.
+	 *
+	 * @param token   normalized access token
+	 * @param request inbound HTTP request
+	 */
+	public static void addResourceAccessToken(AccessToken token, HttpServletRequest request) {
+		HttpSession session = request.getSession();
+		User semossUser = (User) session.getAttribute(Constants.SESSION_USER);
+		if (semossUser == null) {
+			classLogger.error("No user found in session when trying to add resource access token");
+			return;
+		}
+
+		// add new resource access token to the user
+		semossUser.setResourceAccessToken(token);
+		semossUser.setAnonymous(false);
+		session.setAttribute(Constants.SESSION_USER, semossUser);
+
+		// log the user resource connection
+		classLogger.info("User is connected to provider " + token.getProvider());
 	}
 
 	/**
@@ -970,6 +1032,17 @@ public class UserResource {
 	}
 
 	/**
+	 * Checks whether a user has a resource access token for the requested provider.
+	 *
+	 * @param user     user to inspect
+	 * @param provider authentication provider
+	 * @return {@code true} when a token exists
+	 */
+	private boolean hasResourceAccessToken(User user, AuthProvider provider) {
+		return user != null && user.getResourceAccessToken(provider) != null;
+	}
+
+	/**
 	 * Checks whether a user has an access token for the requested provider.
 	 *
 	 * @param user     user to inspect
@@ -978,6 +1051,16 @@ public class UserResource {
 	 */
 	private boolean hasAccessToken(User user, AuthProvider provider) {
 		return user != null && user.getAccessToken(provider) != null;
+	}
+
+	/**
+	 * Checks whether the current session already has an authenticated login user.
+	 *
+	 * @param user session user to inspect
+	 * @return {@code true} when the session user exists and has at least one login
+	 */
+	private boolean hasLoggedInUser(User user) {
+		return user != null && user.getLogins() != null && !user.getLogins().isEmpty();
 	}
 
 	/**
@@ -1455,7 +1538,7 @@ public class UserResource {
 	}
 
 	/**
-	 * Handles Google OAuth login callback flow.
+	 * Handles Google OAuth login or connection callback flow.
 	 * https://developers.google.com/api-client-library/java/google-api-java-client/oauth2
 	 */
 	@GET
@@ -1463,17 +1546,32 @@ public class UserResource {
 	@Path("/login/google")
 	public Response loginGoogle(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
-		if (socialData.getLoginsAllowed().get("google") == null || !socialData.getLoginsAllowed().get("google")) {
+		boolean loginAllowed = Boolean.TRUE.equals(socialData.getLoginsAllowed().get("google"));
+		boolean connectAllowed = Boolean.TRUE.equals(socialData.getConnectionsAllowed().get("google"));
+
+		if (!loginAllowed && !connectAllowed) {
 			Map<String, Object> ret = new HashMap<>();
-			ret.put(Constants.ERROR_MESSAGE, "Google login is not allowed");
+			ret.put(Constants.ERROR_MESSAGE, "No actions are allowed for Google. Please contact your administrator.");
 			return WebUtility.getResponse(ret, 400);
 		}
 
 		HttpSession session = initializeOAuthLoginSession(request);
 		User userObj = getSessionUser(session);
+		boolean useLoginFlow = loginAllowed;
+		boolean useConnectionFlow = !useLoginFlow && connectAllowed;
+		if (useConnectionFlow && !hasLoggedInUser(userObj)) {
+			Map<String, Object> ret = new HashMap<>();
+			ret.put(Constants.ERROR_MESSAGE, "Log in before connecting your Google account");
+			return WebUtility.getResponse(ret, 401);
+		}
+
 		String queryString = getEncodedQueryString(request);
+
+		boolean needsLogin = useLoginFlow && !hasAccessToken(userObj, AuthProvider.GOOGLE);
+		boolean needsConnect = useConnectionFlow && !hasResourceAccessToken(userObj, AuthProvider.GOOGLE);
+
 		if (hasOAuthCode(queryString)) {
-			if (!hasAccessToken(userObj, AuthProvider.GOOGLE)) {
+			if (needsLogin || needsConnect) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				// oauth code should match [ -~]+ (1 or more ascii)
@@ -1513,7 +1611,12 @@ public class UserResource {
 					// user
 					GoogleTokenFiller profiler = new GoogleTokenFiller();
 					profiler.fillAccessToken(accessToken, null, null, null, null);
-					addAccessToken(accessToken, request, autoAdd);
+
+					if (needsLogin) {
+						addAccessToken(accessToken, request, autoAdd);
+					} else {
+						addResourceAccessToken(accessToken, request);
+					}
 
 					// Shows how to make a google credential from an access token
 					classLogger.debug("Access Token is.. {}", accessToken.getAccess_token());
@@ -1522,8 +1625,19 @@ public class UserResource {
 		}
 
 		userObj = refreshSessionUser(request, session);
-		if (!hasAccessToken(userObj, AuthProvider.GOOGLE)) {
-			// not authenticated
+		if (useConnectionFlow && !hasLoggedInUser(userObj)) {
+			Map<String, Object> ret = new HashMap<>();
+			ret.put(Constants.ERROR_MESSAGE, "Log in before connecting your Google account");
+			return WebUtility.getResponse(ret, 401);
+		}
+		if (useLoginFlow) {
+			if (!hasAccessToken(userObj, AuthProvider.GOOGLE)) {
+				// not authenticated
+				response.setStatus(302);
+				response.sendRedirect(getGoogleRedirect(request));
+				return null;
+			}
+		} else if (!hasResourceAccessToken(userObj, AuthProvider.GOOGLE)) {
 			response.setStatus(302);
 			response.sendRedirect(getGoogleRedirect(request));
 			return null;
@@ -3551,6 +3665,17 @@ public class UserResource {
 	}
 
 	//////////////////////////////////////////////////////////////////////
+
+	/**
+	 * Returns the map of enabled and disabled connection providers.
+	 */
+
+	@GET
+	@Produces("application/json")
+	@Path("/connectionsAllowed/")
+	public Response connectionsAllowed(@Context HttpServletRequest request) {
+		return WebUtility.getResponse(socialData.getConnectionsAllowed(), 200);
+	}
 
 	/**
 	 * Returns the map of enabled and disabled login providers. the FE
