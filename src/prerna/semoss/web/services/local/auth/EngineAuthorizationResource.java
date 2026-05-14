@@ -27,6 +27,7 @@
  *******************************************************************************/
 package prerna.semoss.web.services.local.auth;
 
+import java.time.ZonedDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -57,6 +58,7 @@ import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
+import prerna.engine.impl.model.inferencetracking.ModelInferenceLogsUtils;
 import prerna.graph.utility.MsGraphUtility;
 import prerna.om.Insight;
 import prerna.reactor.security.MyEnginesReactor;
@@ -67,6 +69,7 @@ import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
 import prerna.util.SocialPropertiesUtil;
+import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 @Path("/auth/engine")
@@ -424,10 +427,32 @@ public class EngineAuthorizationResource {
 				return WebUtility.getResponse(ret, 400);
 			}
 		}
+		int maxInputTokens = 0;
+		String maxInputTokensStr = WebUtility.inputSanitizer(request.getParameter("maxInputTokens"));
+		if (maxInputTokensStr != null && !(maxInputTokensStr = maxInputTokensStr.trim()).isEmpty()) {
+			try {
+				maxInputTokens = Integer.parseInt(maxInputTokensStr);
+			} catch (NumberFormatException e) {
+				classLogger.error("Failed to add engine user permission.", e);
+				ret.put(Constants.ERROR_MESSAGE, "maxInputTokens must be a valid integer value");
+				return WebUtility.getResponse(ret, 400);
+			}
+		}
+		int maxOutputTokens = 0;
+		String maxOutputTokensStr = WebUtility.inputSanitizer(request.getParameter("maxOutputTokens"));
+		if (maxOutputTokensStr != null && !(maxOutputTokensStr = maxOutputTokensStr.trim()).isEmpty()) {
+			try {
+				maxOutputTokens = Integer.parseInt(maxOutputTokensStr);
+			} catch (NumberFormatException e) {
+				classLogger.error("Failed to add engine user permission.", e);
+				ret.put(Constants.ERROR_MESSAGE, "maxOutputTokens must be a valid integer value");
+				return WebUtility.getResponse(ret, 400);
+			}
+		}
 
 		try {
 			SecurityEngineUtils.addEngineUser(user, newUserId, engineId, permission, endDate, usageRestriction,
-					usageFrequency, maxTokens, maxResponseTime);
+					usageFrequency, maxTokens, maxResponseTime, maxInputTokens, maxOutputTokens);
 		} catch (Exception e) {
 			classLogger.warn("User is trying to add users for engine " + engineId + " without having proper access");
 			classLogger.error("Failed to add engine user permission.", e);
@@ -583,10 +608,32 @@ public class EngineAuthorizationResource {
 				return WebUtility.getResponse(ret, 400);
 			}
 		}
+		int maxInputTokens = 0;
+		String maxInputTokensStr = WebUtility.inputSanitizer(request.getParameter("maxInputTokens"));
+		if (maxInputTokensStr != null && !(maxInputTokensStr = maxInputTokensStr.trim()).isEmpty()) {
+			try {
+				maxInputTokens = Integer.parseInt(maxInputTokensStr);
+			} catch (NumberFormatException e) {
+				classLogger.error("Failed to update engine user permission.", e);
+				ret.put(Constants.ERROR_MESSAGE, "maxInputTokens must be a valid integer value");
+				return WebUtility.getResponse(ret, 400);
+			}
+		}
+		int maxOutputTokens = 0;
+		String maxOutputTokensStr = WebUtility.inputSanitizer(request.getParameter("maxOutputTokens"));
+		if (maxOutputTokensStr != null && !(maxOutputTokensStr = maxOutputTokensStr.trim()).isEmpty()) {
+			try {
+				maxOutputTokens = Integer.parseInt(maxOutputTokensStr);
+			} catch (NumberFormatException e) {
+				classLogger.error("Failed to update engine user permission.", e);
+				ret.put(Constants.ERROR_MESSAGE, "maxOutputTokens must be a valid integer value");
+				return WebUtility.getResponse(ret, 400);
+			}
+		}
 
 		try {
 			SecurityEngineUtils.editEngineUserPermission(user, existingUserId, existingUserType, engineId,
-					newPermission, endDate, usageRestriction, usageFrequency, maxTokens, maxResponseTime);
+					newPermission, endDate, usageRestriction, usageFrequency, maxTokens, maxResponseTime, maxInputTokens, maxOutputTokens);
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to edit user " + existingUserId + " permissions for engine " + engineId
 					+ " without having proper access");
@@ -1150,6 +1197,162 @@ public class EngineAuthorizationResource {
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
+		return WebUtility.getResponse(ret, 200);
+	}
+
+	/**
+	 * Reset token usage for a user on a specific engine.
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("resetEngineUserTokenUsage")
+	public Response resetEngineUserTokenUsage(@Context HttpServletRequest request,
+			MultivaluedMap<String, String> form) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			classLogger.error("Invalid user session trying to access authorization resources", e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
+		String targetUserId = WebUtility.inputSQLSanitizer(form.getFirst("userId"));
+
+		// Only editors/owners or admins can reset
+		if (!SecurityEngineUtils.userCanEditEngine(user, engineId) && !SecurityAdminUtils.userIsAdmin(user)) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Insufficient privileges to reset token usage.");
+			return WebUtility.getResponse(errorMap, 403);
+		}
+
+		try {
+			ModelInferenceLogsUtils.resetUserTokenUsageForEngine(targetUserId, engineId);
+		} catch (Exception e) {
+			classLogger.error("Failed to reset token usage for user " + targetUserId + " on engine " + engineId, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		classLogger.info("User reset token usage for user {} on engine {}", targetUserId, engineId);
+
+		Map<String, Object> ret = new HashMap<String, Object>();
+		ret.put("success", true);
+		return WebUtility.getResponse(ret, 200);
+	}
+
+	@GET
+	@Produces("application/json")
+	@Path("getEngineTokenUsage")
+	public Response getEngineTokenUsage(@Context HttpServletRequest request,
+			@QueryParam("engineId") String engineId) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			classLogger.error("Invalid user session trying to access authorization resources", e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		engineId = WebUtility.inputSanitizer(engineId);
+		if (engineId == null || engineId.trim().isEmpty()) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Must provide an engineId");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		if (!SecurityEngineUtils.userCanViewEngine(user, engineId)) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Engine does not exist or user does not have access");
+			return WebUtility.getResponse(errorMap, 403);
+		}
+
+		Map<String, Object> ret = new HashMap<String, Object>();
+		try {
+			List<Map<String, Object>> enginePermission = SecurityEngineUtils.getEngineUsagePermissionMap(user, engineId);
+			if (enginePermission == null || enginePermission.isEmpty()) {
+				ret.put("tokensUsed", 0);
+				ret.put("tokenLimit", null);
+				ret.put("configured", false);
+				return WebUtility.getResponse(ret, 200);
+			}
+
+			Map<String, Object> engMap = enginePermission.get(0);
+			String engRestriction = (String) engMap.get(Constants.ENGINE_USAGE_RESTRICTION_KEY);
+			if (engRestriction == null || engRestriction.trim().isEmpty()) {
+				ret.put("tokensUsed", 0);
+				ret.put("tokenLimit", null);
+				ret.put("configured", false);
+				return WebUtility.getResponse(ret, 200);
+			}
+
+			String engFrequency = (String) engMap.get(Constants.ENGINE_USAGE_FREQUENCY_KEY);
+			Number engMaxTokens = (Number) engMap.get(Constants.ENGINE_MAX_TOKEN_KEY);
+			Number engMaxInputTokens = (Number) engMap.get(Constants.ENGINE_MAX_INPUT_TOKEN_KEY);
+			Number engMaxOutputTokens = (Number) engMap.get(Constants.ENGINE_MAX_OUTPUT_TOKEN_KEY);
+			Number engMaxResponseTime = (Number) engMap.get(Constants.ENGINE_MAX_RESPONSE_TIME_KEY);
+
+			ZonedDateTime currentDateTime = Utility.getCurrentZonedDateTimeUTC();
+
+			ret.put("restrictionType", engRestriction);
+			ret.put("frequency", engFrequency);
+			ret.put("configured", true);
+
+			// Combined token usage
+			if (engMaxTokens != null && engMaxTokens.intValue() > 0) {
+				Number combinedUsage = ModelInferenceLogsUtils.getTotalTokensOrTotalResponseTime(
+						Constants.MODEL_TOKEN_RESTRICTION_VALUE, user, engineId, currentDateTime, engFrequency);
+				ret.put("tokensUsed", combinedUsage != null ? combinedUsage.intValue() : 0);
+				ret.put("tokenLimit", engMaxTokens.intValue());
+			} else {
+				ret.put("tokensUsed", 0);
+				ret.put("tokenLimit", null);
+			}
+
+			// Input token usage
+			if (engMaxInputTokens != null && engMaxInputTokens.intValue() > 0) {
+				Number inputUsage = ModelInferenceLogsUtils.getTotalTokensOrTotalResponseTime(
+						Constants.MODEL_TOKEN_RESTRICTION_VALUE, user, engineId, currentDateTime, engFrequency, "INPUT");
+				ret.put("inputTokensUsed", inputUsage != null ? inputUsage.intValue() : 0);
+				ret.put("inputTokenLimit", engMaxInputTokens.intValue());
+			} else {
+				ret.put("inputTokensUsed", 0);
+				ret.put("inputTokenLimit", null);
+			}
+
+			// Output token usage
+			if (engMaxOutputTokens != null && engMaxOutputTokens.intValue() > 0) {
+				Number outputUsage = ModelInferenceLogsUtils.getTotalTokensOrTotalResponseTime(
+						Constants.MODEL_TOKEN_RESTRICTION_VALUE, user, engineId, currentDateTime, engFrequency, "RESPONSE");
+				ret.put("outputTokensUsed", outputUsage != null ? outputUsage.intValue() : 0);
+				ret.put("outputTokenLimit", engMaxOutputTokens.intValue());
+			} else {
+				ret.put("outputTokensUsed", 0);
+				ret.put("outputTokenLimit", null);
+			}
+
+			// Compute time usage
+			if (engMaxResponseTime != null && engMaxResponseTime.intValue() > 0) {
+				Number computeUsage = ModelInferenceLogsUtils.getTotalTokensOrTotalResponseTime(
+						Constants.MODEL_COMPUTE_TIME_RESTRICTION_VALUE, user, engineId, currentDateTime, engFrequency);
+				ret.put("computeTimeUsed", computeUsage != null ? computeUsage.doubleValue() : 0.0);
+				ret.put("computeTimeLimit", engMaxResponseTime.doubleValue());
+			} else {
+				ret.put("computeTimeUsed", 0.0);
+				ret.put("computeTimeLimit", null);
+			}
+		} catch (Exception e) {
+			classLogger.error("Failed to get engine token usage for engine " + engineId, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 500);
+		}
+
 		return WebUtility.getResponse(ret, 200);
 	}
 

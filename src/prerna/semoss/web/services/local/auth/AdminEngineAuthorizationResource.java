@@ -482,10 +482,32 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 				return WebUtility.getResponse(ret, 400);
 			}
 		}
+		int maxInputTokens = 0;
+		String maxInputTokensStr = WebUtility.inputSanitizer(request.getParameter("maxInputTokens"));
+		if (maxInputTokensStr != null && !(maxInputTokensStr = maxInputTokensStr.trim()).isEmpty()) {
+			try {
+				maxInputTokens = Integer.parseInt(maxInputTokensStr);
+			} catch (NumberFormatException e) {
+				classLogger.error("Failed to add engine user permission.", e);
+				ret.put(Constants.ERROR_MESSAGE, "maxInputTokens must be a valid integer value");
+				return WebUtility.getResponse(ret, 400);
+			}
+		}
+		int maxOutputTokens = 0;
+		String maxOutputTokensStr = WebUtility.inputSanitizer(request.getParameter("maxOutputTokens"));
+		if (maxOutputTokensStr != null && !(maxOutputTokensStr = maxOutputTokensStr.trim()).isEmpty()) {
+			try {
+				maxOutputTokens = Integer.parseInt(maxOutputTokensStr);
+			} catch (NumberFormatException e) {
+				classLogger.error("Failed to add engine user permission.", e);
+				ret.put(Constants.ERROR_MESSAGE, "maxOutputTokens must be a valid integer value");
+				return WebUtility.getResponse(ret, 400);
+			}
+		}
 
 		try {
 			adminUtils.addEngineUser(newUserId, engineId, permission, user, endDate, usageRestriction, usageFrequency,
-					maxTokens, maxResponseTime);
+					maxTokens, maxResponseTime, maxInputTokens, maxOutputTokens);
 		} catch (Exception e) {
 			classLogger.error("Failed to add engine user permission.", e);
 			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -674,10 +696,32 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 				return WebUtility.getResponse(ret, 400);
 			}
 		}
+		int maxInputTokens = 0;
+		String maxInputTokensStr = WebUtility.inputSanitizer(request.getParameter("maxInputTokens"));
+		if (maxInputTokensStr != null && !(maxInputTokensStr = maxInputTokensStr.trim()).isEmpty()) {
+			try {
+				maxInputTokens = Integer.parseInt(maxInputTokensStr);
+			} catch (NumberFormatException e) {
+				classLogger.error("Failed to update engine user permission.", e);
+				ret.put(Constants.ERROR_MESSAGE, "maxInputTokens must be a valid integer value");
+				return WebUtility.getResponse(ret, 400);
+			}
+		}
+		int maxOutputTokens = 0;
+		String maxOutputTokensStr = WebUtility.inputSanitizer(request.getParameter("maxOutputTokens"));
+		if (maxOutputTokensStr != null && !(maxOutputTokensStr = maxOutputTokensStr.trim()).isEmpty()) {
+			try {
+				maxOutputTokens = Integer.parseInt(maxOutputTokensStr);
+			} catch (NumberFormatException e) {
+				classLogger.error("Failed to update engine user permission.", e);
+				ret.put(Constants.ERROR_MESSAGE, "maxOutputTokens must be a valid integer value");
+				return WebUtility.getResponse(ret, 400);
+			}
+		}
 
 		try {
 			adminUtils.editEngineUserPermission(existingUserId, engineId, newPermission, user, endDate,
-					usageRestriction, usageFrequency, maxTokens, maxResponseTime);
+					usageRestriction, usageFrequency, maxTokens, maxResponseTime, maxInputTokens, maxOutputTokens);
 		} catch (Exception e) {
 			classLogger.error("Failed to update engine user permission.", e);
 			ret.put(Constants.ERROR_MESSAGE, e.getMessage());

@@ -60,6 +60,7 @@ import prerna.semoss.web.services.local.auth.AdminDatabaseAuthorizationResource;
 import prerna.semoss.web.services.local.auth.AdminDatabaseAuthorizationResource2;
 import prerna.semoss.web.services.local.auth.AdminEngineAuthorizationResource;
 import prerna.semoss.web.services.local.auth.AdminGroupAuthorizationResource;
+import prerna.semoss.web.services.local.auth.RoomTokenAuthorizationResource;
 import prerna.semoss.web.services.local.auth.AdminInsightAuthorizationResource;
 import prerna.semoss.web.services.local.auth.AdminProjectAuthorizationResource;
 import prerna.semoss.web.services.local.auth.AdminUserAuthorizationResource;
@@ -117,6 +118,8 @@ public class MonolithApplication extends Application {
 		singletons.add(new GroupInsightAuthorizationResource());
 		// group admin authorization
 		singletons.add(new AdminGroupAuthorizationResource());
+      // room token limits
+      singletons.add(new RoomTokenAuthorizationResource());
 		// insight execution
 		singletons.add(new ExecuteInsightResource());
 		singletons.add(new ShareInsightResource());
