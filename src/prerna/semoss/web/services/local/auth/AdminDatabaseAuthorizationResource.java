@@ -284,7 +284,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		}
 
 		try {
-			adminUtils.addEngineUser(newUserId, appId, permission, user, null, null, null, 0, 0.0);
+			adminUtils.addEngineUser(newUserId, appId, permission, user, null, null, null, 0, 0.0, 0, 0);
 		} catch (Exception e) {
 			classLogger.error("Failed to add app user permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -389,7 +389,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		}
 
 		try {
-			adminUtils.editEngineUserPermission(existingUserId, appId, newPermission, user, null, null, null, 0, 0.0);
+			adminUtils.editEngineUserPermission(existingUserId, appId, newPermission, user, null, null, null, 0, 0.0, 0, 0);
 		} catch (Exception e) {
 			classLogger.error("Failed to update app user permission.", e);
 			ret.put(Constants.ERROR_MESSAGE, e.getMessage());

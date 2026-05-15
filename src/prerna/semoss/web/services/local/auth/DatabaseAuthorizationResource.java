@@ -283,7 +283,7 @@ public class DatabaseAuthorizationResource {
 		}
 
 		try {
-			SecurityEngineUtils.addEngineUser(user, newUserId, appId, permission, null, null, null, 0, 0.0);
+			SecurityEngineUtils.addEngineUser(user, newUserId, appId, permission, null, null, null, 0, 0.0, 0, 0);
 		} catch (Exception e) {
 			classLogger.warn("User is trying to add users for database " + appId + " without having proper access");
 			classLogger.error("Failed to add app user permission.", e);
@@ -339,7 +339,7 @@ public class DatabaseAuthorizationResource {
 
 		try {
 			SecurityEngineUtils.editEngineUserPermission(user, existingUserId, existingUserType, appId, newPermission,
-					null, null, null, 0, 0.0);
+					null, null, null, 0, 0.0, 0, 0);
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to edit user " + existingUserId + " permissions for database " + appId
 					+ " without having proper access");

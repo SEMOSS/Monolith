@@ -307,7 +307,7 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 		}
 
 		try {
-			adminUtils.addEngineUser(newUserId, databaseId, permission, user, null, null, null, 0, 0.0);
+			adminUtils.addEngineUser(newUserId, databaseId, permission, user, null, null, null, 0, 0.0, 0, 0);
 		} catch (Exception e) {
 			classLogger.error("Failed to add database user permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -458,7 +458,7 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 
 		try {
 			adminUtils.editEngineUserPermission(existingUserId, databaseId, newPermission, user, null, null, null, 0,
-					0.0);
+					0.0, 0, 0);
 		} catch (Exception e) {
 			classLogger.error("Failed to update database user permission.", e);
 			ret.put(Constants.ERROR_MESSAGE, e.getMessage());

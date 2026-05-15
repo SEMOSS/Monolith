@@ -294,7 +294,7 @@ public class DatabaseAuthorizationResource2 {
 		}
 
 		try {
-			SecurityEngineUtils.addEngineUser(user, newUserId, databaseId, permission, null, null, null, 0, 0.0);
+			SecurityEngineUtils.addEngineUser(user, newUserId, databaseId, permission, null, null, null, 0, 0.0, 0, 0);
 		} catch (Exception e) {
 			classLogger
 					.warn("User is trying to add users for database " + databaseId + " without having proper access");
@@ -405,7 +405,7 @@ public class DatabaseAuthorizationResource2 {
 
 		try {
 			SecurityEngineUtils.editEngineUserPermission(user, existingUserId, existingUserType, databaseId,
-					newPermission, null, null, null, 0, 0.0);
+					newPermission, null, null, null, 0, 0.0, 0, 0);
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to edit user " + existingUserId + " permissions for database " + databaseId
 					+ " without having proper access");
