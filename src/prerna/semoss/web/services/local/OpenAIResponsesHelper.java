@@ -34,12 +34,14 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.ToNumberPolicy;
 
+import prerna.engine.impl.model.message.MediaMessagePart;
+import prerna.engine.impl.model.message.MessagePart;
 import prerna.engine.impl.model.responses.AskModelEngineResponse;
 import prerna.engine.impl.model.responses.AskToolModelEngineResponse;
 import prerna.engine.impl.model.responses.AskToolModelEngineResponse.ToolResponse;
@@ -53,16 +55,55 @@ public final class OpenAIResponsesHelper {
 	private static final Gson GSON = new GsonBuilder().setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE)
 			.disableHtmlEscaping().create();
 
-	private static ObjectMapper mapper = new ObjectMapper();
-
 	public static void writeSSEEvent(Map<String, Object> rawEvent, Writer writer) throws IOException {
 		String eventType = (String) rawEvent.get("type");
 		if (eventType != null) {
 			writer.write("event: " + eventType + "\n");
 		}
-		String eventJson = mapper.writeValueAsString(rawEvent);
-		writer.write("data: " + eventJson + "\n\n");
+		writer.write("data: " + GSON.toJson(rawEvent) + "\n\n");
 		writer.flush();
+	}
+
+	/**
+	 * Attaches a Responses-API usage object to the inner {@code response} map
+	 * of a {@code response.completed} (or similar) event. No-op if all token
+	 * counts are null. Use this so streaming clients see real
+	 * {@code response.usage.input_tokens} / {@code output_tokens} instead of
+	 * the field being absent.
+	 */
+	@SuppressWarnings("unchecked")
+	public static void attachUsage(Map<String, Object> event, Integer inputTokens, Integer outputTokens,
+			Integer cachedTokens, Integer reasoningTokens) {
+		if (inputTokens == null && outputTokens == null && cachedTokens == null && reasoningTokens == null) {
+			return;
+		}
+		Object respObj = event.get("response");
+		if (!(respObj instanceof Map)) {
+			return;
+		}
+		Map<String, Object> resp = (Map<String, Object>) respObj;
+
+		Map<String, Object> usage = new HashMap<>();
+		if (inputTokens != null) {
+			usage.put("input_tokens", inputTokens);
+		}
+		if (outputTokens != null) {
+			usage.put("output_tokens", outputTokens);
+		}
+		if (inputTokens != null && outputTokens != null) {
+			usage.put("total_tokens", inputTokens + outputTokens);
+		}
+		if (cachedTokens != null) {
+			Map<String, Object> inputDetails = new HashMap<>();
+			inputDetails.put("cached_tokens", cachedTokens);
+			usage.put("input_tokens_details", inputDetails);
+		}
+		if (reasoningTokens != null) {
+			Map<String, Object> outputDetails = new HashMap<>();
+			outputDetails.put("reasoning_tokens", reasoningTokens);
+			usage.put("output_tokens_details", outputDetails);
+		}
+		resp.put("usage", usage);
 	}
 
 	// --- 1. Top Level Response Events ---
@@ -217,6 +258,56 @@ public final class OpenAIResponsesHelper {
 		event.put("delta", delta);
 		writeSSEEvent(event, w);
 	}
+
+	// --- 5. Image Generation Events ---
+
+	/**
+	 * Sends a {@code response.image_generation_call.partial_image} SSE event,
+	 * matching the wire shape the {@code openai} SDK parses
+	 * ({@code event.partial_image_b64}, {@code event.partial_image_index}).
+	 * Only base64 partials are expressible in this event — the OpenAI spec
+	 * defines no URL alternative on partial_image, so URL-only media chunks
+	 * are skipped.
+	 */
+	public static void sendImageGenerationPartialImage(Writer w, int seq, String respId, String itemId, int outputIdx,
+			Map<String, Object> mediaInfo, Object partialImageIndex) throws IOException {
+		if (mediaInfo == null) {
+			return;
+		}
+		Object b64 = mediaInfo.get("base64Data");
+		if (!(b64 instanceof String) || ((String) b64).isEmpty()) {
+			return;
+		}
+		Map<String, Object> event = new HashMap<>();
+		event.put("type", "response.image_generation_call.partial_image");
+		event.put("sequence_number", seq);
+		event.put("response_id", respId);
+		event.put("item_id", itemId);
+		event.put("output_index", outputIdx);
+		event.put("partial_image_index", partialImageIndex);
+		event.put("partial_image_b64", b64);
+		writeSSEEvent(event, w);
+	}
+
+	/**
+	 * Sends a bare {@code response.image_generation_call.completed} SSE event.
+	 * The actual image bytes are not carried on this event in OpenAI's
+	 * Responses API protocol — the final base64 lives on the
+	 * {@code image_generation_call} item's {@code result} field, delivered via
+	 * the subsequent {@code response.output_item.done} event. This event is
+	 * just the lifecycle signal.
+	 */
+	public static void sendImageGenerationCompleted(Writer w, int seq, String respId, String itemId, int outputIdx)
+			throws IOException {
+		Map<String, Object> event = new HashMap<>();
+		event.put("type", "response.image_generation_call.completed");
+		event.put("sequence_number", seq);
+		event.put("response_id", respId);
+		event.put("item_id", itemId);
+		event.put("output_index", outputIdx);
+		writeSSEEvent(event, w);
+	}
+
 
 	/**
 	 * Normalizes Codex/Responses API message format to standard OpenAI Chat format.
@@ -376,12 +467,40 @@ public final class OpenAIResponsesHelper {
 
 			responsesMap.put("status", "completed");
 		} else {
-			String response = llmResponse.getStringResponse();
+			@SuppressWarnings("unchecked")
+			List<MessagePart> parts = llmResponse.getParts();
+			boolean hasImageParts = parts.stream().anyMatch(p -> p instanceof MediaMessagePart);
 
-			Map<String, Object> textOutput = new HashMap<>();
-			textOutput.put("type", "text");
-			textOutput.put("text", response);
-			output.add(textOutput);
+			if (hasImageParts) {
+				for (MessagePart part : parts) {
+					if (!(part instanceof MediaMessagePart)) {
+						continue;
+					}
+					MediaMessagePart mediaPart = (MediaMessagePart) part;
+					if (mediaPart.getMediaInfo() == null) {
+						continue;
+					}
+					String b64 = mediaPart.getMediaInfo().getBase64Data();
+					String url = mediaPart.getMediaInfo().getSourceUrl();
+					Map<String, Object> imgOutput = new HashMap<>();
+					imgOutput.put("type", "image_generation_call");
+					imgOutput.put("id", "img_" + UUID.randomUUID().toString());
+					imgOutput.put("status", "completed");
+					if (b64 != null && !b64.isEmpty()) {
+						imgOutput.put("result", b64);
+					} else if (url != null && !url.isEmpty()) {
+						imgOutput.put("result", url);
+					}
+					output.add(imgOutput);
+				}
+			} else {
+				String response = llmResponse.getStringResponse();
+
+				Map<String, Object> textOutput = new HashMap<>();
+				textOutput.put("type", "text");
+				textOutput.put("text", response);
+				output.add(textOutput);
+			}
 
 			responsesMap.put("status", "completed");
 		}

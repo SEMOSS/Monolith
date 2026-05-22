@@ -64,6 +64,18 @@ public final class OpenAIChatCompletionsHelper {
 	 */
 	public static void writeFinishReason(String engineId, String messageId, long creationTimestamp, String finishReason,
 			Writer writer) throws JsonProcessingException, IOException {
+		writeFinishReason(engineId, messageId, creationTimestamp, finishReason, null, null, null, null, writer);
+	}
+
+	/**
+	 * Writes the finish chunk, an optional usage-only chunk (matching OpenAI's
+	 * {@code stream_options: {"include_usage": true}} behavior), and the
+	 * terminal {@code [DONE]} marker. Any null token field is omitted from the
+	 * usage object; if all four are null no usage chunk is emitted at all.
+	 */
+	public static void writeFinishReason(String engineId, String messageId, long creationTimestamp, String finishReason,
+			Integer promptTokens, Integer completionTokens, Integer cachedTokens, Integer reasoningTokens,
+			Writer writer) throws JsonProcessingException, IOException {
 
 		// delta is empty
 		Map<String, Object> delta = new HashMap<>();
@@ -84,6 +96,41 @@ public final class OpenAIChatCompletionsHelper {
 		finalChunk.put("choices", choices);
 
 		writer.write("data: " + mapper.writeValueAsString(finalChunk) + "\n\n");
+
+		boolean hasAnyUsage = promptTokens != null || completionTokens != null || cachedTokens != null
+				|| reasoningTokens != null;
+		if (hasAnyUsage) {
+			Map<String, Object> usage = new HashMap<>();
+			if (promptTokens != null) {
+				usage.put("prompt_tokens", promptTokens);
+			}
+			if (completionTokens != null) {
+				usage.put("completion_tokens", completionTokens);
+			}
+			if (promptTokens != null && completionTokens != null) {
+				usage.put("total_tokens", promptTokens + completionTokens);
+			}
+			if (cachedTokens != null) {
+				Map<String, Object> promptDetails = new HashMap<>();
+				promptDetails.put("cached_tokens", cachedTokens);
+				usage.put("prompt_tokens_details", promptDetails);
+			}
+			if (reasoningTokens != null) {
+				Map<String, Object> completionDetails = new HashMap<>();
+				completionDetails.put("reasoning_tokens", reasoningTokens);
+				usage.put("completion_tokens_details", completionDetails);
+			}
+
+			Map<String, Object> usageChunk = new HashMap<>();
+			usageChunk.put("id", messageId);
+			usageChunk.put("object", "chat.completion.chunk");
+			usageChunk.put("created", creationTimestamp);
+			usageChunk.put("model", engineId);
+			usageChunk.put("choices", new ArrayList<>());
+			usageChunk.put("usage", usage);
+
+			writer.write("data: " + mapper.writeValueAsString(usageChunk) + "\n\n");
+		}
 
 		writer.write("data: [DONE]\n\n");
 		writer.flush();
@@ -148,6 +195,10 @@ public final class OpenAIChatCompletionsHelper {
 			throws JsonProcessingException, IOException {
 		Number indexNum = (Number) dataMap.get("index");
 		Long curToolIndex = indexNum != null ? indexNum.longValue() : 0L;
+		// Thinking is not part of the chat completions wire format — drop it.
+		if (dataMap.containsKey("thinking")) {
+			return;
+		}
 		// formatting as OpenAI streaming chunk
 		// tool_call is the lowest level
 		Map<String, Object> toolCall = new HashMap<>();
@@ -226,7 +277,7 @@ public final class OpenAIChatCompletionsHelper {
 		for (Map<String, Object> toolResponseMap : toolsResponseList) {
 			Map<String, Object> dataMap = new HashMap<>();
 			dataMap.put("index", index);
-			dataMap.put("id", dataMap.get(AskToolModelEngineResponse.ID_KEY));
+			dataMap.put("id", toolResponseMap.get(AskToolModelEngineResponse.ID_KEY));
 			dataMap.put("type", toolResponseMap.get(AskToolModelEngineResponse.TYPE_KEY));
 			Map<String, Object> functionMap = new HashMap<>();
 			functionMap.put("name", toolResponseMap.get(AskToolModelEngineResponse.NAME_KEY));

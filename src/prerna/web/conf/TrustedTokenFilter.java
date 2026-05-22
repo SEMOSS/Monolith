@@ -110,7 +110,6 @@ public class TrustedTokenFilter implements Filter {
 			// so let us account for that
 			boolean usingDynamic = authValue.contains("Bearer");
 			boolean usingBasic = authValue.contains("Basic");
-			;
 
 			if (usingBasic && !requireDynamic) {
 				authValue = authValue.replace("Basic", "").trim();
@@ -151,7 +150,7 @@ public class TrustedTokenFilter implements Filter {
 				// okay, we have a token
 				// and no current user
 				// we have to validate this stuff
-				String ip = ResourceUtility.getClientIp(request);
+				String ip = WebUtility.getClientIp(request);
 				Object[] tokenDetails = TrustedTokenService.getTokenForIp(ip);
 				if (tokenDetails == null || tokenDetails.length != 3) {
 					// token not found for this ip
