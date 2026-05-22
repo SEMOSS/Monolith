@@ -39,64 +39,36 @@ import prerna.cluster.util.ZKClient;
 
 public class UserDBLoader implements ServletContextListener {
 
-	private static final Logger logger = LogManager.getLogger(UserDBLoader.class); 
-
-	@Override
-	public void contextDestroyed(ServletContextEvent arg0) {
-		// TODO Auto-generated method stub
-		// unpublish
-		unpublish();
-	}
+	private static final Logger classLogger = LogManager.getLogger(UserDBLoader.class);
 
 	@Override
 	public void contextInitialized(ServletContextEvent arg0) {
-		// TODO Auto-generated method stub
-		// given a particular user this would load the databases specific to this user
-		logger.info("Initializing the context 2");
 		publish();
-		// need to think through this later
-		// this would add the user specific databases
-		// picks the users id from the session
-
 	}
-	
-	// TODO >>>timb: need to pull dbs in here for now until we get to lazy load
-	// TODO >>>timb: or in user resource pull on login
-	private void publish()
-	{
-		Map envMap = System.getenv();
-		
-		if(envMap.containsKey(ZKClient.ZK_SERVER) || envMap.containsKey(ZKClient.ZK_SERVER.toUpperCase()))
-		{
-			// we are in business
+
+	private void publish() {
+		Map<String, String> envMap = System.getenv();
+		if (envMap.containsKey(ZKClient.ZK_SERVER) || envMap.containsKey(ZKClient.ZK_SERVER.toUpperCase())) {
+			classLogger.info("Publishing the container to ZK");
 			ZKClient client = ZKClient.getInstance();
-			// TODO >>>timb: this needs to be done with check on the env var
-			// client.publishContainer(System.getenv("hostname") + "@" + client.host);
 			client.publishContainer(client.host);
+			classLogger.info("Published to ZK");
 		}
-		// else
-		// nothing to do proceed
-		
-	}
-	
-	private void unpublish()
-	{
-		Map envMap = System.getenv();
-		
-		if(envMap.containsKey(ZKClient.ZK_SERVER) || envMap.containsKey(ZKClient.ZK_SERVER.toUpperCase()))
-		{
-			// we are in business
-			
-			ZKClient client = ZKClient.getInstance();
-			client.zkClient = null;
-			client = ZKClient.getInstance();
-			client.deleteContainer(client.host);
-		}
-		// else
-		// nothing to do proceed
-		
 	}
 
-	
-	
+	@Override
+	public void contextDestroyed(ServletContextEvent arg0) {
+		unpublish();
+	}
+
+	private void unpublish() {
+		Map<String, String> envMap = System.getenv();
+		if (envMap.containsKey(ZKClient.ZK_SERVER) || envMap.containsKey(ZKClient.ZK_SERVER.toUpperCase())) {
+			classLogger.info("Removing the container from ZK");
+			ZKClient client = ZKClient.getInstance();
+			client.deleteContainer(client.host);
+			classLogger.info("Removed from ZK");
+		}
+	}
+
 }
