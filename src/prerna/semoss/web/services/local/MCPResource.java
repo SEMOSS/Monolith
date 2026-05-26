@@ -68,6 +68,7 @@ import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.util.Constants;
 import prerna.util.Utility;
+import prerna.web.services.util.WebUtility;
 
 @Singleton
 @Path("/ext/mcp/{toolbox_id}")
@@ -136,7 +137,9 @@ public class MCPResource {
 					ThreadContext.getImmutableContext(), idleTimeoutMinutes);
 			reaper.run();
 		} catch (IOException e) {
-			classLogger.error("Error running tool via streamable http.... {}", toolbox_id, e);
+			if (!WebUtility.handleStreamingException(e, classLogger, toolbox_id, null, null)) {
+				classLogger.error("Error running tool via streamable http.... {}", toolbox_id, e);
+			}
 		}
 	}
 
@@ -178,7 +181,9 @@ public class MCPResource {
 					request.getRequestURL().toString(), ThreadContext.getImmutableContext());
 			SSE_EXECUTOR.submit(reaper);
 		} catch (IOException e) {
-			classLogger.error("Error running tool via sse.... {}", toolbox_id, e);
+			if (!WebUtility.handleStreamingException(e, classLogger, toolbox_id, null, null)) {
+				classLogger.error("Error running tool via sse.... {}", toolbox_id, e);
+			}
 		}
 	}
 
