@@ -65,6 +65,33 @@ public final class OpenAIResponsesHelper {
 	}
 
 	/**
+	 * True when an exception from an SSE write is caused by the downstream
+	 * HTTP client (or an intermediate proxy) closing the connection rather
+	 * than a server-side fault. Walks the cause chain because Tomcat wraps
+	 * the raw NIO IOException("Broken pipe") in ClientAbortException, and
+	 * some proxy paths surface the same condition as "Connection reset".
+	 * Compared by class name so we don't take a hard compile-time dependency
+	 * on Tomcat internals.
+	 */
+	public static boolean isClientDisconnect(Throwable t) {
+		for (Throwable c = t; c != null; c = c.getCause()) {
+			if ("org.apache.catalina.connector.ClientAbortException"
+					.equals(c.getClass().getName())) {
+				return true;
+			}
+			String msg = c.getMessage();
+			if (msg != null) {
+				String lower = msg.toLowerCase(java.util.Locale.ROOT);
+				if (lower.contains("broken pipe")
+						|| lower.contains("connection reset")) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	/**
 	 * Attaches a Responses-API usage object to the inner {@code response} map
 	 * of a {@code response.completed} (or similar) event. No-op if all token
 	 * counts are null. Use this so streaming clients see real

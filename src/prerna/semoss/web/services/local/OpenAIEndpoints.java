@@ -295,6 +295,7 @@ public class OpenAIEndpoints {
 							long creationTimestamp = Instant.now().getEpochSecond();
 
 							String jobId = null;
+							boolean clientDisconnected = false;
 							try (Writer writer = new BufferedWriter(
 									new OutputStreamWriter(output, StandardCharsets.UTF_8))) {
 								// Execute model request but get job ID so can poll for partial responses
@@ -461,6 +462,18 @@ public class OpenAIEndpoints {
 										break;
 									}
 								}
+							} catch (IOException ioe) {
+								if (OpenAIResponsesHelper.isClientDisconnect(ioe)) {
+									clientDisconnected = true;
+									classLogger.info(
+											"Client disconnected mid-stream for engine '{}' and job '{}': {}",
+											engineId, jobId, ioe.getMessage());
+								} else {
+									classLogger.error(
+											"Streaming chat completions response failed for engine '{}' and job '{}': {}",
+											engineId, jobId, ioe.getMessage(), ioe);
+									throw new WebApplicationException(ioe, 500);
+								}
 							} catch (Exception e) {
 								classLogger.error(
 										"Streaming chat completions response failed for engine '{}' and job '{}': {}",
@@ -468,6 +481,12 @@ public class OpenAIEndpoints {
 								throw new WebApplicationException(e, 500);
 							} finally {
 								if (jobId != null) {
+									if (clientDisconnected) {
+										PixelJobRunner runner = PixelJobManager.getManager().getJob(jobId);
+										if (runner != null) {
+											runner.requestCancel();
+										}
+									}
 									PixelJobManager.getManager().clearJob(jobId);
 									PixelJobManager.getManager().removeJob(jobId);
 								}
@@ -666,6 +685,7 @@ public class OpenAIEndpoints {
 						String responseId = "resp_" + JOB_ID;
 						long creationTimestamp = Instant.now().getEpochSecond();
 						String jobId = null;
+						boolean clientDisconnected = false;
 						int seq = 0;
 
 						// --- STATE TRACKING ---
@@ -966,10 +986,25 @@ public class OpenAIEndpoints {
 									capturedCachedTokens, capturedReasoningTokens);
 							OpenAIResponsesHelper.writeSSEEvent(completedEvent, writer);
 
+						} catch (IOException ioe) {
+							if (OpenAIResponsesHelper.isClientDisconnect(ioe)) {
+								clientDisconnected = true;
+								classLogger.info("Client disconnected mid-stream for engine '{}': {}",
+										engineId, ioe.getMessage());
+							} else {
+								classLogger.error("I/O error processing responses streaming for engine '{}'",
+										engineId, ioe);
+							}
 						} catch (Exception e) {
 							classLogger.error("Error processing responses streaming for engine '{}'", engineId, e);
 						} finally {
 							if (jobId != null) {
+								if (clientDisconnected) {
+									PixelJobRunner runner = PixelJobManager.getManager().getJob(jobId);
+									if (runner != null) {
+										runner.requestCancel();
+									}
+								}
 								PixelJobManager.getManager().clearJob(jobId);
 								PixelJobManager.getManager().removeJob(jobId);
 							}
@@ -1156,6 +1191,7 @@ public class OpenAIEndpoints {
 					public void write(OutputStream output) throws IOException, WebApplicationException {
 						long creationTimestamp = Instant.now().getEpochSecond();
 						String jobId = null;
+						boolean clientDisconnected = false;
 
 						try (Writer writer = new BufferedWriter(
 								new OutputStreamWriter(output, StandardCharsets.UTF_8))) {
@@ -1224,11 +1260,26 @@ public class OpenAIEndpoints {
 								}
 							}
 
+						} catch (IOException ioe) {
+							if (OpenAIResponsesHelper.isClientDisconnect(ioe)) {
+								clientDisconnected = true;
+								classLogger.info("Client disconnected mid-stream for engine '{}': {}",
+										engineId, ioe.getMessage());
+							} else {
+								classLogger.error("I/O error processing images/generations streaming for engine '{}'",
+										engineId, ioe);
+							}
 						} catch (Exception e) {
 							classLogger.error("Error processing images/generations streaming for engine '{}'", engineId,
 									e);
 						} finally {
 							if (jobId != null) {
+								if (clientDisconnected) {
+									PixelJobRunner runner = PixelJobManager.getManager().getJob(jobId);
+									if (runner != null) {
+										runner.requestCancel();
+									}
+								}
 								PixelJobManager.getManager().clearJob(jobId);
 								PixelJobManager.getManager().removeJob(jobId);
 							}
@@ -1524,6 +1575,15 @@ public class OpenAIEndpoints {
 							writer.write("data: [DONE]\n\n");
 							writer.flush();
 
+						} catch (IOException ioe) {
+							if (OpenAIResponsesHelper.isClientDisconnect(ioe)) {
+								classLogger.info("Client disconnected mid-stream for engine '{}': {}",
+										engineId, ioe.getMessage());
+							} else {
+								classLogger.error("Fake streaming completion response failed for engine '{}': {}",
+										engineId, ioe.getMessage(), ioe);
+								throw new WebApplicationException(ioe, 500);
+							}
 						} catch (Exception e) {
 							classLogger.error("Fake streaming completion response failed for engine '{}': {}", engineId,
 									e.getMessage(), e);
