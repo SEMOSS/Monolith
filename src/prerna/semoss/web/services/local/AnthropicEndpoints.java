@@ -649,8 +649,13 @@ public class AnthropicEndpoints {
 									break;
 								}
 							}
-						} catch (org.apache.catalina.connector.ClientAbortException e) {
-							classLogger.debug("Client disconnected from SSE stream: {}", e.getMessage());
+						} catch (IOException ioe) {
+							final String capturedJobId = asyncJobId;
+							if (!WebUtility.handleStreamingException(ioe, classLogger, engineId, capturedJobId,
+									() -> PixelJobManager.getManager().interruptThread(capturedJobId))) {
+								classLogger.error("I/O error in streaming response for engine '{}' job '{}'",
+										engineId, asyncJobId, ioe);
+							}
 						} catch (Throwable e) {
 							classLogger.error("Error in streaming response", e);
 						} finally {
