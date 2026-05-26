@@ -635,12 +635,19 @@ public class OpenAIEndpoints {
 	}
 
 	private String resolveRoomIdFromCodexHeaders(HttpServletRequest request) {
-		String threadId = getSanitizedHeader(request, "thread_id");
+		String threadId = getSanitizedHeader(request, "thread-id");
+		if (threadId == null) {
+			threadId = getSanitizedHeader(request, "thread_id");
+		}
 		if (threadId != null) {
 			return threadId;
 		}
 
-		return getSanitizedHeader(request, "session_id");
+		String sessionId = getSanitizedHeader(request, "session-id");
+		if (sessionId == null) {
+			sessionId = getSanitizedHeader(request, "session_id");
+		}
+		return sessionId;
 	}
 
 	private String getSanitizedHeader(HttpServletRequest request, String headerName) {
@@ -705,8 +712,8 @@ public class OpenAIEndpoints {
 
 								if (partialResponseContent != null && !partialResponseContent.isEmpty()) {
 									for (Map<String, Object> streamObj : partialResponseContent) {
-										classLogger.info("Stream chunk received: {}",
-												GSON.toJson(streamObj));
+//										classLogger.info("Stream chunk received: {}",
+//												GSON.toJson(streamObj));
 
 										String streamType = (String) streamObj.get("stream_type");
 										Map<String, Object> streamData = (Map<String, Object>) streamObj.get("data");
