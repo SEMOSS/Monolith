@@ -201,6 +201,12 @@ public class OllamaEndpoints {
 					Map<String, Object> done = OllamaResponsesHelper.createGenerateStreamChunk(finalEngineId, "", true,
 							doneReason, llmResponse);
 					OllamaResponsesHelper.writeJsonLine(done, writer);
+				} catch (IOException ioe) {
+					if (!WebUtility.handleStreamingException(ioe, classLogger, finalEngineId, null, null)) {
+						classLogger.error("Streaming Ollama /generate call failed for engine '{}': {}", finalEngineId,
+								ioe.getMessage(), ioe);
+						throw new WebApplicationException(ioe, 500);
+					}
 				} catch (Exception e) {
 					classLogger.error("Streaming Ollama /generate call failed for engine '{}': {}", finalEngineId,
 							e.getMessage(), e);
@@ -343,6 +349,12 @@ public class OllamaEndpoints {
 					Map<String, Object> done = OllamaResponsesHelper.createChatStreamChunk(finalEngineId, "", null,
 							true, doneReason, llmResponse);
 					OllamaResponsesHelper.writeJsonLine(done, writer);
+				} catch (IOException ioe) {
+					if (!WebUtility.handleStreamingException(ioe, classLogger, finalEngineId, null, null)) {
+						classLogger.error("Streaming Ollama /chat call failed for engine '{}': {}", finalEngineId,
+								ioe.getMessage(), ioe);
+						throw new WebApplicationException(ioe, 500);
+					}
 				} catch (Exception e) {
 					classLogger.error("Streaming Ollama /chat call failed for engine '{}': {}", finalEngineId,
 							e.getMessage(), e);
