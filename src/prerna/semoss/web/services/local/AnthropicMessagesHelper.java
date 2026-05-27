@@ -1077,7 +1077,23 @@ public final class AnthropicMessagesHelper {
 		responseMap.put("content", content);
 		responseMap.put("stop_sequence", null);
 
-		responseMap.put("usage", llmResponse.getProviderUsageMap());
+		Integer cacheReadTokens = llmResponse.getNumberOfCacheReadTokens();
+		Integer cacheCreationTokens = llmResponse.getNumberOfCacheCreationTokens();
+
+		Map<String, Object> usage = new HashMap<>();
+		if (promptTokens != null) {
+			usage.put("input_tokens", promptTokens);
+		}
+		if (responseTokens != null) {
+			usage.put("output_tokens", responseTokens);
+		}
+		if (cacheReadTokens != null) {
+			usage.put("cache_read_input_tokens", cacheReadTokens);
+		}
+		if (cacheCreationTokens != null) {
+			usage.put("cache_creation_input_tokens", cacheCreationTokens);
+		}
+		responseMap.put("usage", usage);
 
 		return responseMap;
 	}

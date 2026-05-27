@@ -1449,6 +1449,8 @@ public class OpenAIEndpoints {
 			String messageId = llmResponse.getMessageId();
 			Integer promptTokens = llmResponse.getNumberOfTokensInPrompt();
 			Integer responseTokens = llmResponse.getNumberOfTokensInResponse();
+			Integer cacheReadTokens = llmResponse.getNumberOfCacheReadTokens();
+			Integer thinkingTokens = llmResponse.getNumberOfThinkingTokens();
 
 			// Get the current UTC time
 			ZonedDateTime currentDateTime = Utility.getCurrentZonedDateTimeForUser(user);
@@ -1475,7 +1477,29 @@ public class OpenAIEndpoints {
 			llmResponseMap.put("choices", choicesList);
 
 			// "usage" object
-			llmResponseMap.put("usage", llmResponse.getProviderUsageMap());
+			Map<String, Object> usage = new HashMap<>();
+			if (promptTokens != null) {
+				usage.put("prompt_tokens", promptTokens);
+			}
+			if (responseTokens != null) {
+				usage.put("completion_tokens", responseTokens);
+			}
+			if (promptTokens != null || responseTokens != null) {
+				int promptPart = promptTokens != null ? promptTokens : 0;
+				int completionPart = responseTokens != null ? responseTokens : 0;
+				usage.put("total_tokens", promptPart + completionPart);
+			}
+			if (cacheReadTokens != null) {
+				Map<String, Object> promptTokensDetails = new HashMap<>();
+				promptTokensDetails.put("cached_tokens", cacheReadTokens);
+				usage.put("prompt_tokens_details", promptTokensDetails);
+			}
+			if (thinkingTokens != null) {
+				Map<String, Object> completionTokensDetails = new HashMap<>();
+				completionTokensDetails.put("reasoning_tokens", thinkingTokens);
+				usage.put("completion_tokens_details", completionTokensDetails);
+			}
+			llmResponseMap.put("usage", usage);
 
 			return WebUtility.getResponse(llmResponseMap, 200);
 		} else {
@@ -1485,7 +1509,6 @@ public class OpenAIEndpoints {
 
 			classLogger.info("Starting fake streaming response for model: {}", engineId);
 
-			final Insight FINAL_INSIGHT = insight;
 			final Room FINAL_ROOM = room;
 			return Response.ok().header("Content-Type", "text/event-stream").header("Cache-Control", "no-cache")
 					.header("Connection", "keep-alive").entity((StreamingOutput) output -> {
@@ -1497,8 +1520,10 @@ public class OpenAIEndpoints {
 									.withText(question, question).withParamMap(dataMap).build();
 							AskModelEngineResponse llmResponse = engine.askRoom(question, FINAL_ROOM, msg, dataMap);
 							String completionText = llmResponse.getStringResponse();
-							Integer promptTokens = llmResponse.getNumberOfTokensInPrompt();
-							Integer responseTokens = llmResponse.getNumberOfTokensInResponse();
+							Integer streamPromptTokens = llmResponse.getNumberOfTokensInPrompt();
+							Integer streamResponseTokens = llmResponse.getNumberOfTokensInResponse();
+							Integer streamCacheReadTokens = llmResponse.getNumberOfCacheReadTokens();
+							Integer streamThinkingTokens = llmResponse.getNumberOfThinkingTokens();
 
 							// First (and only) SSE chunk
 							Map<String, Object> chunk = new HashMap<>();
@@ -1516,7 +1541,29 @@ public class OpenAIEndpoints {
 							choices.add(choice);
 							chunk.put("choices", choices);
 
-							chunk.put("usage", llmResponse.getProviderUsageMap());
+							Map<String, Object> streamUsage = new HashMap<>();
+							if (streamPromptTokens != null) {
+								streamUsage.put("prompt_tokens", streamPromptTokens);
+							}
+							if (streamResponseTokens != null) {
+								streamUsage.put("completion_tokens", streamResponseTokens);
+							}
+							if (streamPromptTokens != null || streamResponseTokens != null) {
+								int promptPart = streamPromptTokens != null ? streamPromptTokens : 0;
+								int completionPart = streamResponseTokens != null ? streamResponseTokens : 0;
+								streamUsage.put("total_tokens", promptPart + completionPart);
+							}
+							if (streamCacheReadTokens != null) {
+								Map<String, Object> promptTokensDetails = new HashMap<>();
+								promptTokensDetails.put("cached_tokens", streamCacheReadTokens);
+								streamUsage.put("prompt_tokens_details", promptTokensDetails);
+							}
+							if (streamThinkingTokens != null) {
+								Map<String, Object> completionTokensDetails = new HashMap<>();
+								completionTokensDetails.put("reasoning_tokens", streamThinkingTokens);
+								streamUsage.put("completion_tokens_details", completionTokensDetails);
+							}
+							chunk.put("usage", streamUsage);
 
 							writer.write("data: " + GSON.toJson(chunk) + "\n\n");
 							writer.write("data: [DONE]\n\n");
@@ -1678,8 +1725,9 @@ public class OpenAIEndpoints {
 		}
 
 		List<List<Double>> embeddings = embeddingsResponse.getResponse();
-		Integer promptTokens = embeddingsResponse.getNumberOfTokensInPrompt();
-		Integer responseTokens = embeddingsResponse.getNumberOfTokensInResponse();
+		Integer embeddingsPromptTokens = embeddingsResponse.getNumberOfTokensInPrompt();
+		Integer embeddingsResponseTokens = embeddingsResponse.getNumberOfTokensInResponse();
+		Integer embeddingsCacheReadTokens = embeddingsResponse.getNumberOfCacheReadTokens();
 
 		Map<String, Object> embeddingsResponseMap = new HashMap<>();
 
@@ -1699,7 +1747,24 @@ public class OpenAIEndpoints {
 		embeddingsResponseMap.put("object", "list");
 
 		// "usage" object
-		embeddingsResponseMap.put("usage", embeddingsResponse.getProviderUsageMap());
+		Map<String, Object> embeddingsUsage = new HashMap<>();
+		if (embeddingsPromptTokens != null) {
+			embeddingsUsage.put("prompt_tokens", embeddingsPromptTokens);
+		}
+		if (embeddingsResponseTokens != null) {
+			embeddingsUsage.put("completion_tokens", embeddingsResponseTokens);
+		}
+		if (embeddingsPromptTokens != null || embeddingsResponseTokens != null) {
+			int promptPart = embeddingsPromptTokens != null ? embeddingsPromptTokens : 0;
+			int completionPart = embeddingsResponseTokens != null ? embeddingsResponseTokens : 0;
+			embeddingsUsage.put("total_tokens", promptPart + completionPart);
+		}
+		if (embeddingsCacheReadTokens != null) {
+			Map<String, Object> promptTokensDetails = new HashMap<>();
+			promptTokensDetails.put("cached_tokens", embeddingsCacheReadTokens);
+			embeddingsUsage.put("prompt_tokens_details", promptTokensDetails);
+		}
+		embeddingsResponseMap.put("usage", embeddingsUsage);
 		return WebUtility.getResponse(embeddingsResponseMap, 200);
 	}
 
