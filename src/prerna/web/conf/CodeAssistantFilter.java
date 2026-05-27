@@ -73,51 +73,32 @@ public class CodeAssistantFilter implements Filter {
 			return;
 		}
 
-		// see if there is an auth value
+		// We pass our access key and secret key in an f string separated by a colon
+		// (ex. f"{access_key}:{secret_key}") with an optional ":room-{roomId}" segment.
+		// OpenAI clients send this as the "Bearer " Authorization header.
+		// Anthropic clients send the same value as the x-api-key header.
+		String token = null;
 		String authValue = request.getHeader("Authorization");
 		if (authValue == null) {
 			authValue = request.getHeader("authorization");
-			if (authValue == null) {
-				// no token? just go through and other filters will validate
-				arg2.doFilter(arg0, arg1);
-				return;
+		}
+		if (authValue != null && (authValue.startsWith("Bearer") || authValue.startsWith("bearer"))) {
+			token = authValue.substring("Bearer".length()).trim();
+		}
+		if (token == null || token.isEmpty()) {
+			String apiKeyHeader = request.getHeader("x-api-key");
+			if (apiKeyHeader != null) {
+				token = apiKeyHeader.trim();
 			}
 		}
 
-		// We pass our access key and secret key in an f string separated by a colon
-		// (ex. f"{access_key}:{secret_key}") in the api_key parameter
-		// OpenAI sets this as the "Bearer " authorization
-		if (authValue.startsWith("Bearer") || authValue.startsWith("bearer")) {
-			String bearerToken = authValue.substring("Bearer".length()).trim();
-
-			if (bearerToken != null && !bearerToken.isEmpty()) {
-				String[] split = bearerToken.split(":");
-				if (split != null && split.length == 2) {
-					String accessKey = split[0];
-					String secretKey = split[1];
-
-					if (LocalUserStore.getInstance().validate(accessKey, secretKey)) {
-						try {
-							user = SecurityUserAccessKeyUtils.validateLocalUserStore(accessKey, secretKey);
-						} catch (IllegalAccessException e) {
-							classLogger.error(Constants.STACKTRACE, e);
-						}
-
-						if (user != null) {
-							SecurityUserAccessKeyUtils.updateAccessTokenLastUsed(accessKey);
-							session = request.getSession(true);
-							session.setAttribute(Constants.SESSION_USER, user);
-							session.setAttribute(Constants.SESSION_USER_ID_LOG, user.getPrimaryLoginToken().getId());
-							WebUtility.loggingContextLoginEvent(session);
-
-							classLogger.info("User is logging in for code assistance using provider "
-									+ user.getPrimaryLoginToken().getProvider() + " with user access key");
-						}
-					}
-
-				}
-			}
+		if (token == null || token.isEmpty()) {
+			// no token? just go through and other filters will validate
+			arg2.doFilter(arg0, arg1);
+			return;
 		}
+
+		processCredentialToken(request, token);
 
 		// doesn't matter if we made a user or didn't
 		// we will continue the filter chain because the {@link NoUserInSessionFilter}
@@ -126,6 +107,42 @@ public class CodeAssistantFilter implements Filter {
 		// wrap the request to allow subsequent reading
 		HttpServletRequestWrapper requestWrapper = new HttpServletRequestWrapper(request);
 		arg2.doFilter(requestWrapper, arg1);
+	}
+
+	private void processCredentialToken(HttpServletRequest request, String token) {
+		String[] split = token.split(":");
+		if (split == null || (split.length != 2 && split.length != 3)) {
+			return;
+		}
+
+		String accessKey = split[0];
+		String secretKey = split[1];
+		// Optional 3rd segment: "room-{roomId}" for linking sub-conversations
+		if (split.length == 3 && split[2].startsWith("room-")) {
+			request.setAttribute("roomId", split[2].substring(5));
+		}
+
+		if (!LocalUserStore.getInstance().validate(accessKey, secretKey)) {
+			return;
+		}
+
+		User user = null;
+		try {
+			user = SecurityUserAccessKeyUtils.validateLocalUserStore(accessKey, secretKey);
+		} catch (IllegalAccessException e) {
+			classLogger.error(Constants.STACKTRACE, e);
+		}
+
+		if (user != null) {
+			SecurityUserAccessKeyUtils.updateAccessTokenLastUsed(accessKey);
+			HttpSession session = request.getSession(true);
+			session.setAttribute(Constants.SESSION_USER, user);
+			session.setAttribute(Constants.SESSION_USER_ID_LOG, user.getPrimaryLoginToken().getId());
+			WebUtility.loggingContextLoginEvent(session);
+
+			classLogger.info("User is logging in for code assistance using provider "
+					+ user.getPrimaryLoginToken().getProvider() + " with user access key");
+		}
 	}
 
 	private String getClientIpAddress(HttpServletRequest request) {

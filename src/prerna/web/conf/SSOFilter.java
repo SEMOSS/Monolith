@@ -49,7 +49,6 @@ import org.apache.logging.log4j.Logger;
 import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
-import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
 import prerna.util.Utility;
 import prerna.web.conf.util.CACTrackingUtil;
@@ -58,7 +57,25 @@ import prerna.web.conf.util.UserFileLogUtil;
 import prerna.web.services.util.WebUtility;
 
 /**
- * Servlet Filter implementation class SamlFilter
+ * Gatekeeper filter for SAML-protected requests.
+ *
+ * <p>
+ * This filter checks whether a request already has an authenticated SAML user
+ * in session. If not, it captures redirect context and sends the client to the
+ * SAML login entry page/URL.
+ *
+ * <p>
+ * How this class connects to the SAML flow:
+ *
+ * <ol>
+ * <li>Unauthenticated request reaches this filter first.</li>
+ * <li>The filter stores redirect state under
+ * {@link SSOUtil#SAML_REDIRECT_KEY}.</li>
+ * <li>The browser is redirected to login flow endpoints ({@code IdpSSOServlet}
+ * or {@code SPSSOServlet} via the configured login page).</li>
+ * <li>After successful callback processing in {@code SamlVerifierServlet},
+ * requests pass through this filter as authenticated.</li>
+ * </ol>
  */
 public class SSOFilter implements Filter {
 
@@ -83,65 +100,75 @@ public class SSOFilter implements Filter {
 	private static String loginUrl = null;
 
 	private static final String LOG_USER = "LOG_USER";
-	
+
 	private static FilterConfig filterConfig;
 
 	/**
-	 * @see Filter#doFilter(ServletRequest, ServletResponse, FilterChain)
+	 * Main request gate for SAML authentication.
+	 *
+	 * <p>
+	 * If no user is present in session, this method initializes login redirect
+	 * state and returns a redirect-style response to start SSO. If a user exists,
+	 * it continues the chain.
 	 */
-	public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
+	@Override
+	public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
+			throws IOException, ServletException {
 		setInitParams(request);
 
 		HttpSession session = ((HttpServletRequest) request).getSession(false);
 		User user = null;
-		
+
 		// Check if user is already there in the session. If there,
 		// then get the existing user and travel down the chain.
 		if (session != null) {
 			user = (User) session.getAttribute(Constants.SESSION_USER);
 		}
-		
-		// User has not logged in - redirect to the base page to start the
-		// SAML workflow
-		if(user == null) {
+
+		// User has not logged in. Capture redirect context and send the browser
+		// to the configured SAML login entry point.
+		if (user == null) {
 			classLogger.info("Starting saml transaction.");
-			if(session == null) {
+			if (session == null) {
 				session = ((HttpServletRequest) request).getSession(true);
 			}
-			
+
 			// this will be the full path of the request
 			// like http://localhost:8080/Monolith_Dev/api/engine/runPixel
 			String fullUrl = WebUtility.cleanHttpResponse(((HttpServletRequest) request).getRequestURL().toString());
-						
+
 			// we need to store information in the session
 			// so that we can properly come back to the referer once an admin has been added
-			
+
 			// we add a location to the headers when we want the browser to auto move
 			// which is the case for portals as there is no FE and all managed by the BE
-			// however, if we do this for the base application, it will cause issues as it will redirect 
-			// and return the html as the response but doesn't seem like the FE knows what to do with that
+			// however, if we do this for the base application, it will cause issues as it
+			// will redirect
+			// and return the html as the response but doesn't seem like the FE knows what
+			// to do with that
 			// so only on portals do we add the location header...
 			boolean addLocation = false;
-			
+
 			String referer = WebUtility.cleanHttpResponse(((HttpServletRequest) request).getHeader("referer"));
-			if(referer != null) {
+			if (referer != null) {
 				classLogger.info(Utility.cleanLogString("Setting session redirect value to referer = " + referer));
-			} else if(fullUrl.contains("/public_home/")){
+			} else if (fullUrl.contains("/public_home/")) {
 				addLocation = true;
-				classLogger.info(Utility.cleanLogString("Setting session redirect value to the request URL = " + fullUrl));
+				classLogger
+						.info(Utility.cleanLogString("Setting session redirect value to the request URL = " + fullUrl));
 				referer = fullUrl;
 			} else {
 				classLogger.info(Utility.cleanLogString("No session redirect value found..."));
 			}
 			// set the referer if we have it
 			session.setAttribute(SSOUtil.SAML_REDIRECT_KEY, referer);
-			
+
 			// this will be the deployment name of the app
 			String contextPath = request.getServletContext().getContextPath();
 
 			// create the cookie with a custom domain?
 			// this is important if you want multi-domain cookies
-			if(customDomainForCookie != null) {
+			if (customDomainForCookie != null) {
 				Cookie k = new Cookie(DBLoader.getSessionIdKey(), session.getId());
 				k.setHttpOnly(true);
 				k.setSecure(request.isSecure());
@@ -161,9 +188,11 @@ public class SSOFilter implements Filter {
 					}
 				}
 			}
-			
-			// we can allow a custom url or we go through our SAML routing via idp or sp initiated flow
-			if(loginUrl != null && !(loginUrl = loginUrl.trim()).isEmpty()) {
+
+			// Redirect to either:
+			// 1) configured external login URL, or
+			// 2) internal SAML login page that routes into IdpSSOServlet/SPSSOServlet.
+			if (loginUrl != null && !(loginUrl = loginUrl.trim()).isEmpty()) {
 				((HttpServletResponse) response).setHeader("redirect", loginUrl);
 				((HttpServletResponse) response).setHeader("location", loginUrl);
 				((HttpServletResponse) response).sendError(302, "Need to redirect to " + loginUrl);
@@ -171,42 +200,44 @@ public class SSOFilter implements Filter {
 				// if no login url defined
 				// use the full url to do this
 				// we redirect to the index.html page specifically created for the SAML call.
-				String redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length()) + loginPath;
+				String redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length())
+						+ loginPath;
 				((HttpServletResponse) response).setHeader("redirect", redirectUrl);
-				if(addLocation) {
+				if (addLocation) {
 					((HttpServletResponse) response).setHeader("location", redirectUrl);
 				}
 				((HttpServletResponse) response).sendError(302, "Need to redirect to " + redirectUrl);
 			}
-			
-			if(tracker != null) {
+
+			if (tracker != null) {
 				((HttpServletRequest) request).getSession().setAttribute(LOG_USER, "true");
 			}
-			
+
 			return;
 		}
-		
-		if(session != null && session.getAttribute(LOG_USER) != null) {
+
+		if (session != null && session.getAttribute(LOG_USER) != null) {
 			session.removeAttribute(LOG_USER);
-			
+
 			AccessToken token = user.getAccessToken(AuthProvider.SAML);
 			// new user has entered!
 			// do we need to count?
-			if(tracker != null && !token.getName().equals("TOPAZ")) {
+			if (tracker != null && !token.getName().equals("TOPAZ")) {
 				tracker.addToQueue(LocalDate.now());
 			}
 
 			// are we logging their information?
-			if(userLogger != null && !token.getName().equals("TOPAZ")) {
+			if (userLogger != null && !token.getName().equals("TOPAZ")) {
 				// grab the ip address
-				userLogger.addToQueue(new String[] {token.getId(), token.getName(), 
-						LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")), ResourceUtility.getClientIp((HttpServletRequest)request)});
+				userLogger.addToQueue(new String[] { token.getId(), token.getName(),
+						LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+						WebUtility.getClientIp((HttpServletRequest) request) });
 			}
 		}
-		
+
 		chain.doFilter(request, response);
 	}
-	
+
 	@Override
 	public void destroy() {
 		// TODO Auto-generated method stub
@@ -218,75 +249,72 @@ public class SSOFilter implements Filter {
 		SSOFilter.filterConfig = arg0;
 	}
 
+	/**
+	 * Lazily reads filter init parameters and wires optional tracking/logging
+	 * integrations.
+	 *
+	 * <p>
+	 * Called on each request, but initialization work executes once due to the
+	 * {@code init} flag.
+	 */
 	private void setInitParams(ServletRequest arg0) {
-		if(!init) {
+		if (!init) {
 			boolean logUsers = false;
 			String logUserInfoStr = SSOFilter.filterConfig.getInitParameter(LOG_USER_INFO);
-			if(logUserInfoStr != null) {
+			if (logUserInfoStr != null) {
 				logUsers = Boolean.parseBoolean(logUserInfoStr);
 			}
-			if(logUsers) {
+			if (logUsers) {
 				String logInfoPath = SSOFilter.filterConfig.getInitParameter(LOG_USER_INFO_PATH);
 				String logInfoSep = SSOFilter.filterConfig.getInitParameter(LOG_USER_INFO_SEP);
-				if(logInfoPath == null) {
-					classLogger.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
-					classLogger.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
-					classLogger.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
-					classLogger.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
+				if (logInfoPath == null) {
+					classLogger.warn(
+							"SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
 				}
 				try {
 					userLogger = UserFileLogUtil.getInstance(logInfoPath, logInfoSep);
-				} catch(Exception e) {
-					classLogger.info(e.getMessage());
-					classLogger.info(e.getMessage());
-					classLogger.info(e.getMessage());
-					classLogger.info(e.getMessage());
+				} catch (Exception e) {
+					classLogger.error("Unable to initialize user file logging for SSOFilter.", e);
 				}
 			}
 
 			boolean countUsers = false;
 			String countUsersStr = SSOFilter.filterConfig.getInitParameter(COUNT_USER_ENTRY);
-			if(countUsersStr != null) {
+			if (countUsersStr != null) {
 				countUsers = Boolean.parseBoolean(countUsersStr);
 			} else {
 				countUsers = false;
 			}
 
-			if(countUsers) {
+			if (countUsers) {
 				String countDatabaseId = SSOFilter.filterConfig.getInitParameter(COUNT_USER_ENTRY_DATABASE);
-				if(countDatabaseId == null) {
-					classLogger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
-					classLogger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
-					classLogger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
-					classLogger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
+				if (countDatabaseId == null) {
+					classLogger.warn("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
 				}
 				try {
 					tracker = CACTrackingUtil.getInstance(countDatabaseId);
-				} catch(Exception e) {
-					classLogger.info(e.getMessage());
-					classLogger.info(e.getMessage());
-					classLogger.info(e.getMessage());
-					classLogger.info(e.getMessage());
+				} catch (Exception e) {
+					classLogger.error("Unable to initialize user entry tracking for SSOFilter.", e);
 				}
 			}
-			
+
 			String customDomainForCookie = SSOFilter.filterConfig.getInitParameter(CUSTOM_DOMAIN);
-			if(customDomainForCookie != null && !(customDomainForCookie = customDomainForCookie.trim()).isEmpty()) {
+			if (customDomainForCookie != null && !(customDomainForCookie = customDomainForCookie.trim()).isEmpty()) {
 				SSOFilter.customDomainForCookie = customDomainForCookie;
 			}
-			
+
 			String providedLoginPath = SSOFilter.filterConfig.getInitParameter(LOGIN_PATH);
-			if(providedLoginPath != null) {
+			if (providedLoginPath != null) {
 				loginPath = providedLoginPath;
 			} else {
 				loginPath = "/samlLogin/";
 			}
-			
+
 			String providedLoginUrl = SSOFilter.filterConfig.getInitParameter(LOGIN_URL);
-			if(providedLoginUrl != null) {
+			if (providedLoginUrl != null) {
 				loginUrl = providedLoginUrl;
 			}
-			
+
 			// change init to true
 			init = true;
 		}

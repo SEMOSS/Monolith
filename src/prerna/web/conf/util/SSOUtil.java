@@ -31,6 +31,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -55,94 +56,106 @@ import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 /**
- * 
- * This util class is where we do all the configuration.
- * The entire SAML configuration is created here. The 
- * implementation is very much specific to OpenAM.
+ * Central SAML/OpenAM Fedlet configuration utility used by the SSO servlet
+ * flow.
  *
+ * <p>
+ * How this class connects to the other SAML classes:
+ *
+ * <ol>
+ * <li>{@code IdpSSOServlet} calls this class to resolve IdP metadata and build
+ * the IdP redirect URL.</li>
+ * <li>{@code SPSSOServlet} calls this class before creating an SP-initiated
+ * AuthnRequest.</li>
+ * <li>{@code SamlVerifierServlet} calls this class before validating an IdP
+ * callback assertion.</li>
+ * </ol>
+ *
+ * <p>
+ * The implementation is specific to OpenAM metadata APIs and Fedlet
+ * conventions.
  */
 
 public class SSOUtil {
 
-	private static final Logger logger = LogManager.getLogger(SSOUtil.class);
-	private static String fedletHomeDir = "";
-	private static String deployuri = "";
-	private static final Map<String, String> ssoMap = new HashMap<String, String>();
-	private static final String HTTP_POST_BINDING = "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST";
-	private static boolean IS_CONFIGURED = false;
-	public boolean is_authenticated = false;
-	private static SSOUtil _instance;
-	public static String SAML_REDIRECT_KEY = "SAML_REDIRECT_KEY";
+	private static final Logger classLogger = LogManager.getLogger(SSOUtil.class);
 
-	static {
-		_instance = new SSOUtil();
-	}
-	
-	
+	// Fedlet/OpenAM runtime values reused by SAML servlets.
+	private static final Map<String, String> SSO_MAP = new HashMap<String, String>();
+	private static final Map<String, String> READ_ONLY_SSO_MAP = Collections.unmodifiableMap(SSO_MAP);
+	private static final String HTTP_POST_BINDING = "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST";
+
+	private static String fedletHomeDir = "";
+	private static volatile boolean isConfigured = false;
+
+	public static final String SAML_REDIRECT_KEY = "SAML_REDIRECT_KEY";
+
+	/**
+	 * Singleton instance.
+	 *
+	 * <p>
+	 * SSO metadata is initialized lazily in
+	 * {@link #configureSSO(HttpServletRequest, HttpServletResponse)}.
+	 */
+	private static final SSOUtil INSTANCE = new SSOUtil();
+
 	private SSOUtil() {
-		
+
 	}
 
 	/**
-	 * This method sets up the SAML home directory and other env variables
-	 * needed for the handshake to happen correctly between the SP and the 
-	 * IDP.
+	 * Singleton accessor for servlet callers.
 	 */
-	
-	private void setFedletHomeDir() {
-		logger.info("SSO directory setup starting");
-		
-		// Nice to have these setup in the env.
-		System.setProperty("com.iplanet.am.cookie.name", "iPlanetDirectoryPro");
-		System.setProperty("com.sun.identity.federation.fedCookieName", "fedCookie");
-		
-		// this is where we set the SAML home dir by getting the loc from RDF props.
-		String confLocation = Utility.getDIHelperProperty(Constants.SAML_PROP_LOC).trim(); 
-		logger.info("Directory is set to.. " + confLocation);
-		System.getProperties().setProperty("com.sun.identity.fedlet.home", confLocation);
-		
-		// Check if the deployuri is valid, otherwise throw exception.
-		if(deployuri == null || deployuri.isEmpty())
-			throw new IllegalArgumentException("Deploy uri is null or empty. Cannot create SSO config.");
-		int slashLoc = deployuri.indexOf("/", 1);
-		if (slashLoc != -1) {
-			deployuri = deployuri.substring(0, slashLoc);
-		}
-		
-		// Set the saml config location
-		fedletHomeDir = confLocation;
-		if ((fedletHomeDir == null) || (fedletHomeDir.trim().length() == 0)) {
-			if (System.getProperty("user.home").equals(File.separator)) {
-				fedletHomeDir = File.separator + "fedlet";
-			} else {
-				fedletHomeDir = System.getProperty("user.home") + File.separator + "fedlet";
-			}
-		}
-		logger.info("SSO directory setup complete.");
+	public static SSOUtil getInstance() {
+		return INSTANCE;
 	}
 
-	/*
-	 * Set all the properties related to SSO in this method.
+	/**
+	 * Returns the shared SSO runtime map populated during
+	 * {@link #configureSSO(HttpServletRequest, HttpServletResponse)}.
+	 *
+	 * <p>
+	 * Primarily consumed by {@code IdpSSOServlet} to build the redirect to the IdP.
+	 *
+	 * <p>
+	 * The returned map is read-only.
 	 */
-	private void setSSOProperties(HttpServletRequest request, HttpServletResponse response) throws IOException {
-		
-		// First set the SAML home dir.
-		setFedletHomeDir();
-		
-		String spEntityID = null;
-		String spMetaAlias = null;
-		String idpEntityID = null;
-		String idpMetaAlias = null;
-		try {
+	public Map<String, String> getSSOMap() {
+		return READ_ONLY_SSO_MAP;
+	}
 
-			File dir = new File(WebUtility.normalizePath( fedletHomeDir ));
-			File file = new File(WebUtility.normalizePath( fedletHomeDir + File.separator + "FederationConfig.properties"));
-			logger.info("Fedlet config being used " + file);
-			if (!dir.exists() || !dir.isDirectory()) {
-				throw new FileNotFoundException("Configuration directory does not exist.");
-			} else if (!file.exists()) {
-				throw new FileNotFoundException("Configuration files do not exist.");
-			} else {
+	/**
+	 * Public entry point used by SAML servlets to initialize metadata-driven SSO
+	 * state.
+	 */
+	public void configureSSO(HttpServletRequest request, HttpServletResponse response) throws IOException {
+		if (isConfigured) {
+			return;
+		}
+		synchronized (SSOUtil.class) {
+			if (isConfigured) {
+				return;
+			}
+
+			// First set the SAML home dir.
+			setFedletHomeDir();
+			String deployUri = deriveDeployUri(request);
+
+			String spEntityID = null;
+			String spMetaAlias = null;
+			String idpEntityID = null;
+			String idpMetaAlias = null;
+			try {
+				File dir = new File(WebUtility.normalizePath(fedletHomeDir));
+				File file = new File(
+						WebUtility.normalizePath(fedletHomeDir + File.separator + "FederationConfig.properties"));
+				classLogger.info("Fedlet config being used " + file);
+				if (!dir.exists() || !dir.isDirectory()) {
+					throw new FileNotFoundException("Configuration directory does not exist.");
+				} else if (!file.exists()) {
+					throw new FileNotFoundException("Configuration files do not exist.");
+				}
+
 				SAML2MetaManager manager = new SAML2MetaManager();
 				List spEntities = manager.getAllHostedServiceProviderEntities("/");
 				if ((spEntities != null) && !spEntities.isEmpty()) {
@@ -179,42 +192,97 @@ public class SSOUtil {
 				if ((spEntityID == null) || (idpEntityID == null)) {
 					throw new SAML2MetaException(
 							"Fedlet or remote Identity Provider metadata is not configured. Please configure SP/IDP first.");
-				} else {
-					// IDP base URL
-					Map<String, String> idpMap = getIDPBaseUrlAndMetaAlias(idpEntityID, deployuri);
-					String idpBaseUrl = (String) idpMap.get("idpBaseUrl");
-					idpMetaAlias = (String) idpMap.get("idpMetaAlias");
-					String fedletBaseUrl = getFedletBaseUrl(spEntityID, deployuri);
-					
-					// Put everything in the SSOMap.
-					ssoMap.put("idpBaseUrl", idpBaseUrl);
-					ssoMap.put("fedletBaseUrl", fedletBaseUrl);
-					ssoMap.put("idpMetaAlias", idpMetaAlias);
-					ssoMap.put("spEntityID", spEntityID);
-					ssoMap.put("metaAlias", spMetaAlias);
-					ssoMap.put("idpEntityID", idpEntityID);
-					ssoMap.put("binding", HTTP_POST_BINDING);
-					
-					logger.info(Utility.cleanLogString("Fedlet (SP) Entity ID:" + spEntityID));
-					logger.info(Utility.cleanLogString("IDP Entity ID:" + idpEntityID));
-					
-					//populateSSOMap(spMetaAlias, idpEntityID, HTTP_POST_BINDING);
 				}
-				IS_CONFIGURED = true;
+
+				// IDP base URL
+				Map<String, String> idpMap = getIDPBaseUrlAndMetaAlias(idpEntityID, deployUri);
+				String idpBaseUrl = idpMap.get("idpBaseUrl");
+				idpMetaAlias = idpMap.get("idpMetaAlias");
+				String fedletBaseUrl = getFedletBaseUrl(spEntityID, deployUri);
+
+				// Store resolved runtime values for servlet consumers.
+				// IdpSSOServlet reads these keys to build the outbound IdP redirect.
+				SSO_MAP.clear();
+				SSO_MAP.put("idpBaseUrl", idpBaseUrl);
+				SSO_MAP.put("fedletBaseUrl", fedletBaseUrl);
+				SSO_MAP.put("idpMetaAlias", idpMetaAlias);
+				SSO_MAP.put("spEntityID", spEntityID);
+				SSO_MAP.put("metaAlias", spMetaAlias);
+				SSO_MAP.put("idpEntityID", idpEntityID);
+				SSO_MAP.put("binding", HTTP_POST_BINDING);
+
+				classLogger.info(Utility.cleanLogString("Fedlet (SP) Entity ID:" + spEntityID));
+				classLogger.info(Utility.cleanLogString("IDP Entity ID:" + idpEntityID));
+				isConfigured = true;
+			} catch (SAML2MetaException se) {
+				classLogger.error("Failed to configure SSO metadata from Fedlet/OpenAM.", se);
+				response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, se.getMessage());
 			}
-		} catch (SAML2MetaException se) {
-			se.printStackTrace();
-			response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, se.getMessage());
-			return;
 		}
 	}
 
 	/**
-	 * This method gets the IDP related details and puts them into the map.
-	 * 
-	 * @param idpEntityID
-	 * @param deployuri
-	 * @return
+	 * Initializes Fedlet runtime properties used in endpoint calculations.
+	 *
+	 * <p>
+	 * This must be called before metadata reads because OpenAM APIs depend on these
+	 * system properties being present.
+	 */
+	private void setFedletHomeDir() {
+		classLogger.info("SSO directory setup starting");
+
+		// Nice to have these setup in the env.
+		System.setProperty("com.iplanet.am.cookie.name", "iPlanetDirectoryPro");
+		System.setProperty("com.sun.identity.federation.fedCookieName", "fedCookie");
+
+		// this is where we set the SAML home dir by getting the loc from RDF props.
+		String confLocation = Utility.getDIHelperProperty(Constants.SAML_PROP_LOC).trim();
+		classLogger.info("Directory is set to.. " + confLocation);
+		System.getProperties().setProperty("com.sun.identity.fedlet.home", confLocation);
+
+		// Set the saml config location
+		fedletHomeDir = confLocation;
+		if ((fedletHomeDir == null) || (fedletHomeDir.trim().length() == 0)) {
+			if (System.getProperty("user.home").equals(File.separator)) {
+				fedletHomeDir = File.separator + "fedlet";
+			} else {
+				fedletHomeDir = System.getProperty("user.home") + File.separator + "fedlet";
+			}
+		}
+		classLogger.info("SSO directory setup complete.");
+	}
+
+	/**
+	 * Derives the application deployment root from the incoming request URI.
+	 *
+	 * <p>
+	 * For example, {@code /Monolith_Dev/IdpSSOServlet} becomes
+	 * {@code /Monolith_Dev}. This normalized value is used when matching ACS/SSO
+	 * metadata URLs that are rooted at the app context path.
+	 *
+	 * @param request current HTTP request
+	 * @return deployment root segment (context-style path)
+	 * @throws IllegalArgumentException when the request URI is missing
+	 */
+	private String deriveDeployUri(HttpServletRequest request) {
+		String requestUri = request.getRequestURI();
+		if (requestUri == null || requestUri.isEmpty()) {
+			throw new IllegalArgumentException("Deploy uri is null or empty. Cannot create SSO config.");
+		}
+		int slashLoc = requestUri.indexOf("/", 1);
+		if (slashLoc != -1) {
+			return requestUri.substring(0, slashLoc);
+		}
+		return requestUri;
+	}
+
+	/**
+	 * Finds the IdP base URL and IdP meta alias from OpenAM metadata for a specific
+	 * IdP entity.
+	 *
+	 * @param idpEntityID IdP entity ID selected for this authentication flow
+	 * @param deployuri   current app deployment URI root (used by surrounding flow)
+	 * @return map containing {@code idpBaseUrl} and {@code idpMetaAlias} when found
 	 */
 	private Map<String, String> getIDPBaseUrlAndMetaAlias(String idpEntityID, String deployuri) {
 		Map<String, String> returnMap = new HashMap<>();
@@ -252,11 +320,11 @@ public class SSOUtil {
 	}
 
 	/**
-	 * Helper method to read the config files and set the base urls saml style.
-	 * 
-	 * @param spEntityID
-	 * @param deployuri
-	 * @return
+	 * Derives the SP (fedlet) base URL from assertion consumer service metadata.
+	 *
+	 * @param spEntityID hosted SP entity ID
+	 * @param deployuri  deployment URI root used to trim the ACS URL
+	 * @return computed fedlet base URL, or {@code null} when not derivable
 	 */
 	private String getFedletBaseUrl(String spEntityID, String deployuri) {
 		if (spEntityID == null) {
@@ -268,9 +336,9 @@ public class SSOUtil {
 			SPSSODescriptorElement sp = manager.getSPSSODescriptor("/", spEntityID);
 			List acsList = sp.getAssertionConsumerService();
 			if ((acsList != null) && (!acsList.isEmpty())) {
-				Iterator j = acsList.iterator();
-				while (j.hasNext()) {
-					AssertionConsumerServiceElement acs = (AssertionConsumerServiceElement) j.next();
+				Iterator iterator = acsList.iterator();
+				while (iterator.hasNext()) {
+					AssertionConsumerServiceElement acs = (AssertionConsumerServiceElement) iterator.next();
 					if ((acs != null) && (acs.getBinding() != null)) {
 						String acsURL = acs.getLocation();
 						int loc = acsURL.indexOf(deployuri + "/");
@@ -288,31 +356,13 @@ public class SSOUtil {
 		}
 		return fedletBaseUrl;
 	}
-	
-	private void populateSSOMap(String spMetaAlias, String idpEntityID, String binding) {
-		ssoMap.put("metaAlias", spMetaAlias);
-		ssoMap.put("idpEntityID", idpEntityID);
-		ssoMap.put("binding", binding);
-	}
-	
-	public Map<String, String> getSSOMap(){
-		return ssoMap;
-	}
-	
-	public void setSSODeployURI(String uri) {
-		deployuri = uri;
-	}
-	
-	public void configureSSO(HttpServletRequest request, HttpServletResponse response) throws IOException {
-		setSSOProperties(request, response);
-	}
-	
+
+	/**
+	 * Indicates whether this singleton has completed SSO configuration at least
+	 * once.
+	 */
 	public boolean isConfigured() {
-		return IS_CONFIGURED;
+		return isConfigured;
 	}
-	
-	public static SSOUtil getInstance() {
-		return _instance;
-	}
-	
+
 }

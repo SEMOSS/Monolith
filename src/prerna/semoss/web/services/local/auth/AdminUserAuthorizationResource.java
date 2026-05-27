@@ -123,7 +123,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 				try {
 					modelMaxTokens = Integer.parseInt(modelMaxTokensStr);
 				} catch (NumberFormatException e) {
-					classLogger.error(Constants.STACKTRACE, e);
+					classLogger.error("Failed to register user.", e);
 					throw new IllegalArgumentException("modelMaxTokens must be a valid Integer value");
 				}
 			}
@@ -134,7 +134,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 				try {
 					modelMaxResponseTime = Double.parseDouble(modelMaxResponseTimeStr);
 				} catch (NumberFormatException e) {
-					classLogger.error(Constants.STACKTRACE, e);
+					classLogger.error("Failed to register user.", e);
 					throw new IllegalArgumentException("modelMaxResponseTime must be a valid Number value");
 				}
 			}
@@ -173,11 +173,11 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 					countryCode, newUserAdmin, publisher, exporter, modelUsageRestriction, modelUsageFrequency,
 					modelMaxTokens, modelMaxResponseTime);
 		} catch (IllegalArgumentException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to register user.", e);
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to register user.", e);
 			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
@@ -201,7 +201,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update user publisher.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -213,7 +213,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 		try {
 			adminUtils.setUserPublisher(userId, isPublisher);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update user publisher.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
@@ -241,7 +241,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update user locked.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -254,7 +254,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 		try {
 			adminUtils.setUserLock(userId, type, isLocked);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update user locked.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
@@ -282,7 +282,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update user.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -295,12 +295,12 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 		if (userInfo.containsKey("admin")) {
 			if (userInfo.get("admin") instanceof Number) {
 				adminChange = ((Number) userInfo.get("admin")).intValue() == 1;
-				classLogger.info(
-						"User has edited user " + userInfo.get("id") + " to admin level " + userInfo.get("admin"));
+				classLogger.info("User has edited user {} to admin level {}", userInfo.get("id"),
+						userInfo.get("admin"));
 			} else {
 				adminChange = Boolean.parseBoolean(userInfo.get("admin") + "");
-				classLogger.info(
-						"User has edited user " + userInfo.get("id") + " to admin level " + userInfo.get("admin"));
+				classLogger.info("User has edited user {} to admin level {}", userInfo.get("id"),
+						userInfo.get("admin"));
 			}
 		}
 
@@ -349,7 +349,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to delete user.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -371,7 +371,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 		}
 
 		// log the operation
-		classLogger.info("User has deleted user " + userIdToDelete + " with provider " + userTypeToDelete);
+		classLogger.info("User has deleted user {} with provider {}", userIdToDelete, userTypeToDelete);
 
 		boolean success = adminUtils.deleteUser(userIdToDelete, userTypeToDelete);
 		return WebUtility.getResponse(success, 200);
@@ -395,7 +395,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve all db users.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -408,7 +408,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Path("/getAllUsers")
 	@Produces("application/json")
-	public Response searchTerm(@Context HttpServletRequest request, @QueryParam("filterWord") String searchTerm,
+	public Response getAllUsers(@Context HttpServletRequest request, @QueryParam("filterWord") String searchTerm,
 			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
 		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
 		SecurityAdminUtils adminUtils = null;
@@ -417,7 +417,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to search term.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -437,13 +437,55 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve num users.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
 		Long ret = adminUtils.getNumUsers(searchTerm);
+		return WebUtility.getResponse(ret, 200);
+	}
+
+	@GET
+	@Path("/getAllAPIUsers")
+	@Produces("application/json")
+	public Response getAllAPIUsers(@Context HttpServletRequest request, @QueryParam("filterWord") String searchTerm,
+			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
+		SecurityAdminUtils adminUtils = null;
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+			adminUtils = performAdminCheck(request, user);
+		} catch (IllegalAccessException e) {
+			classLogger.error("Failed to search term.", e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		List<Map<String, Object>> ret = adminUtils.getAllAPIUsers(searchTerm, limit, offset);
+		return WebUtility.getResponse(ret, 200);
+	}
+
+	@GET
+	@Path("/getNumAPIUsers")
+	@Produces("application/json")
+	public Response getNumAPIUsers(@Context HttpServletRequest request, @QueryParam("filterWord") String searchTerm) {
+		SecurityAdminUtils adminUtils = null;
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+			adminUtils = performAdminCheck(request, user);
+		} catch (IllegalAccessException e) {
+			classLogger.error("Failed to retrieve num users.", e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		Long ret = adminUtils.getNumAPIUsers(searchTerm);
 		return WebUtility.getResponse(ret, 200);
 	}
 

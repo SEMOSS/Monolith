@@ -48,73 +48,102 @@ import prerna.web.conf.util.SSOUtil;
 import prerna.web.services.util.WebUtility;
 
 /**
- * Servlet implementation class for IDP Initiated SAML
+ * Handles the IdP-initiated login entry point.
+ *
+ * <p>
+ * This servlet is typically reached from the SAML login page/filter flow when
+ * we want the Identity Provider (IdP) to start authentication immediately. Its
+ * responsibility is to:
+ *
+ * <ol>
+ * <li>Validate and preserve any post-login redirect target in the HTTP
+ * session.</li>
+ * <li>Ask {@link SSOUtil} to load SP/IdP metadata and runtime SSO
+ * parameters.</li>
+ * <li>Build the IdP initiation URL and redirect the browser to the IdP.</li>
+ * </ol>
+ *
+ * <p>
+ * After the user authenticates at the IdP, the IdP posts the SAML response back
+ * to {@code SamlVerifierServlet}, which completes local login/session creation.
  */
 @WebServlet("/IdpSSOServlet")
 public class IdpSSOServlet extends HttpServlet {
-	
+
 	private static final long serialVersionUID = 1L;
-	private static final Logger logger = LogManager.getLogger(IdpSSOServlet.class);
-    
-    public IdpSSOServlet() {
-        super();
-    }
+	private static final Logger classLogger = LogManager.getLogger(IdpSSOServlet.class);
+
+	public IdpSSOServlet() {
+		super();
+	}
 
 	/**
-	 * The below doGet is called from the SSOFilter via the samlLogin/index.html page. 
-	 * Once called, it gets all the required openAM params from the SSOUtil class and 
-	 * does a redirect to the IDP.
+	 * Entry point for IdP-initiated SSO.
+	 *
+	 * <p>
+	 * Connection to the other SAML classes:
+	 *
+	 * <ol>
+	 * <li>{@code SSOFilter} sends unauthenticated users to the SAML login
+	 * page.</li>
+	 * <li>This servlet reads SSO metadata through {@link SSOUtil} and redirects to
+	 * the IdP.</li>
+	 * <li>{@code SamlVerifierServlet} receives and verifies the IdP callback
+	 * assertion.</li>
+	 * </ol>
 	 */
-	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+	@Override
+	protected void doGet(HttpServletRequest request, HttpServletResponse response)
+			throws ServletException, IOException {
 		// if a redirect is given, validate it
 		String redirect = request.getParameter("redirect");
 		boolean hasRedirect = (redirect != null && !(redirect = redirect.trim()).isEmpty());
-		if(hasRedirect) {
+		if (hasRedirect) {
 			try {
 				WebUtility.checkIfValidDomain(redirect);
 			} catch (IllegalArgumentException | IllegalStateException e) {
-				((HttpServletResponse)response).sendError(HttpServletResponse.SC_FORBIDDEN, " Provided redirect is unauthorized");
+				response.sendError(HttpServletResponse.SC_FORBIDDEN, " Provided redirect is unauthorized");
 				return;
 			}
 		}
-		
+
 		// if already logged in
-		// then nothing to do, redirect 
-		if(request.getSession(false) != null) {
+		// then nothing to do, redirect
+		if (request.getSession(false) != null) {
 			HttpSession session = request.getSession();
 			User user = ((User) session.getAttribute(Constants.SESSION_USER));
-			if(user != null && user.getAccessToken(AuthProvider.SAML) != null && hasRedirect) {
+			if (user != null && user.getAccessToken(AuthProvider.SAML) != null && hasRedirect) {
 				response.setStatus(302);
 				response.sendRedirect(redirect);
 				return;
 			}
 		}
-		
+
 		// not already logged in
 		// if we are specifying the redirect
 		// set it here so after the login we redirect to the correct page
-		if(hasRedirect) {
+		if (hasRedirect) {
 			HttpSession session = request.getSession();
-			logger.info(Utility.cleanLogString("Setting new redirect value to " + redirect));
+			classLogger.info(Utility.cleanLogString("Setting new redirect value to " + redirect));
 			session.setAttribute(SSOUtil.SAML_REDIRECT_KEY, redirect);
 		}
-		
-		logger.info("Starting IDP initiated SSO.");
+
+		classLogger.info("Starting IDP initiated SSO.");
 		SSOUtil util = SSOUtil.getInstance();
-		util.setSSODeployURI((request).getRequestURI());
+		// Configure OpenAM/Fedlet metadata and endpoint values used to build the IdP
+		// URL.
 		util.configureSSO(request, response);
 		Map<String, String> map = util.getSSOMap();
 		String idpBaseUrl = map.get("idpBaseUrl");
 		String idpMetaAlias = map.get("idpMetaAlias");
 		String spEntityID = map.get("spEntityID");
-		String idpRequest = new StringBuilder(idpBaseUrl).
-				append("/idpssoinit?NameIDFormat=urn:oasis:names:tc:SAML:2.0:nameid-format:transient&metaAlias=").
-				append(idpMetaAlias).
-				append("&spEntityID=").
-				append(spEntityID).
-				append("&binding=urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST").
-				toString();
-		logger.info("Redirect request created and redirecting to IDP now. IDPRequest - " + idpRequest);
+		String idpRequest = new StringBuilder(idpBaseUrl)
+				.append("/idpssoinit?NameIDFormat=urn:oasis:names:tc:SAML:2.0:nameid-format:transient&metaAlias=")
+				.append(idpMetaAlias).append("&spEntityID=").append(spEntityID)
+				.append("&binding=urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST").toString();
+		// Browser leaves this app here and authenticates at the IdP.
+		// The successful callback returns to SamlVerifierServlet.
+		classLogger.info("Redirect request created and redirecting to IDP now. IDPRequest - " + idpRequest);
 		response.sendRedirect(idpRequest);
 	}
 

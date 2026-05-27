@@ -31,6 +31,7 @@ import java.io.IOException;
 import java.io.Writer;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -106,9 +107,14 @@ public final class AnthropicMessagesHelper {
 
 	/**
 	 * Writes the message_delta event with final stop reason and usage.
+	 *
+	 * Anthropic clients overlay these usage fields onto the running Message,
+	 * so passing input/cache token counts here is how we surface the values
+	 * the early {@code message_start} (written before Python had them) could
+	 * not include.
 	 */
-	public static void writeMessageDelta(String stopReason, Integer outputTokens, Writer writer)
-			throws IOException {
+	public static void writeMessageDelta(String stopReason, Integer inputTokens, Integer outputTokens,
+			Integer cacheReadInputTokens, Integer cacheCreationInputTokens, Writer writer) throws IOException {
 		Map<String, Object> messageDelta = new HashMap<>();
 		messageDelta.put("type", "message_delta");
 
@@ -118,10 +124,28 @@ public final class AnthropicMessagesHelper {
 		messageDelta.put("delta", delta);
 
 		Map<String, Object> usage = new HashMap<>();
+		if (inputTokens != null) {
+			usage.put("input_tokens", inputTokens);
+		}
+		if (cacheReadInputTokens != null) {
+			usage.put("cache_read_input_tokens", cacheReadInputTokens);
+		}
+		if (cacheCreationInputTokens != null) {
+			usage.put("cache_creation_input_tokens", cacheCreationInputTokens);
+		}
 		usage.put("output_tokens", outputTokens != null ? outputTokens : 0);
 		messageDelta.put("usage", usage);
 
 		writeSSEEvent("message_delta", messageDelta, writer);
+	}
+
+	/**
+	 * Backwards-compatible overload for callers that only know the stop reason
+	 * and output tokens. Delegates to the full 6-arg form.
+	 */
+	public static void writeMessageDelta(String stopReason, Integer outputTokens, Writer writer)
+			throws IOException {
+		writeMessageDelta(stopReason, null, outputTokens, null, null, writer);
 	}
 
 	/**
@@ -300,6 +324,19 @@ public final class AnthropicMessagesHelper {
 	@SuppressWarnings("unchecked")
 	public static Map<String, Object> normalizeAllAnthropicMessagesToOpenAI(List<Map<String, Object>> messages,
 			String systemPrompt, Object tools) {
+		return normalizeAllAnthropicMessagesToOpenAI(messages, systemPrompt, tools, Collections.emptyMap());
+	}
+
+	/**
+	 * Variant that re-attaches Vertex/Gemini {@code thought_signature} bytes to
+	 * each replayed assistant {@code tool_use} block. {@code thoughtSigMap} is
+	 * keyed by tool_use_id and is typically loaded from the room's sidecar via
+	 * {@link ThoughtSignatureSidecar#load(String)}. Pass an empty map (or use
+	 * the 3-arg overload) for non-Vertex paths — no-op when empty.
+	 */
+	@SuppressWarnings("unchecked")
+	public static Map<String, Object> normalizeAllAnthropicMessagesToOpenAI(List<Map<String, Object>> messages,
+			String systemPrompt, Object tools, Map<String, String> thoughtSigMap) {
 
 		Map<String, Object> result = new HashMap<>();
 		List<Map<String, Object>> openAIMessages = new ArrayList<>();
@@ -311,6 +348,8 @@ public final class AnthropicMessagesHelper {
 			openAIMessages.add(systemMessage);
 		}
 
+		Map<String, String> safeSigMap = thoughtSigMap != null ? thoughtSigMap : Collections.emptyMap();
+
 		for (Map<String, Object> message : messages) {
 			String role = (String) message.get("role");
 			Object content = message.get("content");
@@ -318,7 +357,7 @@ public final class AnthropicMessagesHelper {
 			if ("user".equals(role)) {
 				processUserMessage(content, openAIMessages);
 			} else if ("assistant".equals(role)) {
-				processAssistantMessage(content, openAIMessages);
+				processAssistantMessage(content, openAIMessages, safeSigMap);
 			}
 		}
 
@@ -453,8 +492,19 @@ public final class AnthropicMessagesHelper {
 	 * Process an Anthropic assistant message and add to OpenAI message list.
 	 * Handles text, thinking, and tool_use blocks.
 	 */
-	@SuppressWarnings("unchecked")
 	private static void processAssistantMessage(Object content, List<Map<String, Object>> openAIMessages) {
+		processAssistantMessage(content, openAIMessages, Collections.emptyMap());
+	}
+
+	/**
+	 * Variant that re-attaches Vertex/Gemini {@code thought_signature} to each
+	 * tool_use block by looking up its id in {@code thoughtSigMap}. The
+	 * signature flows through to the SEMOSS Python builders, which re-attach
+	 * it to the corresponding {@code function_call} Part on the next request.
+	 */
+	@SuppressWarnings("unchecked")
+	private static void processAssistantMessage(Object content, List<Map<String, Object>> openAIMessages,
+			Map<String, String> thoughtSigMap) {
 		if (content instanceof String) {
 			Map<String, Object> assistantMsg = new HashMap<>();
 			assistantMsg.put("role", "assistant");
@@ -504,7 +554,8 @@ public final class AnthropicMessagesHelper {
 
 			for (Map<String, Object> toolUse : toolUseBlocks) {
 				Map<String, Object> toolCall = new HashMap<>();
-				toolCall.put("id", toolUse.get("id"));
+				String toolUseId = (String) toolUse.get("id");
+				toolCall.put("id", toolUseId);
 				toolCall.put("type", "function");
 
 				Map<String, Object> function = new HashMap<>();
@@ -512,6 +563,17 @@ public final class AnthropicMessagesHelper {
 				function.put("arguments", toolUse.get("input"));
 
 				toolCall.put("function", function);
+
+				// Re-attach the Vertex thought_signature for this tool_use_id
+				// if we have one cached. Consumed in Python at
+				// google_genai_builder.py: tool_call.get("thought_signature").
+				if (toolUseId != null && thoughtSigMap != null) {
+					String sig = thoughtSigMap.get(toolUseId);
+					if (sig != null && !sig.isEmpty()) {
+						toolCall.put("thought_signature", sig);
+					}
+				}
+
 				toolCalls.add(toolCall);
 			}
 
