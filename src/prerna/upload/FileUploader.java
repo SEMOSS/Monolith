@@ -262,7 +262,8 @@ public class FileUploader extends Uploader {
 	@Consumes(MediaType.MULTIPART_FORM_DATA)
 	public Response baseUpload(@Context ServletContext context, @Context HttpServletRequest request,
 			@QueryParam("insightId") String insightId, @QueryParam("path") String relativePath,
-			@QueryParam("projectId") String projectId, @QueryParam("engineId") String engineId) {
+			@QueryParam("projectId") String projectId, @QueryParam("engineId") String engineId,
+			@QueryParam("userSpace") boolean userSpace) {
 
 		insightId = WebUtility.inputSanitizer(insightId);
 		relativePath = WebUtility.inputSanitizer(relativePath);
@@ -319,7 +320,7 @@ public class FileUploader extends Uploader {
 			List<FileItem> fileItems = processRequest(context, request, insightId);
 			// collect all of the data input on the form
 			List<Map<String, String>> inputData = getBaseUploadData(fileItems, in, relativePath, projectId, engineId,
-					user);
+					userSpace, user);
 			return WebUtility.getResponse(inputData, 200);
 		} catch (VirusScanningException e) {
 			classLogger.error("Virus scan failed during upload", e);
@@ -344,13 +345,15 @@ public class FileUploader extends Uploader {
 	 * @param relativePath The relative path to upload the file to.
 	 * @param projectId    The ID of the project to upload the file to.
 	 * @param engineId     The ID of the engine to upload the file to.
+	 * @param userSpace    Boolean true to write to the user assets project.
 	 * @param user         The user uploading the file.
 	 * @return A list of maps containing the file name and file location.
 	 * @throws VirusScanningException if a virus is detected in the file.
 	 * @throws IOException            if an error occurs while writing the file.
 	 */
 	private List<Map<String, String>> getBaseUploadData(List<FileItem> fileItems, Insight in, String relativePath,
-			String projectId, String engineId, User user) throws VirusScanningException, IOException {
+			String projectId, String engineId, boolean userSpace, User user)
+			throws VirusScanningException, IOException {
 		boolean pushEngine = false;
 		boolean pushRoom = false;
 		boolean pushUser = false;
@@ -377,6 +380,9 @@ public class FileUploader extends Uploader {
 			assetFolder = EngineUtility.getSpecificEngineBaseFolder(engine.getCatalogType(), engine.getEngineId(),
 					engine.getEngineName());
 			pushEngine = true;
+		} else if (userSpace) {
+			engine = user.getAssetProject();
+			assetFolder = AssetUtility.getUserAssetFolder(engine.getEngineName(), engine.getEngineId());
 		} else {
 			assetFolder = in.getInsightFolder();
 			if (in.getRoomId() != null) {
@@ -400,7 +406,11 @@ public class FileUploader extends Uploader {
 		List<Map<String, String>> retData = processFileItems(fileItems, filePath, fePath);
 		if (pushEngine) {
 			if (engine instanceof IProject) {
-				ClusterUtil.pushProjectFolder((IProject) engine, filePath);
+				if (userSpace) {
+					ClusterUtil.pushUserAsset(engine.getEngineId());
+				} else {
+					ClusterUtil.pushProjectFolder((IProject) engine, filePath);
+				}
 			} else {
 				ClusterUtil.pushEngineFolder(engine, filePath);
 			}
@@ -413,8 +423,67 @@ public class FileUploader extends Uploader {
 	}
 
 	/**
+	 * Uploads a file to the user assets project.
+	 *
+	 * @param context      The servlet context.
+	 * @param request      The HTTP servlet request.
+	 * @param insightId    The ID of the insight to upload the file to.
+	 * @param relativePath The relative path to upload the file to.
+	 * @return A response containing a list of maps with the file name and location.
+	 */
+	@POST
+	@Path("userAssetsUpload")
+	@Produces(MediaType.APPLICATION_JSON)
+	@Consumes(MediaType.MULTIPART_FORM_DATA)
+	public Response userAssetsUpload(@Context ServletContext context, @Context HttpServletRequest request,
+			@QueryParam("insightId") String insightId, @QueryParam("path") String relativePath) {
+
+		insightId = WebUtility.inputSanitizer(insightId);
+		relativePath = WebUtility.inputSanitizer(relativePath);
+
+		Insight in = getValidInsight(insightId);
+		if (in == null) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Session could not be validated in order to upload files");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		User user = in.getUser();
+
+		Response permResponse = checkGeneralUserPermissions(user);
+		if (permResponse != null) {
+			return permResponse;
+		}
+
+		if (user.isAnonymous()) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload files to user assets");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		ThreadStore.setSessionId(request.getSession().getId());
+		try {
+			List<FileItem> fileItems = processRequest(context, request, insightId);
+			List<Map<String, String>> inputData = getBaseUploadData(fileItems, in, relativePath, null, null, true,
+					user);
+			return WebUtility.getResponse(inputData, 200);
+		} catch (VirusScanningException e) {
+			classLogger.error("Virus scan failed during upload", e);
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		} catch (Exception e) {
+			classLogger.error("Error during file upload", e);
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Error uploading file. Error = " + e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		} finally {
+			ThreadStore.remove();
+		}
+	}
+
+	/**
 	 * Uploads a file to the project assets.
-	 * 
+	 *
 	 * @param context      The servlet context.
 	 * @param request      The HTTP servlet request.
 	 * @param insightId    The ID of the insight to upload the file to.
