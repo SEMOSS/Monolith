@@ -461,6 +461,15 @@ public class OpenAIEndpoints {
 										break;
 									}
 								}
+							} catch (IOException ioe) {
+								final String capturedJobId = jobId;
+								if (!WebUtility.handleStreamingException(ioe, classLogger, engineId, capturedJobId,
+										() -> PixelJobManager.getManager().interruptThread(capturedJobId))) {
+									classLogger.error(
+											"Streaming chat completions response failed for engine '{}' and job '{}': {}",
+											engineId, jobId, ioe.getMessage(), ioe);
+									throw new WebApplicationException(ioe, 500);
+								}
 							} catch (Exception e) {
 								classLogger.error(
 										"Streaming chat completions response failed for engine '{}' and job '{}': {}",
@@ -635,12 +644,19 @@ public class OpenAIEndpoints {
 	}
 
 	private String resolveRoomIdFromCodexHeaders(HttpServletRequest request) {
-		String threadId = getSanitizedHeader(request, "thread_id");
+		String threadId = getSanitizedHeader(request, "thread-id");
+		if (threadId == null) {
+			threadId = getSanitizedHeader(request, "thread_id");
+		}
 		if (threadId != null) {
 			return threadId;
 		}
 
-		return getSanitizedHeader(request, "session_id");
+		String sessionId = getSanitizedHeader(request, "session-id");
+		if (sessionId == null) {
+			sessionId = getSanitizedHeader(request, "session_id");
+		}
+		return sessionId;
 	}
 
 	private String getSanitizedHeader(HttpServletRequest request, String headerName) {
@@ -705,8 +721,8 @@ public class OpenAIEndpoints {
 
 								if (partialResponseContent != null && !partialResponseContent.isEmpty()) {
 									for (Map<String, Object> streamObj : partialResponseContent) {
-										classLogger.info("Stream chunk received: {}",
-												GSON.toJson(streamObj));
+//										classLogger.info("Stream chunk received: {}",
+//												GSON.toJson(streamObj));
 
 										String streamType = (String) streamObj.get("stream_type");
 										Map<String, Object> streamData = (Map<String, Object>) streamObj.get("data");
@@ -959,6 +975,13 @@ public class OpenAIEndpoints {
 									capturedCachedTokens, capturedReasoningTokens);
 							OpenAIResponsesHelper.writeSSEEvent(completedEvent, writer);
 
+						} catch (IOException ioe) {
+							final String capturedJobId = jobId;
+							if (!WebUtility.handleStreamingException(ioe, classLogger, engineId, capturedJobId,
+									() -> PixelJobManager.getManager().interruptThread(capturedJobId))) {
+								classLogger.error("I/O error processing responses streaming for engine '{}'",
+										engineId, ioe);
+							}
 						} catch (Exception e) {
 							classLogger.error("Error processing responses streaming for engine '{}'", engineId, e);
 						} finally {
@@ -1217,6 +1240,13 @@ public class OpenAIEndpoints {
 								}
 							}
 
+						} catch (IOException ioe) {
+							final String capturedJobId = jobId;
+							if (!WebUtility.handleStreamingException(ioe, classLogger, engineId, capturedJobId,
+									() -> PixelJobManager.getManager().interruptThread(capturedJobId))) {
+								classLogger.error("I/O error processing images/generations streaming for engine '{}'",
+										engineId, ioe);
+							}
 						} catch (Exception e) {
 							classLogger.error("Error processing images/generations streaming for engine '{}'", engineId,
 									e);
@@ -1517,6 +1547,12 @@ public class OpenAIEndpoints {
 							writer.write("data: [DONE]\n\n");
 							writer.flush();
 
+						} catch (IOException ioe) {
+							if (!WebUtility.handleStreamingException(ioe, classLogger, engineId, null, null)) {
+								classLogger.error("Fake streaming completion response failed for engine '{}': {}",
+										engineId, ioe.getMessage(), ioe);
+								throw new WebApplicationException(ioe, 500);
+							}
 						} catch (Exception e) {
 							classLogger.error("Fake streaming completion response failed for engine '{}': {}", engineId,
 									e.getMessage(), e);

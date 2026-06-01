@@ -408,7 +408,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Path("/getAllUsers")
 	@Produces("application/json")
-	public Response searchTerm(@Context HttpServletRequest request, @QueryParam("filterWord") String searchTerm,
+	public Response getAllUsers(@Context HttpServletRequest request, @QueryParam("filterWord") String searchTerm,
 			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
 		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
 		SecurityAdminUtils adminUtils = null;
@@ -444,6 +444,48 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 		}
 
 		Long ret = adminUtils.getNumUsers(searchTerm);
+		return WebUtility.getResponse(ret, 200);
+	}
+
+	@GET
+	@Path("/getAllAPIUsers")
+	@Produces("application/json")
+	public Response getAllAPIUsers(@Context HttpServletRequest request, @QueryParam("filterWord") String searchTerm,
+			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
+		SecurityAdminUtils adminUtils = null;
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+			adminUtils = performAdminCheck(request, user);
+		} catch (IllegalAccessException e) {
+			classLogger.error("Failed to search term.", e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		List<Map<String, Object>> ret = adminUtils.getAllAPIUsers(searchTerm, limit, offset);
+		return WebUtility.getResponse(ret, 200);
+	}
+
+	@GET
+	@Path("/getNumAPIUsers")
+	@Produces("application/json")
+	public Response getNumAPIUsers(@Context HttpServletRequest request, @QueryParam("filterWord") String searchTerm) {
+		SecurityAdminUtils adminUtils = null;
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+			adminUtils = performAdminCheck(request, user);
+		} catch (IllegalAccessException e) {
+			classLogger.error("Failed to retrieve num users.", e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		Long ret = adminUtils.getNumAPIUsers(searchTerm);
 		return WebUtility.getResponse(ret, 200);
 	}
 
