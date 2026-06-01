@@ -61,6 +61,7 @@ import prerna.reactor.scheduler.SchedulerDatabaseUtility;
 import prerna.reactor.scheduler.SchedulerFactorySingleton;
 import prerna.util.AbstractFileWatcher;
 import prerna.util.ChromeDriverUtility;
+import prerna.util.ChrootTemplate;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
 import prerna.util.SystemEngineRegistry;
@@ -197,13 +198,8 @@ public class DBLoader implements ServletContextListener {
 
 		// Load empty engine list into DIHelper, then load engines from db folder
 		classLogger.log(STARTUP, "Loading engines...");
-		String engines = "";
-		DIHelper.getInstance().setEngineProperty(Constants.ENGINES, engines);
+		DIHelper.getInstance().setEngineProperty(Constants.ENGINES, "");
 		loadSmss(Constants.ENGINE_WEB_WATCHER);
-		String projects = "";
-		DIHelper.getInstance().setProjectProperty(Constants.PROJECTS, projects);
-		loadSmss(Constants.PROJECT_WATCHER);
-
 		// if there was an issue starting up the server
 		// we should do it here so that we can redirect the user
 		{
@@ -294,14 +290,18 @@ public class DBLoader implements ServletContextListener {
 			}
 
 			classLogger.info("STARTUP SUCCESS - All required components are connected");
+		}
 
-			// Load and run triggerOnLoad jobs
-			if (!Utility.schedulerForceDisable() && SystemEngineRegistry.isSchedulerDbLoaded()) {
-				try {
-					SchedulerDatabaseUtility.executeAllTriggerOnLoads();
-				} catch (Exception e) {
-					classLogger.warn("Failed to execute triggerOnLoad scheduler jobs", e);
-				}
+		classLogger.log(STARTUP, "Loading projects...");
+		DIHelper.getInstance().setProjectProperty(Constants.PROJECTS, "");
+		loadSmss(Constants.PROJECT_WATCHER);
+
+		// Load and run triggerOnLoad jobs
+		if (!Utility.schedulerForceDisable() && SystemEngineRegistry.isSchedulerDbLoaded()) {
+			try {
+				SchedulerDatabaseUtility.executeAllTriggerOnLoads();
+			} catch (Exception e) {
+				classLogger.warn("Failed to execute triggerOnLoad scheduler jobs", e);
 			}
 		}
 
@@ -316,6 +316,12 @@ public class DBLoader implements ServletContextListener {
 					ClusterUtil.pullEngineAndProjectImageFolder(eType);
 				}
 			}.start();
+		}
+
+		// create and wait for chroot template before allowing users to access
+		if (Boolean.parseBoolean(Utility.getDIHelperProperty(Constants.CHROOT_ENABLE))) {
+			ChrootTemplate.warmAsync();
+			ChrootTemplate.awaitReady();
 		}
 	}
 
