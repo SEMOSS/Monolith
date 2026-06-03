@@ -48,6 +48,7 @@ import prerna.auth.User;
 import prerna.auth.utils.SecurityAPIUserUtils;
 import prerna.semoss.web.services.config.TrustedTokenService;
 import prerna.semoss.web.services.local.ResourceUtility;
+import prerna.semoss.web.services.local.UserResource;
 import prerna.util.Constants;
 import prerna.util.SocialPropertiesUtil;
 import prerna.web.services.util.WebUtility;
@@ -128,12 +129,7 @@ public class TrustedTokenFilter implements Filter {
 							AccessToken token = new AccessToken();
 							token.setId(clientId);
 							token.setProvider(AuthProvider.API_USER);
-							user = new User();
-							user.setAccessToken(token);
-							session = request.getSession(true);
-							session.setAttribute(Constants.SESSION_USER, user);
-							session.setAttribute(Constants.SESSION_USER_ID_LOG, token.getId());
-
+							UserResource.addAccessToken(token, request, false);
 							classLogger.info("{} is logging in with provider {} with basic authencation",
 									User.getSingleLogginName(user), token.getProvider());
 						} else {
@@ -177,11 +173,7 @@ public class TrustedTokenFilter implements Filter {
 				AccessToken token = new AccessToken();
 				token.setId(userId);
 				token.setProvider(AuthProvider.API_USER);
-				user = new User();
-				user.setAccessToken(token);
-				session = request.getSession(true);
-				session.setAttribute(Constants.SESSION_USER, user);
-				session.setAttribute(Constants.SESSION_USER_ID_LOG, token.getId());
+				UserResource.addAccessToken(token, request, false);
 				classLogger.info("{} is logging in with provider {} with bearer token", User.getSingleLogginName(user),
 						token.getProvider());
 			}
