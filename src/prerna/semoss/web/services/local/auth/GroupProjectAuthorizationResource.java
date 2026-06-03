@@ -146,6 +146,12 @@ public class GroupProjectAuthorizationResource {
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
+		String usageRestriction = sanitizeNullable(form.getFirst("usageRestriction"));
+		String usageFrequency = sanitizeNullable(form.getFirst("usageFrequency"));
+		Integer maxTokens = parseInteger(form.getFirst("maxTokens"));
+		Double maxResponseTime = parseDouble(form.getFirst("maxResponseTime"));
+		Integer maxInputTokens = parseInteger(form.getFirst("maxInputTokens"));
+		Integer maxOutputTokens = parseInteger(form.getFirst("maxOutputTokens"));
 
 		try {
 			if (groupId == null || (groupId = groupId.trim()).isEmpty()) {
@@ -161,7 +167,8 @@ public class GroupProjectAuthorizationResource {
 				throw new IllegalArgumentException("The permission cannot be null or empty");
 			}
 
-			SecurityGroupProjectUtils.addProjectGroupPermission(user, groupId, type, projectId, permission, endDate);
+			SecurityGroupProjectUtils.addProjectGroupPermission(user, groupId, type, projectId, permission, endDate,
+					usageRestriction, usageFrequency, maxTokens, maxResponseTime, maxInputTokens, maxOutputTokens);
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to add groups to project " + projectId + " without having proper access");
 			classLogger.error("Failed to add group project permission.", e);
@@ -211,6 +218,12 @@ public class GroupProjectAuthorizationResource {
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String newPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
+		String usageRestriction = sanitizeNullable(form.getFirst("usageRestriction"));
+		String usageFrequency = sanitizeNullable(form.getFirst("usageFrequency"));
+		Integer maxTokens = parseInteger(form.getFirst("maxTokens"));
+		Double maxResponseTime = parseDouble(form.getFirst("maxResponseTime"));
+		Integer maxInputTokens = parseInteger(form.getFirst("maxInputTokens"));
+		Integer maxOutputTokens = parseInteger(form.getFirst("maxOutputTokens"));
 		try {
 			if (groupId == null || (groupId = groupId.trim()).isEmpty()) {
 				throw new IllegalArgumentException("The group id cannot be null or empty");
@@ -225,7 +238,8 @@ public class GroupProjectAuthorizationResource {
 				throw new IllegalArgumentException("The permission cannot be null or empty");
 			}
 			SecurityGroupProjectUtils.editProjectGroupPermission(user, groupId, type, projectId, newPermission,
-					endDate);
+					endDate, usageRestriction, usageFrequency, maxTokens, maxResponseTime, maxInputTokens,
+					maxOutputTokens);
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to edit group " + groupId + " and type " + type
 					+ " permissions for project " + projectId + " without having proper access");
@@ -352,6 +366,30 @@ public class GroupProjectAuthorizationResource {
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
+	}
+
+	private String sanitizeNullable(String value) {
+		value = WebUtility.inputSanitizer(value);
+		if (value == null || (value = value.trim()).isEmpty()) {
+			return null;
+		}
+		return value;
+	}
+
+	private Integer parseInteger(String value) {
+		value = sanitizeNullable(value);
+		if (value == null) {
+			return null;
+		}
+		return Integer.valueOf(value);
+	}
+
+	private Double parseDouble(String value) {
+		value = sanitizeNullable(value);
+		if (value == null) {
+			return null;
+		}
+		return Double.valueOf(value);
 	}
 
 }

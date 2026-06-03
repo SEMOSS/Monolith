@@ -1505,6 +1505,137 @@ public class EngineAuthorizationResource {
 
 	@GET
 	@Produces("application/json")
+	@Path("getEngineDefaultTeamTokenLimit")
+	public Response getEngineDefaultTeamTokenLimit(@Context HttpServletRequest request,
+			@QueryParam("engineId") String engineId) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			classLogger.error("Invalid user session trying to access authorization resources", e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		engineId = WebUtility.inputSanitizer(engineId);
+		if (engineId == null || engineId.trim().isEmpty()) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Must provide an engineId");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		if (!SecurityEngineUtils.userCanViewEngine(user, engineId)) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Engine does not exist or user does not have access");
+			return WebUtility.getResponse(errorMap, 403);
+		}
+
+		try {
+			Map<String, Object> limit = SecurityEntityDefaultTokenUtils.getEngineDefaultTeamTokenLimit(engineId);
+			return WebUtility.getResponse(limit, 200);
+		} catch (Exception e) {
+			classLogger.error("Failed to get engine default team token limit for engine {}", engineId, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 500);
+		}
+	}
+
+	@POST
+	@Produces("application/json")
+	@Path("setEngineDefaultTeamTokenLimit")
+	public Response setEngineDefaultTeamTokenLimit(@Context HttpServletRequest request,
+			MultivaluedMap<String, String> form) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			classLogger.error("Invalid user session trying to access authorization resources", e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
+		String usageFrequency = WebUtility.inputSanitizer(form.getFirst("usageFrequency"));
+		if (engineId == null || engineId.trim().isEmpty()) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Must provide an engineId");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		if (!SecurityEngineUtils.userCanEditEngine(user, engineId) && !SecurityAdminUtils.userIsAdmin(user)) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Insufficient privileges to set engine default team token limit.");
+			return WebUtility.getResponse(errorMap, 403);
+		}
+
+		long maxTokens = parseLong(form.getFirst("maxTokens"), -1);
+		long maxInputTokens = parseLong(form.getFirst("maxInputTokens"), -1);
+		long maxOutputTokens = parseLong(form.getFirst("maxOutputTokens"), -1);
+		boolean isActive = parseBoolean(form.getFirst("isActive"), true);
+		Pair<String, String> userDetails = User.getPrimaryUserIdAndTypePair(user);
+
+		try {
+			SecurityEntityDefaultTokenUtils.setEngineDefaultTeamTokenLimit(engineId, usageFrequency, maxTokens,
+					maxInputTokens, maxOutputTokens, isActive, userDetails.getValue0(), userDetails.getValue1());
+			Map<String, Object> ret = new HashMap<String, Object>();
+			ret.put("success", true);
+			ret.put("engineId", engineId);
+			return WebUtility.getResponse(ret, 200);
+		} catch (Exception e) {
+			classLogger.error("Failed to set engine default team token limit for engine {}", engineId, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 500);
+		}
+	}
+
+	@POST
+	@Produces("application/json")
+	@Path("removeEngineDefaultTeamTokenLimit")
+	public Response removeEngineDefaultTeamTokenLimit(@Context HttpServletRequest request,
+			MultivaluedMap<String, String> form) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			classLogger.error("Invalid user session trying to access authorization resources", e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
+		if (engineId == null || engineId.trim().isEmpty()) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Must provide an engineId");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		if (!SecurityEngineUtils.userCanEditEngine(user, engineId) && !SecurityAdminUtils.userIsAdmin(user)) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Insufficient privileges to remove engine default team token limit.");
+			return WebUtility.getResponse(errorMap, 403);
+		}
+
+		try {
+			SecurityEntityDefaultTokenUtils.removeEngineDefaultTeamTokenLimit(engineId);
+			Map<String, Object> ret = new HashMap<String, Object>();
+			ret.put("success", true);
+			ret.put("engineId", engineId);
+			return WebUtility.getResponse(ret, 200);
+		} catch (Exception e) {
+			classLogger.error("Failed to remove engine default team token limit for engine {}", engineId, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 500);
+		}
+	}
+
+	@GET
+	@Produces("application/json")
 	@Path("getModelPlatformTokenLimits")
 	public Response getModelPlatformTokenLimits(@Context HttpServletRequest request,
 			@QueryParam("engineId") String engineId) {
