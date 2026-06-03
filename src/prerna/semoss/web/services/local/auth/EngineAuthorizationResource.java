@@ -1401,8 +1401,7 @@ public class EngineAuthorizationResource {
 		}
 
 		try {
-			Map<String, Object> limit = SecurityEntityDefaultTokenUtils.getEngineDefaultTokenLimit(engineId);
-			return WebUtility.getResponse(limit, 200);
+			return WebUtility.getResponse(SecurityEntityDefaultTokenUtils.getEngineDefaultTokenLimits(engineId), 200);
 		} catch (Exception e) {
 			classLogger.error("Failed to get engine default token limit for engine {}", engineId, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -1448,7 +1447,8 @@ public class EngineAuthorizationResource {
 
 		try {
 			SecurityEntityDefaultTokenUtils.setEngineDefaultTokenLimit(engineId, usageFrequency, maxTokens,
-					maxInputTokens, maxOutputTokens, isActive, userDetails.getValue0(), userDetails.getValue1());
+					maxInputTokens, maxOutputTokens, isActive, userDetails.getValue0(), userDetails.getValue1(),
+					existingUsageFrequency);
 			Map<String, Object> ret = new HashMap<String, Object>();
 			ret.put("success", true);
 			ret.put("engineId", engineId);
@@ -1490,7 +1490,7 @@ public class EngineAuthorizationResource {
 		}
 
 		try {
-			SecurityEntityDefaultTokenUtils.removeEngineDefaultTokenLimit(engineId);
+			SecurityEntityDefaultTokenUtils.removeEngineDefaultTokenLimit(engineId, usageFrequency);
 			Map<String, Object> ret = new HashMap<String, Object>();
 			ret.put("success", true);
 			ret.put("engineId", engineId);
@@ -1532,8 +1532,7 @@ public class EngineAuthorizationResource {
 		}
 
 		try {
-			Map<String, Object> limit = SecurityEntityDefaultTokenUtils.getEngineDefaultTeamTokenLimit(engineId);
-			return WebUtility.getResponse(limit, 200);
+			return WebUtility.getResponse(SecurityEntityDefaultTokenUtils.getEngineDefaultTeamTokenLimits(engineId), 200);
 		} catch (Exception e) {
 			classLogger.error("Failed to get engine default team token limit for engine {}", engineId, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -1559,6 +1558,10 @@ public class EngineAuthorizationResource {
 
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		String usageFrequency = WebUtility.inputSanitizer(form.getFirst("usageFrequency"));
+		String usageFrequency = WebUtility.inputSanitizer(form.getFirst("usageFrequency"));
+		String existingUsageFrequency = WebUtility.inputSanitizer(form.getFirst("existingUsageFrequency"));
+		String usageFrequency = WebUtility.inputSanitizer(form.getFirst("usageFrequency"));
+		String existingUsageFrequency = WebUtility.inputSanitizer(form.getFirst("existingUsageFrequency"));
 		if (engineId == null || engineId.trim().isEmpty()) {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Must provide an engineId");
@@ -1579,7 +1582,8 @@ public class EngineAuthorizationResource {
 
 		try {
 			SecurityEntityDefaultTokenUtils.setEngineDefaultTeamTokenLimit(engineId, usageFrequency, maxTokens,
-					maxInputTokens, maxOutputTokens, isActive, userDetails.getValue0(), userDetails.getValue1());
+					maxInputTokens, maxOutputTokens, isActive, userDetails.getValue0(), userDetails.getValue1(),
+					existingUsageFrequency);
 			Map<String, Object> ret = new HashMap<String, Object>();
 			ret.put("success", true);
 			ret.put("engineId", engineId);
