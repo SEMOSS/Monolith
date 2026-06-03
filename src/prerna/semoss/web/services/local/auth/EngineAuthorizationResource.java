@@ -47,6 +47,7 @@ import javax.ws.rs.core.Response;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.javatuples.Pair;
 
 import com.google.gson.Gson;
 
@@ -55,7 +56,9 @@ import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityAdminUtils;
+import prerna.auth.utils.SecurityEntityDefaultTokenUtils;
 import prerna.auth.utils.SecurityEngineUtils;
+import prerna.auth.utils.SecurityModelTokenUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
 import prerna.engine.impl.model.inferencetracking.ModelInferenceLogsUtils;
@@ -1275,27 +1278,40 @@ public class EngineAuthorizationResource {
 		Map<String, Object> ret = new HashMap<String, Object>();
 		try {
 			List<Map<String, Object>> enginePermission = SecurityEngineUtils.getEngineUsagePermissionMap(user, engineId);
-			if (enginePermission == null || enginePermission.isEmpty()) {
-				ret.put("tokensUsed", 0);
-				ret.put("tokenLimit", null);
-				ret.put("configured", false);
-				return WebUtility.getResponse(ret, 200);
+			Map<String, Object> engMap =
+					(enginePermission == null || enginePermission.isEmpty()) ? null : enginePermission.get(0);
+			String engRestriction = engMap == null
+					? null
+					: (String) engMap.get(Constants.ENGINE_USAGE_RESTRICTION_KEY);
+			String engFrequency = engMap == null
+					? null
+					: (String) engMap.get(Constants.ENGINE_USAGE_FREQUENCY_KEY);
+			Number engMaxTokens = engMap == null ? null : (Number) engMap.get(Constants.ENGINE_MAX_TOKEN_KEY);
+			Number engMaxInputTokens = engMap == null ? null
+					: (Number) engMap.get(Constants.ENGINE_MAX_INPUT_TOKEN_KEY);
+			Number engMaxOutputTokens = engMap == null ? null
+					: (Number) engMap.get(Constants.ENGINE_MAX_OUTPUT_TOKEN_KEY);
+			Number engMaxResponseTime = engMap == null ? null
+					: (Number) engMap.get(Constants.ENGINE_MAX_RESPONSE_TIME_KEY);
+
+			if (engRestriction == null || engRestriction.trim().isEmpty()) {
+				Map<String, Object> defaultMap = SecurityEntityDefaultTokenUtils.getEngineDefaultTokenLimit(engineId);
+				if (defaultMap != null) {
+					engRestriction = (String) defaultMap.get("usageRestriction");
+					engFrequency = (String) defaultMap.get("usageFrequency");
+					engMaxTokens = (Number) defaultMap.get("maxTokens");
+					engMaxInputTokens = (Number) defaultMap.get("maxInputTokens");
+					engMaxOutputTokens = (Number) defaultMap.get("maxOutputTokens");
+					engMaxResponseTime = (Number) defaultMap.get("maxResponseTime");
+				}
 			}
 
-			Map<String, Object> engMap = enginePermission.get(0);
-			String engRestriction = (String) engMap.get(Constants.ENGINE_USAGE_RESTRICTION_KEY);
 			if (engRestriction == null || engRestriction.trim().isEmpty()) {
 				ret.put("tokensUsed", 0);
 				ret.put("tokenLimit", null);
 				ret.put("configured", false);
 				return WebUtility.getResponse(ret, 200);
 			}
-
-			String engFrequency = (String) engMap.get(Constants.ENGINE_USAGE_FREQUENCY_KEY);
-			Number engMaxTokens = (Number) engMap.get(Constants.ENGINE_MAX_TOKEN_KEY);
-			Number engMaxInputTokens = (Number) engMap.get(Constants.ENGINE_MAX_INPUT_TOKEN_KEY);
-			Number engMaxOutputTokens = (Number) engMap.get(Constants.ENGINE_MAX_OUTPUT_TOKEN_KEY);
-			Number engMaxResponseTime = (Number) engMap.get(Constants.ENGINE_MAX_RESPONSE_TIME_KEY);
 
 			ZonedDateTime currentDateTime = Utility.getCurrentZonedDateTimeUTC();
 
@@ -1354,6 +1370,362 @@ public class EngineAuthorizationResource {
 		}
 
 		return WebUtility.getResponse(ret, 200);
+	}
+
+	@GET
+	@Produces("application/json")
+	@Path("getEngineDefaultTokenLimit")
+	public Response getEngineDefaultTokenLimit(@Context HttpServletRequest request,
+			@QueryParam("engineId") String engineId) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			classLogger.error("Invalid user session trying to access authorization resources", e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		engineId = WebUtility.inputSanitizer(engineId);
+		if (engineId == null || engineId.trim().isEmpty()) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Must provide an engineId");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		if (!SecurityEngineUtils.userCanViewEngine(user, engineId)) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Engine does not exist or user does not have access");
+			return WebUtility.getResponse(errorMap, 403);
+		}
+
+		try {
+			Map<String, Object> limit = SecurityEntityDefaultTokenUtils.getEngineDefaultTokenLimit(engineId);
+			return WebUtility.getResponse(limit, 200);
+		} catch (Exception e) {
+			classLogger.error("Failed to get engine default token limit for engine {}", engineId, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 500);
+		}
+	}
+
+	@POST
+	@Produces("application/json")
+	@Path("setEngineDefaultTokenLimit")
+	public Response setEngineDefaultTokenLimit(@Context HttpServletRequest request,
+			MultivaluedMap<String, String> form) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			classLogger.error("Invalid user session trying to access authorization resources", e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
+		String usageFrequency = WebUtility.inputSanitizer(form.getFirst("usageFrequency"));
+		if (engineId == null || engineId.trim().isEmpty()) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Must provide an engineId");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		if (!SecurityEngineUtils.userCanEditEngine(user, engineId) && !SecurityAdminUtils.userIsAdmin(user)) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Insufficient privileges to set engine default token limit.");
+			return WebUtility.getResponse(errorMap, 403);
+		}
+
+		long maxTokens = parseLong(form.getFirst("maxTokens"), -1);
+		long maxInputTokens = parseLong(form.getFirst("maxInputTokens"), -1);
+		long maxOutputTokens = parseLong(form.getFirst("maxOutputTokens"), -1);
+		boolean isActive = parseBoolean(form.getFirst("isActive"), true);
+		Pair<String, String> userDetails = User.getPrimaryUserIdAndTypePair(user);
+
+		try {
+			SecurityEntityDefaultTokenUtils.setEngineDefaultTokenLimit(engineId, usageFrequency, maxTokens,
+					maxInputTokens, maxOutputTokens, isActive, userDetails.getValue0(), userDetails.getValue1());
+			Map<String, Object> ret = new HashMap<String, Object>();
+			ret.put("success", true);
+			ret.put("engineId", engineId);
+			return WebUtility.getResponse(ret, 200);
+		} catch (Exception e) {
+			classLogger.error("Failed to set engine default token limit for engine {}", engineId, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 500);
+		}
+	}
+
+	@POST
+	@Produces("application/json")
+	@Path("removeEngineDefaultTokenLimit")
+	public Response removeEngineDefaultTokenLimit(@Context HttpServletRequest request,
+			MultivaluedMap<String, String> form) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			classLogger.error("Invalid user session trying to access authorization resources", e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
+		if (engineId == null || engineId.trim().isEmpty()) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Must provide an engineId");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		if (!SecurityEngineUtils.userCanEditEngine(user, engineId) && !SecurityAdminUtils.userIsAdmin(user)) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Insufficient privileges to remove engine default token limit.");
+			return WebUtility.getResponse(errorMap, 403);
+		}
+
+		try {
+			SecurityEntityDefaultTokenUtils.removeEngineDefaultTokenLimit(engineId);
+			Map<String, Object> ret = new HashMap<String, Object>();
+			ret.put("success", true);
+			ret.put("engineId", engineId);
+			return WebUtility.getResponse(ret, 200);
+		} catch (Exception e) {
+			classLogger.error("Failed to remove engine default token limit for engine {}", engineId, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 500);
+		}
+	}
+
+	@GET
+	@Produces("application/json")
+	@Path("getModelPlatformTokenLimits")
+	public Response getModelPlatformTokenLimits(@Context HttpServletRequest request,
+			@QueryParam("engineId") String engineId) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			classLogger.error("Invalid user session trying to access authorization resources", e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		engineId = WebUtility.inputSanitizer(engineId);
+		if (engineId == null || engineId.trim().isEmpty()) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Must provide an engineId");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		if (!SecurityEngineUtils.userCanViewEngine(user, engineId)) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Engine does not exist or user does not have access");
+			return WebUtility.getResponse(errorMap, 403);
+		}
+
+		try {
+			List<Map<String, Object>> limits = SecurityModelTokenUtils.getModelTokenLimits(engineId);
+			return WebUtility.getResponse(limits, 200);
+		} catch (Exception e) {
+			classLogger.error("Failed to get model platform token limits for engine {}", engineId, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 500);
+		}
+	}
+
+	@POST
+	@Produces("application/json")
+	@Path("setModelPlatformTokenLimit")
+	public Response setModelPlatformTokenLimit(@Context HttpServletRequest request,
+			MultivaluedMap<String, String> form) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			classLogger.error("Invalid user session trying to access authorization resources", e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
+		String usageFrequency = WebUtility.inputSanitizer(form.getFirst("usageFrequency"));
+		if (engineId == null || engineId.trim().isEmpty()) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Must provide an engineId");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		if (usageFrequency == null || usageFrequency.trim().isEmpty()) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Must provide a usageFrequency");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		if (!SecurityEngineUtils.userCanEditEngine(user, engineId) && !SecurityAdminUtils.userIsAdmin(user)) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Insufficient privileges to set model platform token limit.");
+			return WebUtility.getResponse(errorMap, 403);
+		}
+
+		long maxTokens = parseLong(form.getFirst("maxTokens"), -1);
+		long maxInputTokens = parseLong(form.getFirst("maxInputTokens"), -1);
+		long maxOutputTokens = parseLong(form.getFirst("maxOutputTokens"), -1);
+		double maxResponseTime = parseDouble(form.getFirst("maxResponseTime"), -1);
+		boolean isActive = parseBoolean(form.getFirst("isActive"), true);
+		String createdBy = user.getAccessToken(user.getLogins().get(0)).getId();
+
+		try {
+			SecurityModelTokenUtils.setModelTokenLimit(engineId, usageFrequency, maxTokens, maxInputTokens,
+					maxOutputTokens, maxResponseTime, isActive, createdBy);
+			Map<String, Object> ret = new HashMap<String, Object>();
+			ret.put("success", true);
+			ret.put("engineId", engineId);
+			ret.put("usageFrequency", usageFrequency);
+			return WebUtility.getResponse(ret, 200);
+		} catch (Exception e) {
+			classLogger.error("Failed to set model platform token limit for engine {}", engineId, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 500);
+		}
+	}
+
+	@POST
+	@Produces("application/json")
+	@Path("removeModelPlatformTokenLimit")
+	public Response removeModelPlatformTokenLimit(@Context HttpServletRequest request,
+			MultivaluedMap<String, String> form) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			classLogger.error("Invalid user session trying to access authorization resources", e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
+		String usageFrequency = WebUtility.inputSanitizer(form.getFirst("usageFrequency"));
+		if (engineId == null || engineId.trim().isEmpty() || usageFrequency == null || usageFrequency.trim().isEmpty()) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Must provide engineId and usageFrequency");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		if (!SecurityEngineUtils.userCanEditEngine(user, engineId) && !SecurityAdminUtils.userIsAdmin(user)) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Insufficient privileges to remove model platform token limit.");
+			return WebUtility.getResponse(errorMap, 403);
+		}
+
+		try {
+			SecurityModelTokenUtils.removeModelTokenLimit(engineId, usageFrequency);
+			Map<String, Object> ret = new HashMap<String, Object>();
+			ret.put("success", true);
+			ret.put("engineId", engineId);
+			ret.put("usageFrequency", usageFrequency);
+			return WebUtility.getResponse(ret, 200);
+		} catch (Exception e) {
+			classLogger.error("Failed to remove model platform token limit for engine {}", engineId, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 500);
+		}
+	}
+
+	@GET
+	@Produces("application/json")
+	@Path("getModelPlatformTokenUsage")
+	public Response getModelPlatformTokenUsage(@Context HttpServletRequest request,
+			@QueryParam("engineId") String engineId) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			classLogger.error("Invalid user session trying to access authorization resources", e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		engineId = WebUtility.inputSanitizer(engineId);
+		if (engineId == null || engineId.trim().isEmpty()) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Must provide an engineId");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		if (!SecurityEngineUtils.userCanViewEngine(user, engineId)) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Engine does not exist or user does not have access");
+			return WebUtility.getResponse(errorMap, 403);
+		}
+
+		try {
+			List<Map<String, Object>> limits = SecurityModelTokenUtils.getModelTokenLimits(engineId);
+			ZonedDateTime now = Utility.getCurrentZonedDateTimeUTC();
+			for (Map<String, Object> limit : limits) {
+				String frequency = (String) limit.get("usageFrequency");
+				Number combinedUsage = ModelInferenceLogsUtils.getTotalTokensForEngine(
+						Constants.MODEL_TOKEN_RESTRICTION_VALUE, engineId, now, frequency, null);
+				Number inputUsage = ModelInferenceLogsUtils.getTotalTokensForEngine(
+						Constants.MODEL_TOKEN_RESTRICTION_VALUE, engineId, now, frequency, "INPUT");
+				Number outputUsage = ModelInferenceLogsUtils.getTotalTokensForEngine(
+						Constants.MODEL_TOKEN_RESTRICTION_VALUE, engineId, now, frequency, "RESPONSE");
+				Number computeUsage = ModelInferenceLogsUtils.getTotalTokensForEngine(
+						Constants.MODEL_COMPUTE_TIME_RESTRICTION_VALUE, engineId, now, frequency, null);
+
+				limit.put("tokensUsed", combinedUsage != null ? combinedUsage.longValue() : 0);
+				limit.put("inputTokensUsed", inputUsage != null ? inputUsage.longValue() : 0);
+				limit.put("outputTokensUsed", outputUsage != null ? outputUsage.longValue() : 0);
+				limit.put("computeTimeUsed", computeUsage != null ? computeUsage.doubleValue() : 0.0);
+			}
+			return WebUtility.getResponse(limits, 200);
+		} catch (Exception e) {
+			classLogger.error("Failed to get model platform token usage for engine {}", engineId, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 500);
+		}
+	}
+
+	private long parseLong(String val, long defaultVal) {
+		if (val == null || val.trim().isEmpty()) {
+			return defaultVal;
+		}
+		try {
+			return Long.parseLong(val.trim());
+		} catch (NumberFormatException e) {
+			return defaultVal;
+		}
+	}
+
+	private double parseDouble(String val, double defaultVal) {
+		if (val == null || val.trim().isEmpty()) {
+			return defaultVal;
+		}
+		try {
+			return Double.parseDouble(val.trim());
+		} catch (NumberFormatException e) {
+			return defaultVal;
+		}
+	}
+
+	private boolean parseBoolean(String val, boolean defaultVal) {
+		if (val == null || val.trim().isEmpty()) {
+			return defaultVal;
+		}
+		return Boolean.parseBoolean(val.trim());
 	}
 
 }
