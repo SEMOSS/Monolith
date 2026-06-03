@@ -241,6 +241,7 @@ public class UserAccessKeyFilter implements Filter {
 						session = request.getSession(true);
 						session.setAttribute(Constants.SESSION_USER, user);
 						session.setAttribute(Constants.SESSION_USER_ID_LOG, token.getId());
+						WebUtility.loggingContextLoginEvent(session);
 						classLogger.info(
 								"User is logging in with provider " + token.getProvider() + " with user access key");
 					}
