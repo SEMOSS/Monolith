@@ -1482,8 +1482,7 @@ public class ProjectAuthorizationResource {
 		}
 
 		try {
-			Map<String, Object> limit = SecurityEntityDefaultTokenUtils.getProjectDefaultTokenLimit(projectId);
-			return WebUtility.getResponse(limit, 200);
+			return WebUtility.getResponse(SecurityEntityDefaultTokenUtils.getProjectDefaultTokenLimits(projectId), 200);
 		} catch (Exception e) {
 			classLogger.error("Failed to get project default token limit for project {}", projectId, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -1509,6 +1508,7 @@ public class ProjectAuthorizationResource {
 
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String usageFrequency = WebUtility.inputSanitizer(form.getFirst("usageFrequency"));
+		String existingUsageFrequency = WebUtility.inputSanitizer(form.getFirst("existingUsageFrequency"));
 		if (projectId == null || projectId.trim().isEmpty()) {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Must provide a projectId");
@@ -1531,7 +1531,7 @@ public class ProjectAuthorizationResource {
 		try {
 			SecurityEntityDefaultTokenUtils.setProjectDefaultTokenLimit(projectId, usageFrequency, maxTokens,
 					maxInputTokens, maxOutputTokens, isActive, userDetails.getValue0(), userDetails.getValue1(),
-					restrictPerModel);
+					restrictPerModel, existingUsageFrequency);
 			Map<String, Object> ret = new HashMap<String, Object>();
 			ret.put("success", true);
 			ret.put("projectId", projectId);
@@ -1560,6 +1560,7 @@ public class ProjectAuthorizationResource {
 		}
 
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String usageFrequency = WebUtility.inputSanitizer(form.getFirst("usageFrequency"));
 		if (projectId == null || projectId.trim().isEmpty()) {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Must provide a projectId");
@@ -1573,7 +1574,7 @@ public class ProjectAuthorizationResource {
 		}
 
 		try {
-			SecurityEntityDefaultTokenUtils.removeProjectDefaultTokenLimit(projectId);
+			SecurityEntityDefaultTokenUtils.removeProjectDefaultTokenLimit(projectId, usageFrequency);
 			Map<String, Object> ret = new HashMap<String, Object>();
 			ret.put("success", true);
 			ret.put("projectId", projectId);
@@ -1615,8 +1616,7 @@ public class ProjectAuthorizationResource {
 		}
 
 		try {
-			Map<String, Object> limit = SecurityEntityDefaultTokenUtils.getProjectDefaultTeamTokenLimit(projectId);
-			return WebUtility.getResponse(limit, 200);
+			return WebUtility.getResponse(SecurityEntityDefaultTokenUtils.getProjectDefaultTeamTokenLimits(projectId), 200);
 		} catch (Exception e) {
 			classLogger.error("Failed to get project default team token limit for project {}", projectId, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -1642,6 +1642,7 @@ public class ProjectAuthorizationResource {
 
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String usageFrequency = WebUtility.inputSanitizer(form.getFirst("usageFrequency"));
+		String existingUsageFrequency = WebUtility.inputSanitizer(form.getFirst("existingUsageFrequency"));
 		if (projectId == null || projectId.trim().isEmpty()) {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Must provide a projectId");
@@ -1662,7 +1663,8 @@ public class ProjectAuthorizationResource {
 
 		try {
 			SecurityEntityDefaultTokenUtils.setProjectDefaultTeamTokenLimit(projectId, usageFrequency, maxTokens,
-					maxInputTokens, maxOutputTokens, isActive, userDetails.getValue0(), userDetails.getValue1());
+					maxInputTokens, maxOutputTokens, isActive, userDetails.getValue0(), userDetails.getValue1(),
+					existingUsageFrequency);
 			Map<String, Object> ret = new HashMap<String, Object>();
 			ret.put("success", true);
 			ret.put("projectId", projectId);
@@ -1691,6 +1693,7 @@ public class ProjectAuthorizationResource {
 		}
 
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String usageFrequency = WebUtility.inputSanitizer(form.getFirst("usageFrequency"));
 		if (projectId == null || projectId.trim().isEmpty()) {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Must provide a projectId");
@@ -1704,7 +1707,7 @@ public class ProjectAuthorizationResource {
 		}
 
 		try {
-			SecurityEntityDefaultTokenUtils.removeProjectDefaultTeamTokenLimit(projectId);
+			SecurityEntityDefaultTokenUtils.removeProjectDefaultTeamTokenLimit(projectId, usageFrequency);
 			Map<String, Object> ret = new HashMap<String, Object>();
 			ret.put("success", true);
 			ret.put("projectId", projectId);
@@ -1770,7 +1773,9 @@ public class ProjectAuthorizationResource {
 					: projMap.get(Constants.PROJECT_RESTRICT_PER_MODEL_KEY);
 
 			if (projRestriction == null || projRestriction.trim().isEmpty()) {
-				Map<String, Object> defaultMap = SecurityEntityDefaultTokenUtils.getProjectDefaultTokenLimit(projectId);
+				List<Map<String, Object>> defaultLimits = SecurityEntityDefaultTokenUtils.getProjectDefaultTokenLimits(projectId);
+				Map<String, Object> defaultMap =
+						(defaultLimits == null || defaultLimits.isEmpty()) ? null : defaultLimits.get(0);
 				if (defaultMap != null) {
 					projRestriction = (String) defaultMap.get("usageRestriction");
 					projFrequency = (String) defaultMap.get("usageFrequency");

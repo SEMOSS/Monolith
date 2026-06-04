@@ -263,6 +263,112 @@ public class GroupProjectAuthorizationResource {
 		return WebUtility.getResponse(ret, 200);
 	}
 
+	@POST
+	@Produces("application/json")
+	@Path("setGroupProjectTokenLimit")
+	public Response setGroupProjectTokenLimit(@Context HttpServletRequest request,
+			MultivaluedMap<String, String> form) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			classLogger.error("Invalid user session trying to access authorization resources", e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		String groupId = WebUtility.inputSQLSanitizer(form.getFirst("groupId"));
+		String type = WebUtility.inputSanitizer(form.getFirst("type"));
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String usageFrequency = sanitizeNullable(form.getFirst("usageFrequency"));
+		String existingUsageFrequency = sanitizeNullable(form.getFirst("existingUsageFrequency"));
+		Integer maxTokens = parseInteger(form.getFirst("maxTokens"));
+		Double maxResponseTime = parseDouble(form.getFirst("maxResponseTime"));
+		Integer maxInputTokens = parseInteger(form.getFirst("maxInputTokens"));
+		Integer maxOutputTokens = parseInteger(form.getFirst("maxOutputTokens"));
+		try {
+			if (groupId == null || (groupId = groupId.trim()).isEmpty()) {
+				throw new IllegalArgumentException("The group id cannot be null or empty");
+			}
+			if (type == null || (type = type.trim()).isEmpty()) {
+				throw new IllegalArgumentException("The group type cannot be null or empty");
+			}
+			if (projectId == null || (projectId = projectId.trim()).isEmpty()) {
+				throw new IllegalArgumentException("The projectId cannot be null or empty");
+			}
+			SecurityGroupProjectUtils.setGroupProjectTokenLimit(user, groupId, type, projectId, usageFrequency,
+					existingUsageFrequency, maxTokens, maxResponseTime, maxInputTokens, maxOutputTokens);
+		} catch (IllegalAccessException e) {
+			classLogger.warn(
+					"User is trying to set group {} and type {} token limit for project {} without having proper access",
+					groupId, type, projectId);
+			classLogger.error("Failed to update group project token limit.", e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		} catch (Exception e) {
+			classLogger.error("Failed to update group project token limit.", e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		Map<String, Object> ret = new HashMap<String, Object>();
+		ret.put("success", true);
+		return WebUtility.getResponse(ret, 200);
+	}
+
+	@POST
+	@Produces("application/json")
+	@Path("removeGroupProjectTokenLimit")
+	public Response removeGroupProjectTokenLimit(@Context HttpServletRequest request,
+			MultivaluedMap<String, String> form) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			classLogger.error("Invalid user session trying to access authorization resources", e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		String groupId = WebUtility.inputSQLSanitizer(form.getFirst("groupId"));
+		String type = WebUtility.inputSanitizer(form.getFirst("type"));
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String usageFrequency = sanitizeNullable(form.getFirst("usageFrequency"));
+		try {
+			if (groupId == null || (groupId = groupId.trim()).isEmpty()) {
+				throw new IllegalArgumentException("The group id cannot be null or empty");
+			}
+			if (type == null || (type = type.trim()).isEmpty()) {
+				throw new IllegalArgumentException("The group type cannot be null or empty");
+			}
+			if (projectId == null || (projectId = projectId.trim()).isEmpty()) {
+				throw new IllegalArgumentException("The projectId cannot be null or empty");
+			}
+			SecurityGroupProjectUtils.removeGroupProjectTokenLimit(user, groupId, type, projectId, usageFrequency);
+		} catch (IllegalAccessException e) {
+			classLogger.warn(
+					"User is trying to remove group {} and type {} token limit from project {} without having proper access",
+					groupId, type, projectId);
+			classLogger.error("Failed to remove group project token limit.", e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		} catch (Exception e) {
+			classLogger.error("Failed to remove group project token limit.", e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		Map<String, Object> ret = new HashMap<String, Object>();
+		ret.put("success", true);
+		return WebUtility.getResponse(ret, 200);
+	}
+
 	/**
 	 * Remove group permission for a project
 	 * 
@@ -370,7 +476,7 @@ public class GroupProjectAuthorizationResource {
 
 	private String sanitizeNullable(String value) {
 		value = WebUtility.inputSanitizer(value);
-		if (value == null || (value = value.trim()).isEmpty()) {
+		if (value == null || (value = value.trim()).isEmpty() || "null".equalsIgnoreCase(value)) {
 			return null;
 		}
 		return value;
