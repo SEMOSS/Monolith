@@ -193,7 +193,8 @@ public class UserAccessKeyFilter implements Filter {
 					// now store in the session
 					UserResource.addAccessToken(accessToken, request, autoAdd);
 				} catch (Exception e) {
-					classLogger.error("Error filling access token for bearer authentication with provider '{}'", thisProvider.getLabel(), e);
+					classLogger.error("Error filling access token for bearer authentication with provider '{}'",
+							thisProvider.getLabel(), e);
 				}
 			}
 		} else if (authValue.startsWith("Basic") || authValue.startsWith("basic")) {
@@ -208,19 +209,16 @@ public class UserAccessKeyFilter implements Filter {
 					String accessKey = split[0];
 					String secretKey = split[1];
 
+					AccessToken token = null;
 					try {
-						user = SecurityUserAccessKeyUtils.validateKeysAndReturnUser(accessKey, secretKey);
+						token = SecurityUserAccessKeyUtils.validateKeysAndReturnToken(accessKey, secretKey);
 					} catch (IllegalAccessException e) {
 						classLogger.error("Error validating user access key '{}' against secret key", accessKey, e);
 					}
-					if (user == null) {
+					if (token == null) {
 						classLogger.error("User could not login using user access key '" + accessKey
 								+ "' with invalid secret key");
-					}
-
-					AccessToken token = null;
-					if (user != null) {
-						token = user.getPrimaryLoginToken();
+					} else {
 						// let us make sure this login type is still allowed to login via access/secret
 						// key
 						{
@@ -236,12 +234,9 @@ public class UserAccessKeyFilter implements Filter {
 						}
 					}
 
-					if (user != null && token != null) {
+					if (token != null) {
 						SecurityUserAccessKeyUtils.updateAccessTokenLastUsed(accessKey);
-						session = request.getSession(true);
-						session.setAttribute(Constants.SESSION_USER, user);
-						session.setAttribute(Constants.SESSION_USER_ID_LOG, token.getId());
-						WebUtility.loggingContextLoginEvent(session);
+						UserResource.addAccessToken(token, request, false);
 						classLogger.info(
 								"User is logging in with provider " + token.getProvider() + " with user access key");
 					}
