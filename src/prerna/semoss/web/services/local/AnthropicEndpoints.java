@@ -700,7 +700,7 @@ public class AnthropicEndpoints {
 			String jobId = jobRunner.getJobId();
 
 			String modelPixel = "LLM(engine='" + engine.getEngineId() + "',roomId='" + room.getId()
-					+ "',command='<encode>ignore</encode>'" + ",paramValues=[" + GSON.toJson(dataMap) + "]);";
+					+ "',command='ignore'" + ",paramValues=[" + GSON.toJson(dataMap) + "]);";
 			jobRunner.addPixel(modelPixel);
 			Thread.ofVirtual().start(jobRunner);
 			return jobId;
