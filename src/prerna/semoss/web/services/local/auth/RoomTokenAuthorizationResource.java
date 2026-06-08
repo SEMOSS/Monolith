@@ -1,3 +1,30 @@
+/*******************************************************************************
+ * Copyright 2015 Defense Health Agency (DHA)
+ *
+ * If your use of this software does not include any GPLv2 components:
+ * 	Licensed under the Apache License, Version 2.0 (the "License");
+ * 	you may not use this file except in compliance with the License.
+ * 	You may obtain a copy of the License at
+ *
+ * 	  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * 	Unless required by applicable law or agreed to in writing, software
+ * 	distributed under the License is distributed on an "AS IS" BASIS,
+ * 	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * 	See the License for the specific language governing permissions and
+ * 	limitations under the License.
+ * ----------------------------------------------------------------------------
+ * If your use of this software includes any GPLv2 components:
+ * 	This program is free software; you can redistribute it and/or
+ * 	modify it under the terms of the GNU General Public License
+ * 	as published by the Free Software Foundation; either version 2
+ * 	of the License, or (at your option) any later version.
+ *
+ * 	This program is distributed in the hope that it will be useful,
+ * 	but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * 	GNU General Public License for more details.
+ *******************************************************************************/
 package prerna.semoss.web.services.local.auth;
 
 import java.util.HashMap;
@@ -187,7 +214,9 @@ public class RoomTokenAuthorizationResource {
 
 		try {
 			String userId = user.getAccessToken(user.getLogins().get(0)).getId();
-			Map<String, Object> roomLimit = SecurityRoomTokenUtils.getEffectiveRoomTokenLimit(userId);
+			Map<String, Object> userOverride = SecurityRoomTokenUtils.getRoomTokenLimitForUser(userId);
+			Map<String, Object> defaultLimit = SecurityRoomTokenUtils.getDefaultRoomTokenLimit();
+			Map<String, Object> effectiveLimit = SecurityRoomTokenUtils.getEffectiveRoomTokenLimit(userId);
 
 			Map<String, Object> ret = new HashMap<>();
 
@@ -196,21 +225,31 @@ public class RoomTokenAuthorizationResource {
 			Number outputUsage = ModelInferenceLogsUtils.getTotalTokensForRoom(roomId, "RESPONSE");
 
 			ret.put("roomId", roomId);
+			ret.put("appliesToAllRooms", true);
 			ret.put("tokensUsed", combinedUsage != null ? combinedUsage.longValue() : 0);
 			ret.put("inputTokensUsed", inputUsage != null ? inputUsage.longValue() : 0);
 			ret.put("outputTokensUsed", outputUsage != null ? outputUsage.longValue() : 0);
 
-			if (roomLimit != null) {
+			if (effectiveLimit != null) {
 				ret.put("configured", true);
-				ret.put("tokenLimit", roomLimit.get("maxTokens"));
-				ret.put("inputTokenLimit", roomLimit.get("maxInputTokens"));
-				ret.put("outputTokenLimit", roomLimit.get("maxOutputTokens"));
-				ret.put("isActive", roomLimit.get("isActive"));
+				ret.put("tokenLimit", effectiveLimit.get("maxTokens"));
+				ret.put("inputTokenLimit", effectiveLimit.get("maxInputTokens"));
+				ret.put("outputTokenLimit", effectiveLimit.get("maxOutputTokens"));
+				ret.put("isActive", effectiveLimit.get("isActive"));
+				if (userOverride != null && (userOverride.get("isActive") == null
+						|| Boolean.TRUE.equals(userOverride.get("isActive")))) {
+					ret.put("limitScope", "USER_OVERRIDE");
+				} else if (defaultLimit != null) {
+					ret.put("limitScope", "PLATFORM_DEFAULT");
+				} else {
+					ret.put("limitScope", "UNCONFIGURED");
+				}
 			} else {
 				ret.put("configured", false);
 				ret.put("tokenLimit", null);
 				ret.put("inputTokenLimit", null);
 				ret.put("outputTokenLimit", null);
+				ret.put("limitScope", "UNCONFIGURED");
 			}
 
 			return WebUtility.getResponse(ret, 200);

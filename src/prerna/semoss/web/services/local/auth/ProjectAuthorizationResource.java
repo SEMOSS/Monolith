@@ -27,12 +27,14 @@
  *******************************************************************************/
 package prerna.semoss.web.services.local.auth;
 
+import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
-import java.time.ZonedDateTime;
 
 import javax.annotation.security.PermitAll;
 import javax.servlet.ServletContext;
@@ -58,6 +60,8 @@ import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityEntityDefaultTokenUtils;
+import prerna.auth.utils.SecurityGroupProjectUtils;
+import prerna.auth.utils.SecurityPrincipalTokenLimitUtils;
 import prerna.auth.utils.SecurityProjectUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
@@ -1751,106 +1755,12 @@ public class ProjectAuthorizationResource {
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		try {
-			// Get project usage permission settings (limit, frequency, restriction type)
-			List<Map<String, Object>> projectPermission = SecurityProjectUtils.getProjectUsagePermissionMap(user, projectId);
-			Map<String, Object> projMap =
-					(projectPermission == null || projectPermission.isEmpty()) ? null : projectPermission.get(0);
-			String projRestriction = projMap == null
-					? null
-					: (String) projMap.get(Constants.PROJECT_USAGE_RESTRICTION_KEY);
-			String projFrequency = projMap == null
-					? null
-					: (String) projMap.get(Constants.PROJECT_USAGE_FREQUENCY_KEY);
-			Number projMaxTokens = projMap == null ? null : (Number) projMap.get(Constants.PROJECT_MAX_TOKEN_KEY);
-			Number projMaxInputTokens = projMap == null ? null
-					: (Number) projMap.get(Constants.PROJECT_MAX_INPUT_TOKEN_KEY);
-			Number projMaxOutputTokens = projMap == null ? null
-					: (Number) projMap.get(Constants.PROJECT_MAX_OUTPUT_TOKEN_KEY);
-			Number projMaxResponseTime = projMap == null ? null
-					: (Number) projMap.get(Constants.PROJECT_MAX_RESPONSE_TIME_KEY);
-			Object restrictPerModelObj = projMap == null
-					? null
-					: projMap.get(Constants.PROJECT_RESTRICT_PER_MODEL_KEY);
-
-			if (projRestriction == null || projRestriction.trim().isEmpty()) {
-				List<Map<String, Object>> defaultLimits = SecurityEntityDefaultTokenUtils.getProjectDefaultTokenLimits(projectId);
-				Map<String, Object> defaultMap =
-						(defaultLimits == null || defaultLimits.isEmpty()) ? null : defaultLimits.get(0);
-				if (defaultMap != null) {
-					projRestriction = (String) defaultMap.get("usageRestriction");
-					projFrequency = (String) defaultMap.get("usageFrequency");
-					projMaxTokens = (Number) defaultMap.get("maxTokens");
-					projMaxInputTokens = (Number) defaultMap.get("maxInputTokens");
-					projMaxOutputTokens = (Number) defaultMap.get("maxOutputTokens");
-					projMaxResponseTime = (Number) defaultMap.get("maxResponseTime");
-					restrictPerModelObj = defaultMap.get("restrictPerModel");
-				}
-			}
-
-			if (projRestriction == null || projRestriction.trim().isEmpty()) {
-				ret.put("tokensUsed", 0);
-				ret.put("tokenLimit", null);
-				ret.put("configured", false);
-				return WebUtility.getResponse(ret, 200);
-			}
-			boolean restrictPerModel = restrictPerModelObj != null && Boolean.TRUE.equals(restrictPerModelObj);
-
-			// For project-level usage without a specific model context, pass null engineId
-			String scopedEngineId = null;
-
-			ZonedDateTime currentDateTime = Utility.getCurrentZonedDateTimeUTC();
-
-			// Return all defined limits and their current usage
-			ret.put("restrictionType", projRestriction);
-			ret.put("frequency", projFrequency);
-			ret.put("configured", true);
-
-			// Combined token usage
-			if (projMaxTokens != null && projMaxTokens.intValue() > 0) {
-				Number combinedUsage = ModelInferenceLogsUtils.getTotalTokensForProject(
-						Constants.MODEL_TOKEN_RESTRICTION_VALUE, user, projectId, scopedEngineId, currentDateTime,
-						projFrequency, null);
-				ret.put("tokensUsed", combinedUsage != null ? combinedUsage.intValue() : 0);
-				ret.put("tokenLimit", projMaxTokens.intValue());
-			} else {
-				ret.put("tokensUsed", 0);
-				ret.put("tokenLimit", null);
-			}
-
-			// Input token usage
-			if (projMaxInputTokens != null && projMaxInputTokens.intValue() > 0) {
-				Number inputUsage = ModelInferenceLogsUtils.getTotalTokensForProject(
-						Constants.MODEL_TOKEN_RESTRICTION_VALUE, user, projectId, scopedEngineId, currentDateTime,
-						projFrequency, "INPUT");
-				ret.put("inputTokensUsed", inputUsage != null ? inputUsage.intValue() : 0);
-				ret.put("inputTokenLimit", projMaxInputTokens.intValue());
-			} else {
-				ret.put("inputTokensUsed", 0);
-				ret.put("inputTokenLimit", null);
-			}
-
-			// Output token usage
-			if (projMaxOutputTokens != null && projMaxOutputTokens.intValue() > 0) {
-				Number outputUsage = ModelInferenceLogsUtils.getTotalTokensForProject(
-						Constants.MODEL_TOKEN_RESTRICTION_VALUE, user, projectId, scopedEngineId, currentDateTime,
-						projFrequency, "RESPONSE");
-				ret.put("outputTokensUsed", outputUsage != null ? outputUsage.intValue() : 0);
-				ret.put("outputTokenLimit", projMaxOutputTokens.intValue());
-			} else {
-				ret.put("outputTokensUsed", 0);
-				ret.put("outputTokenLimit", null);
-			}
-
-			// Compute time usage
-			if (projMaxResponseTime != null && projMaxResponseTime.intValue() > 0) {
-				Number computeUsage = ModelInferenceLogsUtils.getTotalTokensForProject(
-						Constants.MODEL_COMPUTE_TIME_RESTRICTION_VALUE, user, projectId, scopedEngineId, currentDateTime,
-						projFrequency, null);
-				ret.put("computeTimeUsed", computeUsage != null ? computeUsage.doubleValue() : 0.0);
-				ret.put("computeTimeLimit", projMaxResponseTime.doubleValue());
-			} else {
-				ret.put("computeTimeUsed", 0.0);
-				ret.put("computeTimeLimit", null);
+			List<Map<String, Object>> limits = buildProjectUsageLimits(user, projectId);
+			ret.put("projectId", projectId);
+			ret.put("configured", !limits.isEmpty());
+			ret.put("limits", limits);
+			if (limits.size() == 1) {
+				ret.putAll(buildLegacyUsagePayload(limits.get(0)));
 			}
 		} catch (Exception e) {
 			classLogger.error("Failed to get project token usage for project " + projectId, e);
@@ -1860,6 +1770,209 @@ public class ProjectAuthorizationResource {
 		}
 
 		return WebUtility.getResponse(ret, 200);
+	}
+
+	private List<Map<String, Object>> buildProjectUsageLimits(User user, String projectId) {
+		List<Map<String, Object>> limits = new ArrayList<>();
+		ZonedDateTime currentDateTime = Utility.getCurrentZonedDateTimeUTC();
+
+		for (Map<String, Object> limit : getApplicableProjectUserTokenLimitsForAnyEngine(user, projectId)) {
+			addProjectUsageLimit(limits, "user_limit_table", "user", projectId, limit.get("engineId"),
+					limit.get("userId"), null, limit, "usageRestriction", "usageFrequency", "maxTokens",
+					"maxInputTokens", "maxOutputTokens", "maxResponseTime", "restrictPerModel", user,
+					currentDateTime);
+		}
+		for (Map<String, Object> limit : SecurityProjectUtils.getProjectUsagePermissionMap(user, projectId)) {
+			addProjectUsageLimit(limits, "user_permission", "user", projectId, null, getCurrentUserId(user), null,
+					limit, Constants.PROJECT_USAGE_RESTRICTION_KEY, Constants.PROJECT_USAGE_FREQUENCY_KEY,
+					Constants.PROJECT_MAX_TOKEN_KEY, Constants.PROJECT_MAX_INPUT_TOKEN_KEY,
+					Constants.PROJECT_MAX_OUTPUT_TOKEN_KEY, Constants.PROJECT_MAX_RESPONSE_TIME_KEY,
+					Constants.PROJECT_RESTRICT_PER_MODEL_KEY, user, currentDateTime);
+		}
+		for (Map<String, Object> limit : SecurityEntityDefaultTokenUtils.getProjectDefaultTokenLimits(projectId)) {
+			addProjectUsageLimit(limits, "default_user", "default_user", projectId, limit.get("engineId"), null, null,
+					limit, "usageRestriction", "usageFrequency", "maxTokens", "maxInputTokens", "maxOutputTokens",
+					"maxResponseTime", "restrictPerModel", user, currentDateTime);
+		}
+		for (Map<String, Object> limit : getApplicableProjectTeamTokenLimitsForAnyEngine(user, projectId)) {
+			String groupRef = stringify(limit.get("groupType"));
+			if (groupRef != null && limit.get("groupId") != null) {
+				groupRef = groupRef + ":" + stringify(limit.get("groupId"));
+			}
+			addProjectUsageLimit(limits, "team_limit_table", "team", projectId, limit.get("engineId"), null, groupRef,
+					limit, "usageRestriction", "usageFrequency", "maxTokens", "maxInputTokens", "maxOutputTokens",
+					"maxResponseTime", "restrictPerModel", user, currentDateTime);
+		}
+		for (Map<String, Object> limit : SecurityGroupProjectUtils.getApplicableGroupProjectUsagePermissions(user,
+				projectId)) {
+			String groupRef = stringify(limit.get("groupType"));
+			if (groupRef != null && limit.get("groupId") != null) {
+				groupRef = groupRef + ":" + stringify(limit.get("groupId"));
+			}
+			addProjectUsageLimit(limits, "team_permission", "team", projectId, null, null, groupRef, limit,
+					Constants.PROJECT_USAGE_RESTRICTION_KEY, Constants.PROJECT_USAGE_FREQUENCY_KEY,
+					Constants.PROJECT_MAX_TOKEN_KEY, Constants.PROJECT_MAX_INPUT_TOKEN_KEY,
+					Constants.PROJECT_MAX_OUTPUT_TOKEN_KEY, Constants.PROJECT_MAX_RESPONSE_TIME_KEY,
+					Constants.PROJECT_RESTRICT_PER_MODEL_KEY, user, currentDateTime);
+		}
+		for (Map<String, Object> limit : SecurityEntityDefaultTokenUtils.getProjectDefaultTeamTokenLimits(projectId)) {
+			addProjectUsageLimit(limits, "default_team", "default_team", projectId, limit.get("engineId"), null, null,
+					limit, "usageRestriction", "usageFrequency", "maxTokens", "maxInputTokens", "maxOutputTokens",
+					"maxResponseTime", "restrictPerModel", user, currentDateTime);
+		}
+
+		return limits;
+	}
+
+	private List<Map<String, Object>> getApplicableProjectUserTokenLimitsForAnyEngine(User user, String projectId) {
+		List<Map<String, Object>> limits = new ArrayList<>();
+		if (user == null) {
+			return limits;
+		}
+		for (AuthProvider login : user.getLogins()) {
+			AccessToken token = user.getAccessToken(login);
+			if (token != null && token.getId() != null && !token.getId().trim().isEmpty()) {
+				limits.addAll(SecurityPrincipalTokenLimitUtils.getProjectUserTokenLimitsForAnyEngine(projectId,
+						token.getId()));
+			}
+		}
+		return limits;
+	}
+
+	private List<Map<String, Object>> getApplicableProjectTeamTokenLimitsForAnyEngine(User user, String projectId) {
+		List<Map<String, Object>> limits = new ArrayList<>();
+		if (user == null) {
+			return limits;
+		}
+		for (AuthProvider login : user.getLogins()) {
+			AccessToken token = user.getAccessToken(login);
+			if (token == null || token.getUserGroupType() == null || token.getUserGroupType().trim().isEmpty()
+					|| token.getUserGroups() == null) {
+				continue;
+			}
+			for (String groupId : token.getUserGroups()) {
+				if (groupId != null && !groupId.trim().isEmpty()) {
+					limits.addAll(SecurityPrincipalTokenLimitUtils.getProjectTeamTokenLimitsForAnyEngine(projectId,
+							groupId, token.getUserGroupType()));
+				}
+			}
+		}
+		return limits;
+	}
+
+	private void addProjectUsageLimit(List<Map<String, Object>> limits, String source, String scope, String projectId,
+			Object rawEngineId, Object userId, Object groupId, Map<String, Object> rawLimit, String restrictionKey,
+			String frequencyKey, String maxTokensKey, String maxInputTokensKey, String maxOutputTokensKey,
+			String maxResponseTimeKey, String restrictPerModelKey, User user, ZonedDateTime currentDateTime) {
+		if (!isActive(rawLimit.get("isActive"))) {
+			return;
+		}
+		String restrictionType = stringify(rawLimit.get(restrictionKey));
+		String frequency = stringify(rawLimit.get(frequencyKey));
+		Number maxTokens = numberValue(rawLimit.get(maxTokensKey));
+		Number maxInputTokens = numberValue(rawLimit.get(maxInputTokensKey));
+		Number maxOutputTokens = numberValue(rawLimit.get(maxOutputTokensKey));
+		Number maxResponseTime = numberValue(rawLimit.get(maxResponseTimeKey));
+		if (!hasConfiguredLimit(restrictionType, maxTokens, maxInputTokens, maxOutputTokens, maxResponseTime)) {
+			return;
+		}
+
+		String storedEngineId = stringify(rawEngineId);
+		boolean restrictPerModel = Boolean.TRUE.equals(rawLimit.get(restrictPerModelKey))
+				|| (storedEngineId != null
+						&& !SecurityPrincipalTokenLimitUtils.ALL_ENGINES_SENTINEL.equals(storedEngineId));
+		String scopedEngineId = restrictPerModel ? storedEngineId : null;
+
+		Map<String, Object> row = new LinkedHashMap<>();
+		row.put("source", source);
+		row.put("scope", scope);
+		row.put("projectId", projectId);
+		row.put("engineId", storedEngineId);
+		row.put("restrictPerModel", restrictPerModel);
+		row.put("userId", userId);
+		row.put("groupId", groupId);
+		row.put("restrictionType", restrictionType);
+		row.put("frequency", frequency);
+		row.put("usageFrequency", frequency);
+		row.put("tokenLimit", maxTokens);
+		row.put("inputTokenLimit", maxInputTokens);
+		row.put("outputTokenLimit", maxOutputTokens);
+		row.put("computeTimeLimit", maxResponseTime);
+		row.put("configured", true);
+		row.put("isActive", true);
+		row.put("tokensUsed", getProjectUsageMetric(Constants.MODEL_TOKEN_RESTRICTION_VALUE, user, projectId,
+				scopedEngineId, currentDateTime, frequency, null, maxTokens));
+		row.put("inputTokensUsed", getProjectUsageMetric(Constants.MODEL_TOKEN_RESTRICTION_VALUE, user, projectId,
+				scopedEngineId, currentDateTime, frequency, "INPUT", maxInputTokens));
+		row.put("outputTokensUsed", getProjectUsageMetric(Constants.MODEL_TOKEN_RESTRICTION_VALUE, user, projectId,
+				scopedEngineId, currentDateTime, frequency, "RESPONSE", maxOutputTokens));
+		row.put("computeTimeUsed", getProjectUsageMetric(Constants.MODEL_COMPUTE_TIME_RESTRICTION_VALUE, user,
+				projectId, scopedEngineId, currentDateTime, frequency, null, maxResponseTime));
+		limits.add(row);
+	}
+
+	private Number getProjectUsageMetric(String restrictionType, User user, String projectId, String scopedEngineId,
+			ZonedDateTime currentDateTime, String frequency, String messageType, Number configuredLimit) {
+		if (configuredLimit == null) {
+			return Constants.MODEL_COMPUTE_TIME_RESTRICTION_VALUE.equalsIgnoreCase(restrictionType) ? 0.0 : 0;
+		}
+		Number usage = ModelInferenceLogsUtils.getTotalTokensForProject(restrictionType, user, projectId,
+				normalizeProjectScopedEngineId(scopedEngineId), currentDateTime, frequency, messageType);
+		if (usage != null) {
+			return usage;
+		}
+		return Constants.MODEL_COMPUTE_TIME_RESTRICTION_VALUE.equalsIgnoreCase(restrictionType) ? 0.0 : 0;
+	}
+
+	private String normalizeProjectScopedEngineId(String scopedEngineId) {
+		if (scopedEngineId == null || scopedEngineId.trim().isEmpty()
+				|| SecurityPrincipalTokenLimitUtils.ALL_ENGINES_SENTINEL.equals(scopedEngineId)) {
+			return null;
+		}
+		return scopedEngineId;
+	}
+
+	private Map<String, Object> buildLegacyUsagePayload(Map<String, Object> limit) {
+		Map<String, Object> legacy = new HashMap<>();
+		legacy.put("restrictionType", limit.get("restrictionType"));
+		legacy.put("frequency", limit.get("frequency"));
+		legacy.put("tokensUsed", limit.get("tokensUsed"));
+		legacy.put("tokenLimit", limit.get("tokenLimit"));
+		legacy.put("inputTokensUsed", limit.get("inputTokensUsed"));
+		legacy.put("inputTokenLimit", limit.get("inputTokenLimit"));
+		legacy.put("outputTokensUsed", limit.get("outputTokensUsed"));
+		legacy.put("outputTokenLimit", limit.get("outputTokenLimit"));
+		legacy.put("computeTimeUsed", limit.get("computeTimeUsed"));
+		legacy.put("computeTimeLimit", limit.get("computeTimeLimit"));
+		return legacy;
+	}
+
+	private boolean hasConfiguredLimit(String restrictionType, Number maxTokens, Number maxInputTokens,
+			Number maxOutputTokens, Number maxResponseTime) {
+		if (restrictionType == null || restrictionType.trim().isEmpty()) {
+			return false;
+		}
+		return maxTokens != null || maxInputTokens != null || maxOutputTokens != null || maxResponseTime != null;
+	}
+
+	private boolean isActive(Object isActiveValue) {
+		return isActiveValue == null || Boolean.TRUE.equals(isActiveValue);
+	}
+
+	private Number numberValue(Object value) {
+		return value instanceof Number ? (Number) value : null;
+	}
+
+	private String stringify(Object value) {
+		return value == null ? null : value.toString();
+	}
+
+	private String getCurrentUserId(User user) {
+		if (user == null || user.getLogins() == null || user.getLogins().isEmpty()) {
+			return null;
+		}
+		AccessToken token = user.getAccessToken(user.getLogins().get(0));
+		return token == null ? null : token.getId();
 	}
 
 	private long parseLong(String val, long defaultVal) {

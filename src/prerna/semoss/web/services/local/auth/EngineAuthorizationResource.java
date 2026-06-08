@@ -28,7 +28,9 @@
 package prerna.semoss.web.services.local.auth;
 
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -58,7 +60,9 @@ import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityEntityDefaultTokenUtils;
 import prerna.auth.utils.SecurityEngineUtils;
+import prerna.auth.utils.SecurityGroupEngineUtils;
 import prerna.auth.utils.SecurityModelTokenUtils;
+import prerna.auth.utils.SecurityPrincipalTokenLimitUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
 import prerna.engine.impl.model.inferencetracking.ModelInferenceLogsUtils;
@@ -1277,92 +1281,12 @@ public class EngineAuthorizationResource {
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		try {
-			List<Map<String, Object>> enginePermission = SecurityEngineUtils.getEngineUsagePermissionMap(user, engineId);
-			Map<String, Object> engMap =
-					(enginePermission == null || enginePermission.isEmpty()) ? null : enginePermission.get(0);
-			String engRestriction = engMap == null
-					? null
-					: (String) engMap.get(Constants.ENGINE_USAGE_RESTRICTION_KEY);
-			String engFrequency = engMap == null
-					? null
-					: (String) engMap.get(Constants.ENGINE_USAGE_FREQUENCY_KEY);
-			Number engMaxTokens = engMap == null ? null : (Number) engMap.get(Constants.ENGINE_MAX_TOKEN_KEY);
-			Number engMaxInputTokens = engMap == null ? null
-					: (Number) engMap.get(Constants.ENGINE_MAX_INPUT_TOKEN_KEY);
-			Number engMaxOutputTokens = engMap == null ? null
-					: (Number) engMap.get(Constants.ENGINE_MAX_OUTPUT_TOKEN_KEY);
-			Number engMaxResponseTime = engMap == null ? null
-					: (Number) engMap.get(Constants.ENGINE_MAX_RESPONSE_TIME_KEY);
-
-			if (engRestriction == null || engRestriction.trim().isEmpty()) {
-				List<Map<String, Object>> defaultLimits = SecurityEntityDefaultTokenUtils.getEngineDefaultTokenLimits(engineId);
-				Map<String, Object> defaultMap =
-						(defaultLimits == null || defaultLimits.isEmpty()) ? null : defaultLimits.get(0);
-				if (defaultMap != null) {
-					engRestriction = (String) defaultMap.get("usageRestriction");
-					engFrequency = (String) defaultMap.get("usageFrequency");
-					engMaxTokens = (Number) defaultMap.get("maxTokens");
-					engMaxInputTokens = (Number) defaultMap.get("maxInputTokens");
-					engMaxOutputTokens = (Number) defaultMap.get("maxOutputTokens");
-					engMaxResponseTime = (Number) defaultMap.get("maxResponseTime");
-				}
-			}
-
-			if (engRestriction == null || engRestriction.trim().isEmpty()) {
-				ret.put("tokensUsed", 0);
-				ret.put("tokenLimit", null);
-				ret.put("configured", false);
-				return WebUtility.getResponse(ret, 200);
-			}
-
-			ZonedDateTime currentDateTime = Utility.getCurrentZonedDateTimeUTC();
-
-			ret.put("restrictionType", engRestriction);
-			ret.put("frequency", engFrequency);
-			ret.put("configured", true);
-
-			// Combined token usage
-			if (engMaxTokens != null && engMaxTokens.intValue() > 0) {
-				Number combinedUsage = ModelInferenceLogsUtils.getTotalTokensOrTotalResponseTime(
-						Constants.MODEL_TOKEN_RESTRICTION_VALUE, user, engineId, currentDateTime, engFrequency);
-				ret.put("tokensUsed", combinedUsage != null ? combinedUsage.intValue() : 0);
-				ret.put("tokenLimit", engMaxTokens.intValue());
-			} else {
-				ret.put("tokensUsed", 0);
-				ret.put("tokenLimit", null);
-			}
-
-			// Input token usage
-			if (engMaxInputTokens != null && engMaxInputTokens.intValue() > 0) {
-				Number inputUsage = ModelInferenceLogsUtils.getTotalTokensOrTotalResponseTime(
-						Constants.MODEL_TOKEN_RESTRICTION_VALUE, user, engineId, currentDateTime, engFrequency, "INPUT");
-				ret.put("inputTokensUsed", inputUsage != null ? inputUsage.intValue() : 0);
-				ret.put("inputTokenLimit", engMaxInputTokens.intValue());
-			} else {
-				ret.put("inputTokensUsed", 0);
-				ret.put("inputTokenLimit", null);
-			}
-
-			// Output token usage
-			if (engMaxOutputTokens != null && engMaxOutputTokens.intValue() > 0) {
-				Number outputUsage = ModelInferenceLogsUtils.getTotalTokensOrTotalResponseTime(
-						Constants.MODEL_TOKEN_RESTRICTION_VALUE, user, engineId, currentDateTime, engFrequency, "RESPONSE");
-				ret.put("outputTokensUsed", outputUsage != null ? outputUsage.intValue() : 0);
-				ret.put("outputTokenLimit", engMaxOutputTokens.intValue());
-			} else {
-				ret.put("outputTokensUsed", 0);
-				ret.put("outputTokenLimit", null);
-			}
-
-			// Compute time usage
-			if (engMaxResponseTime != null && engMaxResponseTime.intValue() > 0) {
-				Number computeUsage = ModelInferenceLogsUtils.getTotalTokensOrTotalResponseTime(
-						Constants.MODEL_COMPUTE_TIME_RESTRICTION_VALUE, user, engineId, currentDateTime, engFrequency);
-				ret.put("computeTimeUsed", computeUsage != null ? computeUsage.doubleValue() : 0.0);
-				ret.put("computeTimeLimit", engMaxResponseTime.doubleValue());
-			} else {
-				ret.put("computeTimeUsed", 0.0);
-				ret.put("computeTimeLimit", null);
+			List<Map<String, Object>> limits = buildEngineUsageLimits(user, engineId);
+			ret.put("engineId", engineId);
+			ret.put("configured", !limits.isEmpty());
+			ret.put("limits", limits);
+			if (limits.size() == 1) {
+				ret.putAll(buildLegacyUsagePayload(limits.get(0)));
 			}
 		} catch (Exception e) {
 			classLogger.error("Failed to get engine token usage for engine " + engineId, e);
@@ -1372,6 +1296,166 @@ public class EngineAuthorizationResource {
 		}
 
 		return WebUtility.getResponse(ret, 200);
+	}
+
+	private List<Map<String, Object>> buildEngineUsageLimits(User user, String engineId) {
+		List<Map<String, Object>> limits = new ArrayList<>();
+		ZonedDateTime currentDateTime = Utility.getCurrentZonedDateTimeUTC();
+
+		for (Map<String, Object> limit : SecurityModelTokenUtils.getModelTokenLimits(engineId)) {
+			addEngineUsageLimit(limits, "platform", "platform", engineId, null, null, limit, "usageRestriction",
+					"usageFrequency", "maxTokens", "maxInputTokens", "maxOutputTokens", "maxResponseTime", true, user,
+					currentDateTime);
+		}
+		for (Map<String, Object> limit : SecurityPrincipalTokenLimitUtils.getApplicableEngineUserTokenLimits(user,
+				engineId)) {
+			addEngineUsageLimit(limits, "user_limit_table", "user", engineId, limit.get("userId"), null, limit,
+					"usageRestriction", "usageFrequency", "maxTokens", "maxInputTokens", "maxOutputTokens",
+					"maxResponseTime", false, user, currentDateTime);
+		}
+		for (Map<String, Object> limit : SecurityEngineUtils.getEngineUsagePermissionMap(user, engineId)) {
+			addEngineUsageLimit(limits, "user_permission", "user", engineId, getCurrentUserId(user), null, limit,
+					Constants.ENGINE_USAGE_RESTRICTION_KEY, Constants.ENGINE_USAGE_FREQUENCY_KEY,
+					Constants.ENGINE_MAX_TOKEN_KEY, Constants.ENGINE_MAX_INPUT_TOKEN_KEY,
+					Constants.ENGINE_MAX_OUTPUT_TOKEN_KEY, Constants.ENGINE_MAX_RESPONSE_TIME_KEY, false, user,
+					currentDateTime);
+		}
+		for (Map<String, Object> limit : SecurityEntityDefaultTokenUtils.getEngineDefaultTokenLimits(engineId)) {
+			addEngineUsageLimit(limits, "default_user", "default_user", engineId, null, null, limit,
+					"usageRestriction", "usageFrequency", "maxTokens", "maxInputTokens", "maxOutputTokens",
+					"maxResponseTime", false, user, currentDateTime);
+		}
+		for (Map<String, Object> limit : SecurityPrincipalTokenLimitUtils.getApplicableEngineTeamTokenLimits(user,
+				engineId)) {
+			String groupRef = stringify(limit.get("groupType"));
+			if (groupRef != null && limit.get("groupId") != null) {
+				groupRef = groupRef + ":" + stringify(limit.get("groupId"));
+			}
+			addEngineUsageLimit(limits, "team_limit_table", "team", engineId, null, groupRef, limit,
+					"usageRestriction", "usageFrequency", "maxTokens", "maxInputTokens", "maxOutputTokens",
+					"maxResponseTime", false, user, currentDateTime);
+		}
+		for (Map<String, Object> limit : SecurityGroupEngineUtils.getApplicableGroupEngineUsagePermissions(user,
+				engineId)) {
+			String groupRef = stringify(limit.get("groupType"));
+			if (groupRef != null && limit.get("groupId") != null) {
+				groupRef = groupRef + ":" + stringify(limit.get("groupId"));
+			}
+			addEngineUsageLimit(limits, "team_permission", "team", engineId, null, groupRef, limit,
+					Constants.ENGINE_USAGE_RESTRICTION_KEY, Constants.ENGINE_USAGE_FREQUENCY_KEY,
+					Constants.ENGINE_MAX_TOKEN_KEY, Constants.ENGINE_MAX_INPUT_TOKEN_KEY,
+					Constants.ENGINE_MAX_OUTPUT_TOKEN_KEY, Constants.ENGINE_MAX_RESPONSE_TIME_KEY, false, user,
+					currentDateTime);
+		}
+		for (Map<String, Object> limit : SecurityEntityDefaultTokenUtils.getEngineDefaultTeamTokenLimits(engineId)) {
+			addEngineUsageLimit(limits, "default_team", "default_team", engineId, null, null, limit,
+					"usageRestriction", "usageFrequency", "maxTokens", "maxInputTokens", "maxOutputTokens",
+					"maxResponseTime", false, user, currentDateTime);
+		}
+
+		return limits;
+	}
+
+	private void addEngineUsageLimit(List<Map<String, Object>> limits, String source, String scope, String engineId,
+			Object userId, Object groupId, Map<String, Object> rawLimit, String restrictionKey, String frequencyKey,
+			String maxTokensKey, String maxInputTokensKey, String maxOutputTokensKey, String maxResponseTimeKey,
+			boolean platformWide, User user, ZonedDateTime currentDateTime) {
+		if (!isActive(rawLimit.get("isActive"))) {
+			return;
+		}
+		String restrictionType = stringify(rawLimit.get(restrictionKey));
+		String frequency = stringify(rawLimit.get(frequencyKey));
+		Number maxTokens = numberValue(rawLimit.get(maxTokensKey));
+		Number maxInputTokens = numberValue(rawLimit.get(maxInputTokensKey));
+		Number maxOutputTokens = numberValue(rawLimit.get(maxOutputTokensKey));
+		Number maxResponseTime = numberValue(rawLimit.get(maxResponseTimeKey));
+		if (!hasConfiguredLimit(restrictionType, maxTokens, maxInputTokens, maxOutputTokens, maxResponseTime)) {
+			return;
+		}
+
+		Map<String, Object> row = new LinkedHashMap<>();
+		row.put("source", source);
+		row.put("scope", scope);
+		row.put("engineId", engineId);
+		row.put("userId", userId);
+		row.put("groupId", groupId);
+		row.put("restrictionType", restrictionType);
+		row.put("frequency", frequency);
+		row.put("usageFrequency", frequency);
+		row.put("tokenLimit", maxTokens);
+		row.put("inputTokenLimit", maxInputTokens);
+		row.put("outputTokenLimit", maxOutputTokens);
+		row.put("computeTimeLimit", maxResponseTime);
+		row.put("configured", true);
+		row.put("isActive", true);
+		row.put("tokensUsed", getEngineUsageMetric(platformWide, Constants.MODEL_TOKEN_RESTRICTION_VALUE, user,
+				engineId, currentDateTime, frequency, null, maxTokens));
+		row.put("inputTokensUsed", getEngineUsageMetric(platformWide, Constants.MODEL_TOKEN_RESTRICTION_VALUE, user,
+				engineId, currentDateTime, frequency, "INPUT", maxInputTokens));
+		row.put("outputTokensUsed", getEngineUsageMetric(platformWide, Constants.MODEL_TOKEN_RESTRICTION_VALUE, user,
+				engineId, currentDateTime, frequency, "RESPONSE", maxOutputTokens));
+		row.put("computeTimeUsed", getEngineUsageMetric(platformWide, Constants.MODEL_COMPUTE_TIME_RESTRICTION_VALUE,
+				user, engineId, currentDateTime, frequency, null, maxResponseTime));
+		limits.add(row);
+	}
+
+	private Number getEngineUsageMetric(boolean platformWide, String restrictionType, User user, String engineId,
+			ZonedDateTime currentDateTime, String frequency, String messageType, Number configuredLimit) {
+		if (configuredLimit == null) {
+			return Constants.MODEL_COMPUTE_TIME_RESTRICTION_VALUE.equalsIgnoreCase(restrictionType) ? 0.0 : 0;
+		}
+		Number usage = platformWide
+				? ModelInferenceLogsUtils.getTotalTokensForEngine(restrictionType, engineId, currentDateTime, frequency,
+						messageType)
+				: ModelInferenceLogsUtils.getTotalTokensOrTotalResponseTime(restrictionType, user, engineId,
+						currentDateTime, frequency, messageType);
+		if (usage != null) {
+			return usage;
+		}
+		return Constants.MODEL_COMPUTE_TIME_RESTRICTION_VALUE.equalsIgnoreCase(restrictionType) ? 0.0 : 0;
+	}
+
+	private Map<String, Object> buildLegacyUsagePayload(Map<String, Object> limit) {
+		Map<String, Object> legacy = new HashMap<>();
+		legacy.put("restrictionType", limit.get("restrictionType"));
+		legacy.put("frequency", limit.get("frequency"));
+		legacy.put("tokensUsed", limit.get("tokensUsed"));
+		legacy.put("tokenLimit", limit.get("tokenLimit"));
+		legacy.put("inputTokensUsed", limit.get("inputTokensUsed"));
+		legacy.put("inputTokenLimit", limit.get("inputTokenLimit"));
+		legacy.put("outputTokensUsed", limit.get("outputTokensUsed"));
+		legacy.put("outputTokenLimit", limit.get("outputTokenLimit"));
+		legacy.put("computeTimeUsed", limit.get("computeTimeUsed"));
+		legacy.put("computeTimeLimit", limit.get("computeTimeLimit"));
+		return legacy;
+	}
+
+	private boolean hasConfiguredLimit(String restrictionType, Number maxTokens, Number maxInputTokens,
+			Number maxOutputTokens, Number maxResponseTime) {
+		if (restrictionType == null || restrictionType.trim().isEmpty()) {
+			return false;
+		}
+		return maxTokens != null || maxInputTokens != null || maxOutputTokens != null || maxResponseTime != null;
+	}
+
+	private boolean isActive(Object isActiveValue) {
+		return isActiveValue == null || Boolean.TRUE.equals(isActiveValue);
+	}
+
+	private Number numberValue(Object value) {
+		return value instanceof Number ? (Number) value : null;
+	}
+
+	private String stringify(Object value) {
+		return value == null ? null : value.toString();
+	}
+
+	private String getCurrentUserId(User user) {
+		if (user == null || user.getLogins() == null || user.getLogins().isEmpty()) {
+			return null;
+		}
+		AccessToken token = user.getAccessToken(user.getLogins().get(0));
+		return token == null ? null : token.getId();
 	}
 
 	@GET
@@ -1802,7 +1886,7 @@ public class EngineAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
-		if (!SecurityEngineUtils.userCanViewEngine(user, engineId)) {
+		if (!SecurityEngineUtils.userCanEditEngine(user, engineId)) {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Engine does not exist or user does not have access");
 			return WebUtility.getResponse(errorMap, 403);
