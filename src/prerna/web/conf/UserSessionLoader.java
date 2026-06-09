@@ -171,8 +171,7 @@ public class UserSessionLoader implements HttpSessionListener {
 				IRUserConnection rserve = thisUser.getRcon();
 				if (rserve != null && !rserve.isStopped()) {
 					classLogger.info("Dropping user r serve");
-					ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
-					try {
+					try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
 						executor.submit(new Callable<Void>() {
 							@Override
 							public Void call() throws Exception {
@@ -185,8 +184,6 @@ public class UserSessionLoader implements HttpSessionListener {
 								return null;
 							}
 						});
-					} finally {
-						executor.shutdown();
 					}
 				}
 			}
@@ -259,16 +256,14 @@ public class UserSessionLoader implements HttpSessionListener {
 			return;
 		}
 
-		Map<String, Object> roomHash = user.getRoomHash();
-		for (Map.Entry<String, Object> entry : roomHash.entrySet()) {
+		Map<String, Room> roomHash = user.getRoomHash();
+		for (Map.Entry<String, Room> entry : roomHash.entrySet()) {
 			String roomId = entry.getKey();
-			Object roomObj = entry.getValue();
+			Room room = entry.getValue();
 			try {
 				String roomFolderPath = null;
-				Room room = null;
-				if (roomObj != null) {
+				if (room != null) {
 					try {
-						room = (Room) roomObj;
 						roomFolderPath = room.getRoomFolderPath();
 					} catch (Exception e) {
 						classLogger.warn("Could not get room folder path for room {} during {} cleanup", roomId,
