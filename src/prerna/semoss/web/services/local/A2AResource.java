@@ -5,8 +5,10 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.time.format.DateTimeFormatter;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -34,16 +36,33 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.sse.Sse;
 import javax.ws.rs.sse.SseEventSink;
 
+import org.a2aproject.sdk.spec.AgentCapabilities;
+import org.a2aproject.sdk.spec.AgentCard;
+import org.a2aproject.sdk.spec.AgentInterface;
+import org.a2aproject.sdk.spec.AgentSkill;
+import org.a2aproject.sdk.spec.Artifact;
+import org.a2aproject.sdk.spec.HTTPAuthSecurityScheme;
+import org.a2aproject.sdk.spec.Message;
+import org.a2aproject.sdk.spec.Part;
+import org.a2aproject.sdk.spec.SecurityRequirement;
+import org.a2aproject.sdk.spec.SecurityScheme;
+import org.a2aproject.sdk.spec.Task;
+import org.a2aproject.sdk.spec.TaskState;
+import org.a2aproject.sdk.spec.TaskStatus;
+import org.a2aproject.sdk.spec.TextPart;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.github.f4b6a3.uuid.alt.GUID;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.gson.JsonPrimitive;
+import com.google.gson.JsonSerializer;
 
 import prerna.auth.User;
 import prerna.engine.impl.model.inferencetracking.ModelInferenceLogsUtils;
@@ -66,8 +85,13 @@ import prerna.web.services.util.WebUtility;
 public class A2AResource {
 
 	private static final Logger logger = LogManager.getLogger(A2AResource.class);
-	private static final Gson GSON = new Gson();
+	private static final Gson GSON = new GsonBuilder()
+			.registerTypeAdapter(OffsetDateTime.class, (JsonSerializer<OffsetDateTime>) (src, typeOfSrc, context) ->
+					new JsonPrimitive(src.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)))
+			.create();
 	private static final Map<String, Insight> INSIGHT_MAP = new java.util.concurrent.ConcurrentHashMap<>();
+	private static final String A2A_PROTOCOL_VERSION = "1.0";
+	private static final String A2A_TRANSPORT_JSONRPC = "JSONRPC";
 
 	private static final ExecutorService SSE_EXECUTOR;
 	static {
@@ -92,24 +116,8 @@ public class A2AResource {
 		String name = stringValue(row, "name", "SEMOSS Workspace Agent");
 		String description = stringValue(row, "description", "SEMOSS workspace-backed agent");
 
-		Map<String, Object> card = new HashMap<>();
-		card.put("name", name);
-		card.put("description", description);
-		card.put("version", "1.0");
-		card.put("supportedInterfaces", listOf(agentInterface(request, workspaceId)));
-		card.put("defaultInputModes", listOf("text/plain"));
-		card.put("defaultOutputModes", listOf("text/plain"));
-
-		Map<String, Object> capabilities = new HashMap<>();
-		capabilities.put("streaming", true);
-		capabilities.put("pushNotifications", false);
-		capabilities.put("extendedAgentCard", false);
-		card.put("capabilities", capabilities);
-
-		card.put("securitySchemes", securitySchemes());
-		card.put("securityRequirements", securityRequirements());
-		card.put("skills", workspaceSkills(row));
-		return jsonResponse(card);
+		return jsonResponse(buildAgentCard(name, description, endpointUrl(request, workspaceId),
+				workspaceSkills(row), securitySchemes(), securityRequirements()));
 	}
 
 	@POST
@@ -127,27 +135,27 @@ public class A2AResource {
 			Object id = idValue(rpc);
 			String method = text(rpc, "method");
 			Object result;
-			if ("SendMessage".equals(method)) {
+			if (isSendMessageMethod(method)) {
 				result = sendMessageResponse(handleSend(workspaceId, rpc, requestContext, true));
-			} else if ("GetTask".equals(method)) {
-				result = handleGet(rpc, requestContext);
-			} else if ("CancelTask".equals(method)) {
-				result = handleCancel(rpc, requestContext);
-			} else if ("SendStreamingMessage".equals(method) || "SubscribeToTask".equals(method)) {
+			} else if (isGetTaskMethod(method)) {
+				result = taskPayload(handleGet(rpc, requestContext));
+			} else if (isCancelTaskMethod(method)) {
+				result = taskPayload(handleCancel(rpc, requestContext));
+			} else if (isStreamingMessageMethod(method) || isSubscribeTaskMethod(method)) {
 				result = handleStreamAsJson(workspaceId, rpc, requestContext);
 			} else {
 				return jsonResponse(jsonRpcError(id, -32601, "Unsupported A2A method: " + method));
 			}
 			return jsonResponse(jsonRpcResult(id, result));
-			} catch (UnsupportedOperationException e) {
-				return jsonResponse(Response.Status.BAD_REQUEST, jsonRpcError(null, -32010, e.getMessage()));
-			} catch (IllegalArgumentException e) {
-				return jsonResponse(Response.Status.BAD_REQUEST, jsonRpcError(null, -32602, e.getMessage()));
-			} catch (SecurityException e) {
-				return jsonResponse(Response.Status.UNAUTHORIZED, jsonRpcError(null, -32001, e.getMessage()));
-			} catch (Exception e) {
-				logger.warn("A2A rpc failed: {}", e.getMessage(), e);
-				return jsonResponse(Response.Status.INTERNAL_SERVER_ERROR, jsonRpcError(null, -32000, e.getMessage()));
+		} catch (UnsupportedOperationException e) {
+			return jsonResponse(Response.Status.BAD_REQUEST, jsonRpcError(null, -32010, e.getMessage()));
+		} catch (IllegalArgumentException e) {
+			return jsonResponse(Response.Status.BAD_REQUEST, jsonRpcError(null, -32602, e.getMessage()));
+		} catch (SecurityException e) {
+			return jsonResponse(Response.Status.UNAUTHORIZED, jsonRpcError(null, -32001, e.getMessage()));
+		} catch (Exception e) {
+			logger.warn("A2A rpc failed: {}", e.getMessage(), e);
+			return jsonResponse(Response.Status.INTERNAL_SERVER_ERROR, jsonRpcError(null, -32000, e.getMessage()));
 		} finally {
 			ThreadStore.remove();
 		}
@@ -167,29 +175,29 @@ public class A2AResource {
 					sendSse(eventSink, sse, "error", jsonRpcError(null, -32000, "A2A is disabled"));
 					return;
 				}
-					JsonObject rpc = parseRpc(is);
-					Object responseId = idValue(rpc);
-					String method = text(rpc, "method");
-					String runId;
-					if ("SendStreamingMessage".equals(method)) {
-						Map<String, Object> task = handleSend(workspaceId, rpc, requestContext, false);
-						runId = String.valueOf(task.get("id"));
-						sendSse(eventSink, sse, "task", jsonRpcResult(responseId, streamTask(task)));
-					} else if ("SubscribeToTask".equals(method)) {
-						runId = extractTaskId(params(rpc));
-						if (runId == null) {
-							throw new IllegalArgumentException("task id is required");
-						}
-						Map<String, Object> task = handleGet(rpc, requestContext);
-						sendSse(eventSink, sse, "task", jsonRpcResult(responseId, streamTask(task)));
-						if (isTerminalTask(task)) {
-							return;
-						}
-					} else {
-						throw new UnsupportedOperationException(
-								"SSE supports SendStreamingMessage and SubscribeToTask only");
+				JsonObject rpc = parseRpc(is);
+				Object responseId = idValue(rpc);
+				String method = text(rpc, "method");
+				String runId;
+				if (isStreamingMessageMethod(method)) {
+					Task task = handleSend(workspaceId, rpc, requestContext, false);
+					runId = taskId(task);
+					sendSse(eventSink, sse, "task", jsonRpcResult(responseId, streamTask(task)));
+				} else if (isSubscribeTaskMethod(method)) {
+					runId = extractTaskId(params(rpc));
+					if (runId == null) {
+						throw new IllegalArgumentException("task id is required");
 					}
-					streamRun(runId, eventSink, sse, requestContext, responseId);
+					Task task = handleGet(rpc, requestContext);
+					sendSse(eventSink, sse, "task", jsonRpcResult(responseId, streamTask(task)));
+					if (isTerminalTask(task)) {
+						return;
+					}
+				} else {
+					throw new UnsupportedOperationException(
+							"SSE supports SendStreamingMessage and SubscribeToTask only");
+				}
+				streamRun(runId, eventSink, sse, requestContext, responseId);
 			} catch (Exception e) {
 				logger.warn("A2A SSE failed: {}", e.getMessage(), e);
 				sendSse(eventSink, sse, "error", jsonRpcError(null, -32000, e.getMessage()));
@@ -202,7 +210,7 @@ public class A2AResource {
 		});
 	}
 
-	private Map<String, Object> handleSend(String workspaceId, JsonObject rpc, A2ARequestContext requestContext,
+	private Task handleSend(String workspaceId, JsonObject rpc, A2ARequestContext requestContext,
 			boolean honorReturnImmediately) throws InterruptedException {
 		seedThreadStore(requestContext);
 		Insight insight = requestContext.insight;
@@ -239,7 +247,7 @@ public class A2AResource {
 		return taskFromRun(AgentRuntimeManager.get().getRun(result.getRunId(), insight));
 	}
 
-	private Map<String, Object> handleGet(JsonObject rpc, A2ARequestContext requestContext) {
+	private Task handleGet(JsonObject rpc, A2ARequestContext requestContext) {
 		seedThreadStore(requestContext);
 		Insight insight = requestContext.insight;
 		String runId = extractTaskId(params(rpc));
@@ -249,7 +257,7 @@ public class A2AResource {
 		return taskFromRun(AgentRuntimeManager.get().getRun(runId, insight));
 	}
 
-	private Map<String, Object> handleCancel(JsonObject rpc, A2ARequestContext requestContext) {
+	private Task handleCancel(JsonObject rpc, A2ARequestContext requestContext) {
 		seedThreadStore(requestContext);
 		Insight insight = requestContext.insight;
 		String runId = extractTaskId(params(rpc));
@@ -261,7 +269,7 @@ public class A2AResource {
 
 	private Map<String, Object> handleStreamAsJson(String workspaceId, JsonObject rpc,
 			A2ARequestContext requestContext) throws InterruptedException {
-		if ("SendStreamingMessage".equals(text(rpc, "method"))) {
+		if (isStreamingMessageMethod(text(rpc, "method"))) {
 			return streamTask(handleSend(workspaceId, rpc, requestContext, false));
 		}
 		return streamTask(handleGet(rpc, requestContext));
@@ -297,8 +305,8 @@ public class A2AResource {
 			Object responseId) {
 		seedThreadStore(requestContext);
 		Insight insight = requestContext.insight;
-		Map<String, Object> task = taskFromRun(AgentRuntimeManager.get().getRun(event.getRunId(), insight));
-		Map<String, Object> payload = statusUpdateFromTask(task, event.isTerminal(), event.toMap());
+		Task task = taskFromRun(AgentRuntimeManager.get().getRun(event.getRunId(), insight));
+		Map<String, Object> payload = statusUpdateFromTask(task, event.toMap());
 		sendSse(eventSink, sse, event.getEvent(), jsonRpcResult(responseId, streamStatusUpdate(payload)));
 	}
 
@@ -444,11 +452,11 @@ public class A2AResource {
 			if (kind != null && !"text".equalsIgnoreCase(kind) && !"text/plain".equalsIgnoreCase(kind)) {
 				throw new UnsupportedOperationException("A2A V1 supports text parts only");
 			}
-				String text = firstNonBlank(text(part, "text"), text(part, "content"));
-				if (text == null && (part.has("raw") || part.has("url") || part.has("data"))) {
-					throw new UnsupportedOperationException("A2A V1 supports text parts only");
-				}
-				if (text != null) {
+			String text = firstNonBlank(text(part, "text"), text(part, "content"));
+			if (text == null && (part.has("raw") || part.has("url") || part.has("data"))) {
+				throw new UnsupportedOperationException("A2A V1 supports text parts only");
+			}
+			if (text != null) {
 				if (builder.length() > 0) {
 					builder.append("\n");
 				}
@@ -466,100 +474,99 @@ public class A2AResource {
 		return firstNonBlank(text(params, "id"), text(params, "taskId"), text(params, "runId"));
 	}
 
+	private static boolean isSendMessageMethod(String method) {
+		return "SendMessage".equals(method);
+	}
+
+	private static boolean isStreamingMessageMethod(String method) {
+		return "SendStreamingMessage".equals(method);
+	}
+
+	private static boolean isGetTaskMethod(String method) {
+		return "GetTask".equals(method);
+	}
+
+	private static boolean isCancelTaskMethod(String method) {
+		return "CancelTask".equals(method);
+	}
+
+	private static boolean isSubscribeTaskMethod(String method) {
+		return "SubscribeToTask".equals(method);
+	}
+
 	private static boolean returnImmediately(JsonObject params) {
 		JsonObject configuration = object(params, "configuration");
 		JsonElement value = configuration == null ? null : configuration.get("returnImmediately");
 		return value != null && value.isJsonPrimitive() && value.getAsBoolean();
 	}
 
-	private static Map<String, Object> sendMessageResponse(Map<String, Object> task) {
-		Map<String, Object> response = new HashMap<>();
-		response.put("task", task);
-		return response;
+	private static Map<String, Object> sendMessageResponse(Task task) {
+		return oneOf("task", taskPayload(task));
 	}
 
-	private static Map<String, Object> streamTask(Map<String, Object> task) {
-		Map<String, Object> response = new HashMap<>();
-		response.put("task", task);
-		return response;
+	private static Map<String, Object> streamTask(Task task) {
+		return oneOf("task", taskPayload(task));
 	}
 
 	private static Map<String, Object> streamStatusUpdate(Map<String, Object> statusUpdate) {
-		Map<String, Object> response = new HashMap<>();
-		response.put("statusUpdate", statusUpdate);
-		return response;
+		return oneOf("statusUpdate", statusUpdate);
 	}
 
-	private static boolean isTerminalTask(Map<String, Object> task) {
-		Object statusObject = task == null ? null : task.get("status");
-		if (!(statusObject instanceof Map)) {
-			return false;
+	private static Task taskFromRun(Map<String, Object> run) {
+		String runId = stringValue(run.get("runId"));
+		if (runId == null) {
+			runId = stringValue(run.get("id"));
 		}
-		@SuppressWarnings("unchecked")
-		Map<String, Object> status = (Map<String, Object>) statusObject;
-		String state = stringValue(status.get("state"));
-		return "TASK_STATE_COMPLETED".equals(state) || "TASK_STATE_FAILED".equals(state)
-				|| "TASK_STATE_CANCELED".equals(state) || "TASK_STATE_REJECTED".equals(state);
-	}
-
-	private static Map<String, Object> taskFromRun(Map<String, Object> run) {
-		String status = stringValue(run.get("status"));
-		Map<String, Object> task = new HashMap<>();
-		task.put("id", run.get("runId"));
-		task.put("contextId", run.get("roomId"));
-
-		Map<String, Object> taskStatus = new HashMap<>();
-		taskStatus.put("state", toWireState(status));
-		String timestamp = firstNonBlank(String.valueOf(run.get("completedAt")), String.valueOf(run.get("startedAt")),
-				String.valueOf(run.get("dateCreated")));
-		if (timestamp != null && !"null".equals(timestamp)) {
-			taskStatus.put("timestamp", toIsoTimestamp(timestamp));
+		String roomId = stringValue(run.get("roomId"));
+		if (roomId == null) {
+			roomId = runId;
 		}
 		String finalText = stringValue(run.get("finalText"));
-		if (finalText != null) {
-			Map<String, Object> message = new HashMap<>();
-			message.put("messageId", firstNonBlank(stringValue(run.get("finalOutputMessageId")),
-					stringValue(run.get("runId")) + "-final"));
-			message.put("contextId", run.get("roomId"));
-			message.put("taskId", run.get("runId"));
-			message.put("role", "ROLE_AGENT");
-			message.put("parts", listOf(textPart(finalText)));
-			taskStatus.put("message", message);
-		}
-		task.put("status", taskStatus);
-		task.put("artifacts", run.get("artifacts") instanceof List ? run.get("artifacts") : new ArrayList<>());
 
-		Map<String, Object> metadata = new HashMap<>();
-		metadata.put("semossStatus", status);
-		metadata.put("workspaceId", run.get("workspaceId"));
-		metadata.put("modelId", run.get("modelId"));
-		metadata.put("jobId", run.get("jobId"));
-		metadata.put("inputMessageId", run.get("inputMessageId"));
-		metadata.put("finalOutputMessageId", run.get("finalOutputMessageId"));
-		metadata.put("errorMessage", run.get("errorMessage"));
-		task.put("metadata", metadata);
-		return task;
+		Message statusMessage = null;
+		if (finalText != null) {
+			statusMessage = Message.builder()
+					.messageId(firstNonBlank(stringValue(run.get("finalOutputMessageId")), runId + "-final"))
+					.contextId(roomId)
+					.taskId(runId)
+					.role(Message.Role.ROLE_AGENT)
+					.parts(new TextPart(finalText, null))
+					.build();
+		}
+
+		TaskStatus status = new TaskStatus(toTaskState(stringValue(run.get("status"))), statusMessage,
+				toOffsetDateTime(firstNonNull(run.get("completedAt"), run.get("startedAt"), run.get("dateCreated"))));
+
+		return Task.builder()
+				.id(runId)
+				.contextId(roomId)
+				.status(status)
+				.artifacts(finalText == null ? List.of() : List.of(Artifact.builder()
+						.artifactId(runId + "-final-output")
+						.name("final-output")
+						.description("Final agent response")
+						.parts(new TextPart(finalText, null))
+						.build()))
+				.metadata(metadataFromRun(run))
+				.build();
 	}
 
-	private static Map<String, Object> statusUpdateFromTask(Map<String, Object> task, boolean terminal,
-			Map<String, Object> event) {
+	private static Map<String, Object> statusUpdateFromTask(Task task, Map<String, Object> event) {
 		Map<String, Object> update = new HashMap<>();
-		update.put("taskId", task.get("id"));
-		update.put("contextId", task.get("contextId"));
-		update.put("status", task.get("status"));
+		update.put("taskId", task.id());
+		update.put("contextId", task.contextId());
+		update.put("status", statusPayload(task.status()));
 
 		Map<String, Object> metadata = new HashMap<>();
-		Object taskMetadata = task.get("metadata");
-		if (taskMetadata instanceof Map) {
-			@SuppressWarnings("unchecked")
-			Map<String, Object> taskMetadataMap = (Map<String, Object>) taskMetadata;
-			copyIfPresent(taskMetadataMap, metadata, "semossStatus");
-			copyIfPresent(taskMetadataMap, metadata, "workspaceId");
-			copyIfPresent(taskMetadataMap, metadata, "modelId");
-			copyIfPresent(taskMetadataMap, metadata, "jobId");
-			copyIfPresent(taskMetadataMap, metadata, "inputMessageId");
-			copyIfPresent(taskMetadataMap, metadata, "finalOutputMessageId");
-			copyIfPresent(taskMetadataMap, metadata, "errorMessage");
+		Map<?, ?> taskMetadata = task.metadata();
+		if (taskMetadata != null) {
+			copyIfPresent(taskMetadata, metadata, "semossStatus");
+			copyIfPresent(taskMetadata, metadata, "workspaceId");
+			copyIfPresent(taskMetadata, metadata, "modelId");
+			copyIfPresent(taskMetadata, metadata, "jobId");
+			copyIfPresent(taskMetadata, metadata, "inputMessageId");
+			copyIfPresent(taskMetadata, metadata, "finalOutputMessageId");
+			copyIfPresent(taskMetadata, metadata, "errorMessage");
 		}
 		if (event != null) {
 			copyIfPresent(event, metadata, "sequence");
@@ -572,40 +579,192 @@ public class A2AResource {
 		return update;
 	}
 
-	private static void copyIfPresent(Map<String, Object> source, Map<String, Object> target, String key) {
-		Object value = source.get(key);
-		if (value != null) {
-			target.put(key, value);
+	private static Map<String, Object> taskPayload(Task task) {
+		Map<String, Object> payload = new HashMap<>();
+		payload.put("id", task.id());
+		payload.put("contextId", task.contextId());
+		payload.put("status", statusPayload(task.status()));
+		payload.put("artifacts", artifactsPayload(task.artifacts()));
+		payload.put("history", messagesPayload(task.history()));
+		if (task.metadata() != null && !task.metadata().isEmpty()) {
+			payload.put("metadata", task.metadata());
+		}
+		return payload;
+	}
+
+	private static Map<String, Object> statusPayload(TaskStatus status) {
+		Map<String, Object> payload = new HashMap<>();
+		if (status == null) {
+			return payload;
+		}
+		payload.put("state", status.state());
+		if (status.message() != null) {
+			payload.put("message", messagePayload(status.message()));
+		}
+		if (status.timestamp() != null) {
+			payload.put("timestamp", status.timestamp().format(DateTimeFormatter.ISO_OFFSET_DATE_TIME));
+		}
+		return payload;
+	}
+
+	private static List<Object> messagesPayload(List<Message> messages) {
+		List<Object> payload = new ArrayList<>();
+		if (messages != null) {
+			for (Message message : messages) {
+				payload.add(messagePayload(message));
+			}
+		}
+		return payload;
+	}
+
+	private static Map<String, Object> messagePayload(Message message) {
+		Map<String, Object> payload = new HashMap<>();
+		payload.put("role", message.role());
+		payload.put("parts", partsPayload(message.parts()));
+		putIfPresent(payload, "messageId", message.messageId());
+		putIfPresent(payload, "contextId", message.contextId());
+		putIfPresent(payload, "taskId", message.taskId());
+		putIfPresent(payload, "referenceTaskIds", message.referenceTaskIds());
+		putIfPresent(payload, "metadata", message.metadata());
+		putIfPresent(payload, "extensions", message.extensions());
+		return payload;
+	}
+
+	private static List<Object> artifactsPayload(List<Artifact> artifacts) {
+		List<Object> payload = new ArrayList<>();
+		if (artifacts != null) {
+			for (Artifact artifact : artifacts) {
+				Map<String, Object> artifactPayload = new HashMap<>();
+				putIfPresent(artifactPayload, "artifactId", artifact.artifactId());
+				putIfPresent(artifactPayload, "name", artifact.name());
+				putIfPresent(artifactPayload, "description", artifact.description());
+				artifactPayload.put("parts", partsPayload(artifact.parts()));
+				putIfPresent(artifactPayload, "metadata", artifact.metadata());
+				putIfPresent(artifactPayload, "extensions", artifact.extensions());
+				payload.add(artifactPayload);
+			}
+		}
+		return payload;
+	}
+
+	private static List<Object> partsPayload(List<Part<?>> parts) {
+		List<Object> payload = new ArrayList<>();
+		if (parts != null) {
+			for (Part<?> part : parts) {
+				payload.add(partPayload(part));
+			}
+		}
+		return payload;
+	}
+
+	private static Map<String, Object> partPayload(Part<?> part) {
+		Map<String, Object> payload = new HashMap<>();
+		if (part instanceof TextPart) {
+			TextPart textPart = (TextPart) part;
+			payload.put(TextPart.TEXT, textPart.text());
+			putIfPresent(payload, "metadata", textPart.metadata());
+		} else {
+			String text = invokeStringAccessor(part, TextPart.TEXT);
+			if (text != null) {
+				payload.put(TextPart.TEXT, text);
+			} else {
+				JsonElement json = GSON.toJsonTree(part);
+				if (json != null && json.isJsonObject()) {
+					for (Map.Entry<String, JsonElement> entry : json.getAsJsonObject().entrySet()) {
+						payload.put(entry.getKey(), GSON.fromJson(entry.getValue(), Object.class));
+					}
+				}
+			}
+		}
+		return payload;
+	}
+
+	private static String invokeStringAccessor(Object object, String accessor) {
+		if (object == null || accessor == null) {
+			return null;
+		}
+		try {
+			Object value = object.getClass().getMethod(accessor).invoke(object);
+			return stringValue(value);
+		} catch (Exception e) {
+			return null;
 		}
 	}
 
-	private static Map<String, Object> textPart(String text) {
-		Map<String, Object> part = new HashMap<>();
-		part.put("text", text);
-		part.put("mediaType", "text/plain");
-		return part;
+	private static Map<String, Object> oneOf(String key, Object value) {
+		Map<String, Object> response = new HashMap<>();
+		response.put(key, value);
+		return response;
 	}
 
-	private static String toWireState(String status) {
+	private static String taskId(Task task) {
+		return task == null ? null : task.id();
+	}
+
+	private static boolean isTerminalTask(Task task) {
+		return task != null && task.status() != null && task.status().state() != null && task.status().state().isFinal();
+	}
+
+	private static Map<String, Object> metadataFromRun(Map<String, Object> run) {
+		Map<String, Object> metadata = new HashMap<>();
+		putIfPresent(metadata, "semossStatus", run.get("status"));
+		putIfPresent(metadata, "workspaceId", run.get("workspaceId"));
+		putIfPresent(metadata, "modelId", run.get("modelId"));
+		putIfPresent(metadata, "jobId", run.get("jobId"));
+		putIfPresent(metadata, "inputMessageId", run.get("inputMessageId"));
+		putIfPresent(metadata, "finalOutputMessageId", run.get("finalOutputMessageId"));
+		putIfPresent(metadata, "errorMessage", run.get("errorMessage"));
+		return metadata;
+	}
+
+	private static TaskState toTaskState(String status) {
 		if ("SUBMITTED".equals(status)) {
-			return "TASK_STATE_SUBMITTED";
+			return TaskState.TASK_STATE_SUBMITTED;
 		}
 		if ("RUNNING".equals(status)) {
-			return "TASK_STATE_WORKING";
+			return TaskState.TASK_STATE_WORKING;
 		}
 		if ("INPUT_REQUIRED".equals(status)) {
-			return "TASK_STATE_INPUT_REQUIRED";
+			return TaskState.TASK_STATE_INPUT_REQUIRED;
 		}
 		if ("COMPLETED".equals(status)) {
-			return "TASK_STATE_COMPLETED";
+			return TaskState.TASK_STATE_COMPLETED;
 		}
 		if ("CANCELLED".equals(status)) {
-			return "TASK_STATE_CANCELED";
+			return TaskState.TASK_STATE_CANCELED;
 		}
 		if ("FAILED".equals(status)) {
-			return "TASK_STATE_FAILED";
+			return TaskState.TASK_STATE_FAILED;
 		}
-		return status == null ? null : "TASK_STATE_" + status.toUpperCase();
+		return TaskState.UNRECOGNIZED;
+	}
+
+	private static OffsetDateTime toOffsetDateTime(Object value) {
+		if (value == null) {
+			return null;
+		}
+		if (value instanceof Timestamp) {
+			return ((Timestamp) value).toInstant().atOffset(ZoneOffset.UTC);
+		}
+		String raw = StringUtils.trimToNull(String.valueOf(value));
+		if (raw == null || "null".equals(raw)) {
+			return null;
+		}
+		try {
+			return Timestamp.valueOf(raw).toInstant().atOffset(ZoneOffset.UTC);
+		} catch (Exception ignored) {
+			// fall through
+		}
+		try {
+			return Instant.parse(raw).atOffset(ZoneOffset.UTC);
+		} catch (Exception ignored) {
+			// fall through
+		}
+		try {
+			return OffsetDateTime.parse(raw, DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+		} catch (Exception ignored) {
+			return null;
+		}
 	}
 
 	private static Map<String, Object> jsonRpcResult(Object id, Object result) {
@@ -633,29 +792,6 @@ public class A2AResource {
 		return error;
 	}
 
-	private static String toIsoTimestamp(Object value) {
-		if (value == null) {
-			return null;
-		}
-		if (value instanceof Timestamp) {
-			return DateTimeFormatter.ISO_INSTANT.format(((Timestamp) value).toInstant());
-		}
-		String raw = String.valueOf(value).trim();
-		if (raw.isEmpty() || "null".equals(raw)) {
-			return null;
-		}
-		try {
-			return DateTimeFormatter.ISO_INSTANT.format(Timestamp.valueOf(raw).toInstant());
-		} catch (Exception ignored) {
-			// fall through
-		}
-		try {
-			return DateTimeFormatter.ISO_INSTANT.format(Instant.parse(raw));
-		} catch (Exception ignored) {
-			return raw;
-		}
-	}
-
 	private static Object idValue(JsonObject rpc) {
 		JsonElement id = rpc.get("id");
 		return id == null || id.isJsonNull() ? null : GSON.fromJson(id, Object.class);
@@ -671,8 +807,51 @@ public class A2AResource {
 				text(cfg, "default_engine_id"));
 	}
 
-	private static List<Map<String, Object>> workspaceSkills(Map<String, Object> row) {
-		List<Map<String, Object>> skills = new ArrayList<>();
+	private static AgentCard buildAgentCard(String name, String description, String endpointUrl,
+			List<AgentSkill> skills, Map<String, SecurityScheme> securitySchemes,
+			List<SecurityRequirement> securityRequirements) {
+		AgentInterface jsonRpcInterface = new AgentInterface(A2A_TRANSPORT_JSONRPC, endpointUrl);
+		return AgentCard.builder()
+				.name(name)
+				.description(description)
+				.version(A2A_PROTOCOL_VERSION)
+				.url(endpointUrl)
+				.preferredTransport(A2A_TRANSPORT_JSONRPC)
+				.supportedInterfaces(List.of(jsonRpcInterface))
+				.defaultInputModes(List.of("text/plain"))
+				.defaultOutputModes(List.of("text/plain"))
+				.capabilities(AgentCapabilities.builder()
+						.streaming(true)
+						.pushNotifications(false)
+						.build())
+				.skills(skills)
+				.securitySchemes(securitySchemes)
+				.securityRequirements(securityRequirements)
+				.build();
+	}
+
+	private static AgentSkill agentSkill(String id, String name, String description, List<Object> tags) {
+		AgentSkill.Builder builder = AgentSkill.builder()
+				.id(id)
+				.name(name)
+				.description(description);
+		if (tags != null && !tags.isEmpty()) {
+			List<String> stringTags = new ArrayList<>();
+			for (Object tag : tags) {
+				String value = tag == null ? null : StringUtils.trimToNull(String.valueOf(tag));
+				if (value != null) {
+					stringTags.add(value);
+				}
+			}
+			if (!stringTags.isEmpty()) {
+				builder.tags(stringTags);
+			}
+		}
+		return builder.build();
+	}
+
+	private static List<AgentSkill> workspaceSkills(Map<String, Object> row) {
+		List<AgentSkill> skills = new ArrayList<>();
 		JsonObject cfg = configFromRow(row);
 		JsonArray skillRefs = cfg == null ? null : array(cfg, "skills");
 		if (skillRefs == null) {
@@ -680,21 +859,20 @@ public class A2AResource {
 			return skills;
 		}
 		for (JsonElement element : skillRefs) {
-			Map<String, Object> skill = new HashMap<>();
+			AgentSkill skill = null;
 			if (element.isJsonObject()) {
 				JsonObject obj = element.getAsJsonObject();
-				skill.put("id", firstNonBlank(text(obj, "id"), text(obj, "skillId"), text(obj, "name")));
-				skill.put("name", firstNonBlank(text(obj, "name"), text(obj, "id"), text(obj, "skillId")));
-				skill.put("description", firstNonBlank(text(obj, "description"), "Workspace skill"));
-				skill.put("tags", tagsForSkill(obj));
+				String id = firstNonBlank(text(obj, "id"), text(obj, "skillId"), text(obj, "name"));
+				String name = firstNonBlank(text(obj, "name"), text(obj, "id"), text(obj, "skillId"));
+				if (id != null && name != null) {
+					skill = agentSkill(id, name, firstNonBlank(text(obj, "description"), "Workspace skill"),
+							tagsForSkill(obj));
+				}
 			} else if (element.isJsonPrimitive()) {
 				String value = element.getAsString();
-				skill.put("id", value);
-				skill.put("name", value);
-				skill.put("description", "Workspace skill");
-				skill.put("tags", listOf("semoss", "workspace"));
+				skill = agentSkill(value, value, "Workspace skill", listOf("semoss", "workspace"));
 			}
-			if (stringValue(skill.get("id")) != null && stringValue(skill.get("name")) != null) {
+			if (skill != null) {
 				skills.add(skill);
 			}
 		}
@@ -704,46 +882,24 @@ public class A2AResource {
 		return skills;
 	}
 
-	private static Map<String, Object> agentInterface(HttpServletRequest request, String workspaceId) {
-		Map<String, Object> iface = new HashMap<>();
-		iface.put("url", endpointUrl(request, workspaceId));
-		iface.put("protocolBinding", "JSONRPC");
-		iface.put("protocolVersion", "1.0");
-		return iface;
-	}
-
-	private static Map<String, Object> securitySchemes() {
-		Map<String, Object> http = new HashMap<>();
-		http.put("scheme", "Bearer");
-		http.put("description", "SEMOSS access key or session bearer token.");
-
-		Map<String, Object> scheme = new HashMap<>();
-		scheme.put("httpAuthSecurityScheme", http);
-
-		Map<String, Object> schemes = new HashMap<>();
-		schemes.put("semossBearer", scheme);
+	private static Map<String, SecurityScheme> securitySchemes() {
+		Map<String, SecurityScheme> schemes = new HashMap<>();
+		schemes.put("semossBearer", HTTPAuthSecurityScheme.builder()
+				.scheme("Bearer")
+				.description("SEMOSS access key or session bearer token.")
+				.build());
 		return schemes;
 	}
 
-	private static List<Object> securityRequirements() {
-		Map<String, Object> scopes = new HashMap<>();
-		scopes.put("list", new ArrayList<>());
-
-		Map<String, Object> schemes = new HashMap<>();
-		schemes.put("semossBearer", scopes);
-
-		Map<String, Object> requirement = new HashMap<>();
-		requirement.put("schemes", schemes);
-		return listOf(requirement);
+	private static List<SecurityRequirement> securityRequirements() {
+		return List.of(SecurityRequirement.builder()
+				.scheme("semossBearer", List.of())
+				.build());
 	}
 
-	private static Map<String, Object> defaultSkill() {
-		Map<String, Object> skill = new HashMap<>();
-		skill.put("id", "semoss-agent");
-		skill.put("name", "SEMOSS Agent");
-		skill.put("description", "Run the SEMOSS workspace agent with text prompts.");
-		skill.put("tags", listOf("semoss", "workspace", "agent"));
-		return skill;
+	private static AgentSkill defaultSkill() {
+		return agentSkill("semoss-agent", "SEMOSS Agent", "Run the SEMOSS workspace agent with text prompts.",
+				listOf("semoss", "workspace", "agent"));
 	}
 
 	private static List<Object> tagsForSkill(JsonObject obj) {
@@ -852,6 +1008,18 @@ public class A2AResource {
 		return null;
 	}
 
+	private static Object firstNonNull(Object... values) {
+		if (values == null) {
+			return null;
+		}
+		for (Object value : values) {
+			if (value != null) {
+				return value;
+			}
+		}
+		return null;
+	}
+
 	private static List<Object> listOf(Object... values) {
 		List<Object> list = new ArrayList<>();
 		if (values != null) {
@@ -867,6 +1035,19 @@ public class A2AResource {
 			value = value.substring(0, value.length() - 1);
 		}
 		return value;
+	}
+
+	private static void copyIfPresent(Map<?, ?> source, Map<String, Object> target, String key) {
+		Object value = source.get(key);
+		if (value != null) {
+			target.put(key, value);
+		}
+	}
+
+	private static void putIfPresent(Map<String, Object> target, String key, Object value) {
+		if (value != null) {
+			target.put(key, value);
+		}
 	}
 
 	private static final class A2ARequestContext {
