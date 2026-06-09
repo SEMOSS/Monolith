@@ -65,12 +65,11 @@ public final class AnthropicMessagesHelper {
 	 * Writes an SSE event in Anthropic format. Format: event: {eventType}\ndata:
 	 * {json}\n\n
 	 *
-	 * Uses Gson instead of Jackson's ObjectMapper to avoid
-	 * NoSuchMethodError from Jackson core version mismatches
-	 * (e.g. BufferRecycler.releaseToPool added in 2.16+).
+	 * Uses Gson instead of Jackson's ObjectMapper to avoid NoSuchMethodError from
+	 * Jackson core version mismatches (e.g. BufferRecycler.releaseToPool added in
+	 * 2.16+).
 	 */
-	public static void writeSSEEvent(String eventType, Map<String, Object> data, Writer writer)
-			throws IOException {
+	public static void writeSSEEvent(String eventType, Map<String, Object> data, Writer writer) throws IOException {
 		writer.write("event: " + eventType + "\n");
 		writer.write("data: " + GSON.toJson(data) + "\n\n");
 		writer.flush();
@@ -108,10 +107,9 @@ public final class AnthropicMessagesHelper {
 	/**
 	 * Writes the message_delta event with final stop reason and usage.
 	 *
-	 * Anthropic clients overlay these usage fields onto the running Message,
-	 * so passing input/cache token counts here is how we surface the values
-	 * the early {@code message_start} (written before Python had them) could
-	 * not include.
+	 * Anthropic clients overlay these usage fields onto the running Message, so
+	 * passing input/cache token counts here is how we surface the values the early
+	 * {@code message_start} (written before Python had them) could not include.
 	 */
 	public static void writeMessageDelta(String stopReason, Integer inputTokens, Integer outputTokens,
 			Integer cacheReadInputTokens, Integer cacheCreationInputTokens, Writer writer) throws IOException {
@@ -140,11 +138,10 @@ public final class AnthropicMessagesHelper {
 	}
 
 	/**
-	 * Backwards-compatible overload for callers that only know the stop reason
-	 * and output tokens. Delegates to the full 6-arg form.
+	 * Backwards-compatible overload for callers that only know the stop reason and
+	 * output tokens. Delegates to the full 6-arg form.
 	 */
-	public static void writeMessageDelta(String stopReason, Integer outputTokens, Writer writer)
-			throws IOException {
+	public static void writeMessageDelta(String stopReason, Integer outputTokens, Writer writer) throws IOException {
 		writeMessageDelta(stopReason, null, outputTokens, null, null, writer);
 	}
 
@@ -158,9 +155,9 @@ public final class AnthropicMessagesHelper {
 	}
 
 	/**
-	 * Writes a ping event. Used as a keep-alive that counts as a proper
-	 * SSE event (unlike SSE comments), ensuring clients with event-based
-	 * timeouts do not disconnect prematurely.
+	 * Writes a ping event. Used as a keep-alive that counts as a proper SSE event
+	 * (unlike SSE comments), ensuring clients with event-based timeouts do not
+	 * disconnect prematurely.
 	 */
 	public static void writePing(Writer writer) throws IOException {
 		Map<String, Object> ping = new HashMap<>();
@@ -173,8 +170,7 @@ public final class AnthropicMessagesHelper {
 	/**
 	 * Writes content_block_start for a text content block.
 	 */
-	public static void writeTextContentBlockStart(int index, Writer writer)
-			throws IOException {
+	public static void writeTextContentBlockStart(int index, Writer writer) throws IOException {
 		Map<String, Object> event = new HashMap<>();
 		event.put("type", "content_block_start");
 		event.put("index", index);
@@ -209,8 +205,7 @@ public final class AnthropicMessagesHelper {
 	/**
 	 * Writes content_block_start for a thinking content block.
 	 */
-	public static void writeThinkingContentBlockStart(int index, Writer writer)
-			throws IOException {
+	public static void writeThinkingContentBlockStart(int index, Writer writer) throws IOException {
 		Map<String, Object> event = new HashMap<>();
 		event.put("type", "content_block_start");
 		event.put("index", index);
@@ -238,8 +233,7 @@ public final class AnthropicMessagesHelper {
 	/**
 	 * Writes a text_delta content block delta.
 	 */
-	public static void writeTextDelta(int index, String text, Writer writer)
-			throws IOException {
+	public static void writeTextDelta(int index, String text, Writer writer) throws IOException {
 		Map<String, Object> event = new HashMap<>();
 		event.put("type", "content_block_delta");
 		event.put("index", index);
@@ -255,8 +249,7 @@ public final class AnthropicMessagesHelper {
 	/**
 	 * Writes an input_json_delta for tool use arguments.
 	 */
-	public static void writeInputJsonDelta(int index, String partialJson, Writer writer)
-			throws IOException {
+	public static void writeInputJsonDelta(int index, String partialJson, Writer writer) throws IOException {
 		Map<String, Object> event = new HashMap<>();
 		event.put("type", "content_block_delta");
 		event.put("index", index);
@@ -272,8 +265,7 @@ public final class AnthropicMessagesHelper {
 	/**
 	 * Writes a thinking_delta for extended thinking content.
 	 */
-	public static void writeThinkingDelta(int index, String thinking, Writer writer)
-			throws IOException {
+	public static void writeThinkingDelta(int index, String thinking, Writer writer) throws IOException {
 		Map<String, Object> event = new HashMap<>();
 		event.put("type", "content_block_delta");
 		event.put("index", index);
@@ -331,8 +323,8 @@ public final class AnthropicMessagesHelper {
 	 * Variant that re-attaches Vertex/Gemini {@code thought_signature} bytes to
 	 * each replayed assistant {@code tool_use} block. {@code thoughtSigMap} is
 	 * keyed by tool_use_id and is typically loaded from the room's sidecar via
-	 * {@link ThoughtSignatureSidecar#load(String)}. Pass an empty map (or use
-	 * the 3-arg overload) for non-Vertex paths — no-op when empty.
+	 * {@link ThoughtSignatureSidecar#load(String)}. Pass an empty map (or use the
+	 * 3-arg overload) for non-Vertex paths - no-op when empty.
 	 */
 	@SuppressWarnings("unchecked")
 	public static Map<String, Object> normalizeAllAnthropicMessagesToOpenAI(List<Map<String, Object>> messages,
@@ -498,9 +490,9 @@ public final class AnthropicMessagesHelper {
 
 	/**
 	 * Variant that re-attaches Vertex/Gemini {@code thought_signature} to each
-	 * tool_use block by looking up its id in {@code thoughtSigMap}. The
-	 * signature flows through to the SEMOSS Python builders, which re-attach
-	 * it to the corresponding {@code function_call} Part on the next request.
+	 * tool_use block by looking up its id in {@code thoughtSigMap}. The signature
+	 * flows through to the SEMOSS Python builders, which re-attach it to the
+	 * corresponding {@code function_call} Part on the next request.
 	 */
 	@SuppressWarnings("unchecked")
 	private static void processAssistantMessage(Object content, List<Map<String, Object>> openAIMessages,
@@ -1132,8 +1124,7 @@ public final class AnthropicMessagesHelper {
 	/**
 	 * Writes an error event for streaming responses.
 	 */
-	public static void writeErrorEvent(String errorType, String message, Writer writer)
-			throws IOException {
+	public static void writeErrorEvent(String errorType, String message, Writer writer) throws IOException {
 		Map<String, Object> errorData = createErrorResponse(errorType, message);
 		writeSSEEvent("error", errorData, writer);
 	}
