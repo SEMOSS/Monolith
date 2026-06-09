@@ -1334,14 +1334,15 @@ public class EngineAuthorizationResource {
 			addEngineUsageLimit(limits, "team_limit_table", "team", engineId, null, groupRef, limit,
 					"usageRestriction", "usageFrequency", "maxTokens", "maxInputTokens", "maxOutputTokens",
 					"maxResponseTime", false, user, currentDateTime);
-		}
-		for (Map<String, Object> limit : SecurityGroupEngineUtils.getApplicableGroupEngineUsagePermissions(user,
-				engineId)) {
-			String groupRef = stringify(limit.get("groupType"));
-			if (groupRef != null && limit.get("group it.get("groupId"));
 			}
-			addEngineUsageLimit(limits, "team_permission", "team", engineId, null, groupRef, limit,
-					Constants.ENGINE_USAGE_RESTRICTION_KEY, Constants.ENGINE_USAGE_FREQUENCY_KEY,
+			for (Map<String, Object> limit : SecurityGroupEngineUtils.getApplicableGroupEngineUsagePermissions(user,
+					engineId)) {
+				String groupRef = stringify(limit.get("groupType"));
+				if (groupRef != null && limit.get("groupId") != null) {
+					groupRef = groupRef + ":" + stringify(limit.get("groupId"));
+				}
+				addEngineUsageLimit(limits, "team_permission", "team", engineId, null, groupRef, limit,
+						Constants.ENGINE_USAGE_RESTRICTION_KEY, Constants.ENGINE_USAGE_FREQUENCY_KEY,
 					Constants.ENGINE_MAX_TOKEN_KEY, Constants.ENGINE_MAX_INPUT_TOKEN_KEY,
 					Constants.ENGINE_MAX_OUTPUT_TOKEN_KEY, Constants.ENGINE_MAX_RESPONSE_TIME_KEY, false, user,
 					currentDateTime);
