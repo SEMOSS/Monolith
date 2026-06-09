@@ -1528,13 +1528,14 @@ public class ProjectAuthorizationResource {
 		long maxTokens = parseLong(form.getFirst("maxTokens"), -1);
 		long maxInputTokens = parseLong(form.getFirst("maxInputTokens"), -1);
 		long maxOutputTokens = parseLong(form.getFirst("maxOutputTokens"), -1);
+		double maxResponseTime = parseDouble(form.getFirst("maxResponseTime"), -1);
 		boolean isActive = parseBoolean(form.getFirst("isActive"), true);
 		boolean restrictPerModel = parseBoolean(form.getFirst("restrictPerModel"), false);
 		Pair<String, String> userDetails = User.getPrimaryUserIdAndTypePair(user);
 
 		try {
 			SecurityEntityDefaultTokenUtils.setProjectDefaultTokenLimit(projectId, usageFrequency, maxTokens,
-					maxInputTokens, maxOutputTokens, isActive, userDetails.getValue0(), userDetails.getValue1(),
+					maxInputTokens, maxOutputTokens, maxResponseTime, isActive, userDetails.getValue0(), userDetails.getValue1(),
 					restrictPerModel, existingUsageFrequency);
 			Map<String, Object> ret = new HashMap<String, Object>();
 			ret.put("success", true);
@@ -1662,12 +1663,13 @@ public class ProjectAuthorizationResource {
 		long maxTokens = parseLong(form.getFirst("maxTokens"), -1);
 		long maxInputTokens = parseLong(form.getFirst("maxInputTokens"), -1);
 		long maxOutputTokens = parseLong(form.getFirst("maxOutputTokens"), -1);
+		double maxResponseTime = parseDouble(form.getFirst("maxResponseTime"), -1);
 		boolean isActive = parseBoolean(form.getFirst("isActive"), true);
 		Pair<String, String> userDetails = User.getPrimaryUserIdAndTypePair(user);
 
 		try {
 			SecurityEntityDefaultTokenUtils.setProjectDefaultTeamTokenLimit(projectId, usageFrequency, maxTokens,
-					maxInputTokens, maxOutputTokens, isActive, userDetails.getValue0(), userDetails.getValue1(),
+					maxInputTokens, maxOutputTokens, maxResponseTime, isActive, userDetails.getValue0(), userDetails.getValue1(),
 					existingUsageFrequency);
 			Map<String, Object> ret = new HashMap<String, Object>();
 			ret.put("success", true);
@@ -1981,6 +1983,17 @@ public class ProjectAuthorizationResource {
 		}
 		try {
 			return Long.parseLong(val.trim());
+		} catch (NumberFormatException e) {
+			return defaultVal;
+		}
+	}
+
+	private double parseDouble(String val, double defaultVal) {
+		if (val == null || val.trim().isEmpty()) {
+			return defaultVal;
+		}
+		try {
+			return Double.parseDouble(val.trim());
 		} catch (NumberFormatException e) {
 			return defaultVal;
 		}

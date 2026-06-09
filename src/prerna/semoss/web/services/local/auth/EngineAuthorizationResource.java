@@ -1338,8 +1338,7 @@ public class EngineAuthorizationResource {
 		for (Map<String, Object> limit : SecurityGroupEngineUtils.getApplicableGroupEngineUsagePermissions(user,
 				engineId)) {
 			String groupRef = stringify(limit.get("groupType"));
-			if (groupRef != null && limit.get("groupId") != null) {
-				groupRef = groupRef + ":" + stringify(limit.get("groupId"));
+			if (groupRef != null && limit.get("group it.get("groupId"));
 			}
 			addEngineUsageLimit(limits, "team_permission", "team", engineId, null, groupRef, limit,
 					Constants.ENGINE_USAGE_RESTRICTION_KEY, Constants.ENGINE_USAGE_FREQUENCY_KEY,
@@ -1529,12 +1528,13 @@ public class EngineAuthorizationResource {
 		long maxTokens = parseLong(form.getFirst("maxTokens"), -1);
 		long maxInputTokens = parseLong(form.getFirst("maxInputTokens"), -1);
 		long maxOutputTokens = parseLong(form.getFirst("maxOutputTokens"), -1);
+		double maxResponseTime = parseDouble(form.getFirst("maxResponseTime"), -1);
 		boolean isActive = parseBoolean(form.getFirst("isActive"), true);
 		Pair<String, String> userDetails = User.getPrimaryUserIdAndTypePair(user);
 
 		try {
 			SecurityEntityDefaultTokenUtils.setEngineDefaultTokenLimit(engineId, usageFrequency, maxTokens,
-					maxInputTokens, maxOutputTokens, isActive, userDetails.getValue0(), userDetails.getValue1(),
+					maxInputTokens, maxOutputTokens, maxResponseTime, isActive, userDetails.getValue0(), userDetails.getValue1(),
 					existingUsageFrequency);
 			Map<String, Object> ret = new HashMap<String, Object>();
 			ret.put("success", true);
@@ -1662,12 +1662,13 @@ public class EngineAuthorizationResource {
 		long maxTokens = parseLong(form.getFirst("maxTokens"), -1);
 		long maxInputTokens = parseLong(form.getFirst("maxInputTokens"), -1);
 		long maxOutputTokens = parseLong(form.getFirst("maxOutputTokens"), -1);
+		double maxResponseTime = parseDouble(form.getFirst("maxResponseTime"), -1);
 		boolean isActive = parseBoolean(form.getFirst("isActive"), true);
 		Pair<String, String> userDetails = User.getPrimaryUserIdAndTypePair(user);
 
 		try {
 			SecurityEntityDefaultTokenUtils.setEngineDefaultTeamTokenLimit(engineId, usageFrequency, maxTokens,
-					maxInputTokens, maxOutputTokens, isActive, userDetails.getValue0(), userDetails.getValue1(),
+					maxInputTokens, maxOutputTokens, maxResponseTime, isActive, userDetails.getValue0(), userDetails.getValue1(),
 					existingUsageFrequency);
 			Map<String, Object> ret = new HashMap<String, Object>();
 			ret.put("success", true);
