@@ -102,16 +102,11 @@ public class LegacyAppResource {
 	///////////////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////////////
 
+	@Deprecated
 	@POST
 	@Path("/updateSmssFile")
 	@Produces("application/json;charset=utf-8")
 	public Response updateSmssFile(@Context HttpServletRequest request, @PathParam("databaseId") String databaseId) {
-		logger.warn(
-				"CALLING LEGACY ENDPOINT - NEED TO UPDATE TO DATABASE SPECIFIC ENDPOINT /database-{databaseId} OR GENERIC ENGINE ENDPOINT /e-{engineid}");
-		logger.warn(
-				"CALLING LEGACY ENDPOINT - NEED TO UPDATE TO DATABASE SPECIFIC ENDPOINT /database-{databaseId} OR GENERIC ENGINE ENDPOINT /e-{engineid}");
-		logger.warn(
-				"CALLING LEGACY ENDPOINT - NEED TO UPDATE TO DATABASE SPECIFIC ENDPOINT /database-{databaseId} OR GENERIC ENGINE ENDPOINT /e-{engineid}");
 		logger.warn(
 				"CALLING LEGACY ENDPOINT - NEED TO UPDATE TO DATABASE SPECIFIC ENDPOINT /database-{databaseId} OR GENERIC ENGINE ENDPOINT /e-{engineid}");
 
@@ -224,14 +219,12 @@ public class LegacyAppResource {
 	 * Code below is around database images
 	 */
 
+	@Deprecated
 	@GET
 	@Path("/appImage/download")
 	@Produces({ MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML })
 	public Response imageDownload(@Context final Request coreRequest, @Context HttpServletRequest request,
 			@PathParam("databaseId") String databaseId) {
-		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO ENGINE ENDPOINT /e-{engineid}");
-		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO ENGINE ENDPOINT /e-{engineid}");
-		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO ENGINE ENDPOINT /e-{engineid}");
 		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO ENGINE ENDPOINT /e-{engineid}");
 
 		databaseId = WebUtility.inputSanitizer(databaseId);
@@ -304,6 +297,7 @@ public class LegacyAppResource {
 	 * @return
 	 * @throws Exception
 	 */
+	@Deprecated
 	protected File getDatabaseImageFile(String databaseId) throws Exception {
 		databaseId = WebUtility.inputSanitizer(databaseId);
 		databaseId = MasterDatabaseUtility.testDatabaseIdIfAlias(databaseId);
@@ -368,6 +362,7 @@ public class LegacyAppResource {
 	 * 
 	 * @param fis
 	 */
+	@Deprecated
 	protected void closeStream(FileInputStream fis) {
 		if (fis != null) {
 			try {

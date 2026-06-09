@@ -179,7 +179,9 @@ public class OpenAIEndpoints {
 		// Convert the JSON string to a Map
 		Map<String, Object> dataMap;
 		try {
-			dataMap = GSON.fromJson(WebUtility.jsonSanitizer(requestData.toString()), new TypeToken<Map<String, Object>>(){}.getType());
+			dataMap = GSON.fromJson(WebUtility.jsonSanitizer(requestData.toString()),
+					new TypeToken<Map<String, Object>>() {
+					}.getType());
 		} catch (Exception e) {
 			classLogger.error("Failed to parse chat completions request JSON for path '{}': {}",
 					request.getRequestURI(), e.getMessage(), e);
@@ -359,7 +361,9 @@ public class OpenAIEndpoints {
 													String finishReason = (String) dataMap.get("finish_reason");
 													// this is a map only on finish reason
 													OpenAIChatCompletionsHelper.writeFinishReason(engineId, messageId,
-															creationTimestamp, finishReason, capturedPromptTokens, capturedCompletionTokens, capturedCachedTokens, capturedReasoningTokens, writer);
+															creationTimestamp, finishReason, capturedPromptTokens,
+															capturedCompletionTokens, capturedCachedTokens,
+															capturedReasoningTokens, writer);
 													break STREAM_COMPLETE_LOOP;
 												} else {
 													String newContent = (String) dataMap.get("content");
@@ -388,7 +392,9 @@ public class OpenAIEndpoints {
 													// send the finish chunk
 													String finishReason = (String) dataMap.get("finish_reason");
 													OpenAIChatCompletionsHelper.writeFinishReason(engineId, messageId,
-															creationTimestamp, finishReason, capturedPromptTokens, capturedCompletionTokens, capturedCachedTokens, capturedReasoningTokens, writer);
+															creationTimestamp, finishReason, capturedPromptTokens,
+															capturedCompletionTokens, capturedCachedTokens,
+															capturedReasoningTokens, writer);
 													break STREAM_COMPLETE_LOOP;
 												} else {
 													OpenAIChatCompletionsHelper.writeToolChunk(engineId, messageId,
@@ -404,7 +410,9 @@ public class OpenAIEndpoints {
 									if (jobStatus == PixelJobStatus.PROGRESS_COMPLETE && started) {
 										// send final chunk with empty delta && finish_reason="stop"
 										OpenAIChatCompletionsHelper.writeFinishReason(engineId, messageId,
-												creationTimestamp, "stop", capturedPromptTokens, capturedCompletionTokens, capturedCachedTokens, capturedReasoningTokens, writer);
+												creationTimestamp, "stop", capturedPromptTokens,
+												capturedCompletionTokens, capturedCachedTokens, capturedReasoningTokens,
+												writer);
 										break STREAM_COMPLETE_LOOP;
 									} else if (jobStatus == PixelJobStatus.PROGRESS_COMPLETE && !started) {
 										// we didn't start
@@ -432,7 +440,9 @@ public class OpenAIEndpoints {
 														messageId, creationTimestamp, response, writer);
 											}
 											OpenAIChatCompletionsHelper.writeFinishReason(engineId, messageId,
-													creationTimestamp, "tool_calls", capturedPromptTokens, capturedCompletionTokens, capturedCachedTokens, capturedReasoningTokens, writer);
+													creationTimestamp, "tool_calls", capturedPromptTokens,
+													capturedCompletionTokens, capturedCachedTokens,
+													capturedReasoningTokens, writer);
 										} else {
 											// Handle regular text response
 											String content = null;
@@ -446,7 +456,9 @@ public class OpenAIEndpoints {
 
 											// send final chunk with empty delta && finish_reason="stop"
 											OpenAIChatCompletionsHelper.writeFinishReason(engineId, messageId,
-													creationTimestamp, "stop", capturedPromptTokens, capturedCompletionTokens, capturedCachedTokens, capturedReasoningTokens, writer);
+													creationTimestamp, "stop", capturedPromptTokens,
+													capturedCompletionTokens, capturedCachedTokens,
+													capturedReasoningTokens, writer);
 										}
 
 										// job is marked complete, always break
@@ -554,7 +566,9 @@ public class OpenAIEndpoints {
 
 		Map<String, Object> dataMap;
 		try {
-			dataMap = GSON.fromJson(WebUtility.jsonSanitizer(requestData.toString()), new TypeToken<Map<String, Object>>(){}.getType());
+			dataMap = GSON.fromJson(WebUtility.jsonSanitizer(requestData.toString()),
+					new TypeToken<Map<String, Object>>() {
+					}.getType());
 		} catch (Exception e) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Error processing JSON: " + e.getMessage());
@@ -728,15 +742,15 @@ public class OpenAIEndpoints {
 										Map<String, Object> streamData = (Map<String, Object>) streamObj.get("data");
 
 										// Media (image) chunks. The Responses API protocol expects:
-										//   output_item.added (status=in_progress) — once
-										//   image_generation_call.partial_image — zero or more, all under
-										//     the same item_id, each carrying partial_image_b64 and an
-										//     incrementing partial_image_index
-										//   image_generation_call.completed — once (bare lifecycle event)
-										//   output_item.done (status=completed, item.result=<base64>) — once
+										// output_item.added (status=in_progress) - once
+										// image_generation_call.partial_image - zero or more, all under
+										// the same item_id, each carrying partial_image_b64 and an
+										// incrementing partial_image_index
+										// image_generation_call.completed - once (bare lifecycle event)
+										// output_item.done (status=completed, item.result=<base64>) - once
 										// We open the item lazily on the first media chunk and close it on
 										// the final (partial_image_index == null), so the openai SDK sees
-										// one image item from added → done.
+										// one image item from added -> done.
 										if ("media".equalsIgnoreCase(streamType)) {
 											if (currentItemId != null) {
 												if ("message".equals(currentItemType) && isContentPartOpen) {
@@ -979,8 +993,8 @@ public class OpenAIEndpoints {
 							final String capturedJobId = jobId;
 							if (!WebUtility.handleStreamingException(ioe, classLogger, engineId, capturedJobId,
 									() -> PixelJobManager.getManager().interruptThread(capturedJobId))) {
-								classLogger.error("I/O error processing responses streaming for engine '{}'",
-										engineId, ioe);
+								classLogger.error("I/O error processing responses streaming for engine '{}'", engineId,
+										ioe);
 							}
 						} catch (Exception e) {
 							classLogger.error("Error processing responses streaming for engine '{}'", engineId, e);
@@ -1038,7 +1052,8 @@ public class OpenAIEndpoints {
 			try {
 				zoneId = ZoneId.of(strTz);
 			} catch (Exception e) {
-				classLogger.warn("Invalid timezone value '{}' for /images/generations; falling back to default", strTz, e);
+				classLogger.warn("Invalid timezone value '{}' for /images/generations; falling back to default", strTz,
+						e);
 				zoneId = ZoneId.of(Utility.getApplicationZoneId());
 			}
 		}
@@ -1061,7 +1076,9 @@ public class OpenAIEndpoints {
 
 		Map<String, Object> dataMap;
 		try {
-			dataMap = GSON.fromJson(WebUtility.jsonSanitizer(requestData.toString()), new TypeToken<Map<String, Object>>(){}.getType());
+			dataMap = GSON.fromJson(WebUtility.jsonSanitizer(requestData.toString()),
+					new TypeToken<Map<String, Object>>() {
+					}.getType());
 		} catch (Exception e) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Error processing JSON: " + e.getMessage());
@@ -1085,7 +1102,8 @@ public class OpenAIEndpoints {
 
 		if (!SecurityEngineUtils.userCanViewEngine(user, engineId)) {
 			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Model " + engineId + " does not exist or user does not have access.");
+			errorMap.put(Constants.ERROR_MESSAGE,
+					"Model " + engineId + " does not exist or user does not have access.");
 			return WebUtility.getResponse(errorMap, 403);
 		}
 
@@ -1155,14 +1173,14 @@ public class OpenAIEndpoints {
 				return WebUtility.getResponse(errorMap, 400);
 			}
 		} else {
-			return handleImagesStreamingResponse(engine, insight, room, dataMap, SESSION_ID, JOB_ID,
-					finalEngineId, outputFormat, quality, size);
+			return handleImagesStreamingResponse(engine, insight, room, dataMap, SESSION_ID, JOB_ID, finalEngineId,
+					outputFormat, quality, size);
 		}
 	}
 
 	private Response handleImagesStreamingResponse(IModelEngine engine, Insight finalInsight, Room finalRoom,
-			Map<String, Object> dataMap, String SESSION_ID, String JOB_ID,
-			String engineId, String outputFormat, String quality, String size) {
+			Map<String, Object> dataMap, String SESSION_ID, String JOB_ID, String engineId, String outputFormat,
+			String quality, String size) {
 		classLogger.info("Starting images/generations streaming for engine: {}", engineId);
 
 		return Response.ok().header("Content-Type", "text/event-stream").header("Cache-Control", "no-cache")
@@ -1356,7 +1374,9 @@ public class OpenAIEndpoints {
 		// Convert the JSON string to a Map
 		Map<String, Object> dataMap;
 		try {
-			dataMap = GSON.fromJson(WebUtility.jsonSanitizer(requestData.toString()), new TypeToken<Map<String, Object>>(){}.getType());
+			dataMap = GSON.fromJson(WebUtility.jsonSanitizer(requestData.toString()),
+					new TypeToken<Map<String, Object>>() {
+					}.getType());
 		} catch (Exception e) {
 			classLogger.error("Failed to parse completions request JSON for path '{}': {}", request.getRequestURI(),
 					e.getMessage(), e);
@@ -1504,7 +1524,7 @@ public class OpenAIEndpoints {
 			final Room FINAL_ROOM = room;
 			return Response.ok().header("Content-Type", "text/event-stream").header("Cache-Control", "no-cache")
 					.header("Connection", "keep-alive").entity((StreamingOutput) output -> {
-	
+
 						try (Writer writer = new BufferedWriter(
 								new OutputStreamWriter(output, StandardCharsets.UTF_8))) {
 							// Get full completion from your model in one go
@@ -1623,7 +1643,9 @@ public class OpenAIEndpoints {
 		// Convert the JSON string to a Map
 		Map<String, Object> dataMap;
 		try {
-			dataMap = GSON.fromJson(WebUtility.jsonSanitizer(requestData.toString()), new TypeToken<Map<String, Object>>(){}.getType());
+			dataMap = GSON.fromJson(WebUtility.jsonSanitizer(requestData.toString()),
+					new TypeToken<Map<String, Object>>() {
+					}.getType());
 		} catch (Exception e) {
 			classLogger.error("Failed to parse embeddings request JSON for path '{}': {}", request.getRequestURI(),
 					e.getMessage(), e);
