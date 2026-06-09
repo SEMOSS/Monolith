@@ -289,6 +289,8 @@ public class AnthropicEndpoints {
 			List<Map<String, Object>> openAIMessages = (List<Map<String, Object>>) openAIFormat.get("messages");
 			dataMap.put(AbstractModelEngine.FULL_PROMPT, openAIMessages);
 			dataMap.put("append_full_prompt", true);
+			classLogger.info("Anthropic-normalized-prompt::{}::messages={} chars={}", JOB_ID, openAIMessages.size(),
+					GSON.toJson(openAIMessages).length());
 
 			if (openAIFormat.containsKey("tools")) {
 				dataMap.put("tools", openAIFormat.get("tools"));
@@ -313,8 +315,10 @@ public class AnthropicEndpoints {
 			List<Map<String, Object>> openAIMessages = (List<Map<String, Object>>) openAIFormat.get("messages");
 			dataMap.put(AbstractModelEngine.FULL_PROMPT, openAIMessages);
 			Gson gson = new GsonBuilder().setPrettyPrinting().create();
-			classLogger.debug("OpenAI-Formatted-Message::{}::{},", JOB_ID, gson.toJson(openAIMessages));
-			;
+			String openAIJson = gson.toJson(openAIMessages);
+			classLogger.info("Anthropic-normalized-prompt::{}::messages={} chars={}", JOB_ID, openAIMessages.size(),
+					openAIJson.length());
+			classLogger.debug("OpenAI-Formatted-Message::{}::{},", JOB_ID, openAIJson);
 
 			if (openAIFormat.containsKey("tools")) {
 				dataMap.put("tools", openAIFormat.get("tools"));
@@ -339,6 +343,17 @@ public class AnthropicEndpoints {
 			Map<String, Object> errorMap = AnthropicMessagesHelper.createErrorResponse("api_error",
 					"Error processing request: " + e.getMessage());
 			return WebUtility.getResponse(errorMap, 500);
+		}
+
+		// Guard against empty completions: a non-TOOL response with no text means
+		// the model returned nothing. Surface it as an error rather than a silent
+		// empty end_turn (which would make the client halt with no signal).
+		if (!AskModelEngineResponse.TOOL.equals(llmResponse.getMessageType())
+				&& (llmResponse.getStringResponse() == null || llmResponse.getStringResponse().isEmpty())) {
+			classLogger.error("Empty model completion for engine '{}': no content, tool calls, or usage.", engineId);
+			Map<String, Object> errorMap = AnthropicMessagesHelper.createErrorResponse("api_error",
+					"Model returned an empty response (no content or tool calls).");
+			return WebUtility.getResponse(errorMap, 502);
 		}
 
 		Map<String, Object> responseMap = AnthropicMessagesHelper.processAskModelEngineResponse(engineId, llmResponse);
@@ -639,10 +654,24 @@ public class AnthropicEndpoints {
 										String content = resultOutput != null ? (String) resultOutput.get("response")
 												: "";
 
-										AnthropicMessagesHelper.writeTextContentBlockStart(0, writer);
-										if (content != null && !content.isEmpty()) {
-											AnthropicMessagesHelper.writeTextDelta(0, content, writer);
+										// A completed job with no text, no tool calls, and no usage
+										// means the model produced nothing. Emitting a bare empty
+										// end_turn here makes Claude Code treat the turn as a clean
+										// stop, so the harness halts silently with no error. Surface
+										// it as an error event (and log the raw job output) instead.
+										if (content == null || content.isEmpty()) {
+											classLogger.error(
+													"Empty model completion for engine '{}' job '{}': no content, tool calls, or usage. Raw job output: {}",
+													engineId, asyncJobId, GSON.toJson(finalObject));
+											AnthropicMessagesHelper.writeErrorEvent("api_error",
+													"Model returned an empty response (no content, tool calls, or usage) for job "
+															+ asyncJobId + ". See server logs for details.",
+													writer);
+											break STREAM_COMPLETE_LOOP;
 										}
+
+										AnthropicMessagesHelper.writeTextContentBlockStart(0, writer);
+										AnthropicMessagesHelper.writeTextDelta(0, content, writer);
 										AnthropicMessagesHelper.writeContentBlockStop(0, writer);
 										AnthropicMessagesHelper.writeMessageDelta("end_turn", capturedInputTokens,
 												capturedOutputTokens, capturedCacheReadTokens,
