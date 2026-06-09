@@ -294,7 +294,7 @@ public class MCPReaper implements Runnable {
 		String jobId = "";
 		String insightId = WebUtility.inputSanitizer(insight.getInsightId());
 
-		// serialize concurrent calls on the same insight — multiple parallel
+		// serialize concurrent calls on the same insight - multiple parallel
 		// HTTP streaming connections from the same client share an insight instance
 		synchronized (insight) {
 			Boolean schedulerMode = ThreadStore.isSchedulerMode();

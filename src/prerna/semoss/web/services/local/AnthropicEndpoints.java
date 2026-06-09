@@ -273,7 +273,7 @@ public class AnthropicEndpoints {
 
 		// Load any persisted Vertex/Gemini thought_signatures for this room so we
 		// can re-attach them to replayed tool_use blocks. Empty map for non-Vertex
-		// paths (no file written) — no-op then.
+		// paths (no file written) - no-op then.
 		Map<String, String> thoughtSigMap = ThoughtSignatureSidecar.load(room.getRoomFolderPath());
 
 		// HANDLE NON-STREAMING REQUESTS THROUGH askRoomIN
@@ -454,7 +454,9 @@ public class AnthropicEndpoints {
 												}
 
 												String stopReason = mapFinishReasonToStopReason(finishReason);
-												AnthropicMessagesHelper.writeMessageDelta(stopReason, capturedInputTokens, capturedOutputTokens, capturedCacheReadTokens, capturedCacheCreationTokens, writer);
+												AnthropicMessagesHelper.writeMessageDelta(stopReason,
+														capturedInputTokens, capturedOutputTokens,
+														capturedCacheReadTokens, capturedCacheCreationTokens, writer);
 												AnthropicMessagesHelper.writeMessageStop(writer);
 												break STREAM_COMPLETE_LOOP;
 											} else {
@@ -489,7 +491,8 @@ public class AnthropicEndpoints {
 												}
 
 												// Persist any captured Vertex thought_signatures
-												// Anthropic SSE has no slot for these bytes, so they would otherwise be lost the moment the SDK writes its JSONL transcript.
+												// Anthropic SSE has no slot for these bytes, so they would otherwise be
+												// lost the moment the SDK writes its JSONL transcript.
 												if (!pendingToolSignatures.isEmpty() && finalRoom != null) {
 													String roomFolder = finalRoom.getRoomFolderPath();
 													for (Map.Entry<Integer, String> sigEntry : pendingToolSignatures
@@ -501,7 +504,9 @@ public class AnthropicEndpoints {
 												}
 
 												String stopReason = mapFinishReasonToStopReason(finishReason);
-												AnthropicMessagesHelper.writeMessageDelta(stopReason, capturedInputTokens, capturedOutputTokens, capturedCacheReadTokens, capturedCacheCreationTokens, writer);
+												AnthropicMessagesHelper.writeMessageDelta(stopReason,
+														capturedInputTokens, capturedOutputTokens,
+														capturedCacheReadTokens, capturedCacheCreationTokens, writer);
 												AnthropicMessagesHelper.writeMessageStop(writer);
 												break STREAM_COMPLETE_LOOP;
 											} else {
@@ -597,7 +602,9 @@ public class AnthropicEndpoints {
 									}
 
 									String stopReason = toolBlockStarted.isEmpty() ? "end_turn" : "tool_use";
-									AnthropicMessagesHelper.writeMessageDelta(stopReason, capturedInputTokens, capturedOutputTokens, capturedCacheReadTokens, capturedCacheCreationTokens, writer);
+									AnthropicMessagesHelper.writeMessageDelta(stopReason, capturedInputTokens,
+											capturedOutputTokens, capturedCacheReadTokens, capturedCacheCreationTokens,
+											writer);
 									AnthropicMessagesHelper.writeMessageStop(writer);
 									break STREAM_COMPLETE_LOOP;
 								} else if (jobStatus == PixelJobStatus.PROGRESS_COMPLETE && !textBlockStarted
@@ -641,7 +648,9 @@ public class AnthropicEndpoints {
 												}
 											}
 										}
-										AnthropicMessagesHelper.writeMessageDelta("tool_use", capturedInputTokens, capturedOutputTokens, capturedCacheReadTokens, capturedCacheCreationTokens, writer);
+										AnthropicMessagesHelper.writeMessageDelta("tool_use", capturedInputTokens,
+												capturedOutputTokens, capturedCacheReadTokens,
+												capturedCacheCreationTokens, writer);
 									} else {
 										String content = resultOutput != null ? (String) resultOutput.get("response")
 												: "";
@@ -665,7 +674,9 @@ public class AnthropicEndpoints {
 										AnthropicMessagesHelper.writeTextContentBlockStart(0, writer);
 										AnthropicMessagesHelper.writeTextDelta(0, content, writer);
 										AnthropicMessagesHelper.writeContentBlockStop(0, writer);
-										AnthropicMessagesHelper.writeMessageDelta("end_turn", capturedInputTokens, capturedOutputTokens, capturedCacheReadTokens, capturedCacheCreationTokens, writer);
+										AnthropicMessagesHelper.writeMessageDelta("end_turn", capturedInputTokens,
+												capturedOutputTokens, capturedCacheReadTokens,
+												capturedCacheCreationTokens, writer);
 									}
 
 									AnthropicMessagesHelper.writeMessageStop(writer);
@@ -683,8 +694,8 @@ public class AnthropicEndpoints {
 							final String capturedJobId = asyncJobId;
 							if (!WebUtility.handleStreamingException(ioe, classLogger, engineId, capturedJobId,
 									() -> PixelJobManager.getManager().interruptThread(capturedJobId))) {
-								classLogger.error("I/O error in streaming response for engine '{}' job '{}'",
-										engineId, asyncJobId, ioe);
+								classLogger.error("I/O error in streaming response for engine '{}' job '{}'", engineId,
+										asyncJobId, ioe);
 							}
 						} catch (Throwable e) {
 							classLogger.error("Error in streaming response", e);
@@ -730,7 +741,7 @@ public class AnthropicEndpoints {
 			String jobId = jobRunner.getJobId();
 
 			String modelPixel = "LLM(engine='" + engine.getEngineId() + "',roomId='" + room.getId()
-					+ "',command=ignore" + ",paramValues=[" + GSON.toJson(dataMap) + "]);";
+					+ "',command='ignore'" + ",paramValues=[" + GSON.toJson(dataMap) + "]);";
 			jobRunner.addPixel(modelPixel);
 			Thread.ofVirtual().start(jobRunner);
 			return jobId;

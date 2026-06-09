@@ -873,12 +873,6 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 			MultivaluedMap<String, String> form) {
 		classLogger.warn(
 				"CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/denyEngineUserAccessRequest with PARAM engineId");
-		classLogger.warn(
-				"CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/denyEngineUserAccessRequest with PARAM engineId");
-		classLogger.warn(
-				"CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/denyEngineUserAccessRequest with PARAM engineId");
-		classLogger.warn(
-				"CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/denyEngineUserAccessRequest with PARAM engineId");
 
 		SecurityAdminUtils adminUtils = null;
 
