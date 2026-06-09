@@ -69,9 +69,9 @@ public final class OpenAIChatCompletionsHelper {
 
 	/**
 	 * Writes the finish chunk, an optional usage-only chunk (matching OpenAI's
-	 * {@code stream_options: {"include_usage": true}} behavior), and the
-	 * terminal {@code [DONE]} marker. Any null token field is omitted from the
-	 * usage object; if all four are null no usage chunk is emitted at all.
+	 * {@code stream_options: {"include_usage": true}} behavior), and the terminal
+	 * {@code [DONE]} marker. Any null token field is omitted from the usage object;
+	 * if all four are null no usage chunk is emitted at all.
 	 */
 	public static void writeFinishReason(String engineId, String messageId, long creationTimestamp, String finishReason,
 			Integer promptTokens, Integer completionTokens, Integer cachedTokens, Integer reasoningTokens,
@@ -195,7 +195,7 @@ public final class OpenAIChatCompletionsHelper {
 			throws JsonProcessingException, IOException {
 		Number indexNum = (Number) dataMap.get("index");
 		Long curToolIndex = indexNum != null ? indexNum.longValue() : 0L;
-		// Thinking is not part of the chat completions wire format — drop it.
+		// Thinking is not part of the chat completions wire format - drop it.
 		if (dataMap.containsKey("thinking")) {
 			return;
 		}

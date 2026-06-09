@@ -65,11 +65,11 @@ public final class OpenAIResponsesHelper {
 	}
 
 	/**
-	 * Attaches a Responses-API usage object to the inner {@code response} map
-	 * of a {@code response.completed} (or similar) event. No-op if all token
-	 * counts are null. Use this so streaming clients see real
-	 * {@code response.usage.input_tokens} / {@code output_tokens} instead of
-	 * the field being absent.
+	 * Attaches a Responses-API usage object to the inner {@code response} map of a
+	 * {@code response.completed} (or similar) event. No-op if all token counts are
+	 * null. Use this so streaming clients see real
+	 * {@code response.usage.input_tokens} / {@code output_tokens} instead of the
+	 * field being absent.
 	 */
 	@SuppressWarnings("unchecked")
 	public static void attachUsage(Map<String, Object> event, Integer inputTokens, Integer outputTokens,
@@ -264,10 +264,9 @@ public final class OpenAIResponsesHelper {
 	/**
 	 * Sends a {@code response.image_generation_call.partial_image} SSE event,
 	 * matching the wire shape the {@code openai} SDK parses
-	 * ({@code event.partial_image_b64}, {@code event.partial_image_index}).
-	 * Only base64 partials are expressible in this event — the OpenAI spec
-	 * defines no URL alternative on partial_image, so URL-only media chunks
-	 * are skipped.
+	 * ({@code event.partial_image_b64}, {@code event.partial_image_index}). Only
+	 * base64 partials are expressible in this event - the OpenAI spec defines no
+	 * URL alternative on partial_image, so URL-only media chunks are skipped.
 	 */
 	public static void sendImageGenerationPartialImage(Writer w, int seq, String respId, String itemId, int outputIdx,
 			Map<String, Object> mediaInfo, Object partialImageIndex) throws IOException {
@@ -290,12 +289,12 @@ public final class OpenAIResponsesHelper {
 	}
 
 	/**
-	 * Sends a bare {@code response.image_generation_call.completed} SSE event.
-	 * The actual image bytes are not carried on this event in OpenAI's
-	 * Responses API protocol — the final base64 lives on the
-	 * {@code image_generation_call} item's {@code result} field, delivered via
-	 * the subsequent {@code response.output_item.done} event. This event is
-	 * just the lifecycle signal.
+	 * Sends a bare {@code response.image_generation_call.completed} SSE event. The
+	 * actual image bytes are not carried on this event in OpenAI's Responses API
+	 * protocol - the final base64 lives on the {@code image_generation_call} item's
+	 * {@code result} field, delivered via the subsequent
+	 * {@code response.output_item.done} event. This event is just the lifecycle
+	 * signal.
 	 */
 	public static void sendImageGenerationCompleted(Writer w, int seq, String respId, String itemId, int outputIdx)
 			throws IOException {
@@ -307,7 +306,6 @@ public final class OpenAIResponsesHelper {
 		event.put("output_index", outputIdx);
 		writeSSEEvent(event, w);
 	}
-
 
 	/**
 	 * Normalizes Codex/Responses API message format to standard OpenAI Chat format.
