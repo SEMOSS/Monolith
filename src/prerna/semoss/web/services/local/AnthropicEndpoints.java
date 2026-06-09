@@ -319,7 +319,6 @@ public class AnthropicEndpoints {
 			classLogger.info("Anthropic-normalized-prompt::{}::messages={} chars={}", JOB_ID, openAIMessages.size(),
 					openAIJson.length());
 			classLogger.debug("OpenAI-Formatted-Message::{}::{},", JOB_ID, openAIJson);
-			;
 
 			if (openAIFormat.containsKey("tools")) {
 				dataMap.put("tools", openAIFormat.get("tools"));
