@@ -87,8 +87,9 @@ public class AuthorizationResource {
 						searchTerm, limit, offset);
 				return WebUtility.getResponse(ret, 200);
 			} catch (IllegalAccessException e) {
-				classLogger.warn("User is trying to pull users for " + engineId
-						+ " that do not have credentials without having proper access");
+				classLogger.warn(
+						"User is trying to pull users for {} that do not have credentials without having proper access",
+						engineId);
 				classLogger.error("Failed to search for user.", e);
 				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());

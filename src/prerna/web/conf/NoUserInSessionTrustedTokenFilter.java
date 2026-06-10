@@ -60,7 +60,7 @@ import prerna.web.services.util.WebUtility;
 
 public class NoUserInSessionTrustedTokenFilter implements Filter {
 
-	private static final Logger logger = LogManager.getLogger(NoUserInSessionTrustedTokenFilter.class);
+	private static final Logger classLogger = LogManager.getLogger(NoUserInSessionTrustedTokenFilter.class);
 
 	private static String TRUSTED_TOKEN_PREFIX = "trustedTokenPrefix";
 	private static String TRUSTED_TOKEN_DOMAIN = "trustedTokenDomain";
@@ -184,7 +184,7 @@ public class NoUserInSessionTrustedTokenFilter implements Filter {
 					// replace any other session id cookies
 					Cookie[] cookies = req.getCookies();
 					if (cookies != null) {
-						logger.info("Forcing session value !");
+						classLogger.info("Forcing session value !");
 						for (Cookie c : cookies) {
 							if (c.getName().equals(DBLoader.getSessionIdKey())) {
 								if (c.getName().equalsIgnoreCase(DBLoader.getSessionIdKey())) {

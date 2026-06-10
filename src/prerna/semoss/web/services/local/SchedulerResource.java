@@ -51,13 +51,14 @@ public class SchedulerResource {
 	@Produces("application/json")
 	public Response executePixel(@Context HttpServletRequest request) {
 		// we will flush the user object inside
-		// and make sure the 
+		// and make sure the
 		String pixel = request.getParameter(JobConfigKeys.PIXEL);
 		return runPixel(request, pixel);
 	}
-	
+
 	/**
 	 * Utility method to execute the pixel on the insight
+	 * 
 	 * @param request
 	 * @param pixel
 	 * @return
@@ -70,12 +71,12 @@ public class SchedulerResource {
 //			pixel = pixel + ";DropInsight();";
 //		}
 		pixel = pixel.trim();
-		if(!pixel.endsWith(";")) {
+		if (!pixel.endsWith(";")) {
 			pixel = pixel + ";";
 		}
 		// set we are scheduler mode
 		ThreadStore.setSchedulerMode(true);
-		
+
 		NameServer ns = new NameServer();
 		OverrideParametersServletRequest requestWrapper = new OverrideParametersServletRequest(request);
 		Map<String, String> paramMap = new HashMap<String, String>();
@@ -87,5 +88,5 @@ public class SchedulerResource {
 			request.getSession().invalidate();
 		}
 	}
-	
+
 }

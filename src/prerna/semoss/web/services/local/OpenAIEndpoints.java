@@ -1295,7 +1295,7 @@ public class OpenAIEndpoints {
 			String jobId = jobRunner.getJobId();
 
 			String modelPixel = "LLM(engine='" + engine.getEngineId() + "',roomId='" + room.getId()
-					+ "',command='<encode>ignore</encode>'"
+					+ "',command='ignore'"
 					// this should have the full_prompt
 					+ ",paramValues=[" + GSON.toJson(dataMap) + "]);";
 			classLogger.info("Dispatching async model pixel: {}", modelPixel);
