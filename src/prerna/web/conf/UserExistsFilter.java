@@ -93,8 +93,8 @@ public class UserExistsFilter extends NoUserInSessionFilter {
 					((HttpServletResponse) arg1).sendError(HttpServletResponse.SC_FORBIDDEN,
 							"User lacks permissions for this resource");
 					// log the user login
-					classLogger.info(
-							"User is trying to login BUT doesn't have access with provider " + token.getProvider());
+					classLogger.info("User is trying to login BUT doesn't have access with provider {}",
+							token.getProvider());
 					return;
 				}
 
@@ -108,8 +108,8 @@ public class UserExistsFilter extends NoUserInSessionFilter {
 					((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + encodedRedirectUrl);
 
 					// log the user login
-					classLogger.info(
-							"User is trying to login BUT doesn't have access with provider " + token.getProvider());
+					classLogger.info("User is trying to login BUT doesn't have access with provider {}",
+							token.getProvider());
 					return;
 				}
 			}
@@ -137,11 +137,8 @@ public class UserExistsFilter extends NoUserInSessionFilter {
 	private boolean areGroupsValid(AccessToken token) {
 		boolean groupsAreValid = true;
 		boolean checkGroups = Boolean.parseBoolean(filterConfig.getInitParameter("useGroupWhitelist"))
-				|| Boolean.parseBoolean(filterConfig.getInitParameter("useSAMLGroupWhitelist")); // just in case this
-																									// key is used -
-																									// should update and
-																									// only use
-																									// useGroupWhitelist
+				// just in case this key is used - should update and only use useGroupWhitelist
+				|| Boolean.parseBoolean(filterConfig.getInitParameter("useSAMLGroupWhitelist"));
 		if (checkGroups) {
 			groupsAreValid = false;
 			Collection<String> groups = token.getUserGroups();
@@ -151,7 +148,8 @@ public class UserExistsFilter extends NoUserInSessionFilter {
 				try {
 					validGroups = AdminSecurityGroupUtils.getMatchingGroupsByType(groups, groupType);
 				} catch (Exception e) {
-					classLogger.error(Constants.STACKTRACE, e);
+					classLogger.error("Failed to retrieve the matching valid groups for SAML login with group type {}",
+							groupType, e);
 					throw new IllegalArgumentException("Error occurred to retrieve the valid groups for SAML login");
 				}
 				groupsAreValid = !validGroups.isEmpty();

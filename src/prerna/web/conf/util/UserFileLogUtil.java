@@ -38,11 +38,10 @@ import java.util.concurrent.BlockingQueue;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import prerna.util.Constants;
 import prerna.util.Utility;
 
 public class UserFileLogUtil {
-	
+
 	private static Map<String, UserFileLogUtil> singletonStore = new HashMap<>();
 
 	/*
@@ -64,11 +63,11 @@ public class UserFileLogUtil {
 	}
 
 	public static UserFileLogUtil getInstance(String filePath, String sep) throws IOException {
-		if(filePath == null || filePath.trim().isEmpty()) {
+		if (filePath == null || filePath.trim().isEmpty()) {
 			throw new IOException("Must pass in a valid filePath");
 		}
 		synchronized (UserFileLogUtil.class) {
-			if(!singletonStore.containsKey(filePath)) {
+			if (!singletonStore.containsKey(filePath)) {
 				UserFileLogUtil trackingUtil = new UserFileLogUtil(filePath, sep);
 				singletonStore.put(filePath, trackingUtil);
 			}
@@ -83,7 +82,9 @@ public class UserFileLogUtil {
 }
 
 class FileAppender implements Runnable {
-	private static final Logger logger = LogManager.getLogger(FileAppender.class);
+
+	private static final Logger classLogger = LogManager.getLogger(FileAppender.class);
+
 	private File f = null;
 	private FileWriter fw = null;
 	private String filePath = null;
@@ -96,32 +97,33 @@ class FileAppender implements Runnable {
 		this.queue = queue;
 
 		f = new File(this.filePath);
-		if(!f.getParentFile().exists()) {
+		if (!f.getParentFile().exists()) {
 			Boolean success = f.getParentFile().mkdirs();
-			if(!success) {
-				logger.info("Unable to create file appender at :" + Utility.cleanLogString(f.getAbsolutePath()));
+			if (!success) {
+				classLogger.info("Unable to create file appender at :{}", Utility.cleanLogString(f.getAbsolutePath()));
 			}
 		}
-		
+
 		// set to append mode
 		// to account for restarts of the service
 		this.fw = new FileWriter(f, true);
 	}
 
+	@Override
 	public void run() {
 		try {
 			String[] row = null;
-			while( (row = queue.take()) != null) {
-				if(fw == null) {
+			while ((row = queue.take()) != null) {
+				if (fw == null) {
 					this.fw = new FileWriter(f, true);
 				}
-				if(row == null || row.length == 0) {
+				if (row == null || row.length == 0) {
 					continue;
 				}
 				int size = row.length;
 				StringBuilder builder = new StringBuilder();
 				builder.append(row[0] + "");
-				for(int i = 1; i < size; i++) {
+				for (int i = 1; i < size; i++) {
 					builder.append(this.sep).append(row[i] + "");
 				}
 				builder.append("\n");
@@ -129,20 +131,22 @@ class FileAppender implements Runnable {
 					fw.write(builder.toString());
 					fw.flush();
 				} catch (IOException e) {
-					logger.error(Constants.STACKTRACE, e);
+					classLogger.error("Failed to write the user log row to the file at {}",
+							Utility.cleanLogString(filePath), e);
 				}
 			}
 		} catch (InterruptedException ie) {
 			Thread.currentThread().interrupt();
-			logger.error(Constants.STACKTRACE, ie);
+			classLogger.error("Interrupted while waiting to take the next user log row from the queue", ie);
 		} catch (IOException ioe) {
-			logger.error(Constants.STACKTRACE, ioe);
+			classLogger.error("Failed to write the user log to the file at {}", Utility.cleanLogString(filePath), ioe);
 		} finally {
-			if(fw != null) {
+			if (fw != null) {
 				try {
 					fw.close();
 				} catch (IOException ioe) {
-					logger.error(Constants.STACKTRACE, ioe);
+					classLogger.error("Failed to close the file writer for the user log file at {}",
+							Utility.cleanLogString(filePath), ioe);
 				}
 			}
 			fw = null;

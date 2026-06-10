@@ -221,9 +221,9 @@ public class InsightWebsocket {
 		try {
 			streamingOutput.write(baos);
 		} catch (WebApplicationException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to write the pixel stream output for insight {}", insightId, e);
 		} catch (IOException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to write the pixel stream output for insight {}", insightId, e);
 		}
 		String returnData = new String(baos.toByteArray());
 		SocketSessionHandler handler = SocketSessionHandlerFactory.getHandler(insightId);
