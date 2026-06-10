@@ -47,7 +47,7 @@ import prerna.util.Constants;
 
 public class SetAdminSessionTimeoutFilter implements Filter {
 
-	private static final Logger logger = LogManager.getLogger(SetAdminSessionTimeoutFilter.class);
+	private static final Logger classLogger = LogManager.getLogger(SetAdminSessionTimeoutFilter.class);
 
 	private static FilterConfig filterConfig = null;
 
@@ -74,7 +74,7 @@ public class SetAdminSessionTimeoutFilter implements Filter {
 
 					// store in session so we do not redo the check
 					session.setAttribute(SESSIOIN_ATTRIBUTE_CHECK, true);
-					logger.info("Setting the admin timeout to " + interval + " seconds");
+					classLogger.info("Setting the admin timeout to {} seconds", interval);
 				} else {
 
 					// also still store in the session so we do not redo the check
@@ -104,7 +104,7 @@ public class SetAdminSessionTimeoutFilter implements Filter {
 				int timeoutValue = Integer.parseInt(timeoutStr);
 				SetAdminSessionTimeoutFilter.sessionTimeout = timeoutValue;
 			} catch (Exception e) {
-				logger.error(Constants.STACKTRACE, e);
+				classLogger.error("Failed to parse the timeout filter init parameter value", e);
 			}
 		}
 	}

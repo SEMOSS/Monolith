@@ -60,9 +60,8 @@ public final class OpenAIImagesHelper {
 	 * SDK reads: {@code b64_json}, {@code partial_image_index}, plus optional
 	 * generation metadata.
 	 */
-	public static void writePartialImageEvent(Writer w, String b64Json, int partialIdx,
-			String model, long createdAt, String outputFormat, String quality, String size)
-			throws IOException {
+	public static void writePartialImageEvent(Writer w, String b64Json, int partialIdx, String model, long createdAt,
+			String outputFormat, String quality, String size) throws IOException {
 		Map<String, Object> event = new HashMap<>();
 		event.put("b64_json", b64Json);
 		event.put("partial_image_index", partialIdx);
@@ -86,10 +85,8 @@ public final class OpenAIImagesHelper {
 	 * Emits an {@code image_generation.completed} SSE event carrying the final
 	 * base64 image and optional token usage.
 	 */
-	public static void writeCompletedEvent(Writer w, String b64Json, String model, long createdAt,
-			String outputFormat, String quality, String size,
-			Integer inputTokens, Integer outputTokens)
-			throws IOException {
+	public static void writeCompletedEvent(Writer w, String b64Json, String model, long createdAt, String outputFormat,
+			String quality, String size, Integer inputTokens, Integer outputTokens) throws IOException {
 		Map<String, Object> event = new HashMap<>();
 		event.put("b64_json", b64Json);
 		if (model != null) {
@@ -123,8 +120,8 @@ public final class OpenAIImagesHelper {
 
 	/**
 	 * Builds the non-streaming JSON response from a completed model response.
-	 * Shape: {@code { "created": <ts>, "data": [{ "b64_json": "..." }] }}
-	 * Falls back to {@code url} for URL-only images.
+	 * Shape: {@code { "created": <ts>, "data": [{ "b64_json": "..." }] }} Falls
+	 * back to {@code url} for URL-only images.
 	 */
 	public static Map<String, Object> buildNonStreamingResponse(long createdAt, AskModelEngineResponse<?> llmResponse) {
 		List<Map<String, Object>> dataList = new ArrayList<>();

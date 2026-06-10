@@ -83,7 +83,7 @@ import prerna.web.services.util.WebUtility;
 public class LegacyAppResource {
 
 	private static final String DIR_SEPARATOR = java.nio.file.FileSystems.getDefault().getSeparator();
-	private static final Logger logger = LogManager.getLogger(LegacyAppResource.class);
+	private static final Logger classLogger = LogManager.getLogger(LegacyAppResource.class);
 
 	private boolean canViewDatabase(User user, String databaseId) throws IllegalAccessException {
 		databaseId = SecurityQueryUtils.testUserEngineIdForAlias(user, databaseId);
@@ -107,7 +107,7 @@ public class LegacyAppResource {
 	@Path("/updateSmssFile")
 	@Produces("application/json;charset=utf-8")
 	public Response updateSmssFile(@Context HttpServletRequest request, @PathParam("databaseId") String databaseId) {
-		logger.warn(
+		classLogger.warn(
 				"CALLING LEGACY ENDPOINT - NEED TO UPDATE TO DATABASE SPECIFIC ENDPOINT /database-{databaseId} OR GENERIC ENGINE ENDPOINT /e-{engineid}");
 
 		User user = null;
@@ -175,20 +175,20 @@ public class LegacyAppResource {
 			}
 			engine.open(currentSmssFileLocation);
 		} catch (Exception e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to write the new smss content and reinitialize the database {}", databaseId, e);
 			// reset the values
 			try {
 				// close the database again
 				engine.close();
 			} catch (IOException e1) {
-				logger.error(Constants.STACKTRACE, e1);
+				classLogger.error("Failed to close the database {} while reverting the smss changes", databaseId, e1);
 			}
 			currentSmssFile.delete();
 			try (FileWriter fw = new FileWriter(currentSmssFile, false)) {
 				fw.write(currentSmssContent);
 				engine.open(currentSmssFileLocation);
 			} catch (Exception e2) {
-				logger.error(Constants.STACKTRACE, e2);
+				classLogger.error("Failed to revert the smss file and reopen the database {}", databaseId, e2);
 				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put(Constants.ERROR_MESSAGE,
 						"A fatal error occurred and could not revert the database to an operational state. Detailed message = "
@@ -225,7 +225,7 @@ public class LegacyAppResource {
 	@Produces({ MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML })
 	public Response imageDownload(@Context final Request coreRequest, @Context HttpServletRequest request,
 			@PathParam("databaseId") String databaseId) {
-		logger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO ENGINE ENDPOINT /e-{engineid}");
+		classLogger.warn("CALLING LEGACY ENDPOINT - NEED TO UPDATE TO ENGINE ENDPOINT /e-{engineid}");
 
 		databaseId = WebUtility.inputSanitizer(databaseId);
 
@@ -252,7 +252,7 @@ public class LegacyAppResource {
 				selectors.put(CouchUtil.DATABASE, actualDatabaseId);
 				return CouchUtil.download(CouchUtil.DATABASE, selectors);
 			} catch (CouchException e) {
-				logger.error(Constants.STACKTRACE, e);
+				classLogger.error("Failed to download the database image from Couch for database {}", databaseId, e);
 			}
 		}
 
@@ -260,7 +260,7 @@ public class LegacyAppResource {
 		try {
 			exportFile = getDatabaseImageFile(databaseId);
 		} catch (Exception e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve the image file for database {}", databaseId, e);
 		}
 		if (exportFile != null && exportFile.exists()) {
 			String exportName = databaseId + "_Image." + FilenameUtils.getExtension(exportFile.getAbsolutePath());
@@ -321,7 +321,7 @@ public class LegacyAppResource {
 			if (!f.exists()) {
 				Boolean success = f.mkdirs();
 				if (!success) {
-					logger.info("Unable to make direction at location: " + Utility.cleanLogString(fileLocation));
+					classLogger.info("Unable to make direction at location: {}", Utility.cleanLogString(fileLocation));
 				}
 			}
 			fileLocation = fileLocation + DIR_SEPARATOR + "image.png";
@@ -368,7 +368,7 @@ public class LegacyAppResource {
 			try {
 				fis.close();
 			} catch (IOException e) {
-				logger.error(Constants.STACKTRACE, e);
+				classLogger.error("Failed to close the file input stream", e);
 			}
 		}
 	}

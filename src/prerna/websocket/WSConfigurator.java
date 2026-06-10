@@ -38,11 +38,9 @@ import prerna.util.Constants;
 public class WSConfigurator extends Configurator {
 
 	@Override
-	public void modifyHandshake(ServerEndpointConfig sec,
-			HandshakeRequest request,
-			HandshakeResponse resp) {
+	public void modifyHandshake(ServerEndpointConfig sec, HandshakeRequest request, HandshakeResponse resp) {
 		HttpSession session = (HttpSession) request.getHttpSession();
-		if(session != null) {
+		if (session != null) {
 			sec.getUserProperties().put(Constants.SESSION_USER, session.getAttribute(Constants.SESSION_USER));
 		}
 	}

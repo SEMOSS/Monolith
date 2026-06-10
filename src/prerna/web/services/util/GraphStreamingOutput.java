@@ -34,31 +34,34 @@ import java.io.OutputStream;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.StreamingOutput;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.openrdf.query.GraphQueryResult;
 import org.openrdf.query.QueryEvaluationException;
 
 public class GraphStreamingOutput implements StreamingOutput {
 
+	private static final Logger classLogger = LogManager.getLogger(GraphStreamingOutput.class);
+
 	GraphQueryResult gqr = null;
-	
-	public GraphStreamingOutput(GraphQueryResult gqr)
-	{
+
+	public GraphStreamingOutput(GraphQueryResult gqr) {
 		this.gqr = gqr;
 	}
-	
+
 	@Override
-	public void write(OutputStream outputStream) throws IOException,
-			WebApplicationException {
-	            ObjectOutputStream os = new ObjectOutputStream(outputStream);
-	            try {
-					while(gqr.hasNext())
-						os.writeObject(gqr.next());
-					os.writeObject("null");
-				} catch (QueryEvaluationException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
+	public void write(OutputStream outputStream) throws IOException, WebApplicationException {
+		ObjectOutputStream os = new ObjectOutputStream(outputStream);
+		try {
+			while (gqr.hasNext()) {
+				os.writeObject(gqr.next());
+			}
+			os.writeObject("null");
+		} catch (QueryEvaluationException e) {
+			// TODO Auto-generated catch block
+			classLogger.error("Failed to stream the graph query results to the output stream", e);
+		}
 	}
-		// TODO Auto-generated method stub
-		
+	// TODO Auto-generated method stub
+
 }

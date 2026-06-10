@@ -40,19 +40,21 @@ import prerna.util.Constants;
 
 public class CentralNameServer {
 
-	@Context 
+	@Context
 	private ServletContext context;
-	
-	private static final Logger logger = LogManager.getLogger(CentralNameServer.class.getName());
+
+	private static final Logger classLogger = LogManager.getLogger(CentralNameServer.class.getName());
+
 	private String centralApi = "";
 	private List<String> localDb = Arrays.asList(Constants.LOCAL_MASTER_DB);
-	
-	public void setCentralApi(String centralApi){
+
+	public void setCentralApi(String centralApi) {
 		this.centralApi = centralApi;
 	}
 
 	// local call to get all insights related to a specific uri
-	// preferably we would also pass vert store and edge store... the more context the better. Don't have any of that for now though.
+	// preferably we would also pass vert store and edge store... the more context
+	// the better. Don't have any of that for now though.
 //	@POST
 //	@Path("context/insights")
 //	@Produces("application/json")
@@ -61,7 +63,7 @@ public class CentralNameServer {
 //			@Context HttpServletRequest request) throws KeyManagementException, NoSuchAlgorithmException, KeyStoreException, SolrServerException, IOException
 //	{
 //		String selectedUris = form.getFirst("selectedURI");
-//		logger.info("LOCALLY have registered selected URIs as ::: " + selectedUris.toString());
+//		classLogger.info("LOCALLY have registered selected URIs as ::: " + selectedUris.toString());
 //
 //		// if we are going to a remote name server
 //		if(centralApi!=null){
@@ -84,7 +86,7 @@ public class CentralNameServer {
 //			@Context HttpServletRequest request)
 //	{
 //		String conceptURI = form.getFirst("conceptURI");		
-//		logger.info("LOCALLY have concept selected as ::: " + conceptURI);
+//		classLogger.info("LOCALLY have concept selected as ::: " + conceptURI);
 //
 //		if(centralApi!=null) {
 //			Hashtable params = new Hashtable();
@@ -106,7 +108,7 @@ public class CentralNameServer {
 //	{
 //		Gson gson = new Gson();
 //		ArrayList<String> selectedUris = gson.fromJson(form.getFirst("selectedURI"), ArrayList.class);
-//		logger.info("LOCALLY have instances selected for search ::: " + selectedUris);
+//		classLogger.info("LOCALLY have instances selected for search ::: " + selectedUris);
 //
 //		if(centralApi!=null) {
 //			Hashtable params = new Hashtable();
