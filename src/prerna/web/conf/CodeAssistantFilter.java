@@ -130,7 +130,7 @@ public class CodeAssistantFilter implements Filter {
 		try {
 			user = SecurityUserAccessKeyUtils.validateLocalUserStore(accessKey, secretKey);
 		} catch (IllegalAccessException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to validate the local user store access key for code assistant login", e);
 		}
 
 		if (user != null) {
@@ -140,8 +140,8 @@ public class CodeAssistantFilter implements Filter {
 			session.setAttribute(Constants.SESSION_USER_ID_LOG, user.getPrimaryLoginToken().getId());
 			WebUtility.loggingContextLoginEvent(session);
 
-			classLogger.info("User is logging in for code assistance using provider "
-					+ user.getPrimaryLoginToken().getProvider() + " with user access key");
+			classLogger.info("User is logging in for code assistance using provider {} with user access key",
+					user.getPrimaryLoginToken().getProvider());
 		}
 	}
 

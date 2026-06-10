@@ -53,7 +53,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import prerna.om.InsightStore;
-import prerna.util.Constants;
 import prerna.util.FileEncoderDetector;
 import prerna.util.FileSystemUtil;
 import prerna.util.Utility;
@@ -65,7 +64,7 @@ import prerna.web.services.util.WebUtility;
 @SuppressWarnings("serial")
 public abstract class Uploader extends HttpServlet {
 
-	private static final Logger logger = LogManager.getLogger(Uploader.class);
+	private static final Logger classLogger = LogManager.getLogger(Uploader.class);
 
 	protected static final String DIR_SEPARATOR = java.nio.file.FileSystems.getDefault().getSeparator();
 
@@ -96,7 +95,7 @@ public abstract class Uploader extends HttpServlet {
 		if (!f.exists() && !f.isDirectory()) {
 			Boolean success = f.mkdirs();
 			if (!success) {
-				logger.info("Unable to create file at: " + Utility.cleanLogString(f.getAbsolutePath()));
+				classLogger.info("Unable to create file at: {}", Utility.cleanLogString(f.getAbsolutePath()));
 			}
 		}
 
@@ -128,11 +127,11 @@ public abstract class Uploader extends HttpServlet {
 				try {
 					fi.write(new File(WebUtility.normalizePath(file.getAbsolutePath())));
 				} catch (Exception e) {
-					logger.error(Constants.STACKTRACE, e);
+					classLogger.error("Failed to write the uploaded binary file item to disk", e);
 				}
 			}
 		} catch (Exception e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to write the uploaded file to disk", e);
 		}
 	}
 

@@ -151,14 +151,14 @@ public class SSOFilter implements Filter {
 
 			String referer = WebUtility.cleanHttpResponse(((HttpServletRequest) request).getHeader("referer"));
 			if (referer != null) {
-				classLogger.info(Utility.cleanLogString("Setting session redirect value to referer = " + referer));
+				classLogger.info("Setting session redirect value to referer = {}", Utility.cleanLogString(referer));
 			} else if (fullUrl.contains("/public_home/")) {
 				addLocation = true;
-				classLogger
-						.info(Utility.cleanLogString("Setting session redirect value to the request URL = " + fullUrl));
+				classLogger.info("Setting session redirect value to the request URL = {}",
+						Utility.cleanLogString(fullUrl));
 				referer = fullUrl;
 			} else {
-				classLogger.info(Utility.cleanLogString("No session redirect value found..."));
+				classLogger.info("No session redirect value found...");
 			}
 			// set the referer if we have it
 			session.setAttribute(SSOUtil.SAML_REDIRECT_KEY, referer);

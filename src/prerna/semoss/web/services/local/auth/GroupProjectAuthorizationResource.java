@@ -163,7 +163,7 @@ public class GroupProjectAuthorizationResource {
 
 			SecurityGroupProjectUtils.addProjectGroupPermission(user, groupId, type, projectId, permission, endDate);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to add groups to project " + projectId + " without having proper access");
+			classLogger.warn("User is trying to add groups to project {} without having proper access", projectId);
 			classLogger.error("Failed to add group project permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -227,8 +227,9 @@ public class GroupProjectAuthorizationResource {
 			SecurityGroupProjectUtils.editProjectGroupPermission(user, groupId, type, projectId, newPermission,
 					endDate);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to edit group " + groupId + " and type " + type
-					+ " permissions for project " + projectId + " without having proper access");
+			classLogger.warn(
+					"User is trying to edit group {} and type {} permissions for project {} without having proper access",
+					groupId, type, projectId);
 			classLogger.error("Failed to update group project permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -287,8 +288,9 @@ public class GroupProjectAuthorizationResource {
 
 			SecurityGroupProjectUtils.removeProjectGroupPermission(user, groupId, type, projectId);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to remove group " + groupId + " and type " + type
-					+ " from having access to project " + projectId + " without having proper access");
+			classLogger.warn(
+					"User is trying to remove group {} and type {} from having access to project {} without having proper access",
+					groupId, type, projectId);
 			classLogger.error("Failed to remove group project permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -340,8 +342,7 @@ public class GroupProjectAuthorizationResource {
 			ret.put("groups", groups);
 			return WebUtility.getResponse(ret, 200);
 		} catch (IllegalAccessException e) {
-			classLogger
-					.warn("User is trying to get details for project " + projectId + " without having proper access");
+			classLogger.warn("User is trying to get details for project {} without having proper access", projectId);
 			classLogger.error("Failed to retrieve all groups with access to project.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());

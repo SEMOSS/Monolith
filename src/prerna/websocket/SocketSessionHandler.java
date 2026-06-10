@@ -40,11 +40,14 @@ import org.apache.logging.log4j.Logger;
 
 public class SocketSessionHandler {
 
-	private static final Logger logger = LogManager.getLogger(SocketSessionHandler.class);
+	private static final Logger classLogger = LogManager.getLogger(SocketSessionHandler.class);
 
 	private final List<Session> sessions = new CopyOnWriteArrayList<>();
 
-	/** Active streamers keyed by a unique key (e.g. "claude_code:roomId" or a file path) */
+	/**
+	 * Active streamers keyed by a unique key (e.g. "claude_code:roomId" or a file
+	 * path)
+	 */
 	private final Map<String, FileStreamer> streamers = new ConcurrentHashMap<>();
 	/** Threads running the streamers */
 	private final Map<String, Thread> streamerThreads = new ConcurrentHashMap<>();
@@ -65,12 +68,13 @@ public class SocketSessionHandler {
 	/**
 	 * Start a streamer if one isn't already running for the given key.
 	 *
-	 * @param key       unique identifier for this streamer (e.g. "claude_code:abc-123")
-	 * @param streamer  the FileStreamer instance to run
+	 * @param key      unique identifier for this streamer (e.g.
+	 *                 "claude_code:abc-123")
+	 * @param streamer the FileStreamer instance to run
 	 */
 	public void startStreamer(String key, FileStreamer streamer) {
 		if (streamers.containsKey(key)) {
-			logger.info("Streamer already running for key={}", key);
+			classLogger.info("Streamer already running for key={}", key);
 			return;
 		}
 
@@ -81,7 +85,7 @@ public class SocketSessionHandler {
 		thread.start();
 		streamerThreads.put(key, thread);
 
-		logger.info("Started streamer for key={}", key);
+		classLogger.info("Started streamer for key={}", key);
 	}
 
 	/** Stop a specific streamer by key. */
@@ -94,7 +98,7 @@ public class SocketSessionHandler {
 		if (thread != null) {
 			thread.interrupt();
 		}
-		logger.info("Stopped streamer for key={}", key);
+		classLogger.info("Stopped streamer for key={}", key);
 	}
 
 	/** Stop all active streamers (called when last client disconnects). */

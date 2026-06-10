@@ -39,8 +39,6 @@ import org.apache.logging.log4j.Logger;
 import org.openrdf.query.QueryEvaluationException;
 import org.openrdf.query.TupleQueryResult;
 
-import prerna.util.Constants;
-
 public class TupleStreamingOutput implements StreamingOutput {
 
 	private static final Logger classLogger = LogManager.getLogger(TupleStreamingOutput.class); 
@@ -62,7 +60,7 @@ public class TupleStreamingOutput implements StreamingOutput {
 			}
 			os.writeObject("null");
 		} catch (QueryEvaluationException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to evaluate the tuple query result and write the objects to the output stream", e);
 		}
 	}
 }
