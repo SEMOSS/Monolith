@@ -64,7 +64,7 @@ import prerna.web.services.util.WebUtility;
 @PermitAll
 public class FormResource {
 
-	private static final Logger logger = LogManager.getLogger(FormResource.class);
+	private static final Logger classLogger = LogManager.getLogger(FormResource.class);
 
 	private IDatabaseEngine formEngine;
 
@@ -84,7 +84,7 @@ public class FormResource {
 		try {
 			throwErrorIfNotAdmin(cacId);
 		} catch (IllegalAccessException e) {
-			logger.warn("User is trying to modify user access while not being an admin");
+			classLogger.warn("User is trying to modify user access while not being an admin");
 			Map<String, String> err = new HashMap<String, String>();
 			err.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(err, 400);
@@ -105,14 +105,14 @@ public class FormResource {
 						+ RdbmsQueryBuilder.escapeForSQLStatement(instancename) + "';";
 
 				// log the operation
-				logger.info("User is removing user " + userid + " from having access to " + instancename);
+				classLogger.info("User is removing user {} from having access to {}", userid, instancename);
 			} else {
 				// remove all of user
 				query = "DELETE FROM FORMS_USER_ACCESS WHERE USER_ID = '"
 						+ RdbmsQueryBuilder.escapeForSQLStatement(userid) + "';";
 
 				// log the operation
-				logger.info("User is removing all access for user " + userid);
+				classLogger.info("User is removing all access for user {}", userid);
 			}
 		} else if (addOrRemove.equals("Add")) {
 			query = "INSERT INTO FORMS_USER_ACCESS (USER_ID, INSTANCE_NAME, IS_SYS_ADMIN) VALUES ('"
@@ -121,7 +121,7 @@ public class FormResource {
 					+ RdbmsQueryBuilder.escapeForSQLStatement(owner) + "');";
 
 			// log the operation
-			logger.info("User is adding user " + userid + " to have access to " + instancename);
+			classLogger.info("User is adding user {} to have access to {}", userid, instancename);
 		} else {
 			return WebUtility.getResponse("Error: need to specify Add or Remove", 400);
 		}
@@ -133,7 +133,7 @@ public class FormResource {
 			// commit to engine
 			formEngine.commit();
 		} catch (Exception e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to insert form user access data and commit to the form engine", e);
 			return WebUtility.getResponse("An error occurred to update the user's access!", 400);
 		}
 
@@ -156,7 +156,7 @@ public class FormResource {
 		try {
 			throwErrorIfNotAdmin(cacId);
 		} catch (IllegalAccessException e) {
-			logger.warn("User is trying to rename an instance while not being an admin");
+			classLogger.warn("User is trying to rename an instance while not being an admin");
 			Map<String, String> err = new HashMap<String, String>();
 			err.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(err, 400);
@@ -171,7 +171,7 @@ public class FormResource {
 		}
 
 		// log the operation
-		logger.info("User is renaming " + origUri + " to " + newUri);
+		classLogger.info("User is renaming {} to {}", origUri, newUri);
 
 		IDatabaseEngine coreEngine = Utility.getDatabase(MasterDatabaseUtility.testDatabaseIdIfAlias(dbName));
 		AbstractFormBuilder formbuilder = FormFactory.getFormBuilder(coreEngine);
@@ -199,8 +199,8 @@ public class FormResource {
 		try {
 			throwErrorIfNotSysAdmin(cacId, instanceName);
 		} catch (IllegalAccessException e) {
-			logger.warn(
-					"User is trying to certify " + instanceName + " when he is not the system admin for the system");
+			classLogger.warn("User is trying to certify {} when he is not the system admin for the system",
+					instanceName);
 			Map<String, String> err = new HashMap<String, String>();
 			err.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(err, 400);
@@ -212,7 +212,7 @@ public class FormResource {
 		formbuilder.certifyInstance(instanceType, instanceName);
 
 		// log the operation
-		logger.info("User has certified " + instanceName);
+		classLogger.info("User has certified {}", instanceName);
 		return WebUtility.getResponse("success", 200);
 	}
 
@@ -246,13 +246,13 @@ public class FormResource {
 				userAccessableInstances.put(values[0].toString(), values[1].toString());
 			}
 		} catch (Exception e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to query the accessible form instances for user {}", cacId, e);
 		} finally {
 			if (wrapper != null) {
 				try {
 					wrapper.close();
 				} catch (IOException e) {
-					logger.error(Constants.STACKTRACE, e);
+					classLogger.error("Failed to close the result wrapper for the user instance access query", e);
 				}
 			}
 		}
@@ -313,13 +313,13 @@ public class FormResource {
 				throw new IllegalAccessException("User is not an admin and cannot perform this operation");
 			}
 		} catch (Exception e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to query whether user {} is an admin", cacId, e);
 		} finally {
 			if (wrapper != null) {
 				try {
 					wrapper.close();
 				} catch (IOException e) {
-					logger.error(Constants.STACKTRACE, e);
+					classLogger.error("Failed to close the result wrapper for the admin check query", e);
 				}
 			}
 		}
@@ -343,13 +343,13 @@ public class FormResource {
 				throw new IllegalAccessException("User is not an admin and cannot perform this operation");
 			}
 		} catch (Exception e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to query whether user {} is a system admin for system {}", cacId, system, e);
 		} finally {
 			if (wrapper != null) {
 				try {
 					wrapper.close();
 				} catch (IOException e) {
-					logger.error(Constants.STACKTRACE, e);
+					classLogger.error("Failed to close the result wrapper for the system admin check query", e);
 				}
 			}
 		}

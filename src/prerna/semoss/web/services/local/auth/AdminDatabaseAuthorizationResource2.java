@@ -125,8 +125,8 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(
-					"User is trying to pull the databases that user " + userId + " has access to when not an admin");
+			classLogger.warn("User is trying to pull the databases that user {} has access to when not an admin",
+					userId);
 			classLogger.error("Failed to retrieve all user databases.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -154,7 +154,7 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to grant all the databases to user " + userId + " when not an admin");
+			classLogger.warn("User is trying to grant all the databases to user {} when not an admin", userId);
 			classLogger.error("Failed to grant all databases.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -253,8 +253,7 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger
-					.warn("User is trying to pull all the users who use database " + databaseId + " when not an admin");
+			classLogger.warn("User is trying to pull all the users who use database {} when not an admin", databaseId);
 			classLogger.error("Failed to retrieve database users.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -299,8 +298,7 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(
-					"User is trying to add user " + newUserId + " to database " + databaseId + " when not an admin");
+			classLogger.warn("User is trying to add user {} to database {} when not an admin", newUserId, databaseId);
 			classLogger.error("Failed to add database user permission.", e);
 			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(ret, 401);
@@ -345,7 +343,7 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to add user permission to database " + databaseId + " when not an admin");
+			classLogger.warn("User is trying to add user permission to database {} when not an admin", databaseId);
 			classLogger.error("Failed to add database user permissions.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -396,7 +394,7 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to add all users to database " + databaseId + " when not an admin");
+			classLogger.warn("User is trying to add all users to database {} when not an admin", databaseId);
 			classLogger.error("Failed to add all users.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -450,8 +448,8 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			classLogger.error("Failed to update database user permission.", e);
-			classLogger.warn("User is trying to edit user " + existingUserId + " permissions for database " + databaseId
-					+ " when not an admin");
+			classLogger.warn("User is trying to edit user {} permissions for database {} when not an admin",
+					existingUserId, databaseId);
 			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(ret, 401);
 		}
@@ -496,8 +494,8 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			classLogger.error("Failed to update database user permissions.", e);
-			classLogger.warn(
-					"User is trying to edit user access permissions for database " + databaseId + " when not an admin");
+			classLogger.warn("User is trying to edit user access permissions for database {} when not an admin",
+					databaseId);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -547,8 +545,7 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			classLogger.error("Failed to update database user permissions.", e);
-			classLogger
-					.warn("User is trying to edit user permissions for database " + databaseId + " when not an admin");
+			classLogger.warn("User is trying to edit user permissions for database {} when not an admin", databaseId);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -597,8 +594,8 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to remove user " + existingUserId + " from having access to database "
-					+ databaseId + " when not an admin");
+			classLogger.warn("User is trying to remove user {} from having access to database {} when not an admin",
+					existingUserId, databaseId);
 			classLogger.error("Failed to remove database user permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -645,8 +642,8 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to remove usersfrom having access to database " + databaseId
-					+ " when not an admin");
+			classLogger.warn("User is trying to remove usersfrom having access to database {} when not an admin",
+					databaseId);
 			classLogger.error("Failed to remove database user permissions.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -691,7 +688,7 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to set the database " + databaseId + logPublic + " when not an admin");
+			classLogger.warn("User is trying to set the database {}{} when not an admin", databaseId, logPublic);
 			classLogger.error("Failed to update database global.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -741,8 +738,7 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger
-					.warn("User is trying to set the database " + databaseId + logDiscoverable + " when not an admin");
+			classLogger.warn("User is trying to set the database {}{} when not an admin", databaseId, logDiscoverable);
 			classLogger.error("Failed to update database discoverable.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -827,8 +823,8 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to approve user request for permission to database " + databaseId
-					+ " when not an admin");
+			classLogger.warn("User is trying to approve user request for permission to database {} when not an admin",
+					databaseId);
 			classLogger.error("Failed to approve database user access request.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -882,8 +878,8 @@ public class AdminDatabaseAuthorizationResource2 extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to deny user request for permission to database " + databaseId
-					+ " when not an admin");
+			classLogger.warn("User is trying to deny user request for permission to database {} when not an admin",
+					databaseId);
 			classLogger.error("Failed to deny database user access request.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());

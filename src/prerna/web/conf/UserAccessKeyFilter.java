@@ -148,8 +148,9 @@ public class UserAccessKeyFilter implements Filter {
 					}
 				}
 				if (!loginAllowed) {
-					classLogger.warn("User is attempting to login using bearer token for provider '" + provider
-							+ "' but login is not allowed");
+					classLogger.warn(
+							"User is attempting to login using bearer token for provider '{}' but login is not allowed",
+							provider);
 					arg2.doFilter(arg0, arg1);
 					return;
 				}
@@ -158,8 +159,8 @@ public class UserAccessKeyFilter implements Filter {
 				String tokenFillerClass = thisProvider.getTokenFillerClass();
 				if (tokenFillerClass == null) {
 					classLogger.warn(
-							"Attempting to login using access token but this functionality is not implemented for auth provider "
-									+ thisProvider.getLabel());
+							"Attempting to login using access token but this functionality is not implemented for auth provider {}",
+							thisProvider.getLabel());
 					arg2.doFilter(arg0, arg1);
 					return;
 				}
@@ -216,8 +217,8 @@ public class UserAccessKeyFilter implements Filter {
 						classLogger.error("Error validating user access key '{}' against secret key", accessKey, e);
 					}
 					if (token == null) {
-						classLogger.error("User could not login using user access key '" + accessKey
-								+ "' with invalid secret key");
+						classLogger.error("User could not login using user access key '{}' with invalid secret key",
+								accessKey);
 					} else {
 						// let us make sure this login type is still allowed to login via access/secret
 						// key
@@ -226,8 +227,8 @@ public class UserAccessKeyFilter implements Filter {
 							boolean accessKeysAllowed = SocialPropertiesUtil.getInstance().accessKeysAllowed(provider);
 							if (!accessKeysAllowed) {
 								classLogger.error(
-										"User is trying to login using access/secret key but administrator has disabeled for provider "
-												+ provider.name());
+										"User is trying to login using access/secret key but administrator has disabeled for provider {}",
+										provider.name());
 								user = null;
 								token = null;
 							}
@@ -237,8 +238,8 @@ public class UserAccessKeyFilter implements Filter {
 					if (token != null) {
 						SecurityUserAccessKeyUtils.updateAccessTokenLastUsed(accessKey);
 						UserResource.addAccessToken(token, request, false);
-						classLogger.info(
-								"User is logging in with provider " + token.getProvider() + " with user access key");
+						classLogger.info("User is logging in with provider {} with user access key",
+								token.getProvider());
 					}
 				}
 			}

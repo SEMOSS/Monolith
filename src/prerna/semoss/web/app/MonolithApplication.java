@@ -33,7 +33,6 @@ import java.util.Set;
 import javax.ws.rs.ApplicationPath;
 import javax.ws.rs.core.Application;
 
-import prerna.cluster.RawSelectWrapperService;
 import prerna.semoss.web.form.FormResource;
 import prerna.semoss.web.services.config.ServerConfigurationResource;
 import prerna.semoss.web.services.local.AdminThemeResource;
@@ -124,7 +123,6 @@ public class MonolithApplication extends Application {
 		// other
 		singletons.add(new AdminThemeResource());
 		singletons.add(new ServerConfigurationResource());
-		singletons.add(new RawSelectWrapperService());
 		// legacy forms - still used in production - RDF specific
 		singletons.add(new FormResource());
 
