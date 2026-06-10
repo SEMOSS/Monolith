@@ -109,8 +109,8 @@ public class OpenAIFilter implements Filter {
 							boolean accessKeysAllowed = SocialPropertiesUtil.getInstance().accessKeysAllowed(provider);
 							if (!accessKeysAllowed) {
 								classLogger.error(
-										"User is trying to login using access/secret key but administrator has disabeled for provider "
-												+ provider.name());
+										"User is trying to login using access/secret key but administrator has disabeled for provider {}",
+										provider.name());
 								user = null;
 								token = null;
 							}
@@ -120,8 +120,8 @@ public class OpenAIFilter implements Filter {
 					if (token != null) {
 						SecurityUserAccessKeyUtils.updateAccessTokenLastUsed(accessKey);
 						UserResource.addAccessToken(token, request, false);
-						classLogger.info(
-								"User is logging in with provider " + token.getProvider() + " with user access key");
+						classLogger.info("User is logging in with provider {} with user access key",
+								token.getProvider());
 					}
 				}
 			}

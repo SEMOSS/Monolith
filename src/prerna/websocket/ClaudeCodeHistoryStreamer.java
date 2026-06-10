@@ -45,7 +45,7 @@ import prerna.util.Utility;
 
 public class ClaudeCodeHistoryStreamer implements FileStreamer {
 
-	private static final Logger logger = LogManager.getLogger(ClaudeCodeHistoryStreamer.class);
+	private static final Logger classLogger = LogManager.getLogger(ClaudeCodeHistoryStreamer.class);
 
 	/** How often to poll for the file/directory to appear (ms) */
 	private static final long POLL_INTERVAL_MS = 2000;
@@ -56,21 +56,20 @@ public class ClaudeCodeHistoryStreamer implements FileStreamer {
 	private volatile boolean running = false;
 
 	/**
-	 * @param roomId     the room whose JSONL transcript to tail
-	 * @param insightId  the insightId whose WS clients should receive updates
-	 * @param transform  a function that reshapes each raw JSON line before it is
-	 *                   sent to the client; return {@code null} to skip a line
+	 * @param roomId    the room whose JSONL transcript to tail
+	 * @param insightId the insightId whose WS clients should receive updates
+	 * @param transform a function that reshapes each raw JSON line before it is
+	 *                  sent to the client; return {@code null} to skip a line
 	 */
-	public ClaudeCodeHistoryStreamer(String roomId, String insightId,
-			Function<JSONObject, JSONObject> transform) {
+	public ClaudeCodeHistoryStreamer(String roomId, String insightId, Function<JSONObject, JSONObject> transform) {
 		this.roomId = roomId;
 		this.insightId = insightId;
 		this.transform = transform;
 	}
 
 	/**
-	 * Search the room folder for the JSONL file.
-	 * Returns null if the room dir or file doesn't exist yet.
+	 * Search the room folder for the JSONL file. Returns null if the room dir or
+	 * file doesn't exist yet.
 	 *
 	 * Inlined (not delegating to ClaudeCodeTranscriptLocator in Semoss) so this
 	 * Monolith class doesn't depend on a Semoss-side class that may not yet be
@@ -91,45 +90,43 @@ public class ClaudeCodeHistoryStreamer implements FileStreamer {
 		String targetFileName = roomId + ".jsonl";
 
 		try (Stream<Path> walk = Files.walk(rootDir)) {
-			return walk
-					.filter(Files::isRegularFile)
-					.filter(p -> p.getFileName().toString().equals(targetFileName))
-					.findFirst()
-					.orElse(null);
+			return walk.filter(Files::isRegularFile).filter(p -> p.getFileName().toString().equals(targetFileName))
+					.findFirst().orElse(null);
 		} catch (IOException e) {
 			return null;
 		}
 	}
 
 	/**
-	 * Begin tailing the file. If the file doesn't exist yet, polls until it
-	 * appears (or until {@link #stop()} is called). Blocks the calling thread.
+	 * Begin tailing the file. If the file doesn't exist yet, polls until it appears
+	 * (or until {@link #stop()} is called). Blocks the calling thread.
 	 */
+	@Override
 	public void start() {
 		running = true;
 
 		// Phase 1: Wait for the file to appear
 		Path resolvedPath = findJsonlFile();
 		if (resolvedPath == null) {
-			logger.info("JSONL file for room {} does not exist yet, waiting for it to appear", roomId);
+			classLogger.info("JSONL file for room {} does not exist yet, waiting for it to appear", roomId);
 			resolvedPath = waitForFile();
 		}
 
 		if (resolvedPath == null) {
 			// stop() was called while we were waiting
-			logger.info("Stopped waiting for JSONL file (room={})", roomId);
+			classLogger.info("Stopped waiting for JSONL file (room={})", roomId);
 			return;
 		}
 
 		// Phase 2: Tail the file
 		tailFile(resolvedPath);
 
-		logger.info("Stopped tailing room={}", roomId);
+		classLogger.info("Stopped tailing room={}", roomId);
 	}
 
 	/**
-	 * Poll until the JSONL file appears on disk.
-	 * Returns null if stop() is called before the file is found.
+	 * Poll until the JSONL file appears on disk. Returns null if stop() is called
+	 * before the file is found.
 	 */
 	private Path waitForFile() {
 		while (running) {
@@ -142,7 +139,7 @@ public class ClaudeCodeHistoryStreamer implements FileStreamer {
 
 			Path found = findJsonlFile();
 			if (found != null) {
-				logger.info("JSONL file appeared: {}", found);
+				classLogger.info("JSONL file appeared: {}", found);
 				return found;
 			}
 		}
@@ -152,22 +149,21 @@ public class ClaudeCodeHistoryStreamer implements FileStreamer {
 	/**
 	 * Tail the JSONL file by re-stat + re-open on each cycle.
 	 *
-	 * A single long-lived RandomAccessFile handle does not see appends
-	 * from another process on CSI/NFS-backed volumes (common on Kubernetes):
-	 * the NFS client caches file attributes per-open-handle and readLine
-	 * returns null forever against the stale EOF. Re-stat via Files.size
-	 * + fresh open each cycle bypasses that cache and works on every
-	 * filesystem we target.
+	 * A single long-lived RandomAccessFile handle does not see appends from another
+	 * process on CSI/NFS-backed volumes (common on Kubernetes): the NFS client
+	 * caches file attributes per-open-handle and readLine returns null forever
+	 * against the stale EOF. Re-stat via Files.size + fresh open each cycle
+	 * bypasses that cache and works on every filesystem we target.
 	 */
 	private void tailFile(Path filePath) {
 		long lastOffset;
 		try {
 			lastOffset = Files.size(filePath);
 		} catch (IOException e) {
-			logger.warn("Could not stat {} on startup, starting from offset 0", filePath);
+			classLogger.warn("Could not stat {} on startup, starting from offset 0", filePath);
 			lastOffset = 0;
 		}
-		logger.info("Tailing {} for insightId={} (start offset={})", filePath, insightId, lastOffset);
+		classLogger.info("Tailing {} for insightId={} (start offset={})", filePath, insightId, lastOffset);
 
 		while (running) {
 			try {
@@ -181,12 +177,12 @@ public class ClaudeCodeHistoryStreamer implements FileStreamer {
 			try {
 				currentSize = Files.size(filePath);
 			} catch (IOException e) {
-				logger.warn("Could not stat {}: {}", filePath, e.toString());
+				classLogger.warn("Could not stat {}: {}", filePath, e.toString());
 				continue;
 			}
 
 			if (currentSize < lastOffset) {
-				logger.info("File {} truncated or rotated, resetting offset", filePath);
+				classLogger.info("File {} truncated or rotated, resetting offset", filePath);
 				lastOffset = 0;
 			}
 
@@ -200,9 +196,9 @@ public class ClaudeCodeHistoryStreamer implements FileStreamer {
 
 	/**
 	 * Read bytes from {@code fromOffset} up to {@code toOffset}, process every
-	 * complete line (terminated by {@code \n}), and return the offset just
-	 * after the last complete line. Any trailing bytes past the final newline
-	 * stay on disk and are re-read on the next cycle once more data arrives.
+	 * complete line (terminated by {@code \n}), and return the offset just after
+	 * the last complete line. Any trailing bytes past the final newline stay on
+	 * disk and are re-read on the next cycle once more data arrives.
 	 */
 	private long readNewLines(Path filePath, long fromOffset, long toOffset) {
 		int length = (int) (toOffset - fromOffset);
@@ -212,7 +208,7 @@ public class ClaudeCodeHistoryStreamer implements FileStreamer {
 			raf.seek(fromOffset);
 			raf.readFully(buf);
 		} catch (IOException e) {
-			logger.error("Error reading {}", filePath, e);
+			classLogger.error("Error reading {}", filePath, e);
 			return fromOffset;
 		}
 
@@ -254,16 +250,18 @@ public class ClaudeCodeHistoryStreamer implements FileStreamer {
 			SocketSessionHandler handler = SocketSessionHandlerFactory.getHandler(insightId);
 			handler.updateRecipe(transformed.toString());
 		} catch (Exception e) {
-			logger.warn("Failed to process JSONL line: {}", line, e);
+			classLogger.warn("Failed to process JSONL line: {}", line, e);
 		}
 	}
 
 	/** Signal the tailer to stop after the current poll cycle. */
+	@Override
 	public void stop() {
 		running = false;
 	}
 
 	/** Whether the tailer is currently running. */
+	@Override
 	public boolean isRunning() {
 		return running;
 	}

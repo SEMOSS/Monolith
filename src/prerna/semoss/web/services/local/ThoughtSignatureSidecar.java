@@ -50,22 +50,28 @@ import com.google.gson.JsonParser;
  * Persists Vertex/Gemini {@code thought_signature} bytes per tool_use_id in a
  * sidecar JSONL file alongside Claude Code's session transcript.
  *
- * <p>Background: Vertex requires every prior {@code function_call} Part to
- * carry its original {@code thought_signature} on subsequent turns when
- * extended thinking is enabled. The Anthropic wire protocol the Claude Code
- * SDK speaks has no field on {@code tool_use} blocks for this value, so it
- * gets dropped at the SSE boundary and never makes it into the SDK's local
- * JSONL transcript. This sidecar smuggles the signature around the protocol
- * gap.
+ * <p>
+ * Background: Vertex requires every prior {@code function_call} Part to carry
+ * its original {@code thought_signature} on subsequent turns when extended
+ * thinking is enabled. The Anthropic wire protocol the Claude Code SDK speaks
+ * has no field on {@code tool_use} blocks for this value, so it gets dropped at
+ * the SSE boundary and never makes it into the SDK's local JSONL transcript.
+ * This sidecar smuggles the signature around the protocol gap.
  *
- * <p>File: {@code <roomFolder>/thought_signatures.jsonl}
+ * <p>
+ * File: {@code <roomFolder>/thought_signatures.jsonl}
  *
- * <p>Format: append-only, one JSON object per line:
- * <pre>{"id":"toolu_01...","signature":"&lt;base64&gt;"}</pre>
+ * <p>
+ * Format: append-only, one JSON object per line:
+ * 
+ * <pre>
+ * {"id":"toolu_01...","signature":"&lt;base64&gt;"}
+ * </pre>
  *
- * <p>Concurrency: writes within a single room are sequential because Claude
- * Code only opens one streaming session per room at a time. No locking is
- * required across rooms because each has its own folder.
+ * <p>
+ * Concurrency: writes within a single room are sequential because Claude Code
+ * only opens one streaming session per room at a time. No locking is required
+ * across rooms because each has its own folder.
  */
 public class ThoughtSignatureSidecar {
 
@@ -85,9 +91,9 @@ public class ThoughtSignatureSidecar {
 	}
 
 	/**
-	 * Append a (toolUseId, signature) entry to the room's sidecar. Creates the
-	 * file (and any missing parent folder) if it does not exist. No-ops on null
-	 * inputs or on I/O failure (best-effort: never breaks the SSE stream).
+	 * Append a (toolUseId, signature) entry to the room's sidecar. Creates the file
+	 * (and any missing parent folder) if it does not exist. No-ops on null inputs
+	 * or on I/O failure (best-effort: never breaks the SSE stream).
 	 */
 	public static void append(String roomFolderPath, String toolUseId, String signature) {
 		if (toolUseId == null || toolUseId.isEmpty() || signature == null || signature.isEmpty()) {
@@ -106,19 +112,18 @@ public class ThoughtSignatureSidecar {
 			obj.addProperty("id", toolUseId);
 			obj.addProperty("signature", signature);
 			String line = GSON.toJson(obj) + System.lineSeparator();
-			Files.write(path, line.getBytes(StandardCharsets.UTF_8),
-					StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+			Files.write(path, line.getBytes(StandardCharsets.UTF_8), StandardOpenOption.CREATE,
+					StandardOpenOption.APPEND);
 		} catch (IOException e) {
 			classLogger.warn("Failed to append thought_signature to sidecar at {}: {}", path, e.getMessage());
 		}
 	}
 
 	/**
-	 * Load all (toolUseId → signature) entries from the room's sidecar.
-	 * Returns an empty map when the file does not exist (e.g. first turn, or
-	 * non-thinking model paths). Later entries with the same id win, which
-	 * matches "most recent assignment" semantics in case anything ever
-	 * re-emits.
+	 * Load all (toolUseId -> signature) entries from the room's sidecar. Returns an
+	 * empty map when the file does not exist (e.g. first turn, or non-thinking
+	 * model paths). Later entries with the same id win, which matches "most recent
+	 * assignment" semantics in case anything ever re-emits.
 	 */
 	public static Map<String, String> load(String roomFolderPath) {
 		Path path = filePath(roomFolderPath);

@@ -714,7 +714,7 @@ public class FileUploader extends Uploader {
 		if (!fileDir.exists()) {
 			Boolean success = fileDir.mkdirs();
 			if (!success) {
-				classLogger.info("Unable to make direction at location: " + Utility.cleanLogString(filePath));
+				classLogger.info("Unable to make direction at location: {}", Utility.cleanLogString(filePath));
 			}
 		}
 
@@ -828,7 +828,7 @@ public class FileUploader extends Uploader {
 
 				File file = new File(WebUtility.normalizePath(fileLocation));
 				writeFile(fi, file);
-				classLogger.info(Utility.cleanLogString("Saved Pasted Data To " + file));
+				classLogger.info("Saved Pasted Data To {}", Utility.cleanLogString(file.toString()));
 
 				String savedName = FilenameUtils.getName(fileLocation);
 				Map<String, String> fileMap = new HashMap<String, String>();
@@ -861,8 +861,8 @@ public class FileUploader extends Uploader {
 						fi.getInputStream());
 
 				if (!viruses.isEmpty()) {
-					classLogger.warn(
-							Utility.cleanLogString("Virus scanner errors map for " + fi.getName() + " : " + viruses));
+					classLogger.warn("Virus scanner errors map for {} : {}", Utility.cleanLogString(fi.getName()),
+							Utility.cleanLogString(String.valueOf(viruses)));
 					String error = "Detected " + viruses.size() + " virus";
 
 					if (viruses.size() > 1) {

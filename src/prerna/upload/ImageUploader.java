@@ -160,7 +160,7 @@ public class ImageUploader extends Uploader {
 			localEngineImageFolderPath = EngineUtility.getLocalEngineImageDirectory(engineType);
 			engineVersionPath = EngineUtility.getSpecificEngineVersionFolder(engineType, engineNameAndId);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to resolve the image folder paths for engine {}", engineNameAndId, e);
 			returnMap.put(Constants.ERROR_MESSAGE,
 					"Unknown engine type '" + engineType + "' for engine " + engineNameAndId);
 			return WebUtility.getResponse(returnMap, 400);
@@ -184,7 +184,7 @@ public class ImageUploader extends Uploader {
 			if (!engineVersionF.exists() || !engineVersionF.isDirectory()) {
 				Boolean success = engineVersionF.mkdirs();
 				if (!success) {
-					classLogger.warn("Unable to make engine version folder at path " + engineVersionPath);
+					classLogger.warn("Unable to make engine version folder at path {}", engineVersionPath);
 					returnMap.put(Constants.ERROR_MESSAGE,
 							"Error occured attempting to make the engine version folder");
 					return WebUtility.getResponse(returnMap, 400);
@@ -323,7 +323,7 @@ public class ImageUploader extends Uploader {
 			localEngineImageFolderPath = EngineUtility.getLocalEngineImageDirectory(engineType);
 			engineVersionPath = EngineUtility.getSpecificEngineVersionFolder(engineType, engineNameAndId);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to resolve the image folder paths for engine {}", engineNameAndId, e);
 			returnMap.put(Constants.ERROR_MESSAGE,
 					"Unknown engine type '" + engineType + "' for engine " + engineNameAndId);
 			return WebUtility.getResponse(returnMap, 400);
@@ -345,7 +345,7 @@ public class ImageUploader extends Uploader {
 			if (!engineVersionF.exists() || !engineVersionF.isDirectory()) {
 				Boolean success = engineVersionF.mkdirs();
 				if (!success) {
-					classLogger.warn("Unable to make engine version folder at path " + engineVersionPath);
+					classLogger.warn("Unable to make engine version folder at path {}", engineVersionPath);
 					returnMap.put(Constants.ERROR_MESSAGE,
 							"Error occured attempting to make the engine version folder");
 					return WebUtility.getResponse(returnMap, 400);
@@ -515,7 +515,7 @@ public class ImageUploader extends Uploader {
 			if (!f.exists()) {
 				Boolean success = f.mkdirs();
 				if (!success) {
-					classLogger.info("Unable to make direction at location: " + Utility.cleanLogString(filePath));
+					classLogger.info("Unable to make direction at location: {}", Utility.cleanLogString(filePath));
 				}
 			}
 			f = new File(WebUtility.normalizePath(imageLoc));
@@ -533,8 +533,8 @@ public class ImageUploader extends Uploader {
 				for (File oldI : oldImages) {
 					Boolean success = oldI.delete();
 					if (!success) {
-						classLogger.info(
-								"Unable to delete file at location: " + Utility.cleanLogString(oldI.getAbsolutePath()));
+						classLogger.info("Unable to delete file at location: {}",
+								Utility.cleanLogString(oldI.getAbsolutePath()));
 					}
 				}
 			}
@@ -546,7 +546,7 @@ public class ImageUploader extends Uploader {
 				}
 			} catch (Exception e) {
 				Thread.currentThread().interrupt();
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.error("Failed to push the project image to the cloud for project {}", projectId, e);
 			}
 		}
 
@@ -631,8 +631,8 @@ public class ImageUploader extends Uploader {
 			for (File oldI : oldImages) {
 				Boolean success = oldI.delete();
 				if (!success) {
-					classLogger.info(
-							"Unable to delete file at location: " + Utility.cleanLogString(oldI.getAbsolutePath()));
+					classLogger.info("Unable to delete file at location: {}",
+							Utility.cleanLogString(oldI.getAbsolutePath()));
 				}
 			}
 		}
@@ -643,7 +643,7 @@ public class ImageUploader extends Uploader {
 			}
 		} catch (Exception e) {
 			Thread.currentThread().interrupt();
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to delete the project image from the cloud for project {}", projectId, e);
 		}
 
 		returnMap.put("project_id", projectId);
@@ -771,7 +771,7 @@ public class ImageUploader extends Uploader {
 			if (!f.exists()) {
 				Boolean success = f.mkdirs();
 				if (!success) {
-					classLogger.info("Unable to make direction at location: " + Utility.cleanLogString(imageDir));
+					classLogger.info("Unable to make direction at location: {}", Utility.cleanLogString(imageDir));
 				}
 			}
 			// find all the existing image files
@@ -784,8 +784,8 @@ public class ImageUploader extends Uploader {
 					oldImageName = oldI.getName();
 					Boolean success = oldI.delete();
 					if (!success) {
-						classLogger.info(
-								"Unable to delete file at location: " + Utility.cleanLogString(oldI.getAbsolutePath()));
+						classLogger.info("Unable to delete file at location: {}",
+								Utility.cleanLogString(oldI.getAbsolutePath()));
 					}
 
 				}
@@ -802,7 +802,8 @@ public class ImageUploader extends Uploader {
 				}
 			} catch (Exception e) {
 				Thread.currentThread().interrupt();
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.error("Failed to push the insight image to the cloud for insight {} in project {}",
+						insightId, projectId, e);
 			}
 		}
 		returnMap.put("project_id", projectId);
@@ -891,8 +892,8 @@ public class ImageUploader extends Uploader {
 					oldImageName = oldI.getName();
 					Boolean success = oldI.delete();
 					if (!success) {
-						classLogger.info(
-								"Unable to delete file at location: " + Utility.cleanLogString(oldI.getAbsolutePath()));
+						classLogger.info("Unable to delete file at location: {}",
+								Utility.cleanLogString(oldI.getAbsolutePath()));
 					}
 				}
 			}
@@ -903,7 +904,8 @@ public class ImageUploader extends Uploader {
 				}
 			} catch (Exception e) {
 				Thread.currentThread().interrupt();
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.error("Failed to remove the insight image from the cloud for insight {} in project {}",
+						insightId, projectId, e);
 			}
 		} else {
 			returnMap.put(Constants.ERROR_MESSAGE, "You do not have a custom insight image to delete");
@@ -1007,7 +1009,7 @@ public class ImageUploader extends Uploader {
 			localEngineImageFolderPath = EngineUtility.getLocalEngineImageDirectory(engineType);
 			engineVersionPath = EngineUtility.getSpecificEngineVersionFolder(engineType, engineNameAndId);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to resolve the image folder paths for engine {}", engineNameAndId, e);
 			returnMap.put(Constants.ERROR_MESSAGE,
 					"Unknown engine type '" + engineType + "' for engine " + engineNameAndId);
 			return WebUtility.getResponse(returnMap, 400);
@@ -1031,7 +1033,7 @@ public class ImageUploader extends Uploader {
 			if (!engineVersionF.exists() || !engineVersionF.isDirectory()) {
 				Boolean success = engineVersionF.mkdirs();
 				if (!success) {
-					classLogger.warn("Unable to make engine version folder at path " + engineVersionPath);
+					classLogger.warn("Unable to make engine version folder at path {}", engineVersionPath);
 					returnMap.put(Constants.ERROR_MESSAGE,
 							"Error occured attempting to make the engine version folder");
 					return WebUtility.getResponse(returnMap, 400);
@@ -1178,7 +1180,7 @@ public class ImageUploader extends Uploader {
 			localEngineImageFolderPath = EngineUtility.getLocalEngineImageDirectory(engineType);
 			engineVersionPath = EngineUtility.getSpecificEngineVersionFolder(engineType, engineNameAndId);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to resolve the image folder paths for engine {}", engineNameAndId, e);
 			returnMap.put(Constants.ERROR_MESSAGE,
 					"Unknown engine type '" + engineType + "' for engine " + engineNameAndId);
 			return WebUtility.getResponse(returnMap, 400);
@@ -1200,7 +1202,7 @@ public class ImageUploader extends Uploader {
 			if (!engineVersionF.exists() || !engineVersionF.isDirectory()) {
 				Boolean success = engineVersionF.mkdirs();
 				if (!success) {
-					classLogger.warn("Unable to make engine version folder at path " + engineVersionPath);
+					classLogger.warn("Unable to make engine version folder at path {}", engineVersionPath);
 					returnMap.put(Constants.ERROR_MESSAGE,
 							"Error occured attempting to make the engine version folder");
 					return WebUtility.getResponse(returnMap, 400);

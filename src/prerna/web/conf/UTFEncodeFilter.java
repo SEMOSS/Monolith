@@ -39,7 +39,8 @@ import javax.servlet.ServletResponse;
 public class UTFEncodeFilter implements Filter {
 
 	@Override
-	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
+	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2)
+			throws IOException, ServletException {
 		arg0.setCharacterEncoding("utf-8");
 		arg1.setCharacterEncoding("utf-8");
 		arg1.setContentType("text/html;charset=utf-8");

@@ -161,7 +161,7 @@ public class GroupEngineAuthorizationResource {
 
 			SecurityGroupEngineUtils.addEngineGroupPermission(user, groupId, type, engineId, permission, endDate);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to add groups to engine " + engineId + " without having proper access");
+			classLogger.warn("User is trying to add groups to engine {} without having proper access", engineId);
 			classLogger.error("Failed to add group engine permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -223,8 +223,9 @@ public class GroupEngineAuthorizationResource {
 			}
 			SecurityGroupEngineUtils.editDatabaseGroupPermission(user, groupId, type, appId, newPermission, endDate);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to edit group " + groupId + " and type " + type + " permissions for app "
-					+ appId + " without having proper access");
+			classLogger.warn(
+					"User is trying to edit group {} and type {} permissions for app {} without having proper access",
+					groupId, type, appId);
 			classLogger.error("Failed to update group app permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -282,8 +283,9 @@ public class GroupEngineAuthorizationResource {
 
 			SecurityGroupEngineUtils.removeDatabaseGroupPermission(user, groupId, type, appId);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to remove group " + groupId + " and type " + type
-					+ " from having access to app " + appId + " without having proper access");
+			classLogger.warn(
+					"User is trying to remove group {} and type {} from having access to app {} without having proper access",
+					groupId, type, appId);
 			classLogger.error("Failed to remove group app permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -334,7 +336,7 @@ public class GroupEngineAuthorizationResource {
 			ret.put("groups", groups);
 			return WebUtility.getResponse(ret, 200);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to get details for engine " + engineId + " without having proper access");
+			classLogger.warn("User is trying to get details for engine {} without having proper access", engineId);
 			classLogger.error("Failed to retrieve all groups with access to engine.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());

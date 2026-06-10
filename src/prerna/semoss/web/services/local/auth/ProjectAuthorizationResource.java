@@ -181,7 +181,6 @@ public class ProjectAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.error("Invalid user session trying to access authorization resources", e);
 			classLogger.error("Failed to resolve authenticated user while retrieving accessible projects from POST.",
 					e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -290,8 +289,9 @@ public class ProjectAuthorizationResource {
 			if (SecurityProjectUtils.projectIsDiscoverable(projectId)) {
 				permission = "DISCOVERABLE";
 			} else {
-				classLogger.warn("User is trying to pull permission details for project " + projectId
-						+ " without having proper access");
+				classLogger.warn(
+						"User is trying to pull permission details for project {} without having proper access",
+						projectId);
 				Map<String, String> errorMap = new HashMap<String, String>();
 				errorMap.put(Constants.ERROR_MESSAGE, "User does not have access to this project");
 				return WebUtility.getResponse(errorMap, 401);
@@ -341,9 +341,10 @@ public class ProjectAuthorizationResource {
 			ret.put("totalMembers", totalMembers);
 			ret.put("members", members);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to pull users for project " + projectId + " without having proper access");
-			classLogger.error("Failed to retrieve users for project " + projectId
-					+ " because access validation failed for the requester.", e);
+			classLogger.warn("User is trying to pull users for project {} without having proper access", projectId);
+			classLogger.error(
+					"Failed to retrieve users for project {} because access validation failed for the requester.",
+					projectId, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -379,7 +380,7 @@ public class ProjectAuthorizationResource {
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
 
 		if (AbstractSecurityUtils.adminOnlyProjectAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn("User is trying to add a user for project " + projectId + " but is not an admin");
+			classLogger.warn("User is trying to add a user for project {} but is not an admin", projectId);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
 			return WebUtility.getResponse(errorMap, 401);
@@ -388,9 +389,9 @@ public class ProjectAuthorizationResource {
 		try {
 			SecurityProjectUtils.addProjectUser(user, newUserId, projectId, permission, endDate);
 		} catch (Exception e) {
-			classLogger.warn("User is trying to add a user for project " + projectId + " without having proper access");
-			classLogger.error("Failed to add user " + newUserId + " to project " + projectId + " with permission "
-					+ permission + ".", e);
+			classLogger.warn("User is trying to add a user for project {} without having proper access", projectId);
+			classLogger.error("Failed to add user {} to project {} with permission {}.", newUserId, projectId,
+					permission, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
@@ -423,7 +424,6 @@ public class ProjectAuthorizationResource {
 			requester = ResourceUtility.getUser(request);
 			classLogger.info("User is attempting to modify engine permissions.");
 		} catch (IllegalAccessException e) {
-			classLogger.error("Invalid user session trying to access authorization resources", e);
 			classLogger.error("Failed to resolve authenticated user while propagating project dependency permission.",
 					e);
 			ret.put(Constants.ERROR_MESSAGE, "User session is invalid");
@@ -451,8 +451,9 @@ public class ProjectAuthorizationResource {
 			try {
 				maxTokens = Integer.parseInt(maxTokensStr);
 			} catch (NumberFormatException e) {
-				classLogger.error("Failed to parse maxTokens value '" + maxTokensStr
-						+ "' while propagating project dependency permission.", e);
+				classLogger.error(
+						"Failed to parse maxTokens value '{}' while propagating project dependency permission.",
+						maxTokensStr, e);
 				ret.put(Constants.ERROR_MESSAGE, "maxTokens must be a valid integer value");
 				return WebUtility.getResponse(ret, 400);
 			}
@@ -464,8 +465,9 @@ public class ProjectAuthorizationResource {
 			try {
 				maxResponseTime = Double.parseDouble(maxResponseTimeStr);
 			} catch (NumberFormatException e) {
-				classLogger.error("Failed to parse maxResponseTime value '" + maxResponseTimeStr
-						+ "' while propagating project dependency permission.", e);
+				classLogger.error(
+						"Failed to parse maxResponseTime value '{}' while propagating project dependency permission.",
+						maxResponseTimeStr, e);
 				ret.put(Constants.ERROR_MESSAGE, "maxResponseTime must be a valid double value");
 				return WebUtility.getResponse(ret, 400);
 			}
@@ -474,7 +476,7 @@ public class ProjectAuthorizationResource {
 		// Determine if admin right are required to add users and, if so, if requester
 		// has those rights.
 		if (AbstractSecurityUtils.adminOnlyProjectAddAccess() && !SecurityAdminUtils.userIsAdmin(requester)) {
-			classLogger.warn("User is trying to add a user for project " + projectId + " but is not an admin");
+			classLogger.warn("User is trying to add a user for project {} but is not an admin", projectId);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
 			return WebUtility.getResponse(errorMap, 401);
@@ -506,7 +508,6 @@ public class ProjectAuthorizationResource {
 			requester = ResourceUtility.getUser(request);
 			classLogger.info("User is attempting to modify engine permissions.");
 		} catch (IllegalAccessException e) {
-			classLogger.error("Invalid user session trying to access authorization resources", e);
 			classLogger.error(
 					"Failed to resolve authenticated user while propagating project dependency permissions in bulk.",
 					e);
@@ -524,7 +525,7 @@ public class ProjectAuthorizationResource {
 		// Determine if admin right are required to add users and, if so, if requester
 		// has those rights.
 		if (AbstractSecurityUtils.adminOnlyProjectAddAccess() && !SecurityAdminUtils.userIsAdmin(requester)) {
-			classLogger.warn("User is trying to add a user for project " + projectId + " but is not an admin");
+			classLogger.warn("User is trying to add a user for project {} but is not an admin", projectId);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
 			return WebUtility.getResponse(errorMap, 401);
@@ -549,8 +550,9 @@ public class ProjectAuthorizationResource {
 				try {
 					maxTokens = Integer.parseInt(maxTokensStr);
 				} catch (NumberFormatException e) {
-					classLogger.error("Failed to parse maxTokens value '" + maxTokensStr + "' for user " + newUserId
-							+ " while propagating project dependency permissions in bulk.", e);
+					classLogger.error(
+							"Failed to parse maxTokens value '{}' for user {} while propagating project dependency permissions in bulk.",
+							maxTokensStr, newUserId, e);
 					ret.put(Constants.ERROR_MESSAGE, "maxTokens must be a valid integer value");
 					return WebUtility.getResponse(ret, 400);
 				}
@@ -563,8 +565,9 @@ public class ProjectAuthorizationResource {
 				try {
 					maxResponseTime = Double.parseDouble(maxResponseTimeStr);
 				} catch (NumberFormatException e) {
-					classLogger.error("Failed to parse maxResponseTime value '" + maxResponseTimeStr + "' for user "
-							+ newUserId + " while propagating project dependency permissions in bulk.", e);
+					classLogger.error(
+							"Failed to parse maxResponseTime value '{}' for user {} while propagating project dependency permissions in bulk.",
+							maxResponseTimeStr, newUserId, e);
 					ret.put(Constants.ERROR_MESSAGE, "maxResponseTime must be a valid double value");
 					return WebUtility.getResponse(ret, 400);
 				}
@@ -610,8 +613,8 @@ public class ProjectAuthorizationResource {
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
 
 		if (AbstractSecurityUtils.adminOnlyProjectAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn("User is trying to edit user " + existingUserId + " permissions for project " + projectId
-					+ " but is not an admin");
+			classLogger.warn("User is trying to edit user {} permissions for project {} but is not an admin",
+					existingUserId, projectId);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
 			return WebUtility.getResponse(errorMap, 401);
@@ -621,16 +624,15 @@ public class ProjectAuthorizationResource {
 			SecurityProjectUtils.editProjectUserPermission(user, existingUserId, existingUserType, projectId,
 					newPermission, endDate);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to edit user " + existingUserId + " permissions for project " + projectId
-					+ " without having proper access");
-			classLogger.error("Failed to update permission for user " + existingUserId + " in project " + projectId
-					+ " because access validation failed.", e);
+			classLogger.warn("User is trying to edit user {} permissions for project {} without having proper access",
+					existingUserId, projectId);
+			classLogger.error("Failed to update permission for user {} in project {} because access validation failed.",
+					existingUserId, projectId, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			classLogger.error(
-					"Failed to update permission for user " + existingUserId + " in project " + projectId + ".", e);
+			classLogger.error("Failed to update permission for user {} in project {}.", existingUserId, projectId, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
@@ -661,7 +663,6 @@ public class ProjectAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.error("Invalid user session trying to access authorization resources", e);
 			classLogger.error("Failed to resolve authenticated user while editing project user permissions in bulk.",
 					e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -673,8 +674,7 @@ public class ProjectAuthorizationResource {
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
 
 		if (AbstractSecurityUtils.adminOnlyProjectAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger
-					.warn("User is trying to edit user permissions for project " + projectId + " but is not an admin");
+			classLogger.warn("User is trying to edit user permissions for project {} but is not an admin", projectId);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
 			return WebUtility.getResponse(errorMap, 401);
@@ -684,15 +684,16 @@ public class ProjectAuthorizationResource {
 		try {
 			SecurityProjectUtils.editProjectUserPermissions(user, projectId, requests, endDate);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to edit user permissions for project " + projectId
-					+ " without having proper access");
-			classLogger.error("Failed to update project user permissions in bulk for project " + projectId
-					+ " because access validation failed.", e);
+			classLogger.warn("User is trying to edit user permissions for project {} without having proper access",
+					projectId);
+			classLogger.error(
+					"Failed to update project user permissions in bulk for project {} because access validation failed.",
+					projectId, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			classLogger.error("Failed to update project user permissions in bulk for project " + projectId + ".", e);
+			classLogger.error("Failed to update project user permissions in bulk for project {}.", projectId, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
@@ -732,8 +733,8 @@ public class ProjectAuthorizationResource {
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 
 		if (AbstractSecurityUtils.adminOnlyProjectAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn("User is trying to remove user " + existingUserId + " from having access to project "
-					+ projectId + " but is not an admin");
+			classLogger.warn("User is trying to remove user {} from having access to project {} but is not an admin",
+					existingUserId, projectId);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
 			return WebUtility.getResponse(errorMap, 401);
@@ -742,15 +743,16 @@ public class ProjectAuthorizationResource {
 		try {
 			SecurityProjectUtils.removeProjectUser(user, existingUserId, projectId);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to remove user " + existingUserId + " from having access to project "
-					+ projectId + " without having proper access");
-			classLogger.error("Failed to remove user " + existingUserId + " from project " + projectId
-					+ " because access validation failed.", e);
+			classLogger.warn(
+					"User is trying to remove user {} from having access to project {} without having proper access",
+					existingUserId, projectId);
+			classLogger.error("Failed to remove user {} from project {} because access validation failed.",
+					existingUserId, projectId, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			classLogger.error("Failed to remove user " + existingUserId + " from project " + projectId + ".", e);
+			classLogger.error("Failed to remove user {} from project {}.", existingUserId, projectId, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
@@ -790,7 +792,7 @@ public class ProjectAuthorizationResource {
 		String logPublic = isPublic ? " public " : " private";
 
 		if (AbstractSecurityUtils.adminOnlyProjectSetPublic() && !SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn("User is trying to set the project " + projectId + logPublic + " but is not an admin");
+			classLogger.warn("User is trying to set the project {}{} but is not an admin", projectId, logPublic);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
 			return WebUtility.getResponse(errorMap, 401);
@@ -799,15 +801,15 @@ public class ProjectAuthorizationResource {
 		try {
 			SecurityProjectUtils.setProjectGlobal(user, projectId, isPublic);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(
-					"User is trying to set the project " + projectId + logPublic + " without having proper access");
-			classLogger.error("Failed to update global visibility for project " + projectId
-					+ " because access validation failed.", e);
+			classLogger.warn("User is trying to set the project {}{} without having proper access", projectId,
+					logPublic);
+			classLogger.error("Failed to update global visibility for project {} because access validation failed.",
+					projectId, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e) {
-			classLogger.error("Failed to update global visibility for project " + projectId + ".", e);
+			classLogger.error("Failed to update global visibility for project {}.", projectId, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
@@ -848,8 +850,7 @@ public class ProjectAuthorizationResource {
 		String logDiscoverable = isDiscoverable ? " discoverable " : " not discoverable";
 
 		if (AbstractSecurityUtils.adminOnlyProjectSetDiscoverable() && !SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger
-					.warn("User is trying to set the project " + projectId + logDiscoverable + " but is not an admin");
+			classLogger.warn("User is trying to set the project {}{} but is not an admin", projectId, logDiscoverable);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
 			return WebUtility.getResponse(errorMap, 401);
@@ -858,16 +859,15 @@ public class ProjectAuthorizationResource {
 		try {
 			SecurityProjectUtils.setProjectDiscoverable(user, projectId, isDiscoverable);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to set the project " + projectId + logDiscoverable
-					+ " without having proper access");
-			classLogger.error(
-					"Failed to update discoverability for project " + projectId + " because access validation failed.",
-					e);
+			classLogger.warn("User is trying to set the project {}{} without having proper access", projectId,
+					logDiscoverable);
+			classLogger.error("Failed to update discoverability for project {} because access validation failed.",
+					projectId, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e) {
-			classLogger.error("Failed to update discoverability for project " + projectId + ".", e);
+			classLogger.error("Failed to update discoverability for project {}.", projectId, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
@@ -909,15 +909,15 @@ public class ProjectAuthorizationResource {
 		try {
 			SecurityProjectUtils.setProjectVisibility(user, projectId, visible);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(
-					"User is trying to set the project " + projectId + logVisible + " without having proper access");
-			classLogger.error(
-					"Failed to update visibility for project " + projectId + " because access validation failed.", e);
+			classLogger.warn("User is trying to set the project {}{} without having proper access", projectId,
+					logVisible);
+			classLogger.error("Failed to update visibility for project {} because access validation failed.", projectId,
+					e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e) {
-			classLogger.error("Failed to update visibility for project " + projectId + ".", e);
+			classLogger.error("Failed to update visibility for project {}.", projectId, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
@@ -957,16 +957,15 @@ public class ProjectAuthorizationResource {
 		try {
 			SecurityProjectUtils.setProjectFavorite(user, projectId, isFavorite);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(
-					"User is trying to set the project " + projectId + logFavorited + " without having proper access");
-			classLogger.error(
-					"Failed to update favorite status for project " + projectId + " because access validation failed.",
-					e);
+			classLogger.warn("User is trying to set the project {}{} without having proper access", projectId,
+					logFavorited);
+			classLogger.error("Failed to update favorite status for project {} because access validation failed.",
+					projectId, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e) {
-			classLogger.error("Failed to update favorite status for project " + projectId + ".", e);
+			classLogger.error("Failed to update favorite status for project {}.", projectId, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
@@ -998,7 +997,6 @@ public class ProjectAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User  invalid user session trying to access authorization resources");
 			classLogger.error(
 					"Failed to resolve authenticated user while retrieving users without project credentials.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -1017,10 +1015,12 @@ public class ProjectAuthorizationResource {
 				ret = SecurityProjectUtils.getProjectUsersNoCredentials(user, projectId, searchTerm, limit, offset);
 				return WebUtility.getResponse(ret, 200);
 			} catch (IllegalAccessException e) {
-				classLogger.warn("User  is trying to pull users for " + projectId
-						+ " that do not have credentials without having proper access");
-				classLogger.error("Failed to retrieve users without credentials for project " + projectId
-						+ " because access validation failed.", e);
+				classLogger.warn(
+						"User  is trying to pull users for {} that do not have credentials without having proper access",
+						projectId);
+				classLogger.error(
+						"Failed to retrieve users without credentials for project {} because access validation failed.",
+						projectId, e);
 				Map<String, String> errorMap = new HashMap<String, String>();
 				errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 				return WebUtility.getResponse(errorMap, 401);
@@ -1034,9 +1034,8 @@ public class ProjectAuthorizationResource {
 					searchTerm, graphApiGroupId, limit, offset);
 			return WebUtility.getResponse(filteredUsers, 200);
 		} catch (Exception e) {
-			classLogger.error(
-					"Failed to retrieve users without credentials from Microsoft Graph for project " + projectId + ".",
-					e);
+			classLogger.error("Failed to retrieve users without credentials from Microsoft Graph for project {}.",
+					projectId, e);
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 500);
@@ -1069,7 +1068,7 @@ public class ProjectAuthorizationResource {
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
 
 		if (AbstractSecurityUtils.adminOnlyProjectAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn("User is trying to approve user access to project " + projectId + " but is not an admin");
+			classLogger.warn("User is trying to approve user access to project {} but is not an admin", projectId);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
 			return WebUtility.getResponse(errorMap, 401);
@@ -1080,16 +1079,15 @@ public class ProjectAuthorizationResource {
 		try {
 			SecurityProjectUtils.approveProjectUserAccessRequests(user, projectId, requests, endDate);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(
-					"User is trying to grant user access to project " + projectId + " without having proper access");
-			classLogger.error(
-					"Failed to approve access requests for project " + projectId + " because access validation failed.",
-					e);
+			classLogger.warn("User is trying to grant user access to project {} without having proper access",
+					projectId);
+			classLogger.error("Failed to approve access requests for project {} because access validation failed.",
+					projectId, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			classLogger.error("Failed to approve access requests for project " + projectId + ".", e);
+			classLogger.error("Failed to approve access requests for project {}.", projectId, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
@@ -1128,7 +1126,7 @@ public class ProjectAuthorizationResource {
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 
 		if (AbstractSecurityUtils.adminOnlyProjectAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn("User is trying to deny user access to project " + projectId + " but is not an admin");
+			classLogger.warn("User is trying to deny user access to project {} but is not an admin", projectId);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
 			return WebUtility.getResponse(errorMap, 401);
@@ -1140,7 +1138,7 @@ public class ProjectAuthorizationResource {
 		try {
 			SecurityProjectUtils.denyProjectUserAccessRequests(user, projectId, requestids);
 		} catch (Exception e) {
-			classLogger.error("Failed to deny access requests for project " + projectId + ".", e);
+			classLogger.error("Failed to deny access requests for project {}.", projectId, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
@@ -1179,7 +1177,7 @@ public class ProjectAuthorizationResource {
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
 		if (AbstractSecurityUtils.adminOnlyProjectAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn("User is trying to add user permissions to project " + projectId + " but is not an admin");
+			classLogger.warn("User is trying to add user permissions to project {} but is not an admin", projectId);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
 			return WebUtility.getResponse(errorMap, 401);
@@ -1215,7 +1213,7 @@ public class ProjectAuthorizationResource {
 
 			SecurityProjectUtils.addProjectUserPermissions(user, projectId, permission, endDate);
 		} catch (Exception e) {
-			classLogger.error("Failed to add project user permissions in bulk for project " + projectId + ".", e);
+			classLogger.error("Failed to add project user permissions in bulk for project {}.", projectId, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
@@ -1256,8 +1254,8 @@ public class ProjectAuthorizationResource {
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 
 		if (AbstractSecurityUtils.adminOnlyProjectAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn("User is trying to remove users from having access to project " + projectId
-					+ " but is not an admin");
+			classLogger.warn("User is trying to remove users from having access to project {} but is not an admin",
+					projectId);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
 			return WebUtility.getResponse(errorMap, 401);
@@ -1266,15 +1264,16 @@ public class ProjectAuthorizationResource {
 		try {
 			SecurityProjectUtils.removeProjectUsers(user, ids, projectId);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to remove users from having access to project " + projectId
-					+ " without having proper access");
-			classLogger.error("Failed to remove project users in bulk for project " + projectId
-					+ " because access validation failed.", e);
+			classLogger.warn(
+					"User is trying to remove users from having access to project {} without having proper access",
+					projectId);
+			classLogger.error("Failed to remove project users in bulk for project {} because access validation failed.",
+					projectId, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			classLogger.error("Failed to remove project users in bulk for project " + projectId + ".", e);
+			classLogger.error("Failed to remove project users in bulk for project {}.", projectId, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
@@ -1312,15 +1311,14 @@ public class ProjectAuthorizationResource {
 			SecurityProjectUtils.setProjectPortal(user, projectId, hasPortal, portalName);
 			project.setHasPortal(hasPortal);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to " + logPortal + " for project " + projectId);
-			classLogger.error(
-					"Failed to update portal settings for project " + projectId + " because access validation failed.",
-					e);
+			classLogger.warn("User is trying to {} for project {}", logPortal, projectId);
+			classLogger.error("Failed to update portal settings for project {} because access validation failed.",
+					projectId, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e) {
-			classLogger.error("Failed to update portal settings for project " + projectId + ".", e);
+			classLogger.error("Failed to update portal settings for project {}.", projectId, e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
@@ -1332,12 +1330,12 @@ public class ProjectAuthorizationResource {
 			mods.put(Settings.PUBLIC_HOME_ENABLE, hasPortal + "");
 			Properties props = Utility.loadProperties(projectSmss);
 			if (props.get(Settings.PUBLIC_HOME_ENABLE) == null) {
-				classLogger.info(Utility.cleanLogString("Updating project smss to include public home property to "
-						+ logPortal + " for project " + projectId));
+				classLogger.info("Updating project smss to include public home property to {} for project {}",
+						logPortal, Utility.cleanLogString(projectId));
 				Utility.addKeysAtLocationIntoPropertiesFile(projectSmss, Constants.CONNECTION_URL, mods);
 			} else {
-				classLogger.info(
-						Utility.cleanLogString("Modifying project smss to " + logPortal + " for project " + projectId));
+				classLogger.info("Modifying project smss to {} for project {}", logPortal,
+						Utility.cleanLogString(projectId));
 				Utility.changePropertiesFileValue(projectSmss, Settings.PUBLIC_HOME_ENABLE, hasPortal + "");
 			}
 

@@ -49,85 +49,81 @@ import org.json.JSONObject;
 import prerna.auth.User;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
+import prerna.reactor.agent.ClaudeCodeTranscriptParser;
 import prerna.sablecc2.PixelRunner;
 import prerna.sablecc2.PixelStreamUtility;
-import prerna.reactor.agent.ClaudeCodeTranscriptParser;
 import prerna.util.Constants;
 
-@ServerEndpoint(value="/insightSocket", configurator=WSConfigurator.class)
+@ServerEndpoint(value = "/insightSocket", configurator = WSConfigurator.class)
 public class InsightWebsocket {
 
 	private static final Logger classLogger = LogManager.getLogger(InsightWebsocket.class);
 	private static final String INSIGHT_ID = "INSIGHT_ID";
-	
-    @OnOpen
-    public void onOpen(Session session, EndpointConfig config){
+
+	@OnOpen
+	public void onOpen(Session session, EndpointConfig config) {
 		classLogger.info("Creating new socket session");
 		User user = (User) config.getUserProperties().get(Constants.SESSION_USER);
 		if (user == null) {
 			throw new IllegalAccessError("User session is invalid");
 		}
 
-    	Map<String, List<String>> params = session.getRequestParameterMap();
-    	List<String> id = params.get("insightId");
-    	if(id == null || id.isEmpty()) {
+		Map<String, List<String>> params = session.getRequestParameterMap();
+		List<String> id = params.get("insightId");
+		if (id == null || id.isEmpty()) {
 			throw new IllegalAccessError("Must pass in insightId");
-    	}
-    	String insightId = id.get(0);
-    	{
-    		Insight in = InsightStore.getInstance().get(insightId);
-    		if(in == null) {
-    			in = new Insight();
-    			in.setInsightId(insightId);
-    			InsightStore.getInstance().put(in);
-    		}
-    	}
+		}
+		String insightId = id.get(0);
+		{
+			Insight in = InsightStore.getInstance().get(insightId);
+			if (in == null) {
+				in = new Insight();
+				in.setInsightId(insightId);
+				InsightStore.getInstance().put(in);
+			}
+		}
 		session.getUserProperties().put(Constants.SESSION_USER, user);
 		session.getUserProperties().put(INSIGHT_ID, insightId);
 
 		SocketSessionHandlerFactory.getHandler(insightId).addSession(session);
 	}
-	
+
 	@OnClose
 	public void close(Session session) {
 		classLogger.info("Closing socket session");
 		String insightId = (String) session.getUserProperties().get(INSIGHT_ID);
 		SocketSessionHandlerFactory.getHandler(insightId).removeSession(session);
 	}
-	
+
 	@OnError
 	public void onError(Session session, Throwable error) {
 		classLogger.error("WebSocket error for session {}", session.getId(), error);
 	}
-	
+
 	@OnMessage
 	public void handleMessage(String message, Session session) {
 		JSONObject json = new JSONObject(message);
 		String action = json.optString("action", "pixel");
 
 		switch (action) {
-			case "watch":
-				handleWatch(json, session);
-				break;
-			case "unwatch":
-				handleUnwatch(json, session);
-				break;
-			case "pixel":
-			default:
-				handlePixel(json, session);
-				break;
+		case "watch":
+			handleWatch(json, session);
+			break;
+		case "unwatch":
+			handleUnwatch(json, session);
+			break;
+		case "pixel":
+		default:
+			handlePixel(json, session);
+			break;
 		}
 	}
 
 	/**
 	 * Start a streamer based on the "type" field in the message.
 	 *
-	 * Message format:
-	 * {
-	 *   "action": "watch",
-	 *   "type": "claude_code",
-	 *   "roomId": "abc-123"
-	 * }
+	 * Message format: { "action": "watch", "type": "claude_code", "roomId":
+	 * "abc-123" }
 	 */
 	private void handleWatch(JSONObject json, Session session) {
 		String insightId = (String) session.getUserProperties().get(INSIGHT_ID);
@@ -164,30 +160,25 @@ public class InsightWebsocket {
 	}
 
 	/**
-	 * Create the appropriate FileStreamer for the given type.
-	 * Add new streamer types here as simple cases.
+	 * Create the appropriate FileStreamer for the given type. Add new streamer
+	 * types here as simple cases.
 	 */
 	private FileStreamer createStreamer(String type, JSONObject json, String insightId) {
 		switch (type) {
-			case "claude_code": {
-				String roomId = json.getString("roomId");
-				return new ClaudeCodeHistoryStreamer(roomId, insightId,
-						ClaudeCodeTranscriptParser::parse);
-			}
-			default:
-				return null;
+		case "claude_code": {
+			String roomId = json.getString("roomId");
+			return new ClaudeCodeHistoryStreamer(roomId, insightId, ClaudeCodeTranscriptParser::parse);
+		}
+		default:
+			return null;
 		}
 	}
 
 	/**
 	 * Stop a streamer by type and roomId.
 	 *
-	 * Message format:
-	 * {
-	 *   "action": "unwatch",
-	 *   "type": "claude_code",
-	 *   "roomId": "abc-123"
-	 * }
+	 * Message format: { "action": "unwatch", "type": "claude_code", "roomId":
+	 * "abc-123" }
 	 */
 	private void handleUnwatch(JSONObject json, Session session) {
 		String insightId = (String) session.getUserProperties().get(INSIGHT_ID);
@@ -202,12 +193,8 @@ public class InsightWebsocket {
 	/**
 	 * Run a pixel expression (original behavior).
 	 *
-	 * Message format:
-	 * {
-	 *   "action": "pixel",        (optional — this is the default)
-	 *   "insightId": "...",
-	 *   "pixel": "GetSystemConfig();"
-	 * }
+	 * Message format: { "action": "pixel", (optional - this is the default)
+	 * "insightId": "...", "pixel": "GetSystemConfig();" }
 	 */
 	private void handlePixel(JSONObject json, Session session) {
 		User user = (User) session.getUserProperties().get(Constants.SESSION_USER);
@@ -219,8 +206,7 @@ public class InsightWebsocket {
 		}
 
 		Insight in = null;
-		if (insightId == null || (insightId = insightId.trim()).isEmpty()
-				|| insightId.equalsIgnoreCase("new")) {
+		if (insightId == null || (insightId = insightId.trim()).isEmpty() || insightId.equalsIgnoreCase("new")) {
 			in = new Insight();
 			InsightStore.getInstance().put(in);
 		} else {
@@ -235,9 +221,9 @@ public class InsightWebsocket {
 		try {
 			streamingOutput.write(baos);
 		} catch (WebApplicationException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to write the pixel stream output for insight {}", insightId, e);
 		} catch (IOException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to write the pixel stream output for insight {}", insightId, e);
 		}
 		String returnData = new String(baos.toByteArray());
 		SocketSessionHandler handler = SocketSessionHandlerFactory.getHandler(insightId);

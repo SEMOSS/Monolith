@@ -311,8 +311,8 @@ public class NameServer {
 			Cookie[] curCookies = request.getCookies();
 			if (curCookies != null) {
 				for (Cookie c : curCookies) {
-					classLogger.debug(Utility
-							.cleanLogString(">>>>> Request cookie " + c.getName() + " with value " + c.getValue()));
+					classLogger.debug(">>>>> Request cookie {} with value {}", Utility.cleanLogString(c.getName()),
+							Utility.cleanLogString(c.getValue()));
 					if (c.getName().equals(routeCookieName)) {
 						routeId = WebUtility.inputSQLSanitizer(c.getValue());
 						ChromeDriverUtility.setRouteCookieValue(c.getValue());
@@ -503,8 +503,8 @@ public class NameServer {
 			Cookie[] curCookies = request.getCookies();
 			if (curCookies != null) {
 				for (Cookie c : curCookies) {
-					classLogger.debug(Utility
-							.cleanLogString(">>>>> Request cookie " + c.getName() + " with value " + c.getValue()));
+					classLogger.debug(">>>>> Request cookie {} with value {}", Utility.cleanLogString(c.getName()),
+							Utility.cleanLogString(c.getValue()));
 					if (c.getName().equals(routeCookieName)) {
 						routeId = WebUtility.inputSQLSanitizer(c.getValue());
 						ChromeDriverUtility.setRouteCookieValue(c.getValue());
@@ -683,8 +683,8 @@ public class NameServer {
 			Cookie[] curCookies = request.getCookies();
 			if (curCookies != null) {
 				for (Cookie c : curCookies) {
-					classLogger.debug(Utility
-							.cleanLogString(">>>>> Request cookie " + c.getName() + " with value " + c.getValue()));
+					classLogger.debug(">>>>> Request cookie {} with value {}", Utility.cleanLogString(c.getName()),
+							Utility.cleanLogString(c.getValue()));
 					if (c.getName().equals(routeCookieName)) {
 						routeId = WebUtility.inputSQLSanitizer(c.getValue());
 						ChromeDriverUtility.setRouteCookieValue(c.getValue());
@@ -990,8 +990,8 @@ public class NameServer {
 			Cookie[] curCookies = request.getCookies();
 			if (curCookies != null) {
 				for (Cookie c : curCookies) {
-					classLogger.debug(Utility
-							.cleanLogString(">>>>> Request cookie " + c.getName() + " with value " + c.getValue()));
+					classLogger.debug(">>>>> Request cookie {} with value {}", Utility.cleanLogString(c.getName()),
+							Utility.cleanLogString(c.getValue()));
 					if (c.getName().equals(routeCookieName)) {
 						routeId = WebUtility.inputSQLSanitizer(c.getValue());
 						ChromeDriverUtility.setRouteCookieValue(c.getValue());

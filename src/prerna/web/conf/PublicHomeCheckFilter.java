@@ -346,7 +346,7 @@ public class PublicHomeCheckFilter implements Filter {
 				return contentType;
 			}
 		} catch (IOException e) {
-			classLogger.debug("Files.probeContentType failed for " + file.getName(), e);
+			classLogger.debug("Files.probeContentType failed for {}", file.getName(), e);
 		}
 
 		// Try Apache Tika as last resort
