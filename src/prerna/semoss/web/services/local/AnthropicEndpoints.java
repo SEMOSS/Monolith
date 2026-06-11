@@ -69,8 +69,6 @@ import prerna.engine.impl.model.AbstractModelEngine;
 import prerna.engine.impl.model.Room;
 import prerna.engine.impl.model.RoomUtils;
 import prerna.engine.impl.model.inferencetracking.ModelInferenceLogsUtils;
-import prerna.engine.impl.model.message.InputMessage;
-import prerna.engine.impl.model.message.ResponseMessage;
 import prerna.engine.impl.model.responses.AskModelEngineResponse;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
@@ -82,6 +80,7 @@ import prerna.sablecc2.comm.PixelJobStatus;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.util.Constants;
 import prerna.util.Utility;
+import prerna.web.services.util.ModelPixelExecutor;
 import prerna.web.services.util.WebUtility;
 
 /**
@@ -114,7 +113,6 @@ public class AnthropicEndpoints {
 	@Consumes({ "application/json" })
 	@Produces({ "application/json;charset=utf-8", "text/event-stream" })
 	public Response createMessage(@Context HttpServletRequest request, @Context HttpServletResponse response) {
-
 		HttpSession session = request.getSession(false);
 		User user = null;
 
@@ -265,7 +263,6 @@ public class AnthropicEndpoints {
 		dataMap.remove("metadata");
 
 		List<Map<String, Object>> messagesList = (List<Map<String, Object>>) messages;
-		Map<String, Object> latestMessage = messagesList.get(messagesList.size() - 1);
 
 		room = RoomUtils.createRoomIfNotExists(roomId, insight, engine, null);
 
@@ -276,13 +273,8 @@ public class AnthropicEndpoints {
 		// paths (no file written) - no-op then.
 		Map<String, String> thoughtSigMap = ThoughtSignatureSidecar.load(room.getRoomFolderPath());
 
-		// HANDLE NON-STREAMING REQUESTS THROUGH askRoomIN
+		// HANDLE NON-STREAMING REQUESTS THROUGH THE LLM PIXEL
 		if (!isStreamingRequest) {
-			Map<String, Object> normalizedLatest = AnthropicMessagesHelper.normalizeMessageForAskRoom(latestMessage,
-					room, insight);
-			String question = (String) normalizedLatest.get("question");
-			List<String> copiedImages = (List<String>) normalizedLatest.get("images");
-
 			Map<String, Object> openAIFormat = AnthropicMessagesHelper
 					.normalizeAllAnthropicMessagesToOpenAI(messagesList, systemPromptString, tools, thoughtSigMap);
 
@@ -296,14 +288,7 @@ public class AnthropicEndpoints {
 				dataMap.put("tools", openAIFormat.get("tools"));
 			}
 
-			final Insight finalInsight = insight;
-			final Room finalRoom = room;
-
-			InputMessage msg = InputMessage.builder(room).withSystemPrompt(systemPromptString).withText(question)
-					.withModelType(engine.getModelType()).withMediaInputs(copiedImages, room).withParamMap(dataMap)
-					.build();
-
-			return handleNonStreamingRequest(engine, finalInsight, finalRoom, msg, engineId);
+			return handleNonStreamingRequest(engine, insight, room, dataMap, engineId);
 		} else {
 
 			final Insight finalInsight = insight;
@@ -332,12 +317,11 @@ public class AnthropicEndpoints {
 	/**
 	 * Handle non-streaming message request.
 	 */
-	private Response handleNonStreamingRequest(IModelEngine engine, Insight insight, Room room, InputMessage msg,
-			String engineId) {
-		AskModelEngineResponse llmResponse;
+	private Response handleNonStreamingRequest(IModelEngine engine, Insight insight, Room room,
+			Map<String, Object> dataMap, String engineId) {
+		AskModelEngineResponse<?> llmResponse;
 		try {
-			ResponseMessage response = room.ask(msg, engine);
-			llmResponse = response.getModelEngineResponse();
+			llmResponse = ModelPixelExecutor.askModelSync(engine, insight, room, dataMap);
 		} catch (Exception e) {
 			classLogger.error("Synchronous model call failed for engine '{}'", engineId, e);
 			Map<String, Object> errorMap = AnthropicMessagesHelper.createErrorResponse("api_error",
@@ -734,19 +718,6 @@ public class AnthropicEndpoints {
 	 */
 	private String startAsyncModelRequest(IModelEngine engine, Insight insight, Room room, Map<String, Object> dataMap,
 			String sessionId) {
-		try {
-			PixelJobManager manager = PixelJobManager.getManager();
-			PixelJobRunner jobRunner = manager.makeJob(insight, sessionId, null);
-			String jobId = jobRunner.getJobId();
-
-			String modelPixel = "LLM(engine='" + engine.getEngineId() + "',roomId='" + room.getId()
-					+ "',command='ignore'" + ",paramValues=[" + GSON.toJson(dataMap) + "]);";
-			jobRunner.addPixel(modelPixel);
-			Thread.ofVirtual().start(jobRunner);
-			return jobId;
-		} catch (Exception e) {
-			classLogger.error("Failed to start async model request", e);
-			throw new IllegalArgumentException(e.getMessage());
-		}
+		return ModelPixelExecutor.startAsyncModelRequest(engine, insight, room, dataMap, sessionId);
 	}
 }
