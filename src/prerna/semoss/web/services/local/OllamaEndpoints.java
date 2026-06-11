@@ -36,6 +36,7 @@ import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -67,8 +68,6 @@ import prerna.engine.api.IModelEngine;
 import prerna.engine.impl.model.AbstractModelEngine;
 import prerna.engine.impl.model.Room;
 import prerna.engine.impl.model.RoomUtils;
-import prerna.engine.impl.model.message.InputMessage;
-import prerna.engine.impl.model.message.ResponseMessage;
 import prerna.engine.impl.model.responses.AskModelEngineResponse;
 import prerna.engine.impl.model.responses.EmbeddingsModelEngineResponse;
 import prerna.om.Insight;
@@ -76,6 +75,7 @@ import prerna.om.InsightStore;
 import prerna.om.ThreadStore;
 import prerna.util.Constants;
 import prerna.util.Utility;
+import prerna.web.services.util.ModelPixelExecutor;
 import prerna.web.services.util.WebUtility;
 
 @Path("/model/ollama")
@@ -157,12 +157,17 @@ public class OllamaEndpoints {
 		boolean stream = Boolean.parseBoolean(String.valueOf(dataMap.getOrDefault("stream", false)));
 		dataMap.remove("stream");
 
+		// route through the LLM pixel by carrying the prompt as a full_prompt message
+		List<Map<String, Object>> generateMessages = new ArrayList<>();
+		Map<String, Object> generateUserMessage = new HashMap<>();
+		generateUserMessage.put("role", "user");
+		generateUserMessage.put("content", prompt);
+		generateMessages.add(generateUserMessage);
+		dataMap.put(AbstractModelEngine.FULL_PROMPT, generateMessages);
+
 		if (!stream) {
 			try {
-				InputMessage msg = InputMessage.builder(room).withModelType(engine.getModelType())
-						.withText(prompt, prompt).withParamMap(dataMap).build();
-				ResponseMessage response = room.ask(msg, engine);
-				AskModelEngineResponse llmResponse = response.getModelEngineResponse();
+				AskModelEngineResponse llmResponse = ModelPixelExecutor.askModelSync(engine, insight, room, dataMap);
 				Map<String, Object> payload = OllamaResponsesHelper.processGenerateResponse(engineId, llmResponse);
 				return WebUtility.getResponse(payload, 200);
 			} catch (Exception e) {
@@ -173,19 +178,17 @@ public class OllamaEndpoints {
 		}
 
 		final IModelEngine finalEngine = engine;
+		final Insight finalInsight = insight;
 		final Room finalRoom = room;
 		final Map<String, Object> finalDataMap = dataMap;
-		final String finalPrompt = prompt;
 		final String finalEngineId = engineId;
 
 		StreamingOutput output = new StreamingOutput() {
 			@Override
 			public void write(OutputStream rawOutput) throws IOException, WebApplicationException {
 				try (Writer writer = new BufferedWriter(new OutputStreamWriter(rawOutput, StandardCharsets.UTF_8))) {
-					InputMessage msg = InputMessage.builder(finalRoom).withModelType(finalEngine.getModelType())
-							.withText(finalPrompt, finalPrompt).withParamMap(finalDataMap).build();
-					ResponseMessage response = finalRoom.ask(msg, finalEngine);
-					AskModelEngineResponse llmResponse = response.getModelEngineResponse();
+					AskModelEngineResponse llmResponse = ModelPixelExecutor.askModelSync(finalEngine, finalInsight,
+							finalRoom, finalDataMap);
 
 					Map<String, Object> full = OllamaResponsesHelper.processGenerateResponse(finalEngineId,
 							llmResponse);
@@ -305,10 +308,7 @@ public class OllamaEndpoints {
 
 		if (!stream) {
 			try {
-				InputMessage msg = InputMessage.builder(room).withModelType(engine.getModelType()).withParamMap(dataMap)
-						.build();
-				ResponseMessage response = room.ask(msg, engine);
-				AskModelEngineResponse llmResponse = response.getModelEngineResponse();
+				AskModelEngineResponse llmResponse = ModelPixelExecutor.askModelSync(engine, insight, room, dataMap);
 				Map<String, Object> payload = OllamaResponsesHelper.processChatResponse(engineId, llmResponse);
 				return WebUtility.getResponse(payload, 200);
 			} catch (Exception e) {
@@ -319,6 +319,7 @@ public class OllamaEndpoints {
 		}
 
 		final IModelEngine finalEngine = engine;
+		final Insight finalInsight = insight;
 		final Room finalRoom = room;
 		final Map<String, Object> finalDataMap = dataMap;
 		final String finalEngineId = engineId;
@@ -328,10 +329,8 @@ public class OllamaEndpoints {
 			@SuppressWarnings("unchecked")
 			public void write(OutputStream rawOutput) throws IOException, WebApplicationException {
 				try (Writer writer = new BufferedWriter(new OutputStreamWriter(rawOutput, StandardCharsets.UTF_8))) {
-					InputMessage msg = InputMessage.builder(finalRoom).withModelType(finalEngine.getModelType())
-							.withParamMap(finalDataMap).build();
-					ResponseMessage response = finalRoom.ask(msg, finalEngine);
-					AskModelEngineResponse llmResponse = response.getModelEngineResponse();
+					AskModelEngineResponse llmResponse = ModelPixelExecutor.askModelSync(finalEngine, finalInsight,
+							finalRoom, finalDataMap);
 
 					Map<String, Object> full = OllamaResponsesHelper.processChatResponse(finalEngineId, llmResponse);
 					Map<String, Object> message = (Map<String, Object>) full.get("message");
