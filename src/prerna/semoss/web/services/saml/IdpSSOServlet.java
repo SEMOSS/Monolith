@@ -124,7 +124,7 @@ public class IdpSSOServlet extends HttpServlet {
 		// set it here so after the login we redirect to the correct page
 		if (hasRedirect) {
 			HttpSession session = request.getSession();
-			classLogger.info(Utility.cleanLogString("Setting new redirect value to " + redirect));
+			classLogger.info("Setting new redirect value to {}", Utility.cleanLogString(redirect));
 			session.setAttribute(SSOUtil.SAML_REDIRECT_KEY, redirect);
 		}
 
@@ -143,7 +143,7 @@ public class IdpSSOServlet extends HttpServlet {
 				.append("&binding=urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST").toString();
 		// Browser leaves this app here and authenticates at the IdP.
 		// The successful callback returns to SamlVerifierServlet.
-		classLogger.info("Redirect request created and redirecting to IDP now. IDPRequest - " + idpRequest);
+		classLogger.info("Redirect request created and redirecting to IDP now. IDPRequest - {}", idpRequest);
 		response.sendRedirect(idpRequest);
 	}
 

@@ -28,7 +28,6 @@
 package prerna.web.conf;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.UUID;
 
 import javax.servlet.Filter;
@@ -50,10 +49,9 @@ import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.util.Constants;
 import prerna.web.services.util.WebUtility;
 
-public class AnonymousUserFilter implements Filter, Serializable {
+public class AnonymousUserFilter implements Filter {
 
-	private static final Logger logger = LogManager.getLogger(AnonymousUserFilter.class);
-	private static final long serialVersionUID = -4657347128078864456L;
+	private static final Logger classLogger = LogManager.getLogger(AnonymousUserFilter.class);
 
 	@Override
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2)
@@ -99,9 +97,9 @@ public class AnonymousUserFilter implements Filter, Serializable {
 
 				// log the user login
 				if (foundPrevoiusCookie) {
-					logger.info("User is logging in anonymously");
+					classLogger.info("User is logging in anonymously");
 				} else {
-					logger.info("User is logging in anonymously for first time");
+					classLogger.info("User is logging in anonymously for first time");
 				}
 			}
 		}

@@ -108,7 +108,7 @@ public class PIVFilter implements Filter {
 					X509Certificate cert = certs[i];
 
 					String fullName = cert.getSubjectX500Principal().getName();
-					classLogger.info("REQUEST COMING FROM " + Utility.cleanLogString(fullName));
+					classLogger.info("REQUEST COMING FROM {}", Utility.cleanLogString(fullName));
 
 					LdapName ldapDN;
 					try {
@@ -142,7 +142,9 @@ public class PIVFilter implements Filter {
 										}
 									}
 								} catch (CertificateParsingException e) {
-									classLogger.error(Constants.STACKTRACE, e);
+									classLogger.error(
+											"Failed to parse X509 subject alternative names while extracting email from the CAC certificate",
+											e);
 								}
 							}
 
@@ -164,8 +166,7 @@ public class PIVFilter implements Filter {
 							}
 						} // end rdn loop
 					} catch (InvalidNameException e) {
-						classLogger.error("ERROR WITH PARSING CAC INFORMATION!");
-						classLogger.error(Constants.STACKTRACE, e);
+						classLogger.error("ERROR WITH PARSING CAC INFORMATION!", e);
 					}
 				}
 
@@ -173,7 +174,7 @@ public class PIVFilter implements Filter {
 				// and it has values filled in
 				// we know we can populate the user
 				if (token.getName() != null) {
-					classLogger.info("Valid request coming from user " + token.getName());
+					classLogger.info("Valid request coming from user {}", token.getName());
 					// store in session, log in user tracking db, and add the user to security db if
 					// autoadd
 					UserResource.addAccessToken(token, ((HttpServletRequest) arg0), PIVFilter.autoAdd);
@@ -244,19 +245,10 @@ public class PIVFilter implements Filter {
 				if (logInfoPath == null) {
 					classLogger.info(
 							"SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
-					classLogger.info(
-							"SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
-					classLogger.info(
-							"SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
-					classLogger.info(
-							"SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
 				}
 				try {
 					userLogger = UserFileLogUtil.getInstance(logInfoPath, logInfoSep);
 				} catch (Exception e) {
-					classLogger.info(e.getMessage());
-					classLogger.info(e.getMessage());
-					classLogger.info(e.getMessage());
 					classLogger.info(e.getMessage());
 				}
 			}
@@ -273,16 +265,10 @@ public class PIVFilter implements Filter {
 				String countDatabaseId = PIVFilter.filterConfig.getInitParameter(COUNT_USER_ENTRY_DATABASE);
 				if (countDatabaseId == null) {
 					classLogger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
-					classLogger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
-					classLogger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
-					classLogger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
 				}
 				try {
 					tracker = CACTrackingUtil.getInstance(countDatabaseId);
 				} catch (Exception e) {
-					classLogger.info(e.getMessage());
-					classLogger.info(e.getMessage());
-					classLogger.info(e.getMessage());
 					classLogger.info(e.getMessage());
 				}
 			}

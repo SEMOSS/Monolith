@@ -58,8 +58,8 @@ public class DatabaseEngineResource {
 	private static final Logger classLogger = LogManager.getLogger(DatabaseEngineResource.class);
 
 	/**
-	 * Return the {@link IDatabaseEngine.DATABASE_TYPE} and the engine subtype
-	 * (the ENGINESUBTYPE value stored in the security DB) for this database.
+	 * Return the {@link IDatabaseEngine.DATABASE_TYPE} and the engine subtype (the
+	 * ENGINESUBTYPE value stored in the security DB) for this database.
 	 */
 	@GET
 	@Path("/type")
@@ -75,8 +75,8 @@ public class DatabaseEngineResource {
 		}
 		if (!SecurityEngineUtils.userCanViewEngine(user, databaseId)
 				&& !SecurityEngineUtils.engineIsDiscoverable(databaseId)) {
-			return EngineRouteResource.error(
-					"Database " + databaseId + " does not exist or user does not have access", 401);
+			return EngineRouteResource.error("Database " + databaseId + " does not exist or user does not have access",
+					401);
 		}
 
 		IDatabaseEngine.DATABASE_TYPE databaseType;
