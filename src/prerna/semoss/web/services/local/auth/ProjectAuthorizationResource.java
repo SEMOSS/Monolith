@@ -60,7 +60,6 @@ import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityEntityDefaultTokenUtils;
-import prerna.auth.utils.SecurityGroupProjectUtils;
 import prerna.auth.utils.SecurityPrincipalTokenLimitUtils;
 import prerna.auth.utils.SecurityProjectUtils;
 import prerna.auth.utils.SecurityQueryUtils;
@@ -478,31 +477,6 @@ public class ProjectAuthorizationResource {
 				return WebUtility.getResponse(ret, 400);
 			}
 		}
-		int maxInputTokens = 0;
-		String maxInputTokensStr = WebUtility.inputSanitizer(request.getParameter("maxInputTokens"));
-		if (maxInputTokensStr != null && !(maxInputTokensStr = maxInputTokensStr.trim()).isEmpty()) {
-			try {
-				maxInputTokens = Integer.parseInt(maxInputTokensStr);
-			} catch (NumberFormatException e) {
-				classLogger.error("Failed to parse maxInputTokens value '" + maxInputTokensStr
-						+ "' while propagating project dependency permission.", e);
-				ret.put(Constants.ERROR_MESSAGE, "maxInputTokens must be a valid integer value");
-				return WebUtility.getResponse(ret, 400);
-			}
-		}
-		int maxOutputTokens = 0;
-		String maxOutputTokensStr = WebUtility.inputSanitizer(request.getParameter("maxOutputTokens"));
-		if (maxOutputTokensStr != null && !(maxOutputTokensStr = maxOutputTokensStr.trim()).isEmpty()) {
-			try {
-				maxOutputTokens = Integer.parseInt(maxOutputTokensStr);
-			} catch (NumberFormatException e) {
-				classLogger.error("Failed to parse maxOutputTokens value '" + maxOutputTokensStr
-						+ "' while propagating project dependency permission.", e);
-				ret.put(Constants.ERROR_MESSAGE, "maxOutputTokens must be a valid integer value");
-				return WebUtility.getResponse(ret, 400);
-			}
-		}
-
 		// Determine if admin right are required to add users and, if so, if requester
 		// has those rights.
 		if (AbstractSecurityUtils.adminOnlyProjectAddAccess() && !SecurityAdminUtils.userIsAdmin(requester)) {
@@ -514,7 +488,7 @@ public class ProjectAuthorizationResource {
 
 		Map<String, Object> responses = SecurityProjectUtils.propagateProjectPermission(requester, projectId, newUserId,
 				newUserType, requestedPermission, endDate, usageRestriction, usageFrequency, maxTokens,
-				maxResponseTime, maxInputTokens, maxOutputTokens);
+				maxResponseTime);
 
 		return WebUtility.getResponse(responses, 200);
 	}
@@ -601,33 +575,9 @@ public class ProjectAuthorizationResource {
 					return WebUtility.getResponse(ret, 400);
 				}
 			}
-			int maxInputTokens = 0;
-			String maxInputTokensStr = userRequest.containsKey("maxInputTokens") ? userRequest.get("maxInputTokens") : null;
-			if (maxInputTokensStr != null && !(maxInputTokensStr = maxInputTokensStr.trim()).isEmpty()) {
-				try {
-					maxInputTokens = Integer.parseInt(maxInputTokensStr);
-				} catch (NumberFormatException e) {
-					classLogger.error("Failed to parse maxInputTokens value '" + maxInputTokensStr + "' for user "
-							+ newUserId + " while propagating project dependency permissions in bulk.", e);
-					ret.put(Constants.ERROR_MESSAGE, "maxInputTokens must be a valid integer value");
-					return WebUtility.getResponse(ret, 400);
-				}
-			}
-			int maxOutputTokens = 0;
-			String maxOutputTokensStr = userRequest.containsKey("maxOutputTokens") ? userRequest.get("maxOutputTokens") : null;
-			if (maxOutputTokensStr != null && !(maxOutputTokensStr = maxOutputTokensStr.trim()).isEmpty()) {
-				try {
-					maxOutputTokens = Integer.parseInt(maxOutputTokensStr);
-				} catch (NumberFormatException e) {
-					classLogger.error("Failed to parse maxOutputTokens value '" + maxOutputTokensStr + "' for user "
-							+ newUserId + " while propagating project dependency permissions in bulk.", e);
-					ret.put(Constants.ERROR_MESSAGE, "maxOutputTokens must be a valid integer value");
-					return WebUtility.getResponse(ret, 400);
-				}
-			}
 			Map<String, Object> responses = SecurityProjectUtils.propagateProjectPermission(requester, projectId,
 					newUserId, newUserType, requestedPermission, endDate, usageRestriction, usageFrequency, maxTokens,
-					maxResponseTime, maxInputTokens, maxOutputTokens);
+					maxResponseTime);
 			userRet.put(newUserId, responses);
 		}
 
@@ -736,7 +686,7 @@ public class ProjectAuthorizationResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		List<Map<String, Object>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
+		List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
 			SecurityProjectUtils.editProjectUserPermissions(user, projectId, requests, endDate);
 		} catch (IllegalAccessException e) {
@@ -1245,24 +1195,24 @@ public class ProjectAuthorizationResource {
 				.parseBoolean("" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_lookup"));
 
 		// adding user permissions in bulk
-		List<Map<String, Object>> permission = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
+		List<Map<String, String>> permission = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
 			// if we are doing the grpah api
 			// then the users might not already exist in the security db
 			if (graphApi) {
 				// filter out users that already exist
-				List<Map<String, Object>> filteredUsers = permission.stream()
-						.filter(map -> !SecurityQueryUtils.checkUserExist((String) map.get(Constants.MAP_USERID)))
-						.collect(Collectors.toList());
+					List<Map<String, String>> filteredUsers = permission.stream()
+							.filter(map -> !SecurityQueryUtils.checkUserExist((String) map.get(Constants.MAP_USERID)))
+							.collect(Collectors.toList());
 				if (filteredUsers != null && !filteredUsers.isEmpty()) {
 					AccessToken token = null;
 					// Add new users to OAuth if they don't exist
-					for (Map<String, Object> map : filteredUsers) {
-						token = new AccessToken();
-						token.setId((String) map.get(Constants.MAP_USERID));
-						token.setEmail((String) map.get(Constants.MAP_EMAIL));
-						token.setName((String) map.get(Constants.MAP_NAME));
-						token.setUsername((String) map.get(Constants.MAP_USERNAME));
+						for (Map<String, String> map : filteredUsers) {
+							token = new AccessToken();
+							token.setId(map.get(Constants.MAP_USERID));
+							token.setEmail(map.get(Constants.MAP_EMAIL));
+							token.setName(map.get(Constants.MAP_NAME));
+							token.setUsername(map.get(Constants.MAP_USERNAME));
 						token.setProvider(AuthProvider.MICROSOFT);
 						SecurityUpdateUtils.addOAuthUser(token);
 					}
@@ -1784,14 +1734,7 @@ public class ProjectAuthorizationResource {
 					"maxInputTokens", "maxOutputTokens", "maxResponseTime", "restrictPerModel", user,
 					currentDateTime);
 		}
-		for (Map<String, Object> limit : SecurityProjectUtils.getProjectUsagePermissionMap(user, projectId)) {
-			addProjectUsageLimit(limits, "user_permission", "user", projectId, null, getCurrentUserId(user), null,
-					limit, Constants.PROJECT_USAGE_RESTRICTION_KEY, Constants.PROJECT_USAGE_FREQUENCY_KEY,
-					Constants.PROJECT_MAX_TOKEN_KEY, Constants.PROJECT_MAX_INPUT_TOKEN_KEY,
-					Constants.PROJECT_MAX_OUTPUT_TOKEN_KEY, Constants.PROJECT_MAX_RESPONSE_TIME_KEY,
-					Constants.PROJECT_RESTRICT_PER_MODEL_KEY, user, currentDateTime);
-		}
-		for (Map<String, Object> limit : SecurityEntityDefaultTokenUtils.getProjectDefaultTokenLimits(projectId)) {
+			for (Map<String, Object> limit : SecurityEntityDefaultTokenUtils.getProjectDefaultTokenLimits(projectId)) {
 			addProjectUsageLimit(limits, "default_user", "default_user", projectId, limit.get("engineId"), null, null,
 					limit, "usageRestriction", "usageFrequency", "maxTokens", "maxInputTokens", "maxOutputTokens",
 					"maxResponseTime", "restrictPerModel", user, currentDateTime);
@@ -1805,19 +1748,7 @@ public class ProjectAuthorizationResource {
 					limit, "usageRestriction", "usageFrequency", "maxTokens", "maxInputTokens", "maxOutputTokens",
 					"maxResponseTime", "restrictPerModel", user, currentDateTime);
 		}
-		for (Map<String, Object> limit : SecurityGroupProjectUtils.getApplicableGroupProjectUsagePermissions(user,
-				projectId)) {
-			String groupRef = stringify(limit.get("groupType"));
-			if (groupRef != null && limit.get("groupId") != null) {
-				groupRef = groupRef + ":" + stringify(limit.get("groupId"));
-			}
-			addProjectUsageLimit(limits, "team_permission", "team", projectId, null, null, groupRef, limit,
-					Constants.PROJECT_USAGE_RESTRICTION_KEY, Constants.PROJECT_USAGE_FREQUENCY_KEY,
-					Constants.PROJECT_MAX_TOKEN_KEY, Constants.PROJECT_MAX_INPUT_TOKEN_KEY,
-					Constants.PROJECT_MAX_OUTPUT_TOKEN_KEY, Constants.PROJECT_MAX_RESPONSE_TIME_KEY,
-					Constants.PROJECT_RESTRICT_PER_MODEL_KEY, user, currentDateTime);
-		}
-		for (Map<String, Object> limit : SecurityEntityDefaultTokenUtils.getProjectDefaultTeamTokenLimits(projectId)) {
+			for (Map<String, Object> limit : SecurityEntityDefaultTokenUtils.getProjectDefaultTeamTokenLimits(projectId)) {
 			addProjectUsageLimit(limits, "default_team", "default_team", projectId, limit.get("engineId"), null, null,
 					limit, "usageRestriction", "usageFrequency", "maxTokens", "maxInputTokens", "maxOutputTokens",
 					"maxResponseTime", "restrictPerModel", user, currentDateTime);

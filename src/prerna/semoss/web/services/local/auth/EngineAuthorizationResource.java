@@ -60,7 +60,6 @@ import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityEntityDefaultTokenUtils;
 import prerna.auth.utils.SecurityEngineUtils;
-import prerna.auth.utils.SecurityGroupEngineUtils;
 import prerna.auth.utils.SecurityModelTokenUtils;
 import prerna.auth.utils.SecurityPrincipalTokenLimitUtils;
 import prerna.auth.utils.SecurityQueryUtils;
@@ -434,32 +433,9 @@ public class EngineAuthorizationResource {
 				return WebUtility.getResponse(ret, 400);
 			}
 		}
-		int maxInputTokens = 0;
-		String maxInputTokensStr = WebUtility.inputSanitizer(request.getParameter("maxInputTokens"));
-		if (maxInputTokensStr != null && !(maxInputTokensStr = maxInputTokensStr.trim()).isEmpty()) {
-			try {
-				maxInputTokens = Integer.parseInt(maxInputTokensStr);
-			} catch (NumberFormatException e) {
-				classLogger.error("Failed to add engine user permission.", e);
-				ret.put(Constants.ERROR_MESSAGE, "maxInputTokens must be a valid integer value");
-				return WebUtility.getResponse(ret, 400);
-			}
-		}
-		int maxOutputTokens = 0;
-		String maxOutputTokensStr = WebUtility.inputSanitizer(request.getParameter("maxOutputTokens"));
-		if (maxOutputTokensStr != null && !(maxOutputTokensStr = maxOutputTokensStr.trim()).isEmpty()) {
-			try {
-				maxOutputTokens = Integer.parseInt(maxOutputTokensStr);
-			} catch (NumberFormatException e) {
-				classLogger.error("Failed to add engine user permission.", e);
-				ret.put(Constants.ERROR_MESSAGE, "maxOutputTokens must be a valid integer value");
-				return WebUtility.getResponse(ret, 400);
-			}
-		}
-
 		try {
 			SecurityEngineUtils.addEngineUser(user, newUserId, engineId, permission, endDate, usageRestriction,
-					usageFrequency, maxTokens, maxResponseTime, maxInputTokens, maxOutputTokens);
+					usageFrequency, maxTokens, maxResponseTime);
 		} catch (Exception e) {
 			classLogger.warn("User is trying to add users for engine " + engineId + " without having proper access");
 			classLogger.error("Failed to add engine user permission.", e);
@@ -615,32 +591,9 @@ public class EngineAuthorizationResource {
 				return WebUtility.getResponse(ret, 400);
 			}
 		}
-		int maxInputTokens = 0;
-		String maxInputTokensStr = WebUtility.inputSanitizer(request.getParameter("maxInputTokens"));
-		if (maxInputTokensStr != null && !(maxInputTokensStr = maxInputTokensStr.trim()).isEmpty()) {
-			try {
-				maxInputTokens = Integer.parseInt(maxInputTokensStr);
-			} catch (NumberFormatException e) {
-				classLogger.error("Failed to update engine user permission.", e);
-				ret.put(Constants.ERROR_MESSAGE, "maxInputTokens must be a valid integer value");
-				return WebUtility.getResponse(ret, 400);
-			}
-		}
-		int maxOutputTokens = 0;
-		String maxOutputTokensStr = WebUtility.inputSanitizer(request.getParameter("maxOutputTokens"));
-		if (maxOutputTokensStr != null && !(maxOutputTokensStr = maxOutputTokensStr.trim()).isEmpty()) {
-			try {
-				maxOutputTokens = Integer.parseInt(maxOutputTokensStr);
-			} catch (NumberFormatException e) {
-				classLogger.error("Failed to update engine user permission.", e);
-				ret.put(Constants.ERROR_MESSAGE, "maxOutputTokens must be a valid integer value");
-				return WebUtility.getResponse(ret, 400);
-			}
-		}
-
 		try {
 			SecurityEngineUtils.editEngineUserPermission(user, existingUserId, existingUserType, engineId,
-					newPermission, endDate, usageRestriction, usageFrequency, maxTokens, maxResponseTime, maxInputTokens, maxOutputTokens);
+					newPermission, endDate, usageRestriction, usageFrequency, maxTokens, maxResponseTime);
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to edit user " + existingUserId + " permissions for engine " + engineId
 					+ " without having proper access");
@@ -1335,18 +1288,6 @@ public class EngineAuthorizationResource {
 					"usageRestriction", "usageFrequency", "maxTokens", "maxInputTokens", "maxOutputTokens",
 					"maxResponseTime", false, user, currentDateTime);
 			}
-			for (Map<String, Object> limit : SecurityGroupEngineUtils.getApplicableGroupEngineUsagePermissions(user,
-					engineId)) {
-				String groupRef = stringify(limit.get("groupType"));
-				if (groupRef != null && limit.get("groupId") != null) {
-					groupRef = groupRef + ":" + stringify(limit.get("groupId"));
-				}
-				addEngineUsageLimit(limits, "team_permission", "team", engineId, null, groupRef, limit,
-						Constants.ENGINE_USAGE_RESTRICTION_KEY, Constants.ENGINE_USAGE_FREQUENCY_KEY,
-					Constants.ENGINE_MAX_TOKEN_KEY, Constants.ENGINE_MAX_INPUT_TOKEN_KEY,
-					Constants.ENGINE_MAX_OUTPUT_TOKEN_KEY, Constants.ENGINE_MAX_RESPONSE_TIME_KEY, false, user,
-					currentDateTime);
-		}
 		for (Map<String, Object> limit : SecurityEntityDefaultTokenUtils.getEngineDefaultTeamTokenLimits(engineId)) {
 			addEngineUsageLimit(limits, "default_team", "default_team", engineId, null, null, limit,
 					"usageRestriction", "usageFrequency", "maxTokens", "maxInputTokens", "maxOutputTokens",

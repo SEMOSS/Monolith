@@ -120,8 +120,8 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(
-					"User is trying to pull the databases that user " + userId + " has access to when not an admin");
+			classLogger.warn("User is trying to pull the databases that user {} has access to when not an admin",
+					userId);
 			classLogger.error("Failed to retrieve all user apps.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -149,7 +149,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to grant all the databases to user " + userId + " when not an admin");
+			classLogger.warn("User is trying to grant all the databases to user {} when not an admin", userId);
 			classLogger.error("Failed to grant all apps.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -240,7 +240,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to pull all the users who use database " + appId + " when not an admin");
+			classLogger.warn("User is trying to pull all the users who use database {} when not an admin", appId);
 			classLogger.error("Failed to retrieve app users.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -276,15 +276,14 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger
-					.warn("User is trying to add user " + newUserId + " to database " + appId + " when not an admin");
+			classLogger.warn("User is trying to add user {} to database {} when not an admin", newUserId, appId);
 			classLogger.error("Failed to add app user permission.", e);
 			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(ret, 401);
 		}
 
 		try {
-			adminUtils.addEngineUser(newUserId, appId, permission, user, null, null, null, 0, 0.0, 0, 0);
+			adminUtils.addEngineUser(newUserId, appId, permission, user, null, null, null, 0, 0.0);
 		} catch (Exception e) {
 			classLogger.error("Failed to add app user permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -293,8 +292,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 		}
 
 		// log the operation
-		classLogger
-				.info("User has added user " + newUserId + " to database " + appId + " with permission " + permission);
+		classLogger.info("User has added user {} to database {} with permission {}", newUserId, appId, permission);
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
@@ -313,12 +311,6 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 	public Response addAllUsers(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		classLogger.warn(
 				"CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/addAllUsers with PARAM engineId");
-		classLogger.warn(
-				"CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/addAllUsers with PARAM engineId");
-		classLogger.warn(
-				"CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/addAllUsers with PARAM engineId");
-		classLogger.warn(
-				"CALLING LEGACY ENDPOINT - NEED TO UPDATE TO GENERIC ENGINE ENDPOINT /auth/admin/engine/addAllUsers with PARAM engineId");
 
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -330,7 +322,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to add all users to database " + appId + " when not an admin");
+			classLogger.warn("User is trying to add all users to database {} when not an admin", appId);
 			classLogger.error("Failed to add all users.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -382,14 +374,14 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			classLogger.error("Failed to update app user permission.", e);
-			classLogger.warn("User is trying to edit user " + existingUserId + " permissions for database " + appId
-					+ " when not an admin");
+			classLogger.warn("User is trying to edit user {} permissions for database {} when not an admin",
+					existingUserId, appId);
 			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(ret, 401);
 		}
 
 		try {
-			adminUtils.editEngineUserPermission(existingUserId, appId, newPermission, user, null, null, null, 0, 0.0, 0, 0);
+			adminUtils.editEngineUserPermission(existingUserId, appId, newPermission, user, null, null, null, 0, 0.0);
 		} catch (Exception e) {
 			classLogger.error("Failed to update app user permission.", e);
 			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -428,7 +420,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			classLogger.error("Failed to update app user permissions.", e);
-			classLogger.warn("User is trying to edit user permissions for database " + appId + " when not an admin");
+			classLogger.warn("User is trying to edit user permissions for database {} when not an admin", appId);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -476,8 +468,8 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to remove user " + existingUserId + " from having access to database "
-					+ appId + " when not an admin");
+			classLogger.warn("User is trying to remove user {} from having access to database {} when not an admin",
+					existingUserId, appId);
 			classLogger.error("Failed to remove app user permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -520,7 +512,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to set the database " + appId + logPublic + " when not an admin");
+			classLogger.warn("User is trying to set the database {}{} when not an admin", appId, logPublic);
 			classLogger.error("Failed to update app global.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -570,7 +562,7 @@ public class AdminDatabaseAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to set the database " + appId + logDiscoverable + " when not an admin");
+			classLogger.warn("User is trying to set the database {}{} when not an admin", appId, logDiscoverable);
 			classLogger.error("Failed to update app discoverable.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
