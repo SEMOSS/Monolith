@@ -74,8 +74,6 @@ import prerna.engine.api.IModelEngine;
 import prerna.engine.impl.model.AbstractModelEngine;
 import prerna.engine.impl.model.Room;
 import prerna.engine.impl.model.RoomUtils;
-import prerna.engine.impl.model.message.InputMessage;
-import prerna.engine.impl.model.message.ResponseMessage;
 import prerna.engine.impl.model.responses.AskModelEngineResponse;
 import prerna.engine.impl.model.responses.EmbeddingsModelEngineResponse;
 import prerna.om.Insight;
@@ -92,6 +90,7 @@ import prerna.sablecc2.om.ReactorKeysEnum;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.util.Constants;
 import prerna.util.Utility;
+import prerna.web.services.util.ModelPixelExecutor;
 import prerna.web.services.util.WebUtility;
 
 @Path("/model/openai")
@@ -273,10 +272,7 @@ public class OpenAIEndpoints {
 		if (!isStreamingRequest) {
 			AskModelEngineResponse llmResponse;
 			try {
-				InputMessage msg = InputMessage.builder(room).withModelType(engine.getModelType()).withParamMap(dataMap)
-						.build();
-				ResponseMessage response = room.ask(msg, engine);
-				llmResponse = response.getModelEngineResponse();
+				llmResponse = ModelPixelExecutor.askModelSync(engine, finalInsight, finalRoom, dataMap);
 			} catch (Exception e) {
 				classLogger.error("Chat completions synchronous model call failed for engine '{}'", engineId, e);
 				Map<String, String> errorMap = new HashMap<>();
@@ -638,10 +634,7 @@ public class OpenAIEndpoints {
 
 		if (!isStreamingRequest) {
 			try {
-				InputMessage msg = InputMessage.builder(room).withModelType(engine.getModelType()).withParamMap(dataMap)
-						.build();
-				ResponseMessage response = room.ask(msg, engine);
-				AskModelEngineResponse llmResponse = response.getModelEngineResponse();
+				AskModelEngineResponse llmResponse = ModelPixelExecutor.askModelSync(engine, insight, room, dataMap);
 
 				Map<String, Object> processedResponse = OpenAIResponsesHelper.processAskModelEngineResponse(engineId,
 						llmResponse);
@@ -1159,10 +1152,7 @@ public class OpenAIEndpoints {
 
 		if (!isStreamingRequest) {
 			try {
-				InputMessage msg = InputMessage.builder(room).withModelType(engine.getModelType()).withParamMap(dataMap)
-						.build();
-				ResponseMessage response = room.ask(msg, engine);
-				AskModelEngineResponse<?> llmResponse = response.getModelEngineResponse();
+				AskModelEngineResponse<?> llmResponse = ModelPixelExecutor.askModelSync(engine, insight, room, dataMap);
 				long createdAt = Instant.now().getEpochSecond();
 				Map<String, Object> responseMap = OpenAIImagesHelper.buildNonStreamingResponse(createdAt, llmResponse);
 				return WebUtility.getResponse(responseMap, 200);
@@ -1288,25 +1278,7 @@ public class OpenAIEndpoints {
 	 */
 	private String startAsyncModelRequest(IModelEngine engine, Insight insight, Room room, Map<String, Object> dataMap,
 			String sessionId) {
-		try {
-			// start async job
-			PixelJobManager manager = PixelJobManager.getManager();
-			PixelJobRunner jobRunner = manager.makeJob(insight, sessionId, null);
-			String jobId = jobRunner.getJobId();
-
-			String modelPixel = "LLM(engine='" + engine.getEngineId() + "',roomId='" + room.getId()
-					+ "',command='ignore'"
-					// this should have the full_prompt
-					+ ",paramValues=[" + GSON.toJson(dataMap) + "]);";
-			classLogger.info("Dispatching async model pixel: {}", modelPixel);
-			jobRunner.addPixel(modelPixel);
-			Thread.ofVirtual().start(jobRunner);
-			return jobId;
-		} catch (Exception e) {
-			classLogger.error("Failed to start async model request for engine '{}': {}",
-					engine == null ? "unknown" : engine.getEngineId(), e.getMessage(), e);
-			throw new IllegalArgumentException(e.getMessage());
-		}
+		return ModelPixelExecutor.startAsyncModelRequest(engine, insight, room, dataMap, sessionId);
 	}
 
 	// TODO: move paylaod generation logic into a new OpenAICompletionsHelper
@@ -1451,13 +1423,18 @@ public class OpenAIEndpoints {
 		ThreadStore.setJobId(JOB_ID);
 		ThreadStore.setUser(insight.getUser());
 
+		// route through the LLM pixel by carrying the prompt as a full_prompt message
+		List<Map<String, Object>> completionMessages = new ArrayList<>();
+		Map<String, Object> completionUserMessage = new HashMap<>();
+		completionUserMessage.put("role", "user");
+		completionUserMessage.put("content", question);
+		completionMessages.add(completionUserMessage);
+		dataMap.put(AbstractModelEngine.FULL_PROMPT, completionMessages);
+
 		if (!isStreamingRequest) {
 			AskModelEngineResponse llmResponse;
 			try {
-				InputMessage msg = InputMessage.builder(room).withModelType(engine.getModelType())
-						.withText(question, question).withParamMap(dataMap).build();
-				ResponseMessage response = room.ask(msg, engine);
-				llmResponse = response.getModelEngineResponse();
+				llmResponse = ModelPixelExecutor.askModelSync(engine, insight, room, dataMap);
 			} catch (Exception e) {
 				classLogger.error("Model completion synchronous call failed for engine '{}'", engineId, e);
 				Map<String, String> errorMap = new HashMap<>();
@@ -1527,10 +1504,9 @@ public class OpenAIEndpoints {
 
 						try (Writer writer = new BufferedWriter(
 								new OutputStreamWriter(output, StandardCharsets.UTF_8))) {
-							// Get full completion from your model in one go
-							InputMessage msg = InputMessage.builder(FINAL_ROOM).withModelType(engine.getModelType())
-									.withText(question, question).withParamMap(dataMap).build();
-							AskModelEngineResponse llmResponse = engine.askRoom(question, FINAL_ROOM, msg, dataMap);
+							// Get full completion from the model in one go through the LLM pixel
+							AskModelEngineResponse llmResponse = ModelPixelExecutor.askModelSync(engine, FINAL_INSIGHT,
+									FINAL_ROOM, dataMap);
 							String completionText = llmResponse.getStringResponse();
 							Integer promptTokens = llmResponse.getNumberOfTokensInPrompt();
 							Integer responseTokens = llmResponse.getNumberOfTokensInResponse();
