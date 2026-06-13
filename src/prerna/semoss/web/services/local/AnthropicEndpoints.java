@@ -34,7 +34,6 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
-import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -72,13 +71,11 @@ import prerna.engine.impl.model.inferencetracking.ModelInferenceLogsUtils;
 import prerna.engine.impl.model.responses.AskModelEngineResponse;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
-import prerna.om.ThreadStore;
 import prerna.sablecc2.PixelRunner;
 import prerna.sablecc2.comm.PixelJobManager;
 import prerna.sablecc2.comm.PixelJobRunner;
 import prerna.sablecc2.comm.PixelJobStatus;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
-import prerna.util.Constants;
 import prerna.util.Utility;
 import prerna.web.services.util.ModelPixelExecutor;
 import prerna.web.services.util.WebUtility;
@@ -100,6 +97,8 @@ public class AnthropicEndpoints {
 
 	private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
 
+	private static final ObjectMapper MAPPER = new ObjectMapper();
+
 	/**
 	 * Main Messages API endpoint - handles both streaming and non-streaming
 	 * requests. Compatible with Anthropic's /v1/messages endpoint.
@@ -114,43 +113,20 @@ public class AnthropicEndpoints {
 	@Produces({ "application/json;charset=utf-8", "text/event-stream" })
 	public Response createMessage(@Context HttpServletRequest request, @Context HttpServletResponse response) {
 		HttpSession session = request.getSession(false);
-		User user = null;
-
-		if (session != null) {
-			user = (User) session.getAttribute(Constants.SESSION_USER);
-		}
-
+		User user = ModelPixelExecutor.getSessionUser(session);
 		if (user == null) {
-			Map<String, Object> errorMap = AnthropicMessagesHelper.createErrorResponse("authentication_error",
-					"User is not authenticated");
-			return WebUtility.getResponse(errorMap, 401);
+			return ModelPixelExecutor.invalidSessionResponse(request, session);
 		}
+		// set the user timezone
+		ModelPixelExecutor.applyUserTimezone(user, request);
 
 		final String SESSION_ID = session.getId();
 		final String JOB_ID = GUID.v7().toUUID().toString();
 		Insight insight = null;
 		Room room = null;
-		ObjectMapper objectMapper = new ObjectMapper();
 
 		String claudeCodeSessionId = request.getHeader("x-claude-code-session-id");
 		classLogger.debug("Anthropic-Session-Header::{}::{}", JOB_ID, claudeCodeSessionId);
-
-		// Set the user timezone
-		ZoneId zoneId = null;
-		String strTz = WebUtility.inputSanitizer(request.getParameter("tz"));
-		if (strTz == null || (strTz = strTz.trim()).isEmpty()) {
-			zoneId = ZoneId.systemDefault();
-		} else {
-			try {
-				zoneId = ZoneId.of(strTz);
-			} catch (Exception e) {
-				classLogger.warn("Invalid timezone provided '{}', using system default", strTz);
-				zoneId = ZoneId.systemDefault();
-			}
-		}
-		if (user != null) {
-			user.setZoneId(zoneId);
-		}
 
 		StringBuilder requestData = new StringBuilder();
 		try (BufferedReader reader = new BufferedReader(new InputStreamReader(request.getInputStream()))) {
@@ -171,7 +147,7 @@ public class AnthropicEndpoints {
 		};
 		Map<String, Object> dataMap;
 		try {
-			dataMap = objectMapper.readValue(requestData.toString(), mapType);
+			dataMap = MAPPER.readValue(requestData.toString(), mapType);
 		} catch (JsonProcessingException e) {
 			classLogger.error("Error parsing request JSON", e);
 			Map<String, Object> errorMap = AnthropicMessagesHelper.createErrorResponse("invalid_request_error",
@@ -242,10 +218,7 @@ public class AnthropicEndpoints {
 		}
 		insight.setUser(user);
 
-		ThreadStore.setInsightId(insight.getInsightId());
-		ThreadStore.setSessionId(SESSION_ID);
-		ThreadStore.setJobId(JOB_ID);
-		ThreadStore.setUser(insight.getUser());
+		ModelPixelExecutor.initializeThreadStore(insight, SESSION_ID, JOB_ID);
 		// ROOM & INSIGHT LOGIC END ---------
 
 		Object messages = dataMap.remove("messages");
@@ -348,9 +321,9 @@ public class AnthropicEndpoints {
 	 * Handle streaming message request. Returns SSE stream with
 	 * Anthropic-compatible events.
 	 */
-	private Response handleStreamingRequest(IModelEngine engine, Insight finalInsight, Room finalRoom,
-			Map<String, Object> dataMap, String sessionId, String jobId, String engineId,
-			HttpServletResponse servletResponse) {
+	private Response handleStreamingRequest(IModelEngine engine, final Insight FINAL_INSIGHT, final Room FINAL_ROOM,
+			final Map<String, Object> FINAL_DATAMAP, final String FINAL_SESSION_ID, final String FINAL_JOB_ID,
+			final String FINAL_ENGINE_ID, HttpServletResponse servletResponse) {
 
 		// Disable servlet output buffering so SSE events and keep-alive
 		// comments are flushed to the wire immediately, not held in an
@@ -368,12 +341,13 @@ public class AnthropicEndpoints {
 						long streamStartTime = System.currentTimeMillis();
 
 						try (Writer writer = new OutputStreamWriter(output, StandardCharsets.UTF_8)) {
-							asyncJobId = startAsyncModelRequest(engine, finalInsight, finalRoom, dataMap, sessionId);
+							asyncJobId = ModelPixelExecutor.startAsyncModelRequest(engine, FINAL_INSIGHT, FINAL_ROOM,
+									FINAL_DATAMAP, FINAL_SESSION_ID);
 							classLogger.debug("Streaming job started: {}", asyncJobId);
 
 							// Send message_start IMMEDIATELY to prevent client timeout.
 							// The Anthropic API sends this event before any content is ready.
-							AnthropicMessagesHelper.writeMessageStart(messageId, engineId, 0, writer);
+							AnthropicMessagesHelper.writeMessageStart(messageId, FINAL_ENGINE_ID, 0, writer);
 							int contentBlockIndex = 0;
 							boolean textBlockStarted = false;
 
@@ -476,8 +450,8 @@ public class AnthropicEndpoints {
 												// Persist any captured Vertex thought_signatures
 												// Anthropic SSE has no slot for these bytes, so they would otherwise be
 												// lost the moment the SDK writes its JSONL transcript.
-												if (!pendingToolSignatures.isEmpty() && finalRoom != null) {
-													String roomFolder = finalRoom.getRoomFolderPath();
+												if (!pendingToolSignatures.isEmpty() && FINAL_ROOM != null) {
+													String roomFolder = FINAL_ROOM.getRoomFolderPath();
 													for (Map.Entry<Integer, String> sigEntry : pendingToolSignatures
 															.entrySet()) {
 														String toolId = pendingToolIds.get(sigEntry.getKey());
@@ -576,8 +550,8 @@ public class AnthropicEndpoints {
 										AnthropicMessagesHelper.writeContentBlockStop(contentBlockIndex, writer);
 									}
 
-									if (!pendingToolSignatures.isEmpty() && finalRoom != null) {
-										String roomFolder = finalRoom.getRoomFolderPath();
+									if (!pendingToolSignatures.isEmpty() && FINAL_ROOM != null) {
+										String roomFolder = FINAL_ROOM.getRoomFolderPath();
 										for (Map.Entry<Integer, String> sigEntry : pendingToolSignatures.entrySet()) {
 											String toolId = pendingToolIds.get(sigEntry.getKey());
 											ThoughtSignatureSidecar.append(roomFolder, toolId, sigEntry.getValue());
@@ -606,7 +580,7 @@ public class AnthropicEndpoints {
 									if ("TOOL".equals(messageType)) {
 										List<Map<String, Object>> toolResponses = (List<Map<String, Object>>) resultOutput
 												.get("response");
-										String roomFolder = finalRoom != null ? finalRoom.getRoomFolderPath() : null;
+										String roomFolder = FINAL_ROOM != null ? FINAL_ROOM.getRoomFolderPath() : null;
 										if (toolResponses != null) {
 											for (int i = 0; i < toolResponses.size(); i++) {
 												Map<String, Object> toolResp = toolResponses.get(i);
@@ -646,7 +620,7 @@ public class AnthropicEndpoints {
 										if (content == null || content.isEmpty()) {
 											classLogger.error(
 													"Empty model completion for engine '{}' job '{}': no content, tool calls, or usage. Raw job output: {}",
-													engineId, asyncJobId, GSON.toJson(finalObject));
+													FINAL_ENGINE_ID, asyncJobId, GSON.toJson(finalObject));
 											AnthropicMessagesHelper.writeErrorEvent("api_error",
 													"Model returned an empty response (no content, tool calls, or usage) for job "
 															+ asyncJobId + ". See server logs for details.",
@@ -675,10 +649,10 @@ public class AnthropicEndpoints {
 							}
 						} catch (IOException ioe) {
 							final String capturedJobId = asyncJobId;
-							if (!WebUtility.handleStreamingException(ioe, classLogger, engineId, capturedJobId,
+							if (!WebUtility.handleStreamingException(ioe, classLogger, FINAL_ENGINE_ID, capturedJobId,
 									() -> PixelJobManager.getManager().interruptThread(capturedJobId))) {
-								classLogger.error("I/O error in streaming response for engine '{}' job '{}'", engineId,
-										asyncJobId, ioe);
+								classLogger.error("I/O error in streaming response for engine '{}' job '{}'",
+										FINAL_ENGINE_ID, asyncJobId, ioe);
 							}
 						} catch (Throwable e) {
 							classLogger.error("Error in streaming response", e);
@@ -713,11 +687,4 @@ public class AnthropicEndpoints {
 		}
 	}
 
-	/**
-	 * Start an asynchronous model request and return the job ID.
-	 */
-	private String startAsyncModelRequest(IModelEngine engine, Insight insight, Room room, Map<String, Object> dataMap,
-			String sessionId) {
-		return ModelPixelExecutor.startAsyncModelRequest(engine, insight, room, dataMap, sessionId);
-	}
 }

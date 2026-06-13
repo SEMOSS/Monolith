@@ -27,7 +27,13 @@
  *******************************************************************************/
 package prerna.web.services.util;
 
+import java.time.ZoneId;
+import java.util.HashMap;
 import java.util.Map;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
+import javax.ws.rs.core.Response;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -35,13 +41,17 @@ import org.apache.logging.log4j.Logger;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
+import prerna.auth.User;
 import prerna.engine.api.IModelEngine;
 import prerna.engine.impl.model.Room;
 import prerna.engine.impl.model.responses.AskModelEngineResponse;
 import prerna.om.Insight;
+import prerna.om.ThreadStore;
 import prerna.sablecc2.PixelRunner;
 import prerna.sablecc2.comm.PixelJobManager;
 import prerna.sablecc2.comm.PixelJobRunner;
+import prerna.util.Constants;
+import prerna.util.Utility;
 
 /**
  * Central dispatch point for executing the {@code LLM(...)} pixel from the
@@ -60,10 +70,6 @@ public class ModelPixelExecutor {
 	private static final Logger classLogger = LogManager.getLogger(ModelPixelExecutor.class);
 
 	private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
-
-	private ModelPixelExecutor() {
-		// static utility, do not instantiate
-	}
 
 	/**
 	 * Build the {@code LLM(...)} pixel string. This is the single source of truth
@@ -153,5 +159,100 @@ public class ModelPixelExecutor {
 		}
 
 		return response;
+	}
+
+	/**
+	 * Seed the {@link ThreadStore} for the current request thread so downstream
+	 * pixel execution (and the {@code LLMReactor}) can resolve the insight,
+	 * session, job and user without them being threaded through every call.
+	 *
+	 * @param insight   the insight context for the request
+	 * @param sessionId the session id the request belongs to
+	 * @param jobId     the job id assigned to this request
+	 */
+	public static void initializeThreadStore(Insight insight, String sessionId, String jobId) {
+		ThreadStore.setInsightId(insight.getInsightId());
+		ThreadStore.setSessionId(sessionId);
+		ThreadStore.setJobId(jobId);
+		ThreadStore.setUser(insight.getUser());
+	}
+
+	/**
+	 * Resolve and apply the caller's timezone to the {@link User}. Uses the
+	 * {@code tz} request parameter when present and valid, otherwise falls back to
+	 * the application default zone. Invalid values are logged and replaced with the
+	 * default rather than failing the request.
+	 *
+	 * @param user    the user whose zone id is being set
+	 * @param request the incoming request, read for the optional {@code tz}
+	 *                parameter
+	 */
+	public static void applyUserTimezone(User user, HttpServletRequest request) {
+		ZoneId zoneId;
+		String strTz = WebUtility.inputSanitizer(request.getParameter("tz"));
+		if (strTz == null || (strTz = strTz.trim()).isEmpty()) {
+			zoneId = ZoneId.of(Utility.getApplicationZoneId());
+		} else {
+			try {
+				zoneId = ZoneId.of(strTz);
+			} catch (Exception e) {
+				classLogger.warn(
+						"Invalid timezone value '{}' for Ollama request; falling back to application default '{}': {}",
+						strTz, Utility.getApplicationZoneId(), e.getMessage(), e);
+				zoneId = ZoneId.of(Utility.getApplicationZoneId());
+			}
+		}
+		user.setZoneId(zoneId);
+	}
+
+	/**
+	 * Pull the authenticated {@link User} off the session.
+	 *
+	 * @param session the current http session, may be {@code null}
+	 * @return the session user, or {@code null} if there is no session or no user
+	 *         on it
+	 */
+	public static User getSessionUser(HttpSession session) {
+		if (session == null) {
+			return null;
+		}
+		return (User) session.getAttribute(Constants.SESSION_USER);
+	}
+
+	/**
+	 * Invalidate the current session (when present) and build the standard 401
+	 * response used when a request arrives without a valid authenticated session.
+	 *
+	 * @param request the incoming request
+	 * @param session the current session, may be {@code null}
+	 * @return a 401 {@link Response} carrying an "invalid session" error message
+	 */
+	public static Response invalidSessionResponse(HttpServletRequest request, HttpSession session) {
+		if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
+			session.invalidate();
+		}
+		return errorResponse(401, "User session is invalid");
+	}
+
+	/**
+	 * Build a JSON error {@link Response} carrying a single
+	 * {@link Constants#ERROR_MESSAGE} entry. Shared by the provider endpoints so
+	 * every error payload has the same shape.
+	 *
+	 * @param statusCode the HTTP status code to return
+	 * @param message    the human-readable error message
+	 * @return the error {@link Response}
+	 */
+	public static Response errorResponse(int statusCode, String message) {
+		Map<String, String> errorMap = new HashMap<>();
+		errorMap.put(Constants.ERROR_MESSAGE, message);
+		return WebUtility.getResponse(errorMap, statusCode);
+	}
+
+	/**
+	 * Private constructor - this class exposes only static helpers and must not be
+	 * instantiated.
+	 */
+	private ModelPixelExecutor() {
 	}
 }
