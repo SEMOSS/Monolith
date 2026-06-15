@@ -37,6 +37,7 @@ import prerna.semoss.web.form.FormResource;
 import prerna.semoss.web.services.config.ServerConfigurationResource;
 import prerna.semoss.web.services.local.AdminThemeResource;
 import prerna.semoss.web.services.local.AnthropicEndpoints;
+import prerna.semoss.web.services.local.A2AResource;
 import prerna.semoss.web.services.local.AuthorizationResource;
 import prerna.semoss.web.services.local.DatabaseEngineResource;
 import prerna.semoss.web.services.local.EngineRouteResource;
@@ -132,6 +133,8 @@ public class MonolithApplication extends Application {
 		singletons.add(new OllamaEndpoints());
 		// MCP
 		singletons.add(new MCPResource());
+		// A2A
+		singletons.add(new A2AResource());
 	}
 
 	@Override
