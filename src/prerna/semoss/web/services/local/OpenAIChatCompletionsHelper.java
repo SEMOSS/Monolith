@@ -50,7 +50,7 @@ public final class OpenAIChatCompletionsHelper {
 	private static final Gson GSON = new GsonBuilder().setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE)
 			.disableHtmlEscaping().create();
 
-	private static ObjectMapper mapper = new ObjectMapper();
+	private static final ObjectMapper MAPPER = new ObjectMapper();
 
 	/**
 	 * 
@@ -95,7 +95,7 @@ public final class OpenAIChatCompletionsHelper {
 		finalChunk.put("model", engineId);
 		finalChunk.put("choices", choices);
 
-		writer.write("data: " + mapper.writeValueAsString(finalChunk) + "\n\n");
+		writer.write("data: " + MAPPER.writeValueAsString(finalChunk) + "\n\n");
 
 		boolean hasAnyUsage = promptTokens != null || completionTokens != null || cachedTokens != null
 				|| reasoningTokens != null;
@@ -129,7 +129,7 @@ public final class OpenAIChatCompletionsHelper {
 			usageChunk.put("choices", new ArrayList<>());
 			usageChunk.put("usage", usage);
 
-			writer.write("data: " + mapper.writeValueAsString(usageChunk) + "\n\n");
+			writer.write("data: " + MAPPER.writeValueAsString(usageChunk) + "\n\n");
 		}
 
 		writer.write("data: [DONE]\n\n");
@@ -175,7 +175,7 @@ public final class OpenAIChatCompletionsHelper {
 		chunk.put("choices", choices);
 
 		// sending chunk as SSE event
-		writer.write("data: " + mapper.writeValueAsString(chunk) + "\n\n");
+		writer.write("data: " + MAPPER.writeValueAsString(chunk) + "\n\n");
 		writer.flush();
 	}
 
@@ -254,7 +254,7 @@ public final class OpenAIChatCompletionsHelper {
 		chunk.put("choices", choices);
 
 		// sending chunk as SSE event
-		writer.write("data: " + mapper.writeValueAsString(chunk) + "\n\n");
+		writer.write("data: " + MAPPER.writeValueAsString(chunk) + "\n\n");
 		writer.flush();
 	}
 
