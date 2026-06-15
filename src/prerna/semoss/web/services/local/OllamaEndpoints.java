@@ -35,7 +35,7 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
-import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -67,15 +67,18 @@ import prerna.engine.api.IModelEngine;
 import prerna.engine.impl.model.AbstractModelEngine;
 import prerna.engine.impl.model.Room;
 import prerna.engine.impl.model.RoomUtils;
-import prerna.engine.impl.model.message.InputMessage;
-import prerna.engine.impl.model.message.ResponseMessage;
 import prerna.engine.impl.model.responses.AskModelEngineResponse;
 import prerna.engine.impl.model.responses.EmbeddingsModelEngineResponse;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
-import prerna.om.ThreadStore;
+import prerna.sablecc2.PixelRunner;
+import prerna.sablecc2.comm.PixelJobManager;
+import prerna.sablecc2.comm.PixelJobRunner;
+import prerna.sablecc2.comm.PixelJobStatus;
+import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.util.Constants;
 import prerna.util.Utility;
+import prerna.web.services.util.ModelPixelExecutor;
 import prerna.web.services.util.WebUtility;
 
 @Path("/model/ollama")
@@ -88,130 +91,6 @@ public class OllamaEndpoints {
 	private static final String INSIGHT_NOT_FOUND = "INSIGHT_NOT_FOUND";
 
 	private static final ObjectMapper MAPPER = new ObjectMapper();
-
-	@POST
-	@Path("/generate")
-	@Consumes({ "application/json" })
-	@Produces({ "application/json;charset=utf-8", "application/x-ndjson" })
-	public Response generate(@Context HttpServletRequest request) {
-		HttpSession session = request.getSession(false);
-		User user = getSessionUser(session);
-		if (user == null) {
-			return invalidSessionResponse(request, session);
-		}
-
-		applyUserTimezone(user, request);
-
-		Map<String, Object> dataMap;
-		try {
-			dataMap = readRequestData(request);
-		} catch (JsonProcessingException e) {
-			classLogger.error("Failed to parse JSON payload for Ollama /generate request: {}", e.getOriginalMessage(),
-					e);
-			return errorResponse(400, "Error processing JSON data: " + e.getMessage());
-		} catch (IOException e) {
-			classLogger.error("Failed to read request body for Ollama /generate endpoint: {}", e.getMessage(), e);
-			return errorResponse(400, "Bad Request: Could not read request body.");
-		}
-
-		String engineId = sanitize(dataMap.remove("model"));
-		if (engineId == null || engineId.isEmpty()) {
-			return errorResponse(400, "Bad Request: Missing required field 'model'.");
-		}
-
-		if (!SecurityEngineUtils.userCanViewEngine(user, engineId)) {
-			return errorResponse(403,
-					"Model " + engineId + " does not exist or user does not have access to this model");
-		}
-
-		IModelEngine engine = Utility.getModel(engineId);
-		if (engine == null) {
-			return errorResponse(404, "Model not found: " + engineId);
-		}
-		sanitizeProviderSpecificParams(dataMap, engine);
-
-		String sessionId = session.getId();
-		String jobId = GUID.v7().toUUID().toString();
-
-		Insight insight = resolveInsight(sessionId, sanitize(dataMap.remove("insight_id")));
-		if (insight == null) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Could not resolve insight context");
-			errorMap.put(ERROR_TYPE, INSIGHT_NOT_FOUND);
-			return WebUtility.getResponse(errorMap, 400);
-		}
-		insight.setUser(user);
-
-		String roomId = sanitize(dataMap.remove("room_id"));
-		Room room = RoomUtils.createRoomIfNotExists(roomId, insight, engine, null);
-
-		initializeThreadStore(insight, sessionId, jobId);
-
-		Object promptInput = dataMap.remove("prompt");
-		Object inputFallback = dataMap.remove("input");
-		String prompt = OllamaResponsesHelper.extractPrompt(promptInput, inputFallback);
-		if (prompt == null || prompt.isEmpty()) {
-			return errorResponse(400, "Bad Request: Missing required field 'prompt'.");
-		}
-
-		boolean stream = Boolean.parseBoolean(String.valueOf(dataMap.getOrDefault("stream", false)));
-		dataMap.remove("stream");
-
-		if (!stream) {
-			try {
-				InputMessage msg = InputMessage.builder(room).withModelType(engine.getModelType())
-						.withText(prompt, prompt).withParamMap(dataMap).build();
-				ResponseMessage response = room.ask(msg, engine);
-				AskModelEngineResponse llmResponse = response.getModelEngineResponse();
-				Map<String, Object> payload = OllamaResponsesHelper.processGenerateResponse(engineId, llmResponse);
-				return WebUtility.getResponse(payload, 200);
-			} catch (Exception e) {
-				classLogger.error("Synchronous Ollama /generate call failed for engine '{}': {}", engineId,
-						e.getMessage(), e);
-				return errorResponse(400, e.getMessage());
-			}
-		}
-
-		final IModelEngine finalEngine = engine;
-		final Room finalRoom = room;
-		final Map<String, Object> finalDataMap = dataMap;
-		final String finalPrompt = prompt;
-		final String finalEngineId = engineId;
-
-		StreamingOutput output = new StreamingOutput() {
-			@Override
-			public void write(OutputStream rawOutput) throws IOException, WebApplicationException {
-				try (Writer writer = new BufferedWriter(new OutputStreamWriter(rawOutput, StandardCharsets.UTF_8))) {
-					InputMessage msg = InputMessage.builder(finalRoom).withModelType(finalEngine.getModelType())
-							.withText(finalPrompt, finalPrompt).withParamMap(finalDataMap).build();
-					ResponseMessage response = finalRoom.ask(msg, finalEngine);
-					AskModelEngineResponse llmResponse = response.getModelEngineResponse();
-
-					Map<String, Object> full = OllamaResponsesHelper.processGenerateResponse(finalEngineId,
-							llmResponse);
-					String responseText = (String) full.get("response");
-					String doneReason = (String) full.get("done_reason");
-
-					if (responseText != null && !responseText.isEmpty()) {
-						Map<String, Object> partial = OllamaResponsesHelper.createGenerateStreamChunk(finalEngineId,
-								responseText, false, null, null);
-						OllamaResponsesHelper.writeJsonLine(partial, writer);
-					}
-
-					Map<String, Object> done = OllamaResponsesHelper.createGenerateStreamChunk(finalEngineId, "", true,
-							doneReason, llmResponse);
-					OllamaResponsesHelper.writeJsonLine(done, writer);
-				} catch (Exception e) {
-					classLogger.error("Streaming Ollama /generate call failed for engine '{}': {}", finalEngineId,
-							e.getMessage(), e);
-					throw new WebApplicationException(e, 500);
-				}
-			}
-		};
-
-		return Response.ok().header("Content-Type", "application/x-ndjson").header("Cache-Control", "no-cache")
-				.header("Connection", "keep-alive").entity(output).build();
-	}
 
 	@POST
 	@Path("/api/chat")
@@ -227,44 +106,44 @@ public class OllamaEndpoints {
 	@Produces({ "application/json;charset=utf-8", "application/x-ndjson" })
 	public Response chat(@Context HttpServletRequest request) {
 		HttpSession session = request.getSession(false);
-		User user = getSessionUser(session);
+		User user = ModelPixelExecutor.getSessionUser(session);
 		if (user == null) {
-			return invalidSessionResponse(request, session);
+			return ModelPixelExecutor.invalidSessionResponse(request, session);
 		}
-
-		applyUserTimezone(user, request);
+		// set the user timezone
+		ModelPixelExecutor.applyUserTimezone(user, request);
 
 		Map<String, Object> dataMap;
 		try {
 			dataMap = readRequestData(request);
 		} catch (JsonProcessingException e) {
 			classLogger.error("Failed to parse JSON payload for Ollama /chat request: {}", e.getOriginalMessage(), e);
-			return errorResponse(400, "Error processing JSON data: " + e.getMessage());
+			return ModelPixelExecutor.errorResponse(400, "Error processing JSON data: " + e.getMessage());
 		} catch (IOException e) {
 			classLogger.error("Failed to read request body for Ollama /chat endpoint: {}", e.getMessage(), e);
-			return errorResponse(400, "Bad Request: Could not read request body.");
+			return ModelPixelExecutor.errorResponse(400, "Bad Request: Could not read request body.");
 		}
 
 		String engineId = sanitize(dataMap.remove("model"));
 		if (engineId == null || engineId.isEmpty()) {
-			return errorResponse(400, "Bad Request: Missing required field 'model'.");
+			return ModelPixelExecutor.errorResponse(400, "Bad Request: Missing required field 'model'.");
 		}
 
 		if (!SecurityEngineUtils.userCanViewEngine(user, engineId)) {
-			return errorResponse(403,
+			return ModelPixelExecutor.errorResponse(403,
 					"Model " + engineId + " does not exist or user does not have access to this model");
 		}
 
 		IModelEngine engine = Utility.getModel(engineId);
 		if (engine == null) {
-			return errorResponse(404, "Model not found: " + engineId);
+			return ModelPixelExecutor.errorResponse(404, "Model not found: " + engineId);
 		}
 		sanitizeProviderSpecificParams(dataMap, engine);
 
-		String sessionId = session.getId();
-		String jobId = GUID.v7().toUUID().toString();
+		final String SESSION_ID = session.getId();
+		final String JOB_ID = GUID.v7().toUUID().toString();
 
-		Insight insight = resolveInsight(sessionId, sanitize(dataMap.remove("insight_id")));
+		Insight insight = resolveInsight(SESSION_ID, sanitize(dataMap.remove("insight_id")));
 		if (insight == null) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Could not resolve insight context");
@@ -276,19 +155,19 @@ public class OllamaEndpoints {
 		String roomId = sanitize(dataMap.remove("room_id"));
 		Room room = RoomUtils.createRoomIfNotExists(roomId, insight, engine, null);
 
-		initializeThreadStore(insight, sessionId, jobId);
+		ModelPixelExecutor.initializeThreadStore(insight, SESSION_ID, JOB_ID);
 
 		Object messagesInput = dataMap.remove("messages");
 		if (messagesInput == null) {
-			return errorResponse(400, "Bad Request: Missing required field 'messages'.");
+			return ModelPixelExecutor.errorResponse(400, "Bad Request: Missing required field 'messages'.");
 		}
 
 		List<Map<String, Object>> normalizedMessages = OllamaResponsesHelper.normalizeChatMessages(messagesInput);
 		if (normalizedMessages.isEmpty()) {
-			return errorResponse(400, "Bad Request: 'messages' must contain at least one item.");
+			return ModelPixelExecutor.errorResponse(400, "Bad Request: 'messages' must contain at least one item.");
 		}
 
-		boolean stream = Boolean.parseBoolean(String.valueOf(dataMap.getOrDefault("stream", false)));
+		boolean stream = Boolean.parseBoolean(String.valueOf(dataMap.getOrDefault("stream", true)));
 		dataMap.remove("stream");
 
 		boolean appendFullPrompt = Boolean
@@ -299,52 +178,435 @@ public class OllamaEndpoints {
 
 		if (!stream) {
 			try {
-				InputMessage msg = InputMessage.builder(room).withModelType(engine.getModelType()).withParamMap(dataMap)
-						.build();
-				ResponseMessage response = room.ask(msg, engine);
-				AskModelEngineResponse llmResponse = response.getModelEngineResponse();
-				Map<String, Object> payload = OllamaResponsesHelper.processChatResponse(engineId, llmResponse);
+				AskModelEngineResponse llmResponse = ModelPixelExecutor.askModelSync(engine, insight, room, dataMap);
+				Map<String, Object> payload = OllamaResponsesHelper.processFullChatResponse(engineId, llmResponse);
 				return WebUtility.getResponse(payload, 200);
 			} catch (Exception e) {
 				classLogger.error("Synchronous Ollama /chat call failed for engine '{}': {}", engineId, e.getMessage(),
 						e);
-				return errorResponse(400, e.getMessage());
+				return ModelPixelExecutor.errorResponse(400, e.getMessage());
 			}
 		}
-
-		final IModelEngine finalEngine = engine;
-		final Room finalRoom = room;
-		final Map<String, Object> finalDataMap = dataMap;
-		final String finalEngineId = engineId;
 
 		StreamingOutput output = new StreamingOutput() {
 			@Override
 			@SuppressWarnings("unchecked")
 			public void write(OutputStream rawOutput) throws IOException, WebApplicationException {
+
+				// ollama does not actually stream tool deltas
+				// need to aggregate the entire tool
+				// and then send
+				Map<String, Object> currentToolMap = new HashMap<>();
+
+				String jobId = null;
 				try (Writer writer = new BufferedWriter(new OutputStreamWriter(rawOutput, StandardCharsets.UTF_8))) {
-					InputMessage msg = InputMessage.builder(finalRoom).withModelType(finalEngine.getModelType())
-							.withParamMap(finalDataMap).build();
-					ResponseMessage response = finalRoom.ask(msg, finalEngine);
-					AskModelEngineResponse llmResponse = response.getModelEngineResponse();
+					jobId = ModelPixelExecutor.startAsyncModelRequest(engine, insight, room, dataMap, SESSION_ID);
 
-					Map<String, Object> full = OllamaResponsesHelper.processChatResponse(finalEngineId, llmResponse);
-					Map<String, Object> message = (Map<String, Object>) full.get("message");
-					String content = message == null ? "" : (String) message.get("content");
-					List<Map<String, Object>> toolCalls = message == null ? null
-							: (List<Map<String, Object>>) message.get("tool_calls");
-					String doneReason = (String) full.get("done_reason");
+					boolean started = false;
 
-					if ((content != null && !content.isEmpty()) || (toolCalls != null && !toolCalls.isEmpty())) {
-						Map<String, Object> partial = OllamaResponsesHelper.createChatStreamChunk(finalEngineId,
-								content, toolCalls, false, null, null);
-						OllamaResponsesHelper.writeJsonLine(partial, writer);
+					Integer capturedPromptTokens = null;
+					Integer capturedCompletionTokens = null;
+					Integer capturedCachedTokens = null;
+					Integer capturedReasoningTokens = null;
+
+					// polling streaming endpoint until response complete
+					STREAM_COMPLETE_LOOP: while (true) {
+						PixelJobRunner jt = PixelJobManager.getManager().getJob(jobId);
+						List<Map<String, Object>> partialResponseContent = PixelJobManager.getManager()
+								.getStreamOut(jobId);
+						PixelJobStatus jobStatus = jt == null ? PixelJobStatus.UNKNOWN_JOB : jt.getPixelJobStatus();
+
+						/**
+						 * The partialResponseContent Map<String,Object> values comes from the python
+						 * code
+						 * 
+						 * smss_stream_func defined in gaas_tcp_server_handler.py determines the payload
+						 * {"stream_type": stream_type, "data": data}
+						 * 
+						 * The data portion of this payload matches the Dictionary definitions in
+						 * semoss_streaming_util.py StreamUtil class
+						 * 
+						 */
+						if (partialResponseContent != null && partialResponseContent.size() > 0) {
+							for (Map<String, Object> streamObj : partialResponseContent) {
+								String streamType = (String) streamObj.get("stream_type");
+								Map<String, Object> dataMap = (Map<String, Object>) streamObj.get("data");
+								if ("usage".equalsIgnoreCase(streamType)) {
+									Object inT = dataMap.get("input_tokens");
+									if (inT instanceof Number) {
+										capturedPromptTokens = ((Number) inT).intValue();
+									}
+									Object outT = dataMap.get("output_tokens");
+									if (outT instanceof Number) {
+										capturedCompletionTokens = ((Number) outT).intValue();
+									}
+									Object crT = dataMap.get("cache_read_input_tokens");
+									if (crT instanceof Number) {
+										capturedCachedTokens = ((Number) crT).intValue();
+									}
+									Object rT = dataMap.get("reasoning_tokens");
+									if (rT instanceof Number) {
+										capturedReasoningTokens = ((Number) rT).intValue();
+									}
+									continue;
+								}
+								if (streamType.equalsIgnoreCase("content")) {
+									if (dataMap.containsKey("finish_reason")) {
+										String finishReason = (String) dataMap.get("finish_reason");
+										// this is a map only on finish reason
+										OllamaResponsesHelper.writeFinishReason(finishReason, capturedPromptTokens,
+												capturedCompletionTokens, capturedCachedTokens, capturedReasoningTokens,
+												writer);
+										break STREAM_COMPLETE_LOOP;
+									} else {
+										String newContent = (String) dataMap.get("content");
+										if (newContent != null && !newContent.isEmpty()) {
+											OllamaResponsesHelper.writeChatContentChunk(engineId, newContent, writer);
+											started = true;
+										}
+									}
+								} else {
+									// assuming only other type is tool at the moment
+									if (dataMap.containsKey("finish_reason")) {
+										// we need to send the aggregated tool chunk
+										if (!currentToolMap.isEmpty()) {
+											OllamaResponsesHelper.writeChatTool(engineId, currentToolMap, writer);
+											currentToolMap = new HashMap<>();
+										}
+										// send the finish chunk
+										String finishReason = (String) dataMap.get("finish_reason");
+										OllamaResponsesHelper.writeFinishReason(finishReason, capturedPromptTokens,
+												capturedCompletionTokens, capturedCachedTokens, capturedReasoningTokens,
+												writer);
+										break STREAM_COMPLETE_LOOP;
+									} else {
+										// we are entering a new tool
+										if (!currentToolMap.isEmpty() && dataMap.containsKey("id")) {
+											OllamaResponsesHelper.writeChatTool(engineId, currentToolMap, writer);
+											currentToolMap = new HashMap<>();
+										}
+										OllamaResponsesHelper.aggregateToolChunks(currentToolMap, dataMap);
+										started = true;
+									}
+								}
+							}
+						}
+
+						// if job is complete, we should never hit this if
+						// a completion should have been sent
+						if (jobStatus == PixelJobStatus.PROGRESS_COMPLETE && started) {
+							// send final chunk with empty delta && finish_reason="stop"
+							OllamaResponsesHelper.writeFinishReason("stop", capturedPromptTokens,
+									capturedCompletionTokens, capturedCachedTokens, capturedReasoningTokens, writer);
+							break STREAM_COMPLETE_LOOP;
+						} else if (jobStatus == PixelJobStatus.PROGRESS_COMPLETE && !started) {
+							// we didn't start
+							// and there is no output
+							// lets check the result
+							// ... most likely this is a tool output
+							PixelRunner finalOutput = PixelJobManager.getManager().getOutput(jobId);
+							NounMetadata finalNoun = finalOutput.getResults().get(0);
+							Object finalObject = finalNoun.getValue();
+							String messageType = null;
+							Map<String, Object> resultOutput = null;
+							if (finalObject instanceof Map) {
+								resultOutput = (Map<String, Object>) finalObject;
+								messageType = (String) resultOutput.get("messageType");
+							}
+
+							if ("TOOL".equals(messageType)) {
+								// this is a function call request that was not streamed
+								// maybe the model doesn't support streaming of tools
+								List<Map<String, Object>> response = (List<Map<String, Object>>) resultOutput
+										.get("response");
+
+								if (response != null && !response.isEmpty()) {
+									OllamaResponsesHelper.writeFullChatToolResponseAsChunk(engineId, response, writer);
+								}
+								// done reason is still stop
+								// unlike open_ai which is tool_calls
+								OllamaResponsesHelper.writeFinishReason("stop", capturedPromptTokens,
+										capturedCompletionTokens, capturedCachedTokens, capturedReasoningTokens,
+										writer);
+							} else {
+								// Handle regular text response
+								String content = null;
+								if (resultOutput != null) {
+									content = (String) resultOutput.get("response");
+									if (content != null && !content.isEmpty()) {
+										OllamaResponsesHelper.writeChatContentChunk(engineId, content, writer);
+									}
+								}
+
+								// send final chunk with empty delta && finish_reason="stop"
+								OllamaResponsesHelper.writeFinishReason("stop", capturedPromptTokens,
+										capturedCompletionTokens, capturedCachedTokens, capturedReasoningTokens,
+										writer);
+							}
+
+							// job is marked complete, always break
+							break STREAM_COMPLETE_LOOP;
+						}
+
+						// small delay
+						try {
+							Thread.sleep(100);
+						} catch (InterruptedException e) {
+							Thread.currentThread().interrupt();
+							break;
+						}
 					}
-
-					Map<String, Object> done = OllamaResponsesHelper.createChatStreamChunk(finalEngineId, "", null,
-							true, doneReason, llmResponse);
-					OllamaResponsesHelper.writeJsonLine(done, writer);
+				} catch (IOException ioe) {
+					if (!WebUtility.handleStreamingException(ioe, classLogger, engineId, null, null)) {
+						classLogger.error("Streaming Ollama /chat call failed for engine '{}': {}", engineId,
+								ioe.getMessage(), ioe);
+						throw new WebApplicationException(ioe, 500);
+					}
 				} catch (Exception e) {
-					classLogger.error("Streaming Ollama /chat call failed for engine '{}': {}", finalEngineId,
+					classLogger.error("Streaming Ollama /chat call failed for engine '{}': {}", engineId,
+							e.getMessage(), e);
+					throw new WebApplicationException(e, 500);
+				}
+			}
+		};
+
+		return Response.ok().header("Content-Type", "application/x-ndjson").header("Cache-Control", "no-cache")
+				.header("Connection", "keep-alive").entity(output).build();
+	}
+
+	@POST
+	@Path("/api/generate")
+	@Consumes({ "application/json" })
+	@Produces({ "application/json;charset=utf-8", "application/x-ndjson" })
+	public Response apigenerate(@Context HttpServletRequest request) {
+		return generate(request);
+	}
+
+	@POST
+	@Path("/generate")
+	@Consumes({ "application/json" })
+	@Produces({ "application/json;charset=utf-8", "application/x-ndjson" })
+	public Response generate(@Context HttpServletRequest request) {
+		// this is equivalent of legacy OpenAI Text completion
+
+		HttpSession session = request.getSession(false);
+		User user = ModelPixelExecutor.getSessionUser(session);
+		if (user == null) {
+			return ModelPixelExecutor.invalidSessionResponse(request, session);
+		}
+		// set the user timezone
+		ModelPixelExecutor.applyUserTimezone(user, request);
+
+		Map<String, Object> dataMap;
+		try {
+			dataMap = readRequestData(request);
+		} catch (JsonProcessingException e) {
+			classLogger.error("Failed to parse JSON payload for Ollama /generate request: {}", e.getOriginalMessage(),
+					e);
+			return ModelPixelExecutor.errorResponse(400, "Error processing JSON data: " + e.getMessage());
+		} catch (IOException e) {
+			classLogger.error("Failed to read request body for Ollama /generate endpoint: {}", e.getMessage(), e);
+			return ModelPixelExecutor.errorResponse(400, "Bad Request: Could not read request body.");
+		}
+
+		String engineId = sanitize(dataMap.remove("model"));
+		if (engineId == null || engineId.isEmpty()) {
+			return ModelPixelExecutor.errorResponse(400, "Bad Request: Missing required field 'model'.");
+		}
+
+		if (!SecurityEngineUtils.userCanViewEngine(user, engineId)) {
+			return ModelPixelExecutor.errorResponse(403,
+					"Model " + engineId + " does not exist or user does not have access to this model");
+		}
+
+		IModelEngine engine = Utility.getModel(engineId);
+		if (engine == null) {
+			return ModelPixelExecutor.errorResponse(404, "Model not found: " + engineId);
+		}
+		sanitizeProviderSpecificParams(dataMap, engine);
+
+		final String SESSION_ID = session.getId();
+		final String JOB_ID = GUID.v7().toUUID().toString();
+
+		Insight insight = resolveInsight(SESSION_ID, sanitize(dataMap.remove("insight_id")));
+		if (insight == null) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Could not resolve insight context");
+			errorMap.put(ERROR_TYPE, INSIGHT_NOT_FOUND);
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		insight.setUser(user);
+
+		String roomId = sanitize(dataMap.remove("room_id"));
+		Room room = RoomUtils.createRoomIfNotExists(roomId, insight, engine, null);
+
+		ModelPixelExecutor.initializeThreadStore(insight, SESSION_ID, JOB_ID);
+
+		Object promptInput = dataMap.remove("prompt");
+		Object inputFallback = dataMap.remove("input");
+		String prompt = OllamaResponsesHelper.extractPrompt(promptInput, inputFallback);
+		if (prompt == null || prompt.isEmpty()) {
+			return ModelPixelExecutor.errorResponse(400, "Bad Request: Missing required field 'prompt'.");
+		}
+
+		boolean stream = Boolean.parseBoolean(String.valueOf(dataMap.getOrDefault("stream", true)));
+		dataMap.remove("stream");
+
+		// route through the LLM pixel by carrying the prompt as a full_prompt message
+		List<Map<String, Object>> generateMessages = new ArrayList<>();
+		Map<String, Object> generateUserMessage = new HashMap<>();
+		generateUserMessage.put("role", "user");
+		generateUserMessage.put("content", prompt);
+		generateMessages.add(generateUserMessage);
+		dataMap.put(AbstractModelEngine.FULL_PROMPT, generateMessages);
+
+		if (!stream) {
+			try {
+				AskModelEngineResponse llmResponse = ModelPixelExecutor.askModelSync(engine, insight, room, dataMap);
+				Map<String, Object> payload = OllamaResponsesHelper.processFullGenerateResponse(engineId, llmResponse);
+				return WebUtility.getResponse(payload, 200);
+			} catch (Exception e) {
+				classLogger.error("Synchronous Ollama /generate call failed for engine '{}': {}", engineId,
+						e.getMessage(), e);
+				return ModelPixelExecutor.errorResponse(400, e.getMessage());
+			}
+		}
+
+		StreamingOutput output = new StreamingOutput() {
+			@Override
+			@SuppressWarnings("unchecked")
+			public void write(OutputStream rawOutput) throws IOException, WebApplicationException {
+				String jobId = null;
+				try (Writer writer = new BufferedWriter(new OutputStreamWriter(rawOutput, StandardCharsets.UTF_8))) {
+					jobId = ModelPixelExecutor.startAsyncModelRequest(engine, insight, room, dataMap, SESSION_ID);
+
+					boolean started = false;
+
+					Integer capturedPromptTokens = null;
+					Integer capturedCompletionTokens = null;
+					Integer capturedCachedTokens = null;
+					Integer capturedReasoningTokens = null;
+
+					// polling streaming endpoint until response complete
+					STREAM_COMPLETE_LOOP: while (true) {
+						PixelJobRunner jt = PixelJobManager.getManager().getJob(jobId);
+						List<Map<String, Object>> partialResponseContent = PixelJobManager.getManager()
+								.getStreamOut(jobId);
+						PixelJobStatus jobStatus = jt == null ? PixelJobStatus.UNKNOWN_JOB : jt.getPixelJobStatus();
+
+						/**
+						 * The partialResponseContent Map<String,Object> values comes from the python
+						 * code
+						 * 
+						 * smss_stream_func defined in gaas_tcp_server_handler.py determines the payload
+						 * {"stream_type": stream_type, "data": data}
+						 * 
+						 * The data portion of this payload matches the Dictionary definitions in
+						 * semoss_streaming_util.py StreamUtil class
+						 * 
+						 */
+						if (partialResponseContent != null && partialResponseContent.size() > 0) {
+							for (Map<String, Object> streamObj : partialResponseContent) {
+								String streamType = (String) streamObj.get("stream_type");
+								Map<String, Object> dataMap = (Map<String, Object>) streamObj.get("data");
+								if ("usage".equalsIgnoreCase(streamType)) {
+									Object inT = dataMap.get("input_tokens");
+									if (inT instanceof Number) {
+										capturedPromptTokens = ((Number) inT).intValue();
+									}
+									Object outT = dataMap.get("output_tokens");
+									if (outT instanceof Number) {
+										capturedCompletionTokens = ((Number) outT).intValue();
+									}
+									Object crT = dataMap.get("cache_read_input_tokens");
+									if (crT instanceof Number) {
+										capturedCachedTokens = ((Number) crT).intValue();
+									}
+									Object rT = dataMap.get("reasoning_tokens");
+									if (rT instanceof Number) {
+										capturedReasoningTokens = ((Number) rT).intValue();
+									}
+									continue;
+								}
+								if (streamType.equalsIgnoreCase("content")) {
+									if (dataMap.containsKey("finish_reason")) {
+										String finishReason = (String) dataMap.get("finish_reason");
+										// this is a map only on finish reason
+										OllamaResponsesHelper.writeFinishReason(finishReason, capturedPromptTokens,
+												capturedCompletionTokens, capturedCachedTokens, capturedReasoningTokens,
+												writer);
+										break STREAM_COMPLETE_LOOP;
+									} else {
+										String newContent = (String) dataMap.get("content");
+										if (newContent != null && !newContent.isEmpty()) {
+											OllamaResponsesHelper.writeGenerateContentChunk(engineId, newContent,
+													writer);
+											started = true;
+										}
+									}
+								} else {
+									// for future stream types
+								}
+							}
+						}
+
+						// if job is complete, we should never hit this if
+						// a completion should have been sent
+						if (jobStatus == PixelJobStatus.PROGRESS_COMPLETE && started) {
+							// send final chunk with empty delta && finish_reason="stop"
+							OllamaResponsesHelper.writeFinishReason("stop", capturedPromptTokens,
+									capturedCompletionTokens, capturedCachedTokens, capturedReasoningTokens, writer);
+							break STREAM_COMPLETE_LOOP;
+						} else if (jobStatus == PixelJobStatus.PROGRESS_COMPLETE && !started) {
+							// we didn't start
+							// and there is no output
+							// lets check the result
+							// ... most likely this is a tool output
+							PixelRunner finalOutput = PixelJobManager.getManager().getOutput(jobId);
+							NounMetadata finalNoun = finalOutput.getResults().get(0);
+							Object finalObject = finalNoun.getValue();
+
+							// this is not used, but for future in terms of thinking vs regular content
+							String messageType = null;
+							Map<String, Object> resultOutput = null;
+							if (finalObject instanceof Map) {
+								resultOutput = (Map<String, Object>) finalObject;
+								messageType = (String) resultOutput.get("messageType");
+							}
+
+							// Handle regular text response
+							String content = null;
+							if (resultOutput != null) {
+								content = (String) resultOutput.get("response");
+								if (content != null && !content.isEmpty()) {
+									OllamaResponsesHelper.writeGenerateContentChunk(engineId, content, writer);
+								}
+							}
+
+							// send final chunk with empty delta && finish_reason="stop"
+							OllamaResponsesHelper.writeFinishReason("stop", capturedPromptTokens,
+									capturedCompletionTokens, capturedCachedTokens, capturedReasoningTokens, writer);
+
+							// job is marked complete, always break
+							break STREAM_COMPLETE_LOOP;
+						}
+
+						// small delay
+						try {
+							Thread.sleep(100);
+						} catch (InterruptedException e) {
+							Thread.currentThread().interrupt();
+							break;
+						}
+					}
+				} catch (IOException ioe) {
+					if (!WebUtility.handleStreamingException(ioe, classLogger, engineId, null, null)) {
+						classLogger.error("Streaming Ollama /chat call failed for engine '{}': {}", engineId,
+								ioe.getMessage(), ioe);
+						throw new WebApplicationException(ioe, 500);
+					}
+				} catch (Exception e) {
+					classLogger.error("Streaming Ollama /chat call failed for engine '{}': {}", engineId,
 							e.getMessage(), e);
 					throw new WebApplicationException(e, 500);
 				}
@@ -361,12 +623,12 @@ public class OllamaEndpoints {
 	@Produces("application/json;charset=utf-8")
 	public Response embeddings(@Context HttpServletRequest request) {
 		HttpSession session = request.getSession(false);
-		User user = getSessionUser(session);
+		User user = ModelPixelExecutor.getSessionUser(session);
 		if (user == null) {
-			return invalidSessionResponse(request, session);
+			return ModelPixelExecutor.invalidSessionResponse(request, session);
 		}
-
-		applyUserTimezone(user, request);
+		// set the user timezone
+		ModelPixelExecutor.applyUserTimezone(user, request);
 
 		Map<String, Object> dataMap;
 		try {
@@ -374,32 +636,32 @@ public class OllamaEndpoints {
 		} catch (JsonProcessingException e) {
 			classLogger.error("Failed to parse JSON payload for Ollama /embeddings request: {}", e.getOriginalMessage(),
 					e);
-			return errorResponse(400, "Error processing JSON data: " + e.getMessage());
+			return ModelPixelExecutor.errorResponse(400, "Error processing JSON data: " + e.getMessage());
 		} catch (IOException e) {
 			classLogger.error("Failed to read request body for Ollama /embeddings endpoint: {}", e.getMessage(), e);
-			return errorResponse(400, "Bad Request: Could not read request body.");
+			return ModelPixelExecutor.errorResponse(400, "Bad Request: Could not read request body.");
 		}
 
 		String engineId = sanitize(dataMap.remove("model"));
 		if (engineId == null || engineId.isEmpty()) {
-			return errorResponse(400, "Bad Request: Missing required field 'model'.");
+			return ModelPixelExecutor.errorResponse(400, "Bad Request: Missing required field 'model'.");
 		}
 
 		if (!SecurityEngineUtils.userCanViewEngine(user, engineId)) {
-			return errorResponse(403,
+			return ModelPixelExecutor.errorResponse(403,
 					"Model " + engineId + " does not exist or user does not have access to this model");
 		}
 
 		IModelEngine engine = Utility.getModel(engineId);
 		if (engine == null) {
-			return errorResponse(404, "Model not found: " + engineId);
+			return ModelPixelExecutor.errorResponse(404, "Model not found: " + engineId);
 		}
 		sanitizeProviderSpecificParams(dataMap, engine);
 
-		String sessionId = session.getId();
-		String jobId = GUID.v7().toUUID().toString();
+		final String SESSION_ID = session.getId();
+		final String JOB_ID = GUID.v7().toUUID().toString();
 
-		Insight insight = resolveInsight(sessionId, sanitize(dataMap.remove("insight_id")));
+		Insight insight = resolveInsight(SESSION_ID, sanitize(dataMap.remove("insight_id")));
 		if (insight == null) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Could not resolve insight context");
@@ -407,13 +669,13 @@ public class OllamaEndpoints {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		insight.setUser(user);
-		initializeThreadStore(insight, sessionId, jobId);
+		ModelPixelExecutor.initializeThreadStore(insight, SESSION_ID, JOB_ID);
 
 		Object promptInput = dataMap.remove("prompt");
 		Object inputInput = dataMap.remove("input");
 		List<String> stringsToEncode = OllamaResponsesHelper.extractEmbeddingInputs(promptInput, inputInput);
 		if (stringsToEncode == null || stringsToEncode.isEmpty()) {
-			return errorResponse(400, "Bad Request: Missing required field 'prompt' or 'input'.");
+			return ModelPixelExecutor.errorResponse(400, "Bad Request: Missing required field 'prompt' or 'input'.");
 		}
 
 		try {
@@ -423,7 +685,7 @@ public class OllamaEndpoints {
 			return WebUtility.getResponse(payload, 200);
 		} catch (Exception e) {
 			classLogger.error("Ollama /embeddings call failed for engine '{}': {}", engineId, e.getMessage(), e);
-			return errorResponse(400, e.getMessage());
+			return ModelPixelExecutor.errorResponse(400, e.getMessage());
 		}
 	}
 
@@ -459,51 +721,6 @@ public class OllamaEndpoints {
 			InsightStore.getInstance().addToSessionHash(sessionId, insightId);
 		}
 		return insight;
-	}
-
-	private void initializeThreadStore(Insight insight, String sessionId, String jobId) {
-		ThreadStore.setInsightId(insight.getInsightId());
-		ThreadStore.setSessionId(sessionId);
-		ThreadStore.setJobId(jobId);
-		ThreadStore.setUser(insight.getUser());
-	}
-
-	private void applyUserTimezone(User user, HttpServletRequest request) {
-		ZoneId zoneId;
-		String strTz = WebUtility.inputSanitizer(request.getParameter("tz"));
-		if (strTz == null || (strTz = strTz.trim()).isEmpty()) {
-			zoneId = ZoneId.of(Utility.getApplicationZoneId());
-		} else {
-			try {
-				zoneId = ZoneId.of(strTz);
-			} catch (Exception e) {
-				classLogger.warn(
-						"Invalid timezone value '{}' for Ollama request; falling back to application default '{}': {}",
-						strTz, Utility.getApplicationZoneId(), e.getMessage(), e);
-				zoneId = ZoneId.of(Utility.getApplicationZoneId());
-			}
-		}
-		user.setZoneId(zoneId);
-	}
-
-	private User getSessionUser(HttpSession session) {
-		if (session == null) {
-			return null;
-		}
-		return (User) session.getAttribute(Constants.SESSION_USER);
-	}
-
-	private Response invalidSessionResponse(HttpServletRequest request, HttpSession session) {
-		if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
-			session.invalidate();
-		}
-		return errorResponse(401, "User session is invalid");
-	}
-
-	private Response errorResponse(int statusCode, String message) {
-		Map<String, String> errorMap = new HashMap<>();
-		errorMap.put(Constants.ERROR_MESSAGE, message);
-		return WebUtility.getResponse(errorMap, statusCode);
 	}
 
 	private String sanitize(Object input) {

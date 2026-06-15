@@ -50,7 +50,7 @@ import prerna.util.SocialPropertiesUtil;
 import prerna.web.services.util.WebUtility;
 
 public class NoUserInSessionFilter implements Filter {
-	
+
 	private static final String NO_USER_HTML = "/noUserFail/";
 
 	@Override
@@ -91,7 +91,8 @@ public class NoUserInSessionFilter implements Filter {
 	 * @param arg1
 	 * @throws IOException
 	 */
-	private void setInvalidEntryRedirect(ServletContext context, ServletRequest arg0, ServletResponse arg1) throws IOException {
+	private void setInvalidEntryRedirect(ServletContext context, ServletRequest arg0, ServletResponse arg1)
+			throws IOException {
 		String fullUrl = WebUtility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
 		((HttpServletResponse) arg1).setStatus(302);
 		String redirectUrl = ((HttpServletRequest) arg0).getHeader("referer");
@@ -115,7 +116,7 @@ public class NoUserInSessionFilter implements Filter {
 			String encodedRedirectUrl = Encode.forHtml(redirectUrl);
 			((HttpServletResponse) arg1).setHeader("redirect", encodedRedirectUrl);
 			((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + encodedRedirectUrl);
-			
+
 			// invalidate the session if necessary
 			HttpSession session = ((HttpServletRequest) arg0).getSession(false);
 			if (session != null && (session.isNew() || ((HttpServletRequest) arg0).isRequestedSessionIdValid())) {

@@ -113,7 +113,7 @@ public class EngineRemoteResource {
 		// The wrapper consists of a unique number, the actual output object
 		// sets this wrapper in the memory
 		query = WebUtility.inputSanitizer(query);
-		classLogger.info("Executing GRAPH Query " + Utility.cleanLogString(query));
+		classLogger.info("Executing GRAPH Query {}", Utility.cleanLogString(query));
 
 		IConstructWrapper sjw = null;
 		try {
@@ -126,7 +126,8 @@ public class EngineRemoteResource {
 			((IRemoteQueryable) sjw).setRemoteAPI(uriBase + coreEngine.getEngineId());
 			QueryResultHash.getInstance().addObject((SesameConstructWrapper) sjw);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to execute the remote graph construct query on engine {}",
+					coreEngine.getEngineId(), e);
 		}
 
 		return WebUtility.getSO(sjw);
@@ -137,7 +138,7 @@ public class EngineRemoteResource {
 	@Produces("application/json")
 	public Object execSelectQuery(@FormParam("query") String query) {
 		query = WebUtility.inputSanitizer(query);
-		classLogger.info("Executing Select Query  " + Utility.cleanLogString(query));
+		classLogger.info("Executing Select Query  {}", Utility.cleanLogString(query));
 		AbstractWrapper sjsw = null;
 		try {
 			sjsw = (AbstractWrapper) WrapperManager.getInstance().getSWrapper(coreEngine, query);
@@ -146,7 +147,7 @@ public class EngineRemoteResource {
 			sjsw.setRemoteAPI(uriBase + coreEngine.getEngineId());
 			QueryResultHash.getInstance().addObject(sjsw);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to execute the remote select query on engine {}", coreEngine.getEngineId(), e);
 		}
 
 		return WebUtility.getSO(sjsw);
@@ -157,7 +158,7 @@ public class EngineRemoteResource {
 	@Produces("application/json")
 	public Object execCheaterQuery(@FormParam("query") String query) {
 		query = WebUtility.inputSanitizer(query);
-		classLogger.info("Executing Select Query  " + Utility.cleanLogString(query));
+		classLogger.info("Executing Select Query  {}", Utility.cleanLogString(query));
 		AbstractWrapper sjsw = null;
 		try {
 			sjsw = (AbstractWrapper) WrapperManager.getInstance().getChWrapper(coreEngine, query);
@@ -166,7 +167,8 @@ public class EngineRemoteResource {
 			sjsw.setRemoteAPI(uriBase + coreEngine.getEngineId());
 			QueryResultHash.getInstance().addObject(sjsw);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to execute the remote cheater select query on engine {}",
+					coreEngine.getEngineId(), e);
 		}
 
 		return WebUtility.getSO(sjsw);
@@ -188,7 +190,7 @@ public class EngineRemoteResource {
 			query = WebUtility.inputSanitizer(query);
 			return WebUtility.getSO(coreEngine.execQuery(query));
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to execute the remote ask query on engine {}", coreEngine.getEngineId(), e);
 			Map<String, Object> ret = new HashMap<>();
 			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getSO(ret);
@@ -226,11 +228,11 @@ public class EngineRemoteResource {
 	public StreamingOutput hasNext(@FormParam("id") String id) {
 		boolean retValue = false;
 		id = WebUtility.inputSanitizer(id);
-		classLogger.info("Got the id " + Utility.cleanLogString(id));
+		classLogger.info("Got the id {}", Utility.cleanLogString(id));
 		if (id != null) {
 			Object wrapper = QueryResultHash.getInstance().getObject(id);
 
-			classLogger.info("Got the object as well" + wrapper);
+			classLogger.info("Got the object as well{}", wrapper);
 //			if(wrapper instanceof SesameJenaConstructWrapper)
 //				retValue = ((SesameJenaConstructWrapper)wrapper).hasNext();
 //			else if(wrapper instanceof SesameJenaSelectWrapper)
@@ -253,11 +255,11 @@ public class EngineRemoteResource {
 	public StreamingOutput getDisplayVariables(@FormParam("id") String id) {
 		String[] retValue = null;
 		id = WebUtility.inputSanitizer(id);
-		classLogger.info("Got the id " + Utility.cleanLogString(id));
+		classLogger.info("Got the id {}", Utility.cleanLogString(id));
 		if (id != null) {
 			Object wrapper = QueryResultHash.getInstance().getObject(id);
 
-			classLogger.info("Got the object as well" + wrapper);
+			classLogger.info("Got the object as well{}", wrapper);
 //			if(wrapper instanceof SesameJenaConstructWrapper)
 //				retValue = ((SesameJenaConstructWrapper)wrapper).hasNext();
 //			else if(wrapper instanceof SesameJenaSelectWrapper)
@@ -347,7 +349,7 @@ public class EngineRemoteResource {
 							Thread.sleep(200);
 						} catch (InterruptedException e) {
 							Thread.currentThread().interrupt();
-							classLogger.error(Constants.STACKTRACE, e);
+							classLogger.error("Interrupted while throttling the stream tester output", e);
 						}
 					}
 				}

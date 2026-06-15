@@ -55,8 +55,8 @@ import prerna.web.services.util.WebUtility;
 @PermitAll
 public class DataframeResource {
 
-	private static final Logger logger = LogManager.getLogger(DataframeResource.class); 
-	
+	private static final Logger classLogger = LogManager.getLogger(DataframeResource.class);
+
 	@Context
 	ServletContext context;
 
@@ -71,7 +71,7 @@ public class DataframeResource {
 //		return WebUtility.getResponse("Successfully closed back door", 200);
 //	}
 
-//	@POST
+//	@POST 
 //	@Path("/applyCalc")
 //	@Produces("application/json")
 //	public Response applyCalculation(MultivaluedMap<String, String> form, @Context HttpServletRequest request){
@@ -87,16 +87,17 @@ public class DataframeResource {
 //		
 //		return WebUtility.getResponse(stupidFEObj, 200);
 //	}
-	
-	//for handling playsheet specific tool calls
+
+	// for handling playsheet specific tool calls
 	@POST
 	@Path("do-{method}")
 	@Produces("application/json")
-	public Response doMethod(@PathParam("method") String method, MultivaluedMap<String, String> form, @Context HttpServletRequest request)
-	{    	
+	public Response doMethod(@PathParam("method") String method, MultivaluedMap<String, String> form,
+			@Context HttpServletRequest request) {
 		Gson gson = new Gson();
-		Map<String, Object> hash = gson.fromJson(form.getFirst("data"), new TypeToken<Map<String, Object>>() {}.getType());
-		if(insight instanceof OldInsight) {
+		Map<String, Object> hash = gson.fromJson(form.getFirst("data"), new TypeToken<Map<String, Object>>() {
+		}.getType());
+		if (insight instanceof OldInsight) {
 			Object ret = ((OldInsight) this.insight).getPlaySheet().doMethod(method, hash);
 			return WebUtility.getResponse(ret, 200);
 		} else {
@@ -181,7 +182,7 @@ public class DataframeResource {
 //			}
 //		}
 //	}
-	
+
 //	private void makeDataDirectory(String engineName)
 //	{
 //		String baseFolder = DIHelper.getInstance().getProperty(Constants.BASE_FOLDER);
@@ -195,7 +196,7 @@ public class DataframeResource {
 //			file.mkdir();				
 //		
 //	}
-	
+
 //	private void moveFileToDB(String engineName)
 //	{
 //		try{
@@ -239,14 +240,13 @@ public class DataframeResource {
 //		}
 //	}
 
-	
 //	@POST
 //	@Path("/saveFilesInInsightAsDb")
 //	@Produces("application/json")
 //	public Response saveFilesUsedInInsightIntoDb(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 //		// we need to create a full db now
 //		// do it based on the csv file name and the date
-//		logger.info("Start loading files in insight into database");
+//		classLogger.info("Start loading files in insight into database");
 //		// we need to create a full db now
 //		// do it based on the csv file name and the date
 //		
@@ -270,7 +270,7 @@ public class DataframeResource {
 //		
 //		try { 
 //			createdEng = creator.processInsightFiles(insight, engineName);
-//			logger.info("Done loading files in insight into database");
+//			classLogger.info("Done loading files in insight into database");
 //		} catch (IOException e) {
 //			e.printStackTrace();
 //			Map<String, String> errorMap = new HashMap<String, String>();
@@ -282,7 +282,7 @@ public class DataframeResource {
 //			return WebUtility.getResponse(errorMap, 200);
 //		}
 //
-//		logger.info("Start modifying PKQL to query of new engine");
+//		classLogger.info("Start modifying PKQL to query of new engine");
 //
 //		List<FileMeta> filesMetadata = insight.getFilesUsedInInsight();
 //		
@@ -401,7 +401,7 @@ public class DataframeResource {
 //		}
 //		
 //
-//		logger.info("Done modifying PKQL to query of new engine");
+//		classLogger.info("Done modifying PKQL to query of new engine");
 //
 //		// clear the files since they are now loaded into the engine
 //		filesMetadata.clear();

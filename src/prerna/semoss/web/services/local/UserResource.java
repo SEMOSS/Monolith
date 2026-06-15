@@ -346,13 +346,17 @@ public class UserResource {
 	 * @param autoAdd when true, create/update the user record automatically
 	 */
 	public static void addAccessToken(AccessToken token, HttpServletRequest request, boolean autoAdd) {
-		HttpSession session = request.getSession();
+		HttpSession session = request.getSession(true);
 		User semossUser = (User) session.getAttribute(Constants.SESSION_USER);
 		// all of this is now in the user
 		boolean firstLogin = semossUser == null;
 		if (firstLogin) {
 			semossUser = new User();
 			session.setAttribute(Constants.SESSION_USER_ID_LOG, token.getId());
+			// to prevent session fixation attacks
+			if (!session.isNew()) {
+				request.changeSessionId();
+			}
 		}
 		// add new users into the database
 		if (autoAdd) {

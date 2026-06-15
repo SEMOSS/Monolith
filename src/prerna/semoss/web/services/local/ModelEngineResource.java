@@ -109,8 +109,8 @@ public class ModelEngineResource {
 	/**
 	 * Streaming variant of {@link #llm(HttpServletRequest, String)}: dispatches the
 	 * same {@code LLM(...)} pixel asynchronously and writes each chunk produced by
-	 * the model — pulled from {@link PixelJobManager#getStreamOut(String)} —
-	 * back to the client as a Server-Sent Events stream.
+	 * the model - pulled from {@link PixelJobManager#getStreamOut(String)} - back
+	 * to the client as a Server-Sent Events stream.
 	 * <p>
 	 * Each SSE event payload is the raw {@code Map<String, Object>} from the job's
 	 * stream map serialized as JSON (no OpenAI-format translation). The stream

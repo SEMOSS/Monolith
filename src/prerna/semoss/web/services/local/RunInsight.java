@@ -51,10 +51,10 @@ import prerna.web.requests.OverrideParametersServletRequest;
 public class RunInsight {
 
 	private static final Logger classLogger = LogManager.getLogger(RunInsight.class);
-	
+
 	private Insight in = null;
 	private boolean drop = false;
-	
+
 	public RunInsight(Insight in) {
 		this.in = in;
 	}
@@ -62,7 +62,7 @@ public class RunInsight {
 	public void dropInsight(boolean drop) {
 		this.drop = drop;
 	}
-	
+
 	@POST
 	@Path("/getTableData")
 	@Produces("application/json")
@@ -70,7 +70,7 @@ public class RunInsight {
 		String pixel = "QueryAll()|Collect(-1);FrameHeaders();";
 		return runPixel(request, pixel);
 	}
-	
+
 	@POST
 	@Path("/getInsightState")
 	@Produces("application/json")
@@ -78,10 +78,9 @@ public class RunInsight {
 		PixelRunner pixelRunner = InsightUtility.recreateInsightState(in);
 		return Response.status(200).entity(PixelStreamUtility.collectPixelData(pixelRunner, null))
 				.header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0")
-				.header("Pragma", "no-cache")
-				.build();
+				.header("Pragma", "no-cache").build();
 	}
-	
+
 //	private OptimizeRecipeTranslation getOptimizedRecipe(List<String> recipe) {
 //		OptimizeRecipeTranslation translation = new OptimizeRecipeTranslation();
 //		for (int i = 0; i < recipe.size(); i++) {
@@ -107,16 +106,17 @@ public class RunInsight {
 //		}
 //		return translation;
 //	}
-	
+
 	/**
 	 * Utility method to execute the pixel on the insight
+	 * 
 	 * @param request
 	 * @param pixel
 	 * @return
 	 */
 	private Response runPixel(@Context HttpServletRequest request, String pixel) {
-		if(this.drop) {
-			if(pixel.endsWith(";")) {
+		if (this.drop) {
+			if (pixel.endsWith(";")) {
 				pixel = pixel + "DropInsight();";
 			} else {
 				pixel = pixel + ";DropInsight();";

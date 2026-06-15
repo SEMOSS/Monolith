@@ -457,7 +457,7 @@ public final class WebUtility {
 
 	/**
 	 * Escape a string for use in a SQL literal (ANSI / MySQL flavor) using ESAPI.
-	 * Does not strip HTML/JS — use {@link #inputSanitizer(String)} for that.
+	 * Does not strip HTML/JS - use {@link #inputSanitizer(String)} for that.
 	 *
 	 * @param stringToSanitize the candidate input
 	 * @return the SQL-escaped string, or {@code null} if input is null
@@ -979,5 +979,72 @@ public final class WebUtility {
 
 		// Default ports based on protocol as fallback
 		return request.isSecure() ? 443 : 80;
+	}
+
+	/**
+	 * True when an exception thrown from an HTTP write (typically an SSE flush) is
+	 * caused by the downstream client - or an intermediate proxy - closing the
+	 * connection, rather than a server-side fault. Streaming clients (e.g. Codex,
+	 * OpenAI SDK consumers) routinely abort mid-stream when the user cancels
+	 * generation, a tool call routes the conversation, or an upstream timeout
+	 * fires. Those should not be logged as ERROR with full stack traces.
+	 *
+	 * Walks the cause chain because Tomcat's ClientAbortException usually wraps a
+	 * java.io.IOException("Broken pipe") from the NIO layer, and proxies may
+	 * surface the same condition as "Connection reset by peer". Compared by class
+	 * name so this utility takes no compile-time dependency on Tomcat internals.
+	 */
+	public static boolean isClientDisconnect(Throwable t) {
+		for (Throwable c = t; c != null; c = c.getCause()) {
+			if ("org.apache.catalina.connector.ClientAbortException".equals(c.getClass().getName())) {
+				return true;
+			}
+			String msg = c.getMessage();
+			if (msg != null) {
+				String lower = msg.toLowerCase(java.util.Locale.ROOT);
+				if (lower.contains("broken pipe") || lower.contains("connection reset")) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Shared streaming-endpoint catch logic. If {@code t} is a client disconnect
+	 * (see {@link #isClientDisconnect}) it logs at INFO with no stack trace, runs
+	 * {@code onClientDisconnect} (e.g. to cancel an upstream producer), and returns
+	 * {@code true} to signal the caller it's been handled. Otherwise returns
+	 * {@code false} so the caller can apply its own server-error handling (log at
+	 * ERROR, throw, etc.).
+	 *
+	 * Kept in WebUtility because the classification is a pure HTTP-layer concern
+	 * with no business deps. The cancellation hook lives in the caller's lambda so
+	 * business classes (e.g. PixelJobRunner) stay out of this utility.
+	 *
+	 * @param t                  the throwable from the streaming write
+	 * @param logger             caller's logger (so log lines retain the caller's
+	 *                           class name)
+	 * @param engineId           identifier surfaced in the log line; may be null
+	 * @param jobId              identifier surfaced in the log line; may be null
+	 * @param onClientDisconnect invoked only on the disconnect path; may be null
+	 * @return true if a disconnect was handled, false otherwise
+	 */
+	public static boolean handleStreamingException(Throwable t, Logger logger, String engineId, String jobId,
+			Runnable onClientDisconnect) {
+		if (!isClientDisconnect(t)) {
+			return false;
+		}
+		logger.info("Client disconnected mid-stream for engine '{}' job '{}': {}", engineId, jobId, t.getMessage());
+		if (onClientDisconnect != null) {
+			try {
+				onClientDisconnect.run();
+			} catch (RuntimeException re) {
+				// Don't let a cleanup failure mask the disconnect.
+				logger.warn("onClientDisconnect callback failed for engine '{}' job '{}': {}", engineId, jobId,
+						re.getMessage(), re);
+			}
+		}
+		return true;
 	}
 }

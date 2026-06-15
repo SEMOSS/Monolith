@@ -75,7 +75,6 @@ import prerna.web.services.util.WebUtility;
  * The implementation is specific to OpenAM metadata APIs and Fedlet
  * conventions.
  */
-
 public class SSOUtil {
 
 	private static final Logger classLogger = LogManager.getLogger(SSOUtil.class);
@@ -149,7 +148,7 @@ public class SSOUtil {
 				File dir = new File(WebUtility.normalizePath(fedletHomeDir));
 				File file = new File(
 						WebUtility.normalizePath(fedletHomeDir + File.separator + "FederationConfig.properties"));
-				classLogger.info("Fedlet config being used " + file);
+				classLogger.info("Fedlet config being used {}", file);
 				if (!dir.exists() || !dir.isDirectory()) {
 					throw new FileNotFoundException("Configuration directory does not exist.");
 				} else if (!file.exists()) {
@@ -211,8 +210,8 @@ public class SSOUtil {
 				SSO_MAP.put("idpEntityID", idpEntityID);
 				SSO_MAP.put("binding", HTTP_POST_BINDING);
 
-				classLogger.info(Utility.cleanLogString("Fedlet (SP) Entity ID:" + spEntityID));
-				classLogger.info(Utility.cleanLogString("IDP Entity ID:" + idpEntityID));
+				classLogger.info("Fedlet (SP) Entity ID:{}", Utility.cleanLogString(spEntityID));
+				classLogger.info("IDP Entity ID:{}", Utility.cleanLogString(idpEntityID));
 				isConfigured = true;
 			} catch (SAML2MetaException se) {
 				classLogger.error("Failed to configure SSO metadata from Fedlet/OpenAM.", se);
@@ -237,7 +236,7 @@ public class SSOUtil {
 
 		// this is where we set the SAML home dir by getting the loc from RDF props.
 		String confLocation = Utility.getDIHelperProperty(Constants.SAML_PROP_LOC).trim();
-		classLogger.info("Directory is set to.. " + confLocation);
+		classLogger.info("Directory is set to.. {}", confLocation);
 		System.getProperties().setProperty("com.sun.identity.fedlet.home", confLocation);
 
 		// Set the saml config location

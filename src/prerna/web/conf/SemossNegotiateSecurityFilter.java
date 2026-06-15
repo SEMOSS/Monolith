@@ -42,15 +42,15 @@ import prerna.util.Constants;
 public class SemossNegotiateSecurityFilter extends waffle.servlet.NegotiateSecurityFilter {
 
 	@Override
-	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
-
-		HttpSession session = ((HttpServletRequest)arg0).getSession(true);
+	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2)
+			throws IOException, ServletException {
+		HttpSession session = ((HttpServletRequest) arg0).getSession(true);
 		User user = (User) session.getAttribute(Constants.SESSION_USER);
-		if(user == null) {
+		if (user == null) {
 			super.doFilter(arg0, arg1, arg2);
 		} else {
 			arg2.doFilter(arg0, arg1);
 		}
 	}
-	
+
 }

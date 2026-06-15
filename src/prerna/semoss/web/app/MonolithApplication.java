@@ -33,11 +33,11 @@ import java.util.Set;
 import javax.ws.rs.ApplicationPath;
 import javax.ws.rs.core.Application;
 
-import prerna.cluster.RawSelectWrapperService;
 import prerna.semoss.web.form.FormResource;
 import prerna.semoss.web.services.config.ServerConfigurationResource;
 import prerna.semoss.web.services.local.AdminThemeResource;
 import prerna.semoss.web.services.local.AnthropicEndpoints;
+import prerna.semoss.web.services.local.A2AResource;
 import prerna.semoss.web.services.local.AuthorizationResource;
 import prerna.semoss.web.services.local.DatabaseEngineResource;
 import prerna.semoss.web.services.local.EngineRouteResource;
@@ -124,7 +124,6 @@ public class MonolithApplication extends Application {
 		// other
 		singletons.add(new AdminThemeResource());
 		singletons.add(new ServerConfigurationResource());
-		singletons.add(new RawSelectWrapperService());
 		// legacy forms - still used in production - RDF specific
 		singletons.add(new FormResource());
 
@@ -134,6 +133,8 @@ public class MonolithApplication extends Application {
 		singletons.add(new OllamaEndpoints());
 		// MCP
 		singletons.add(new MCPResource());
+		// A2A
+		singletons.add(new A2AResource());
 	}
 
 	@Override

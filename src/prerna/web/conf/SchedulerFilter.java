@@ -51,10 +51,11 @@ import prerna.util.Constants;
 
 public class SchedulerFilter implements Filter {
 
-	private static final Logger logger = LogManager.getLogger(SchedulerFilter.class);
-	
+	private static final Logger classLogger = LogManager.getLogger(SchedulerFilter.class);
+
 	@Override
-	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
+	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2)
+			throws IOException, ServletException {
 		HttpServletRequest request = (HttpServletRequest) arg0;
 
 		String execId = request.getParameter(JobConfigKeys.EXEC_ID);
@@ -63,17 +64,17 @@ public class SchedulerFilter implements Filter {
 
 		// make sure the request is valid
 		String[] jobInfo = SchedulerDatabaseUtility.executionIdExists(execId);
-		if(jobInfo == null) {
+		if (jobInfo == null) {
 			// error
-			logger.info("Could not find the scheduler execution id");
+			classLogger.info("Could not find the scheduler execution id");
 			return;
 		}
-		if(!jobInfo[0].equals(jobId) || !jobInfo[1].equals(jobGroup)) {
+		if (!jobInfo[0].equals(jobId) || !jobInfo[1].equals(jobGroup)) {
 			// error
-			logger.info("Found scheduler execution id but could not match to details");
+			classLogger.info("Found scheduler execution id but could not match to details");
 			return;
 		}
-		
+
 		HttpSession session = request.getSession(true);
 		String userAccess = request.getParameter(JobConfigKeys.USER_ACCESS);
 		// Add user info to the insight
@@ -96,10 +97,10 @@ public class SchedulerFilter implements Filter {
 			user.setAccessToken(token);
 		}
 		session.setAttribute(Constants.SESSION_USER, user);
-		
+
 		// clean up the table
 		SchedulerDatabaseUtility.removeExecutionId(execId);
-		
+
 		// continue
 		arg2.doFilter(arg0, arg1);
 	}
@@ -113,7 +114,7 @@ public class SchedulerFilter implements Filter {
 	@Override
 	public void init(FilterConfig filterConfig) throws ServletException {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 }
