@@ -640,5 +640,13 @@
 			<artifactId>json-sanitizer</artifactId>
 			<version>1.2.3</version>
 		</dependency>
-	</dependencies>
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-bom</artifactId>
+            <!-- Update to 4.1.133.Final or 4.2.13.Final -->
+            <version>4.1.133.Final</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+    </dependencies>
 </project>
