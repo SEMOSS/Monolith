@@ -308,11 +308,11 @@ public class UserResource {
 		} catch (Exception e) {
 			classLogger.error("Unexpected error in addAccessToken", e);
 		}
-		semossUser.setAccessToken(token);
-		semossUser.setAnonymous(false);
-
 		// also set the user metadata
 		SecurityUserUtils.loadUserMetadata(token);
+
+		semossUser.setAccessToken(token);
+		semossUser.setAnonymous(false);
 
 		session.setAttribute(Constants.SESSION_USER, semossUser);
 		WebUtility.loggingContextLoginEvent(session);
