@@ -100,6 +100,15 @@ public class AnthropicEndpoints {
 	private static final ObjectMapper MAPPER = new ObjectMapper();
 
 	/**
+	 * Safety ceiling (in tokens) for the extended-thinking budget. The client's
+	 * requested {@code thinking.budget_tokens} is forwarded to the backend, but
+	 * clamped to this value so a large - or unbounded/dynamic (negative) - budget
+	 * cannot trigger a multi-minute reasoning turn. Tune as needed; backend effort
+	 * levels map roughly as medium=8192, high=24576, max=63999.
+	 */
+	private static final int MAX_THINKING_BUDGET_TOKENS = 16384;
+
+	/**
 	 * Main Messages API endpoint - handles both streaming and non-streaming
 	 * requests. Compatible with Anthropic's /v1/messages endpoint.
 	 * 
@@ -230,7 +239,25 @@ public class AnthropicEndpoints {
 
 		boolean isStreamingRequest = Boolean.parseBoolean(dataMap.getOrDefault("stream", false).toString());
 		dataMap.remove("stream");
-		dataMap.remove("thinking");
+		// Forward the client's extended-thinking request to the backend instead of
+		// dropping it. reasoning.normalize_reasoning() understands the Anthropic
+		// {"type":"enabled","budget_tokens":N} shape. Previously this did
+		// dataMap.remove("thinking"), which discarded the client's budget and let
+		// the backend model fall back to its (often unbounded/dynamic) default -
+		// producing multi-minute reasoning turns. Clamp the budget as a guard.
+		Object thinkingParam = dataMap.get("thinking");
+		if (thinkingParam instanceof Map) {
+			Map<String, Object> thinkingMap = (Map<String, Object>) thinkingParam;
+			Object budgetObj = thinkingMap.get("budget_tokens");
+			if (budgetObj instanceof Number) {
+				int requestedBudget = ((Number) budgetObj).intValue();
+				if (requestedBudget < 0 || requestedBudget > MAX_THINKING_BUDGET_TOKENS) {
+					classLogger.info("Anthropic-thinking-budget-clamp::{}::{}=>{}", JOB_ID, requestedBudget,
+							MAX_THINKING_BUDGET_TOKENS);
+					thinkingMap.put("budget_tokens", MAX_THINKING_BUDGET_TOKENS);
+				}
+			}
+		}
 		dataMap.remove("context_management");
 		dataMap.remove("output_config");
 		dataMap.remove("metadata");
@@ -351,6 +378,14 @@ public class AnthropicEndpoints {
 							int contentBlockIndex = 0;
 							boolean textBlockStarted = false;
 
+							// Extended-thinking ("thinking") blocks lead the message at
+							// index 0; text/tool blocks then shift by thinkingOffset.
+							// Without this, the reasoning the backend streams
+							// (stream_type="thinking") is silently dropped on the floor.
+							boolean thinkingBlockStarted = false;
+							boolean thinkingBlockClosed = false;
+							int thinkingOffset = 0;
+
 							// Track tool data across chunks
 							Map<Integer, String> pendingToolIds = new HashMap<>();
 							Map<Integer, String> pendingToolNames = new HashMap<>();
@@ -395,6 +430,25 @@ public class AnthropicEndpoints {
 											continue;
 										}
 
+										if ("thinking".equalsIgnoreCase(streamType)) {
+											Object thinkingObj = streamData.get("thinking");
+											String thinkingChunk = thinkingObj != null ? thinkingObj.toString() : null;
+											// Thinking must lead the message at index 0. If a text or tool
+											// block already opened we cannot insert it before them, so drop
+											// the chunk rather than corrupt content-block ordering.
+											if (thinkingChunk != null && !thinkingChunk.isEmpty() && !thinkingBlockClosed
+													&& !textBlockStarted && toolBlockStarted.isEmpty()) {
+												if (!thinkingBlockStarted) {
+													AnthropicMessagesHelper.writeThinkingContentBlockStart(0, writer);
+													thinkingBlockStarted = true;
+													thinkingOffset = 1;
+													contentBlockIndex = 1;
+												}
+												AnthropicMessagesHelper.writeThinkingDelta(0, thinkingChunk, writer);
+											}
+											continue;
+										}
+
 										if ("content".equalsIgnoreCase(streamType)) {
 											if (streamData.containsKey("finish_reason")) {
 												String finishReason = (String) streamData.get("finish_reason");
@@ -410,6 +464,10 @@ public class AnthropicEndpoints {
 															writer);
 												}
 
+												if (thinkingBlockStarted && !thinkingBlockClosed) {
+													AnthropicMessagesHelper.writeContentBlockStop(0, writer);
+													thinkingBlockClosed = true;
+												}
 												String stopReason = mapFinishReasonToStopReason(finishReason);
 												AnthropicMessagesHelper.writeMessageDelta(stopReason,
 														capturedInputTokens, capturedOutputTokens,
@@ -420,6 +478,10 @@ public class AnthropicEndpoints {
 												String newContent = (String) streamData.get("content");
 												if (newContent != null && !newContent.isEmpty()) {
 													if (!textBlockStarted) {
+														if (thinkingBlockStarted && !thinkingBlockClosed) {
+															AnthropicMessagesHelper.writeContentBlockStop(0, writer);
+															thinkingBlockClosed = true;
+														}
 														long elapsed = System.currentTimeMillis() - streamStartTime;
 														classLogger.info("SSE first content after {}ms for job {}",
 																elapsed, asyncJobId);
@@ -460,6 +522,10 @@ public class AnthropicEndpoints {
 													}
 												}
 
+												if (thinkingBlockStarted && !thinkingBlockClosed) {
+													AnthropicMessagesHelper.writeContentBlockStop(0, writer);
+													thinkingBlockClosed = true;
+												}
 												String stopReason = mapFinishReasonToStopReason(finishReason);
 												AnthropicMessagesHelper.writeMessageDelta(stopReason,
 														capturedInputTokens, capturedOutputTokens,
@@ -467,9 +533,12 @@ public class AnthropicEndpoints {
 												AnthropicMessagesHelper.writeMessageStop(writer);
 												break STREAM_COMPLETE_LOOP;
 											} else {
-												Integer toolIndex = streamData.get("index") != null
+												// Shift tool blocks past any leading thinking block (index 0).
+												// thinkingOffset is fixed before tools stream (thinking leads),
+												// so every chunk for a given tool resolves to the same index.
+												Integer toolIndex = (streamData.get("index") != null
 														? ((Number) streamData.get("index")).intValue()
-														: 0;
+														: 0) + thinkingOffset;
 
 												if (streamData.containsKey("id")) {
 													pendingToolIds.put(toolIndex, (String) streamData.get("id"));
@@ -504,6 +573,10 @@ public class AnthropicEndpoints {
 
 												if (toolId != null && toolName != null
 														&& !toolBlockStarted.getOrDefault(toolIndex, false)) {
+													if (thinkingBlockStarted && !thinkingBlockClosed) {
+														AnthropicMessagesHelper.writeContentBlockStop(0, writer);
+														thinkingBlockClosed = true;
+													}
 													AnthropicMessagesHelper.writeToolUseContentBlockStart(toolIndex,
 															toolId, toolName, writer);
 													toolBlockStarted.put(toolIndex, true);
@@ -558,6 +631,10 @@ public class AnthropicEndpoints {
 										}
 									}
 
+									if (thinkingBlockStarted && !thinkingBlockClosed) {
+										AnthropicMessagesHelper.writeContentBlockStop(0, writer);
+										thinkingBlockClosed = true;
+									}
 									String stopReason = toolBlockStarted.isEmpty() ? "end_turn" : "tool_use";
 									AnthropicMessagesHelper.writeMessageDelta(stopReason, capturedInputTokens,
 											capturedOutputTokens, capturedCacheReadTokens, capturedCacheCreationTokens,
@@ -566,6 +643,12 @@ public class AnthropicEndpoints {
 									break STREAM_COMPLETE_LOOP;
 								} else if (jobStatus == PixelJobStatus.PROGRESS_COMPLETE && !textBlockStarted
 										&& toolBlockStarted.isEmpty()) {
+									// Close any leading thinking block before emitting the final-output
+									// content/tool blocks (which shift by thinkingOffset).
+									if (thinkingBlockStarted && !thinkingBlockClosed) {
+										AnthropicMessagesHelper.writeContentBlockStop(0, writer);
+										thinkingBlockClosed = true;
+									}
 									PixelRunner finalOutput = PixelJobManager.getManager().getOutput(asyncJobId);
 									NounMetadata finalNoun = finalOutput.getResults().get(0);
 									Object finalObject = finalNoun.getValue();
@@ -594,10 +677,10 @@ public class AnthropicEndpoints {
 													argsJson = "{}";
 												}
 
-												AnthropicMessagesHelper.writeToolUseContentBlockStart(i, toolId,
+												AnthropicMessagesHelper.writeToolUseContentBlockStart(i + thinkingOffset, toolId,
 														toolName, writer);
-												AnthropicMessagesHelper.writeInputJsonDelta(i, argsJson, writer);
-												AnthropicMessagesHelper.writeContentBlockStop(i, writer);
+												AnthropicMessagesHelper.writeInputJsonDelta(i + thinkingOffset, argsJson, writer);
+												AnthropicMessagesHelper.writeContentBlockStop(i + thinkingOffset, writer);
 
 												Object sig = toolResp.get("thought_signature");
 												if (sig instanceof String && !((String) sig).isEmpty()) {
@@ -628,9 +711,9 @@ public class AnthropicEndpoints {
 											break STREAM_COMPLETE_LOOP;
 										}
 
-										AnthropicMessagesHelper.writeTextContentBlockStart(0, writer);
-										AnthropicMessagesHelper.writeTextDelta(0, content, writer);
-										AnthropicMessagesHelper.writeContentBlockStop(0, writer);
+										AnthropicMessagesHelper.writeTextContentBlockStart(thinkingOffset, writer);
+										AnthropicMessagesHelper.writeTextDelta(thinkingOffset, content, writer);
+										AnthropicMessagesHelper.writeContentBlockStop(thinkingOffset, writer);
 										AnthropicMessagesHelper.writeMessageDelta("end_turn", capturedInputTokens,
 												capturedOutputTokens, capturedCacheReadTokens,
 												capturedCacheCreationTokens, writer);
