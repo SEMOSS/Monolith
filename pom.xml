@@ -391,6 +391,14 @@
 	</repositories>
 	<dependencyManagement>
 		<dependencies>
+			<!-- CVE force: CVE-2026-42579 - override transitive Netty DNS artifacts to fixed version -->
+			<dependency>
+				<groupId>io.netty</groupId>
+				<artifactId>netty-bom</artifactId>
+				<version>4.1.133.Final</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
 			<!-- GHSA-2m67-wjpj-xhg9 / CVE-2026-29062: force transitive tools.jackson.core (Jackson 3.x) from mcp-json-jackson3 up to fixed version -->
 			<dependency>
 				<groupId>tools.jackson.core</groupId>
