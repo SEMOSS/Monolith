@@ -104,6 +104,7 @@ public class AdminGitHubService {
 			appName = "Semoss GitHub App";
 		}
 		String org = req.getParameter("org");
+		boolean isPublic = Boolean.parseBoolean(req.getParameter("public") + "");
 
 		// 1. CSRF token - stashed in session, echoed back by GitHub, verified in the
 		// callback
@@ -114,7 +115,7 @@ public class AdminGitHubService {
 		// 2. Build the manifest (the app's settings as JSON)
 		String manifestJson;
 		try {
-			manifestJson = buildManifest(appName, baseUrl);
+			manifestJson = buildManifest(appName, baseUrl, isPublic);
 		} catch (Exception e) {
 			classLogger.error("Failed to build GitHub manifest", e);
 			return WebUtility.getResponse(Map.of("status", "error", "reason", "unable to build manifest"), 500);
@@ -304,7 +305,7 @@ public class AdminGitHubService {
 	}
 
 	/** The app's configuration, serialized as the manifest GitHub expects. */
-	private String buildManifest(String appName, String baseUrl) {
+	private String buildManifest(String appName, String baseUrl, boolean isPublic) {
 		JsonObject manifest = new JsonObject();
 		manifest.addProperty("name", appName);
 		manifest.addProperty("url", baseUrl);
@@ -329,7 +330,7 @@ public class AdminGitHubService {
 		callbacks.add(baseUrl + "/github/install/callback");
 		manifest.add("callback_urls", callbacks);
 
-		manifest.addProperty("public", false);
+		manifest.addProperty("public", isPublic);
 
 		// least privilege: read code + receive push webhooks. metadata is mandatory.
 		JsonObject perms = new JsonObject();
