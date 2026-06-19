@@ -291,7 +291,8 @@ public class GitHubService {
 			branches = GitHubAppClient.listRepositoryBranches(installationId.trim(), repoFullName.trim());
 		} catch (Exception e) {
 			classLogger.error("Failed to list branches for repo {}", repoFullName, e);
-			return WebUtility.getResponse(Map.of("status", "error", "reason", "unable to read repository branches"), 502);
+			return WebUtility.getResponse(Map.of("status", "error", "reason", "unable to read repository branches"),
+					502);
 		}
 
 		return WebUtility.getResponse(Map.of("status", "ok", "repoFullName", repoFullName, "branches", branches), 200);
