@@ -321,13 +321,20 @@ public class AdminGitHubService {
 		// carrying installation_id (handled by GitHubService#installCallback). This
 		// is what drives the install flow - without it GitHub never redirects back.
 		manifest.addProperty("setup_url", baseUrl + "/github/install/callback");
-		// do not bounce the user back to the setup URL on every installation update
-		manifest.addProperty("setup_on_update", false);
+		// also redirect to the setup URL when an existing installation is *updated*
+		// (e.g. the user adds a second repo to an already-installed app). Without
+		// this, GitHub only fires the setup URL on first install, so connecting a
+		// second project to a newly granted repo never calls back to the platform.
+		manifest.addProperty("setup_on_update", true);
 
-		// OAuth user-authorization callback (registered only; used if we ever
-		// request OAuth during installation)
+		// OAuth user-authorization callbacks. /github/user/callback is the
+		// redirect_uri for the per-user authorization flow that scopes the repo
+		// picker to what each user can actually access on GitHub (see
+		// GitHubService#userAuthorize / #userCallback). A redirect_uri must match a
+		// registered callback url, so it has to be listed here.
 		JsonArray callbacks = new JsonArray();
 		callbacks.add(baseUrl + "/github/install/callback");
+		callbacks.add(baseUrl + "/github/user/callback");
 		manifest.add("callback_urls", callbacks);
 
 		manifest.addProperty("public", isPublic);
