@@ -65,7 +65,6 @@ import org.apache.commons.lang3.time.FastDateFormat;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.ThreadContext;
-import org.javatuples.Pair;
 import org.owasp.encoder.Encode;
 import org.owasp.esapi.ESAPI;
 import org.owasp.esapi.codecs.MySQLCodec;
@@ -77,6 +76,7 @@ import com.google.common.net.InternetDomainName;
 import com.google.gson.Gson;
 import com.google.json.JsonSanitizer;
 
+import prerna.auth.AccessToken;
 import prerna.auth.User;
 import prerna.logging.SemossLogUtils;
 import prerna.om.ThreadStore;
@@ -776,14 +776,23 @@ public final class WebUtility {
 
 			User user = (User) session.getAttribute(Constants.SESSION_USER);
 			if (user != null) {
-				Pair<String, String> login = User.getPrimaryUserIdAndTypePair(user);
-				ThreadContext.put(SemossLogUtils.USER_ID, login.getValue0());
-				ThreadContext.put(SemossLogUtils.USER_TYPE, login.getValue1());
+				AccessToken loginToken = user.getPrimaryLoginToken();
+				String userId = loginToken.getId();
+				String userType = loginToken.getProvider().getLabel();
+				String name = loginToken.getResolvedDisplayName();
+				if (name == null) {
+					name = "UNKNOWN";
+				}
+				ThreadContext.put(SemossLogUtils.USER_ID, userId);
+				ThreadContext.put(SemossLogUtils.USER_TYPE, userType);
+				ThreadContext.put(SemossLogUtils.USER_NAME, name);
 			} else {
 				ThreadContext.put(SemossLogUtils.USER_ID, "UNKNOWN");
+				ThreadContext.put(SemossLogUtils.USER_NAME, "UNKNOWN");
 			}
 		} else {
 			ThreadContext.put(SemossLogUtils.USER_ID, "UNKNOWN");
+			ThreadContext.put(SemossLogUtils.USER_NAME, "UNKNOWN");
 			ThreadContext.put(SemossLogUtils.SESSION_ID, "UNKNOWN");
 		}
 	}
