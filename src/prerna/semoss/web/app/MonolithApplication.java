@@ -73,8 +73,7 @@ import prerna.semoss.web.services.local.auth.InsightAuthorizationResource;
 import prerna.semoss.web.services.local.auth.ProjectAuthorizationResource;
 import prerna.semoss.web.services.local.auth.UserAuthorizationResource;
 import prerna.upload.FileUploader;
-import prerna.upload.ImageUploader;
-
+import prerna.upload.ImageUploader;import prerna.remoteviewer.api.BrowserSessionController;
 @ApplicationPath("/api")
 public class MonolithApplication extends Application {
 
@@ -135,6 +134,8 @@ public class MonolithApplication extends Application {
 		singletons.add(new MCPResource());
 		// A2A
 		singletons.add(new A2AResource());
+		// Remote Browser Viewer
+		singletons.add(new BrowserSessionController());
 	}
 
 	@Override
