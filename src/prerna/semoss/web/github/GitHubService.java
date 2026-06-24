@@ -261,8 +261,10 @@ public class GitHubService {
 				// GitHub's default_branch is null only for an empty repo - fall back to main
 				String branch = (repo.defaultBranch() != null && !repo.defaultBranch().isBlank()) ? repo.defaultBranch()
 						: "main";
+				// no subdir for auto-linked single-repo installs; user can set one later via
+				// the selectRepo flow
 				SecurityExternalConnectorsUtils.upsertGitHubProjectLink(projectId, appId, installId, repo.id(),
-						repo.fullName(), branch);
+						repo.fullName(), branch, null);
 			} catch (Exception e) {
 				classLogger.error("Failed to save installation for project {}", projectId, e);
 				return WebUtility.getResponse(Map.of("status", "error", "reason", "unable to save installation"), 400);
@@ -607,9 +609,11 @@ public class GitHubService {
 		String branch = (branchParam != null && !branchParam.trim().isEmpty()) ? branchParam.trim()
 				: (chosen.defaultBranch() != null && !chosen.defaultBranch().isBlank() ? chosen.defaultBranch()
 						: "main");
+		// optional subdir for monorepo support; null/blank = full-repo sync
+		String subdir = req.getParameter("subdir");
 		try {
 			SecurityExternalConnectorsUtils.upsertGitHubProjectLink(projectId, appId, installationId, chosen.id(),
-					chosen.fullName(), branch);
+					chosen.fullName(), branch, subdir);
 		} catch (Exception e) {
 			classLogger.error("Failed to link project {} to repo {}", projectId, chosen.fullName(), e);
 			return WebUtility.getResponse(Map.of("status", "error", "reason", "unable to save repository link"), 500);
@@ -617,6 +621,7 @@ public class GitHubService {
 
 		classLogger.info("Linked project {} to repo {} (installation {})", projectId, chosen.fullName(),
 				installationId);
+		// TODO: should we just sync after initial setup? why wait for a webhook
 		return WebUtility.getResponse(Map.of("status", "ok", "repoId", chosen.id(), "repoFullName", chosen.fullName()),
 				200);
 	}
