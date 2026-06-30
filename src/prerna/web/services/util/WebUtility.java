@@ -36,6 +36,7 @@ import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URL;
 import java.text.Normalizer;
 import java.text.Normalizer.Form;
@@ -60,11 +61,10 @@ import javax.ws.rs.core.Response.ResponseBuilder;
 import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.commons.io.FilenameUtils;
-import org.apache.commons.lang.time.FastDateFormat;
+import org.apache.commons.lang3.time.FastDateFormat;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.ThreadContext;
-import org.javatuples.Pair;
 import org.owasp.encoder.Encode;
 import org.owasp.esapi.ESAPI;
 import org.owasp.esapi.codecs.MySQLCodec;
@@ -76,9 +76,10 @@ import com.google.common.net.InternetDomainName;
 import com.google.gson.Gson;
 import com.google.json.JsonSanitizer;
 
+import prerna.auth.AccessToken;
 import prerna.auth.User;
 import prerna.logging.SemossLogUtils;
-import prerna.semoss.web.services.local.ResourceUtility;
+import prerna.om.ThreadStore;
 import prerna.util.Constants;
 import prerna.util.FstUtil;
 import prerna.util.Utility;
@@ -112,9 +113,12 @@ public final class WebUtility {
 	}
 
 	/**
-	 * 
-	 * @param vec
-	 * @return
+	 * Serialize the given object to JSON (UTF-8) and return it as a
+	 * {@link StreamingOutput} that can be used as the entity of a JAX-RS response.
+	 *
+	 * @param vec the value to serialize
+	 * @return a streaming output of the JSON bytes, or {@code null} if {@code vec}
+	 *         is null or serialization fails
 	 */
 	public static StreamingOutput getSO(Object vec) {
 		if (vec != null) {
@@ -130,7 +134,7 @@ public final class WebUtility {
 					}
 				};
 			} catch (UnsupportedEncodingException e) {
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.error("Failed to serialize response payload to UTF-8 bytes", e);
 			}
 		}
 
@@ -138,9 +142,13 @@ public final class WebUtility {
 	}
 
 	/**
-	 * 
-	 * @param fileLocation
-	 * @return
+	 * Stream the contents of a file as the body of a JAX-RS response. The file is
+	 * deleted after the stream is fully written, making this useful for serving
+	 * temp files generated for a single download.
+	 *
+	 * @param fileLocation absolute path to the file to stream (will be normalized)
+	 * @return a streaming output that writes the file's contents, or {@code null}
+	 *         if {@code fileLocation} is null or the file cannot be opened
 	 */
 	public static StreamingOutput getSOFile(String fileLocation) {
 		if (fileLocation != null) {
@@ -164,36 +172,77 @@ public final class WebUtility {
 					}
 				};
 			} catch (Exception e) {
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.error("Failed to open file '{}' for streaming response", fileLocation, e);
 			}
 		}
 
 		return null;
 	}
 
+	/**
+	 * Build a JSON response with the given entity and status code. Convenience
+	 * overload for {@link #getResponse(Object, int, List, NewCookie...)} with no
+	 * extra headers and no cookies.
+	 *
+	 * @param vec    the entity to serialize as JSON
+	 * @param status the HTTP status code
+	 * @return JAX-RS Response, or {@code null} if {@code vec} is null
+	 */
 	public static Response getResponse(Object vec, int status) {
 		return getResponse(vec, status, null);
 	}
 
+	/**
+	 * Build a JSON response with the given entity, status code, and cookies.
+	 * Convenience overload for
+	 * {@link #getResponse(Object, int, List, NewCookie...)} with no extra headers.
+	 *
+	 * @param vec     the entity to serialize as JSON
+	 * @param status  the HTTP status code
+	 * @param cookies cookies to attach to the response (may be null)
+	 * @return JAX-RS Response, or {@code null} if {@code vec} is null
+	 */
 	public static Response getResponse(Object vec, int status, NewCookie[] cookies) {
 		return getResponse(vec, status, null, cookies);
 	}
 
+	/**
+	 * Build a JSON response that includes a {@code Cache-Control: private} header
+	 * to prevent shared caches (e.g. proxies) from caching the payload.
+	 *
+	 * @param vec    the entity to serialize as JSON
+	 * @param status the HTTP status code
+	 * @return JAX-RS Response, or {@code null} if {@code vec} is null
+	 */
 	public static Response getResponseNoCache(Object vec, int status) {
 		return getResponse(vec, status, noCacheHeaders);
 	}
 
+	/**
+	 * Build a JSON response with no-cache headers and the given cookies. See
+	 * {@link #getResponseNoCache(Object, int)}.
+	 *
+	 * @param vec     the entity to serialize as JSON
+	 * @param status  the HTTP status code
+	 * @param cookies cookies to attach to the response (may be null)
+	 * @return JAX-RS Response, or {@code null} if {@code vec} is null
+	 */
 	public static Response getResponseNoCache(Object vec, int status, NewCookie[] cookies) {
 		return getResponse(vec, status, noCacheHeaders, cookies);
 	}
 
 	/**
-	 * 
-	 * @param vec
-	 * @param status
-	 * @param addHeaders
-	 * @param cookies
-	 * @return
+	 * Build a JSON response with the given entity, status code, optional extra
+	 * headers, and optional cookies. Cookies are written via {@code Set-Cookie}
+	 * headers so that {@code SameSite} attributes from
+	 * {@link #convertCookieToHeader(NewCookie)} are preserved.
+	 *
+	 * @param vec        the entity to serialize as JSON
+	 * @param status     the HTTP status code
+	 * @param addHeaders extra headers to attach as {@code [name, value]} pairs (may
+	 *                   be null)
+	 * @param cookies    cookies to attach via {@code Set-Cookie} headers
+	 * @return JAX-RS Response, or {@code null} if {@code vec} is null
 	 */
 	public static Response getResponse(Object vec, int status, List<String[]> addHeaders, NewCookie... cookies) {
 		if (vec != null) {
@@ -221,7 +270,7 @@ public final class WebUtility {
 				}
 				return builder.build();
 			} catch (UnsupportedEncodingException e) {
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.error("Failed to serialize response payload to UTF-8 bytes for status {}", status, e);
 			}
 			return Response.status(200).entity(WebUtility.getSO(vec)).build();
 		}
@@ -230,9 +279,13 @@ public final class WebUtility {
 	}
 
 	/**
-	 * 
-	 * @param cookie
-	 * @return
+	 * Render a {@link NewCookie} as a {@code Set-Cookie} header value, including a
+	 * {@code SameSite=Strict} attribute (which JAX-RS's {@code NewCookie} cannot
+	 * express directly). Used to satisfy the modern Chromium SameSite cookie
+	 * requirements.
+	 *
+	 * @param cookie the cookie to serialize
+	 * @return a string suitable for a {@code Set-Cookie} response header
 	 */
 	public static String convertCookieToHeader(NewCookie cookie) {
 		StringBuilder c = new StringBuilder(64 + cookie.getValue().length());
@@ -276,9 +329,13 @@ public final class WebUtility {
 	}
 
 	/**
-	 * 
-	 * @param maxAge
-	 * @return
+	 * Compute an HTTP-format {@code Expires} date for a cookie that should live for
+	 * {@code maxAge} seconds from now (in GMT). Returned in the format required by
+	 * RFC 7231 / cookie specs.
+	 *
+	 * @param maxAge the cookie's max-age in seconds (negative values are treated as
+	 *               a session cookie expiring immediately)
+	 * @return an RFC-formatted expires date string
 	 */
 	private static String getExpires(int maxAge) {
 		if (maxAge < 0) {
@@ -291,9 +348,11 @@ public final class WebUtility {
 	}
 
 	/**
-	 * 
-	 * @param output
-	 * @return
+	 * Wrap a pre-built byte array as a {@link StreamingOutput} so it can be used as
+	 * the entity of a JAX-RS response without re-serializing.
+	 *
+	 * @param output the raw bytes to write to the response
+	 * @return a streaming output that writes {@code output} verbatim
 	 */
 	public static StreamingOutput getSO(byte[] output) {
 		try {
@@ -306,16 +365,20 @@ public final class WebUtility {
 				}
 			};
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Unexpected error wrapping byte[] payload as a streaming response", e);
 		}
 
 		return null;
 	}
 
 	/**
-	 * 
-	 * @param obj
-	 * @return
+	 * Serialize {@code obj} with FST (a fast Java binary serializer) and return it
+	 * as a {@link StreamingOutput} for binary JAX-RS responses. Used by internal
+	 * endpoints that exchange Java objects directly rather than JSON.
+	 *
+	 * @param obj the object to FST-serialize
+	 * @return a streaming output of the serialized bytes, or {@code null} if
+	 *         {@code obj} is null or serialization fails
 	 */
 	public static StreamingOutput getBinarySO(Object obj) {
 		if (obj != null) {
@@ -328,22 +391,24 @@ public final class WebUtility {
 							outputStream.write(output);
 							outputStream.flush();
 						} catch (Exception ex) {
-							classLogger.error(Constants.STACKTRACE, ex);
+							classLogger.error("Failed to write binary payload to response output stream", ex);
 						}
 					}
 				};
 			} catch (Exception ex) {
-				classLogger.error(Constants.STACKTRACE, ex);
+				classLogger.error("Failed to serialize object as binary response payload", ex);
 			}
 		}
 		return null;
 	}
 
 	/**
-	 * Ensure no CRLF injection into responses for malicious attacks
-	 * 
-	 * @param message
-	 * @return
+	 * Ensure no CRLF injection into responses for malicious attacks. Replaces
+	 * newline, carriage-return, tab, and their URL-encoded forms with underscores,
+	 * then HTML-encodes the result.
+	 *
+	 * @param message the candidate response string
+	 * @return the cleaned string, or {@code null} if {@code message} is null
 	 */
 	public static String cleanHttpResponse(String message) {
 		if (message == null) {
@@ -357,10 +422,11 @@ public final class WebUtility {
 	}
 
 	/**
-	 * Encoding parameters to be safely parsed and then used
-	 * 
-	 * @param message
-	 * @return
+	 * Percent-encode a value so it can be safely embedded as a URI component.
+	 *
+	 * @param message the value to encode
+	 * @return the URI-component-encoded value, or {@code null} if {@code message}
+	 *         is null
 	 */
 	public static String encodeHTTPUri(String message) {
 		if (message == null) {
@@ -370,14 +436,16 @@ public final class WebUtility {
 	}
 
 	/**
-	 * This is to remove scripts from being passed also removed sql injection
-	 * 
-	 * @param stringToSanitize
-	 * @return
+	 * Strip HTML/JS that could be used for XSS while preserving common safe markup
+	 * (formatting, links, blocks, styles, images, tables). Use this for untrusted
+	 * user input that may end up in HTML responses.
+	 *
+	 * @param stringToSanitize the candidate input
+	 * @return the sanitized string, or {@code null} if input is null
 	 */
 	public static String inputSanitizer(String stringToSanitize) {
 		if (stringToSanitize == null) {
-			classLogger.debug("input to sanitzer is null, returning null");
+			classLogger.debug("Input to inputSanitizer is null, returning null");
 			return stringToSanitize;
 		}
 
@@ -388,14 +456,15 @@ public final class WebUtility {
 	}
 
 	/**
-	 * This is to just escape for sql, not remove scripts.
-	 * 
-	 * @param stringToSanitize
-	 * @return
+	 * Escape a string for use in a SQL literal (ANSI / MySQL flavor) using ESAPI.
+	 * Does not strip HTML/JS - use {@link #inputSanitizer(String)} for that.
+	 *
+	 * @param stringToSanitize the candidate input
+	 * @return the SQL-escaped string, or {@code null} if input is null
 	 */
 	public static String inputSQLSanitizer(String stringToSanitize) {
 		if (stringToSanitize == null) {
-			classLogger.debug("Input to sql sanitzer is null, returning null");
+			classLogger.debug("Input to inputSQLSanitizer is null, returning null");
 			return stringToSanitize;
 		}
 
@@ -404,10 +473,11 @@ public final class WebUtility {
 	}
 
 	/**
-	 * This is to just escape for sql, not remove scripts.
-	 * 
-	 * @param stringToNormalize
-	 * @return
+	 * Apply {@link #inputSQLSanitizer(String)} to each element of the list.
+	 *
+	 * @param listToSanitize the list of candidate strings
+	 * @return a new list with each element SQL-escaped, or {@code null} if input is
+	 *         null
 	 */
 	public static List<String> inputSQLSanitizer(List<String> listToSanitize) {
 		if (listToSanitize == null) {
@@ -422,9 +492,11 @@ public final class WebUtility {
 	}
 
 	/**
-	 * 
-	 * @param listToSanitize
-	 * @return
+	 * Apply {@link #inputSanitizer(String)} to each element of the list.
+	 *
+	 * @param listToSanitize the list of candidate strings
+	 * @return a new list with each element HTML-sanitized, or {@code null} if input
+	 *         is null
 	 */
 	public static List<String> inputSanitizer(List<String> listToSanitize) {
 		if (listToSanitize == null) {
@@ -438,9 +510,11 @@ public final class WebUtility {
 	}
 
 	/**
-	 * 
-	 * @param listToSanitize
-	 * @return
+	 * Apply {@link #inputSanitizer(String)} to each element of the set.
+	 *
+	 * @param listToSanitize the set of candidate strings
+	 * @return a new set with each element HTML-sanitized, or {@code null} if input
+	 *         is null
 	 */
 	public static HashSet<String> inputSanitizer(HashSet<String> listToSanitize) {
 		if (listToSanitize == null) {
@@ -454,9 +528,12 @@ public final class WebUtility {
 	}
 
 	/**
-	 * 
-	 * @param listToSanitize
-	 * @return
+	 * Apply {@link #inputSanitizer(String)} to each element of the set, preserving
+	 * iteration order.
+	 *
+	 * @param listToSanitize the ordered set of candidate strings
+	 * @return a new linked set with each element HTML-sanitized, or {@code null} if
+	 *         input is null
 	 */
 	public static LinkedHashSet<String> inputSanitizer(LinkedHashSet<String> listToSanitize) {
 		if (listToSanitize == null) {
@@ -470,20 +547,27 @@ public final class WebUtility {
 	}
 
 	/**
-	 * Given JSON-like content, produces a string of JSON that is safe to embed,
-	 * safe to pass to JavaScript's {@code eval} operator.
-	 * 
-	 * @param jsonStringToSanitize
-	 * @return
+	 * Given JSON-like content, produce a string of JSON that is safe to embed and
+	 * safe to pass to JavaScript's {@code eval} operator. Uses Google's
+	 * {@code JsonSanitizer} which fixes common issues (unquoted keys, trailing
+	 * commas, etc.) and rejects content that cannot be made safe.
+	 *
+	 * @param jsonStringToSanitize the candidate JSON string
+	 * @return a sanitized, embed-safe JSON string
 	 */
 	public static String jsonSanitizer(String jsonStringToSanitize) {
 		return JsonSanitizer.sanitize(jsonStringToSanitize);
 	}
 
 	/**
-	 * 
-	 * @param stringToNormalize
-	 * @return
+	 * Normalize a file path: convert backslashes to forward slashes, collapse
+	 * repeated slashes, and run NFKC + commons {@code FilenameUtils.normalize} to
+	 * resolve {@code .} / {@code ..} segments. Throws if normalization resolves to
+	 * {@code null} (e.g. path attempts to escape its root).
+	 *
+	 * @param stringToNormalize the path to normalize
+	 * @return the normalized path, or {@code null} if input is null
+	 * @throws IllegalArgumentException if the path normalizes to null
 	 */
 	public static String normalizePath(String stringToNormalize) {
 		if (stringToNormalize == null) {
@@ -499,7 +583,7 @@ public final class WebUtility {
 		String normalizedString = Normalizer.normalize(stringToNormalize, Form.NFKC);
 		normalizedString = FilenameUtils.normalize(normalizedString);
 		if (normalizedString == null) {
-			classLogger.error("File path is null");
+			classLogger.error("File path normalization returned null for input '{}'", stringToNormalize);
 			throw new IllegalArgumentException("The filepath passed in is invalid");
 		}
 		normalizedString = normalizedString.replace("\\", "/");
@@ -508,28 +592,62 @@ public final class WebUtility {
 	}
 
 	/**
-	 * 
-	 * @param request
-	 * @param newCookies
+	 * Append expired-clone cookies to {@code newCookies} for every cookie on the
+	 * incoming request whose name looks like a session cookie (e.g. JSESSIONID).
+	 * Used during logout / session invalidation so the client clears them.
+	 *
+	 * @param request    the incoming request whose cookies should be inspected
+	 * @param newCookies the list to append the expiring cookie clones to
 	 */
 	public static void expireSessionCookies(HttpServletRequest request, List<NewCookie> newCookies) {
+		if (request == null || newCookies == null) {
+			return;
+		}
+
 		Cookie[] cookies = request.getCookies();
-		if (cookies != null) {
-			for (Cookie c : cookies) {
-				if (DBLoader.getSessionIdKey().equals(c.getName())) {
-					// we need to null this out
-					NewCookie nullC = new NewCookie(c.getName(), cleanHttpResponse(c.getValue()),
-							cleanHttpResponse(c.getPath()), cleanHttpResponse(c.getDomain()),
-							cleanHttpResponse(c.getComment()), 0, c.getSecure());
-					newCookies.add(nullC);
+		if (cookies == null) {
+			return;
+		}
+
+		String sessionCookieName = DBLoader.getSessionIdKey();
+		String contextPath = request.getContextPath();
+		if (contextPath == null || contextPath.trim().isEmpty()) {
+			contextPath = "/";
+		}
+		contextPath = cleanHttpResponse(contextPath);
+
+		// Browsers block SameSite=None cookies unless Secure is also present.
+		boolean secureRequiredForSameSite = "none".equalsIgnoreCase(Utility.getSameSiteCookieValue());
+		boolean secureFlag = request.isSecure() || secureRequiredForSameSite;
+
+		for (Cookie c : cookies) {
+			if (sessionCookieName.equals(c.getName())) {
+				String cookieName = cleanHttpResponse(c.getName());
+				String cookieDomain = cleanHttpResponse(c.getDomain());
+
+				// Expire cookie on the app context path.
+				NewCookie expireAtContextPath = new NewCookie(cookieName, "", contextPath, cookieDomain,
+						"Expire session cookie", 0, secureFlag);
+				newCookies.add(expireAtContextPath);
+
+				// Also expire at root path in case the session cookie was set there.
+				if (!"/".equals(contextPath)) {
+					NewCookie expireAtRootPath = new NewCookie(cookieName, "", "/", cookieDomain,
+							"Expire session cookie", 0, secureFlag);
+					newCookies.add(expireAtRootPath);
 				}
 			}
 		}
 	}
 
 	/**
-	 * 
-	 * @param urlString
+	 * Validate that {@code urlString} points to a top-private domain present in the
+	 * configured whitelist ({@link Constants#WHITE_LIST_DOMAINS}). If the whitelist
+	 * is empty/unset all URLs are accepted.
+	 *
+	 * @param urlString the URL to check
+	 * @throws IllegalArgumentException if the URL is malformed or its domain is not
+	 *                                  whitelisted
 	 */
 	public static void checkIfValidDomain(String urlString) {
 		String whiteListDomains = Utility.getDIHelperProperty(Constants.WHITE_LIST_DOMAINS);
@@ -538,24 +656,26 @@ public final class WebUtility {
 		}
 
 		List<String> domainList = Arrays.stream(whiteListDomains.split(",")).collect(Collectors.toList());
-		URL url = null;
 		try {
-			url = new URL(urlString);
+			URL url = URI.create(urlString).toURL();
 			final String host = url.getHost();
 			final InternetDomainName domainName = InternetDomainName.from(host).topPrivateDomain();
 			if (!domainList.contains(domainName.toString())) {
 				throw new IllegalArgumentException("You are not allowed to make requests to the URL: " + urlString);
 			}
 		} catch (MalformedURLException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid URL '{}' provided to domain whitelist check", urlString, e);
 			throw new IllegalArgumentException("Invalid URL: " + urlString + ". Detailed message: " + e.getMessage());
 		}
 	}
 
 	/**
-	 * 
-	 * @param request
-	 * @return
+	 * Pick the SPA fragment to redirect to for unauthenticated requests. Most
+	 * requests get {@code #/login}, but requests coming from the public home page
+	 * get a different fragment so the user lands back on the public site.
+	 *
+	 * @param request the incoming request (uses the {@code referer} header)
+	 * @return the SPA fragment path to redirect to (e.g. {@code "#/login"})
 	 */
 	public static String determineLoginExtension(HttpServletRequest request) {
 		String referer = request.getHeader("referer");
@@ -568,24 +688,87 @@ public final class WebUtility {
 	}
 
 	/**
-	 * 
-	 * @param servletRequest
+	 * Build the SPA-relative base URL for the current request by reading the
+	 * incoming {@code Referer} header and appending {@code #!/}. The Referer is the
+	 * FE page that originated the call, which (unlike the API's own context path)
+	 * reflects wherever the SemossWeb / semoss-ui webapp is actually deployed -
+	 * e.g. {@code /semoss-ui/packages/client/dist/} or
+	 * {@code /SemossWeb/packages/client/dist/}.
+	 * <p>
+	 * Resolved per-request (no static cache) so each insight gets a base URL that
+	 * matches how its own request arrived. Returns {@code null} when the request
+	 * has no Referer (curl, scheduled jobs, server-to-server) - the downstream
+	 * {@link prerna.om.Insight} just won't have a click-through URL in those cases.
+	 * <p>
+	 * Used to seed {@link prerna.om.Insight#setBaseURL(String)} so that the
+	 * export-to-Excel/PPT reactors can embed click-through links back to the
+	 * insight.
+	 *
+	 * @param request the incoming HTTP request
+	 * @return the SPA base URL ending in {@code #!/}, or {@code null} if the
+	 *         request is null or has no {@code Referer} header
+	 */
+	public static String getRefererURL(HttpServletRequest request) {
+		if (request == null) {
+			return null;
+		}
+		String referer = request.getHeader("referer");
+		if (referer == null || referer.isEmpty()) {
+			return null;
+		}
+		// http://localhost:8080/semoss-ui/packages/client/dist/ -> .../dist/#!/
+		return referer + "#!/";
+	}
+
+	/**
+	 * Resolve the client IP for the request, preferring the X-FORWARDED-FOR header
+	 * when present (for requests that came through a proxy / load balancer) and
+	 * falling back to the direct remote address.
+	 */
+	public static String getClientIp(HttpServletRequest request) {
+		String remoteAddr = "";
+		if (request != null) {
+			remoteAddr = inputSanitizer(request.getHeader("X-FORWARDED-FOR"));
+			if (remoteAddr == null || "".equals(remoteAddr)) {
+				remoteAddr = request.getRemoteAddr();
+			}
+		}
+
+		return inputSanitizer(remoteAddr);
+	}
+
+	/**
+	 * Populate the SLF4J/Log4j {@link ThreadContext} (MDC) with per-request fields
+	 * used by the structured logger: a fresh request id, client ip,
+	 * service/method/endpoint, host, and login event fields. Also stores local
+	 * hostname/port/protocol on {@link ThreadStore}. Should be called at the start
+	 * of every servlet/filter that wants request-scoped log fields.
+	 *
+	 * @param servletRequest the incoming request to derive context from
 	 */
 	public static void loggingContext(ServletRequest servletRequest) {
 		ThreadContext.put(SemossLogUtils.REQUEST_ID, GUID.v7().toUUID().toString());
 
 		HttpServletRequest request = (HttpServletRequest) servletRequest;
-		ThreadContext.put(SemossLogUtils.CLIENT_IP, ResourceUtility.getClientIp(request));
+		ThreadContext.put(SemossLogUtils.CLIENT_IP, getClientIp(request));
 		ThreadContext.put(SemossLogUtils.SERVICE_NAME, request.getContextPath());
 		ThreadContext.put(SemossLogUtils.METHOD, request.getMethod());
 		ThreadContext.put(SemossLogUtils.ENDPOINT, request.getRequestURI());
 		ThreadContext.put(SemossLogUtils.HOST, request.getHeader("Host"));
 		loggingContextLoginEvent(request.getSession(false));
+
+		// also store local values
+		ThreadStore.setLocalHostname(getLocalHostname(request));
+		ThreadStore.setLocalPort(getLocalPort(request));
+		ThreadStore.setLocalProtocol(getLocalProtocol(request));
 	}
 
 	/**
-	 * 
-	 * @param servletRequest
+	 * Add login-event fields (user id, login type) to the logging
+	 * {@link ThreadContext} based on the user attached to the given session. A
+	 * no-op if the session is null or has no logged-in user.
+	 *
+	 * @param session the current HTTP session (may be null)
 	 */
 	public static void loggingContextLoginEvent(HttpSession session) {
 		if (session != null) {
@@ -593,15 +776,284 @@ public final class WebUtility {
 
 			User user = (User) session.getAttribute(Constants.SESSION_USER);
 			if (user != null) {
-				Pair<String, String> login = User.getPrimaryUserIdAndTypePair(user);
-				ThreadContext.put(SemossLogUtils.USER_ID, login.getValue0());
-				ThreadContext.put(SemossLogUtils.USER_TYPE, login.getValue1());
+				AccessToken loginToken = user.getPrimaryLoginToken();
+				String userId = loginToken.getId();
+				String userType = loginToken.getProvider().getLabel();
+				String name = loginToken.getResolvedDisplayName();
+				if (name == null) {
+					name = "UNKNOWN";
+				}
+				ThreadContext.put(SemossLogUtils.USER_ID, userId);
+				ThreadContext.put(SemossLogUtils.USER_TYPE, userType);
+				ThreadContext.put(SemossLogUtils.USER_NAME, name);
 			} else {
 				ThreadContext.put(SemossLogUtils.USER_ID, "UNKNOWN");
+				ThreadContext.put(SemossLogUtils.USER_NAME, "UNKNOWN");
 			}
 		} else {
 			ThreadContext.put(SemossLogUtils.USER_ID, "UNKNOWN");
+			ThreadContext.put(SemossLogUtils.USER_NAME, "UNKNOWN");
 			ThreadContext.put(SemossLogUtils.SESSION_ID, "UNKNOWN");
 		}
+	}
+
+	/**
+	 * Get the url being made for the request excluding query params
+	 * 
+	 * @param request HttpServletRequest object for the request
+	 * @return the string containing the request url
+	 */
+	public static String getCurrentCallbackUrl(HttpServletRequest request) {
+		String defaultCallbackUrl = request.getRequestURL().toString();
+		// applicationUrl should equal https://<dns.com>/optional_route/Monolith
+		String applicationUrl = Utility.getApplicationUrl();
+		if (applicationUrl == null || (applicationUrl = applicationUrl.trim()).isEmpty()) {
+			return WebUtility.cleanHttpResponse(defaultCallbackUrl);
+		}
+
+		// This logic is to ensure we preserve the optional route (reverse-proxy
+		// prefixes) which is present in applicationUrl.
+
+		// requestUri should equal something like /Monolith/api/auth/login2/salesforce
+		String requestUri = request.getRequestURI();
+		// contextPath should equal /Monolith
+		String contextPath = request.getContextPath();
+
+		String pathToAppend = requestUri;
+		// Remove training / from applicationUrl ... shouldn't be but just in case
+		// normalizedApplicationUrl should be https://<dns.com>/optional_route/Monolith
+		String normalizedApplicationUrl = applicationUrl.endsWith("/")
+				? applicationUrl.substring(0, applicationUrl.length() - 1)
+				: applicationUrl;
+		// Remove /Monolith from the requestUri so we can append it to the appliationUrl
+		// without having double /Monoltih
+		if (requestUri != null && contextPath != null && !contextPath.isEmpty() && requestUri.startsWith(contextPath)
+				&& normalizedApplicationUrl.endsWith(contextPath)) {
+			pathToAppend = requestUri.substring(contextPath.length());
+		}
+
+		if (pathToAppend == null) {
+			pathToAppend = "";
+		}
+		if (!pathToAppend.isEmpty() && !pathToAppend.startsWith("/")) {
+			pathToAppend = "/" + pathToAppend;
+		}
+
+		return WebUtility.cleanHttpResponse(normalizedApplicationUrl + pathToAppend);
+	}
+
+	/**
+	 * Get the protocol the client used to reach us ({@code http} or {@code https}).
+	 * Honors {@code X-Forwarded-Proto} for requests behind a proxy / load balancer.
+	 *
+	 * @param request the incoming request
+	 * @return the protocol string seen by the client
+	 */
+	public static String getProtocol(HttpServletRequest request) {
+		// Check if behind a proxy/load balancer
+		String forwardedProto = request.getHeader("X-Forwarded-Proto");
+		if (forwardedProto != null && !forwardedProto.isEmpty()) {
+			return forwardedProto.toLowerCase();
+		}
+
+		// Check if the request is secure
+		if (request.isSecure()) {
+			return "https";
+		}
+
+		// Fallback to the scheme from the request
+		return request.getScheme();
+	}
+
+	/**
+	 * Get the hostname the client used to reach us. Honors {@code X-Forwarded-Host}
+	 * (and the {@code Host} header) so we report the external hostname rather than
+	 * the internal container hostname.
+	 *
+	 * @param request the incoming request
+	 * @return the hostname string seen by the client
+	 */
+	public static String getHostname(HttpServletRequest request) {
+		// Check X-Forwarded-Host header (for proxied requests)
+		String forwardedHost = request.getHeader("X-Forwarded-Host");
+		if (forwardedHost != null && !forwardedHost.isEmpty()) {
+			// X-Forwarded-Host may contain port, so strip it
+			return forwardedHost.split(":")[0];
+		}
+
+		// Get from Host header
+		String hostHeader = request.getHeader("Host");
+		if (hostHeader != null && !hostHeader.isEmpty()) {
+			// Host header may contain port, so strip it
+			return hostHeader.split(":")[0];
+		}
+
+		// Fallback to server name
+		return request.getServerName();
+	}
+
+	/**
+	 * Get the port the client used to reach us. Honors {@code X-Forwarded-Port} for
+	 * requests behind a proxy / load balancer, falling back to the request's server
+	 * port.
+	 *
+	 * @param request the incoming request
+	 * @return the port number seen by the client
+	 */
+	public static int getPort(HttpServletRequest request) {
+		// Check X-Forwarded-Port header (for proxied requests)
+		String forwardedPort = request.getHeader("X-Forwarded-Port");
+		if (forwardedPort != null && !forwardedPort.isEmpty()) {
+			try {
+				return Integer.parseInt(forwardedPort);
+			} catch (NumberFormatException e) {
+				// Fall through to other methods
+			}
+		}
+
+		// Check if port is in Host header
+		String hostHeader = request.getHeader("Host");
+		if (hostHeader != null && hostHeader.contains(":")) {
+			try {
+				String portStr = hostHeader.split(":")[1];
+				return Integer.parseInt(portStr);
+			} catch (NumberFormatException | ArrayIndexOutOfBoundsException e) {
+				// Fall through to other methods
+			}
+		}
+
+		// Get from server port
+		int serverPort = request.getServerPort();
+		if (serverPort > 0) {
+			return serverPort;
+		}
+
+		// Default ports based on protocol
+		return request.isSecure() ? 443 : 80;
+	}
+
+	/**
+	 * Get the protocol the request actually arrived on at the container (ignoring
+	 * any {@code X-Forwarded-Proto} header). Useful when we need to know how the
+	 * request landed locally rather than what the client saw.
+	 *
+	 * @param request the incoming request
+	 * @return the local protocol ({@code http} or {@code https})
+	 */
+	public static String getLocalProtocol(HttpServletRequest request) {
+		// Use request.isSecure() which reflects the actual connection to this container
+		if (request.isSecure()) {
+			return "https";
+		}
+
+		// Return the actual scheme used to connect to this container
+		return request.getScheme();
+	}
+
+	/**
+	 * Get the hostname the request actually arrived on at the container (ignoring
+	 * any {@code X-Forwarded-Host} header). Useful when we need the container-local
+	 * hostname rather than the externally-visible one.
+	 *
+	 * @param request the incoming request
+	 * @return the local hostname string
+	 */
+	public static String getLocalHostname(HttpServletRequest request) {
+		// request.getServerName() returns the actual server name that received the
+		// request
+		String serverName = request.getServerName();
+		if (serverName != null && !serverName.isEmpty()) {
+			return serverName;
+		}
+
+		// Fallback to localhost if server name is not available
+		return "localhost";
+	}
+
+	/**
+	 * Get the port the request actually arrived on at the container (ignoring any
+	 * {@code X-Forwarded-Port} header). Useful when we need the container-local
+	 * port rather than the externally-visible one.
+	 *
+	 * @param request the incoming request
+	 * @return the local port number
+	 */
+	public static int getLocalPort(HttpServletRequest request) {
+		// request.getLocalPort() returns the actual port this container is listening
+		// on
+		int serverPort = request.getLocalPort();
+		if (serverPort > 0) {
+			return serverPort;
+		}
+
+		// Default ports based on protocol as fallback
+		return request.isSecure() ? 443 : 80;
+	}
+
+	/**
+	 * True when an exception thrown from an HTTP write (typically an SSE flush) is
+	 * caused by the downstream client - or an intermediate proxy - closing the
+	 * connection, rather than a server-side fault. Streaming clients (e.g. Codex,
+	 * OpenAI SDK consumers) routinely abort mid-stream when the user cancels
+	 * generation, a tool call routes the conversation, or an upstream timeout
+	 * fires. Those should not be logged as ERROR with full stack traces.
+	 *
+	 * Walks the cause chain because Tomcat's ClientAbortException usually wraps a
+	 * java.io.IOException("Broken pipe") from the NIO layer, and proxies may
+	 * surface the same condition as "Connection reset by peer". Compared by class
+	 * name so this utility takes no compile-time dependency on Tomcat internals.
+	 */
+	public static boolean isClientDisconnect(Throwable t) {
+		for (Throwable c = t; c != null; c = c.getCause()) {
+			if ("org.apache.catalina.connector.ClientAbortException".equals(c.getClass().getName())) {
+				return true;
+			}
+			String msg = c.getMessage();
+			if (msg != null) {
+				String lower = msg.toLowerCase(java.util.Locale.ROOT);
+				if (lower.contains("broken pipe") || lower.contains("connection reset")) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Shared streaming-endpoint catch logic. If {@code t} is a client disconnect
+	 * (see {@link #isClientDisconnect}) it logs at INFO with no stack trace, runs
+	 * {@code onClientDisconnect} (e.g. to cancel an upstream producer), and returns
+	 * {@code true} to signal the caller it's been handled. Otherwise returns
+	 * {@code false} so the caller can apply its own server-error handling (log at
+	 * ERROR, throw, etc.).
+	 *
+	 * Kept in WebUtility because the classification is a pure HTTP-layer concern
+	 * with no business deps. The cancellation hook lives in the caller's lambda so
+	 * business classes (e.g. PixelJobRunner) stay out of this utility.
+	 *
+	 * @param t                  the throwable from the streaming write
+	 * @param logger             caller's logger (so log lines retain the caller's
+	 *                           class name)
+	 * @param engineId           identifier surfaced in the log line; may be null
+	 * @param jobId              identifier surfaced in the log line; may be null
+	 * @param onClientDisconnect invoked only on the disconnect path; may be null
+	 * @return true if a disconnect was handled, false otherwise
+	 */
+	public static boolean handleStreamingException(Throwable t, Logger logger, String engineId, String jobId,
+			Runnable onClientDisconnect) {
+		if (!isClientDisconnect(t)) {
+			return false;
+		}
+		logger.info("Client disconnected mid-stream for engine '{}' job '{}': {}", engineId, jobId, t.getMessage());
+		if (onClientDisconnect != null) {
+			try {
+				onClientDisconnect.run();
+			} catch (RuntimeException re) {
+				// Don't let a cleanup failure mask the disconnect.
+				logger.warn("onClientDisconnect callback failed for engine '{}' job '{}': {}", engineId, jobId,
+						re.getMessage(), re);
+			}
+		}
+		return true;
 	}
 }

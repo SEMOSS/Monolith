@@ -29,23 +29,21 @@ package prerna.semoss.web.services.local;
 
 import java.io.IOException;
 import java.io.Writer;
+import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.nio.file.Path;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.ToNumberPolicy;
 
+import prerna.engine.impl.model.Room;
+import prerna.engine.impl.model.RoomUtils;
 import prerna.engine.impl.model.responses.AskModelEngineResponse;
 import prerna.engine.impl.model.responses.AskToolModelEngineResponse;
 import prerna.engine.impl.model.responses.AskToolModelEngineResponse.ToolResponse;
-import prerna.engine.impl.model.message.MessageUtils;
-import prerna.engine.impl.model.Room;
 import prerna.om.Insight;
 
 /**
@@ -61,16 +59,19 @@ import prerna.om.Insight;
  */
 public final class AnthropicMessagesHelper {
 
-	private static final ObjectMapper mapper = new ObjectMapper();
+	private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
 
 	/**
 	 * Writes an SSE event in Anthropic format. Format: event: {eventType}\ndata:
 	 * {json}\n\n
+	 *
+	 * Uses Gson instead of Jackson's ObjectMapper to avoid NoSuchMethodError from
+	 * Jackson core version mismatches (e.g. BufferRecycler.releaseToPool added in
+	 * 2.16+).
 	 */
-	public static void writeSSEEvent(String eventType, Map<String, Object> data, Writer writer)
-			throws JsonProcessingException, IOException {
+	public static void writeSSEEvent(String eventType, Map<String, Object> data, Writer writer) throws IOException {
 		writer.write("event: " + eventType + "\n");
-		writer.write("data: " + mapper.writeValueAsString(data) + "\n\n");
+		writer.write("data: " + GSON.toJson(data) + "\n\n");
 		writer.flush();
 	}
 
@@ -81,7 +82,7 @@ public final class AnthropicMessagesHelper {
 	 * Contains a Message object with empty content array.
 	 */
 	public static void writeMessageStart(String messageId, String engineId, int inputTokens, Writer writer)
-			throws JsonProcessingException, IOException {
+			throws IOException {
 		Map<String, Object> messageStart = new HashMap<>();
 		messageStart.put("type", "message_start");
 
@@ -105,9 +106,13 @@ public final class AnthropicMessagesHelper {
 
 	/**
 	 * Writes the message_delta event with final stop reason and usage.
+	 *
+	 * Anthropic clients overlay these usage fields onto the running Message, so
+	 * passing input/cache token counts here is how we surface the values the early
+	 * {@code message_start} (written before Python had them) could not include.
 	 */
-	public static void writeMessageDelta(String stopReason, Integer outputTokens, Writer writer)
-			throws JsonProcessingException, IOException {
+	public static void writeMessageDelta(String stopReason, Integer inputTokens, Integer outputTokens,
+			Integer cacheReadInputTokens, Integer cacheCreationInputTokens, Writer writer) throws IOException {
 		Map<String, Object> messageDelta = new HashMap<>();
 		messageDelta.put("type", "message_delta");
 
@@ -117,6 +122,15 @@ public final class AnthropicMessagesHelper {
 		messageDelta.put("delta", delta);
 
 		Map<String, Object> usage = new HashMap<>();
+		if (inputTokens != null) {
+			usage.put("input_tokens", inputTokens);
+		}
+		if (cacheReadInputTokens != null) {
+			usage.put("cache_read_input_tokens", cacheReadInputTokens);
+		}
+		if (cacheCreationInputTokens != null) {
+			usage.put("cache_creation_input_tokens", cacheCreationInputTokens);
+		}
 		usage.put("output_tokens", outputTokens != null ? outputTokens : 0);
 		messageDelta.put("usage", usage);
 
@@ -124,12 +138,31 @@ public final class AnthropicMessagesHelper {
 	}
 
 	/**
+	 * Backwards-compatible overload for callers that only know the stop reason and
+	 * output tokens. Delegates to the full 6-arg form.
+	 */
+	public static void writeMessageDelta(String stopReason, Integer outputTokens, Writer writer) throws IOException {
+		writeMessageDelta(stopReason, null, outputTokens, null, null, writer);
+	}
+
+	/**
 	 * Writes the final message_stop event.
 	 */
-	public static void writeMessageStop(Writer writer) throws JsonProcessingException, IOException {
+	public static void writeMessageStop(Writer writer) throws IOException {
 		Map<String, Object> messageStop = new HashMap<>();
 		messageStop.put("type", "message_stop");
 		writeSSEEvent("message_stop", messageStop, writer);
+	}
+
+	/**
+	 * Writes a ping event. Used as a keep-alive that counts as a proper SSE event
+	 * (unlike SSE comments), ensuring clients with event-based timeouts do not
+	 * disconnect prematurely.
+	 */
+	public static void writePing(Writer writer) throws IOException {
+		Map<String, Object> ping = new HashMap<>();
+		ping.put("type", "ping");
+		writeSSEEvent("ping", ping, writer);
 	}
 
 	// ==================== Content Block Events ====================
@@ -137,8 +170,7 @@ public final class AnthropicMessagesHelper {
 	/**
 	 * Writes content_block_start for a text content block.
 	 */
-	public static void writeTextContentBlockStart(int index, Writer writer)
-			throws JsonProcessingException, IOException {
+	public static void writeTextContentBlockStart(int index, Writer writer) throws IOException {
 		Map<String, Object> event = new HashMap<>();
 		event.put("type", "content_block_start");
 		event.put("index", index);
@@ -155,7 +187,7 @@ public final class AnthropicMessagesHelper {
 	 * Writes content_block_start for a tool_use content block.
 	 */
 	public static void writeToolUseContentBlockStart(int index, String toolId, String toolName, Writer writer)
-			throws JsonProcessingException, IOException {
+			throws IOException {
 		Map<String, Object> event = new HashMap<>();
 		event.put("type", "content_block_start");
 		event.put("index", index);
@@ -173,8 +205,7 @@ public final class AnthropicMessagesHelper {
 	/**
 	 * Writes content_block_start for a thinking content block.
 	 */
-	public static void writeThinkingContentBlockStart(int index, Writer writer)
-			throws JsonProcessingException, IOException {
+	public static void writeThinkingContentBlockStart(int index, Writer writer) throws IOException {
 		Map<String, Object> event = new HashMap<>();
 		event.put("type", "content_block_start");
 		event.put("index", index);
@@ -190,7 +221,7 @@ public final class AnthropicMessagesHelper {
 	/**
 	 * Writes content_block_stop event.
 	 */
-	public static void writeContentBlockStop(int index, Writer writer) throws JsonProcessingException, IOException {
+	public static void writeContentBlockStop(int index, Writer writer) throws IOException {
 		Map<String, Object> event = new HashMap<>();
 		event.put("type", "content_block_stop");
 		event.put("index", index);
@@ -202,8 +233,7 @@ public final class AnthropicMessagesHelper {
 	/**
 	 * Writes a text_delta content block delta.
 	 */
-	public static void writeTextDelta(int index, String text, Writer writer)
-			throws JsonProcessingException, IOException {
+	public static void writeTextDelta(int index, String text, Writer writer) throws IOException {
 		Map<String, Object> event = new HashMap<>();
 		event.put("type", "content_block_delta");
 		event.put("index", index);
@@ -219,8 +249,7 @@ public final class AnthropicMessagesHelper {
 	/**
 	 * Writes an input_json_delta for tool use arguments.
 	 */
-	public static void writeInputJsonDelta(int index, String partialJson, Writer writer)
-			throws JsonProcessingException, IOException {
+	public static void writeInputJsonDelta(int index, String partialJson, Writer writer) throws IOException {
 		Map<String, Object> event = new HashMap<>();
 		event.put("type", "content_block_delta");
 		event.put("index", index);
@@ -236,8 +265,7 @@ public final class AnthropicMessagesHelper {
 	/**
 	 * Writes a thinking_delta for extended thinking content.
 	 */
-	public static void writeThinkingDelta(int index, String thinking, Writer writer)
-			throws JsonProcessingException, IOException {
+	public static void writeThinkingDelta(int index, String thinking, Writer writer) throws IOException {
 		Map<String, Object> event = new HashMap<>();
 		event.put("type", "content_block_delta");
 		event.put("index", index);
@@ -264,8 +292,9 @@ public final class AnthropicMessagesHelper {
 
 			for (Map<String, Object> block : systemBlocks) {
 				if ("text".equals(block.get("type")) && block.containsKey("text")) {
-					if (finalSystemPrompt.length() > 0)
+					if (finalSystemPrompt.length() > 0) {
 						finalSystemPrompt.append("\n");
+					}
 					finalSystemPrompt.append(block.get("text").toString());
 				}
 			}
@@ -273,238 +302,288 @@ public final class AnthropicMessagesHelper {
 		}
 		return "";
 	}
-	
+
 	/**
-	 * Converts a full Anthropic message history to OpenAI/internal format.
-	 * Handles all message types including assistant tool_use and user tool_result blocks.
+	 * Converts a full Anthropic message history to OpenAI/internal format. Handles
+	 * all message types including assistant tool_use and user tool_result blocks.
 	 * 
 	 * @param messages     The full list of Anthropic formatted messages
 	 * @param systemPrompt The system prompt string (already extracted)
 	 * @param tools        The Anthropic formatted tools list
-	 * @return Map containing "messages" (List) in OpenAI format and optionally "tools" (List) in MCP format
+	 * @return Map containing "messages" (List) in OpenAI format and optionally
+	 *         "tools" (List) in MCP format
 	 */
 	@SuppressWarnings("unchecked")
-	public static Map<String, Object> normalizeAllAnthropicMessagesToOpenAI(
-	        List<Map<String, Object>> messages, 
-	        String systemPrompt, 
-	        Object tools) {
-	    
-	    Map<String, Object> result = new HashMap<>();
-	    List<Map<String, Object>> openAIMessages = new ArrayList<>();
-
-	    if (systemPrompt != null && !systemPrompt.trim().isEmpty()) {
-	        Map<String, Object> systemMessage = new HashMap<>();
-	        systemMessage.put("role", "system");
-	        systemMessage.put("content", systemPrompt);
-	        openAIMessages.add(systemMessage);
-	    }
-
-	    for (Map<String, Object> message : messages) {
-	        String role = (String) message.get("role");
-	        Object content = message.get("content");
-
-	        if ("user".equals(role)) {
-	            processUserMessage(content, openAIMessages);
-	        } else if ("assistant".equals(role)) {
-	            processAssistantMessage(content, openAIMessages);
-	        }
-	    }
-
-	    result.put("messages", openAIMessages);
-
-	    // 3. Convert tools from Anthropic to MCP format
-	    if (tools != null) {
-	        List<Map<String, Object>> mcpTools = normalizeToolsToMCP(tools);
-	        if (mcpTools != null && !mcpTools.isEmpty()) {
-	            result.put("tools", mcpTools);
-	        }
-	    }
-
-	    return result;
+	public static Map<String, Object> normalizeAllAnthropicMessagesToOpenAI(List<Map<String, Object>> messages,
+			String systemPrompt, Object tools) {
+		return normalizeAllAnthropicMessagesToOpenAI(messages, systemPrompt, tools, Collections.emptyMap());
 	}
 
 	/**
-	 * Process an Anthropic user message and add to OpenAI message list.
-	 * Handles text, images, and tool_result blocks.
+	 * Variant that re-attaches Vertex/Gemini {@code thought_signature} bytes to
+	 * each replayed assistant {@code tool_use} block. {@code thoughtSigMap} is
+	 * keyed by tool_use_id and is typically loaded from the room's sidecar via
+	 * {@link ThoughtSignatureSidecar#load(String)}. Pass an empty map (or use the
+	 * 3-arg overload) for non-Vertex paths - no-op when empty.
+	 */
+	@SuppressWarnings("unchecked")
+	public static Map<String, Object> normalizeAllAnthropicMessagesToOpenAI(List<Map<String, Object>> messages,
+			String systemPrompt, Object tools, Map<String, String> thoughtSigMap) {
+
+		Map<String, Object> result = new HashMap<>();
+		List<Map<String, Object>> openAIMessages = new ArrayList<>();
+
+		if (systemPrompt != null && !systemPrompt.trim().isEmpty()) {
+			Map<String, Object> systemMessage = new HashMap<>();
+			systemMessage.put("role", "system");
+			systemMessage.put("content", systemPrompt);
+			openAIMessages.add(systemMessage);
+		}
+
+		Map<String, String> safeSigMap = thoughtSigMap != null ? thoughtSigMap : Collections.emptyMap();
+
+		for (Map<String, Object> message : messages) {
+			String role = (String) message.get("role");
+			Object content = message.get("content");
+
+			if ("user".equals(role)) {
+				processUserMessage(content, openAIMessages);
+			} else if ("assistant".equals(role)) {
+				processAssistantMessage(content, openAIMessages, safeSigMap);
+			}
+		}
+
+		result.put("messages", openAIMessages);
+
+		// 3. Convert tools from Anthropic to MCP format
+		if (tools != null) {
+			List<Map<String, Object>> mcpTools = normalizeToolsToMCP(tools);
+			if (mcpTools != null && !mcpTools.isEmpty()) {
+				result.put("tools", mcpTools);
+			}
+		}
+
+		return result;
+	}
+
+	/**
+	 * Process an Anthropic user message and add to OpenAI message list. Handles
+	 * text, images, and tool_result blocks.
+	 * 
+	 * IMPORTANT: tool_result blocks MUST be added to the message list BEFORE any
+	 * text/image blocks from the same message, because the Anthropic API requires
+	 * tool_result to immediately follow the assistant's tool_use.
 	 */
 	@SuppressWarnings("unchecked")
 	private static void processUserMessage(Object content, List<Map<String, Object>> openAIMessages) {
-	    if (content instanceof String) {
-	        Map<String, Object> userMsg = new HashMap<>();
-	        userMsg.put("role", "user");
-	        userMsg.put("content", content);
-	        openAIMessages.add(userMsg);
-	        return;
-	    }
+		if (content instanceof String) {
+			Map<String, Object> userMsg = new HashMap<>();
+			userMsg.put("role", "user");
+			userMsg.put("content", content);
+			openAIMessages.add(userMsg);
+			return;
+		}
 
-	    if (!(content instanceof List)) {
-	        return;
-	    }
+		if (!(content instanceof List)) {
+			return;
+		}
 
-	    List<Map<String, Object>> contentBlocks = (List<Map<String, Object>>) content;
+		List<Map<String, Object>> contentBlocks = (List<Map<String, Object>>) content;
 
-	    List<Map<String, Object>> textBlocks = new ArrayList<>();
-	    List<Map<String, Object>> imageBlocks = new ArrayList<>();
-	    List<Map<String, Object>> toolResultBlocks = new ArrayList<>();
+		List<Map<String, Object>> textBlocks = new ArrayList<>();
+		List<Map<String, Object>> imageBlocks = new ArrayList<>();
+		List<Map<String, Object>> toolResultBlocks = new ArrayList<>();
 
-	    for (Map<String, Object> block : contentBlocks) {
-	        String type = (String) block.get("type");
-	        if ("text".equals(type)) {
-	            String text = (String) block.get("text");
-	            if (text != null && !text.trim().isEmpty()) {
-	                textBlocks.add(block);
-	            }
-	        } else if ("image".equals(type)) {
-	            imageBlocks.add(block);
-	        } else if ("tool_result".equals(type)) {
-	            toolResultBlocks.add(block);
-	        }
-	    }
+		for (Map<String, Object> block : contentBlocks) {
+			String type = (String) block.get("type");
+			if ("text".equals(type)) {
+				String text = (String) block.get("text");
+				if (text != null && !text.trim().isEmpty()) {
+					textBlocks.add(block);
+				}
+			} else if ("image".equals(type)) {
+				imageBlocks.add(block);
+			} else if ("tool_result".equals(type)) {
+				toolResultBlocks.add(block);
+			}
+		}
 
-	    if (!textBlocks.isEmpty() || !imageBlocks.isEmpty()) {
-	        Map<String, Object> userMsg = new HashMap<>();
-	        userMsg.put("role", "user");
+		// ---------------------------------------------------------------
+		// 1. Process tool_result blocks FIRST.
+		// These MUST appear immediately after the assistant's tool_use
+		// message in the normalized output. If we emit text/image blocks
+		// before tool results, the Anthropic API will reject the request
+		// with: "tool_use ids were found without tool_result blocks
+		// immediately after"
+		// ---------------------------------------------------------------
+		for (Map<String, Object> toolResultBlock : toolResultBlocks) {
+			Map<String, Object> toolMsg = new HashMap<>();
+			toolMsg.put("role", "tool");
+			toolMsg.put("tool_call_id", toolResultBlock.get("tool_use_id"));
 
-	        if (!imageBlocks.isEmpty()) {
-	            List<Map<String, Object>> openAIContent = new ArrayList<>();
+			Object toolContent = toolResultBlock.get("content");
+			String toolContentStr = extractToolResultContent(toolContent);
 
-	            for (Map<String, Object> textBlock : textBlocks) {
-	                Map<String, Object> textPart = new HashMap<>();
-	                textPart.put("type", "text");
-	                textPart.put("text", textBlock.get("text"));
-	                openAIContent.add(textPart);
-	            }
+			// If the content is empty after extraction (e.g. tool_reference
+			// blocks that we couldn't fully serialize), provide a placeholder
+			// so the downstream model doesn't receive an empty tool result.
+			if (toolContentStr == null || toolContentStr.isEmpty()) {
+				toolContentStr = "Tool executed successfully.";
+			}
 
-	            for (Map<String, Object> imageBlock : imageBlocks) {
-	                String imageUrl = extractImageAsOpenAIUrl(imageBlock);
-	                if (imageUrl != null) {
-	                    Map<String, Object> imagePart = new HashMap<>();
-	                    imagePart.put("type", "image_url");
-	                    Map<String, Object> imageUrlObj = new HashMap<>();
-	                    imageUrlObj.put("url", imageUrl);
-	                    imagePart.put("image_url", imageUrlObj);
-	                    openAIContent.add(imagePart);
-	                }
-	            }
+			toolMsg.put("content", toolContentStr);
+			openAIMessages.add(toolMsg);
+		}
 
-	            userMsg.put("content", openAIContent);
-	        } else {
-	            StringBuilder textContent = new StringBuilder();
-	            for (Map<String, Object> textBlock : textBlocks) {
-	                if (textContent.length() > 0) {
-	                    textContent.append("\n");
-	                }
-	                textContent.append(textBlock.get("text"));
-	            }
-	            userMsg.put("content", textContent.toString());
-	        }
+		// ---------------------------------------------------------------
+		// 2. Process text + image blocks as a user message (if any).
+		// ---------------------------------------------------------------
+		if (!textBlocks.isEmpty() || !imageBlocks.isEmpty()) {
+			Map<String, Object> userMsg = new HashMap<>();
+			userMsg.put("role", "user");
 
-	        openAIMessages.add(userMsg);
-	    }
+			if (!imageBlocks.isEmpty()) {
+				List<Map<String, Object>> openAIContent = new ArrayList<>();
 
-	    for (Map<String, Object> toolResultBlock : toolResultBlocks) {
-	        Map<String, Object> toolMsg = new HashMap<>();
-	        toolMsg.put("role", "tool");
-	        toolMsg.put("tool_call_id", toolResultBlock.get("tool_use_id"));
+				for (Map<String, Object> textBlock : textBlocks) {
+					Map<String, Object> textPart = new HashMap<>();
+					textPart.put("type", "text");
+					textPart.put("text", textBlock.get("text"));
+					openAIContent.add(textPart);
+				}
 
-	        Object toolContent = toolResultBlock.get("content");
-	        String toolContentStr = extractToolResultContent(toolContent);
-	        toolMsg.put("content", toolContentStr);
+				for (Map<String, Object> imageBlock : imageBlocks) {
+					String imageUrl = extractImageAsOpenAIUrl(imageBlock);
+					if (imageUrl != null) {
+						Map<String, Object> imagePart = new HashMap<>();
+						imagePart.put("type", "image_url");
+						Map<String, Object> imageUrlObj = new HashMap<>();
+						imageUrlObj.put("url", imageUrl);
+						imagePart.put("image_url", imageUrlObj);
+						openAIContent.add(imagePart);
+					}
+				}
 
-	        openAIMessages.add(toolMsg);
-	    }
+				userMsg.put("content", openAIContent);
+			} else {
+				StringBuilder textContent = new StringBuilder();
+				for (Map<String, Object> textBlock : textBlocks) {
+					if (textContent.length() > 0) {
+						textContent.append("\n");
+					}
+					textContent.append(textBlock.get("text"));
+				}
+				userMsg.put("content", textContent.toString());
+			}
+
+			openAIMessages.add(userMsg);
+		}
 	}
 
 	/**
 	 * Process an Anthropic assistant message and add to OpenAI message list.
 	 * Handles text, thinking, and tool_use blocks.
 	 */
-	@SuppressWarnings("unchecked")
 	private static void processAssistantMessage(Object content, List<Map<String, Object>> openAIMessages) {
-	    if (content instanceof String) {
-	        Map<String, Object> assistantMsg = new HashMap<>();
-	        assistantMsg.put("role", "assistant");
-	        assistantMsg.put("content", content);
-	        openAIMessages.add(assistantMsg);
-	        return;
-	    }
+		processAssistantMessage(content, openAIMessages, Collections.emptyMap());
+	}
 
-	    if (!(content instanceof List)) {
-	        return;
-	    }
+	/**
+	 * Variant that re-attaches Vertex/Gemini {@code thought_signature} to each
+	 * tool_use block by looking up its id in {@code thoughtSigMap}. The signature
+	 * flows through to the SEMOSS Python builders, which re-attach it to the
+	 * corresponding {@code function_call} Part on the next request.
+	 */
+	@SuppressWarnings("unchecked")
+	private static void processAssistantMessage(Object content, List<Map<String, Object>> openAIMessages,
+			Map<String, String> thoughtSigMap) {
+		if (content instanceof String) {
+			Map<String, Object> assistantMsg = new HashMap<>();
+			assistantMsg.put("role", "assistant");
+			assistantMsg.put("content", content);
+			openAIMessages.add(assistantMsg);
+			return;
+		}
 
-	    List<Map<String, Object>> contentBlocks = (List<Map<String, Object>>) content;
+		if (!(content instanceof List)) {
+			return;
+		}
 
-	    List<Map<String, Object>> textBlocks = new ArrayList<>();
-	    List<Map<String, Object>> thinkingBlocks = new ArrayList<>();
-	    List<Map<String, Object>> toolUseBlocks = new ArrayList<>();
+		List<Map<String, Object>> contentBlocks = (List<Map<String, Object>>) content;
 
-	    for (Map<String, Object> block : contentBlocks) {
-	        String type = (String) block.get("type");
-	        if ("text".equals(type)) {
-	            String text = (String) block.get("text");
-	            if (text != null && !text.trim().isEmpty()) {
-	                textBlocks.add(block);
-	            }
-	        } else if ("thinking".equals(type)) {
-	            thinkingBlocks.add(block);
-	        } else if ("tool_use".equals(type)) {
-	            toolUseBlocks.add(block);
-	        }
-	    }
+		List<Map<String, Object>> textBlocks = new ArrayList<>();
+		List<Map<String, Object>> thinkingBlocks = new ArrayList<>();
+		List<Map<String, Object>> toolUseBlocks = new ArrayList<>();
 
-	    Map<String, Object> assistantMsg = new HashMap<>();
-	    assistantMsg.put("role", "assistant");
+		for (Map<String, Object> block : contentBlocks) {
+			String type = (String) block.get("type");
+			if ("text".equals(type)) {
+				String text = (String) block.get("text");
+				if (text != null && !text.trim().isEmpty()) {
+					textBlocks.add(block);
+				}
+			} else if ("thinking".equals(type)) {
+				thinkingBlocks.add(block);
+			} else if ("tool_use".equals(type)) {
+				toolUseBlocks.add(block);
+			}
+		}
 
-	    StringBuilder textContent = new StringBuilder();
-	    for (Map<String, Object> textBlock : textBlocks) {
-	        if (textContent.length() > 0) {
-	            textContent.append("\n");
-	        }
-	        textContent.append(textBlock.get("text"));
-	    }
+		Map<String, Object> assistantMsg = new HashMap<>();
+		assistantMsg.put("role", "assistant");
 
-	    assistantMsg.put("content", textContent.toString());
+		StringBuilder textContent = new StringBuilder();
+		for (Map<String, Object> textBlock : textBlocks) {
+			if (textContent.length() > 0) {
+				textContent.append("\n");
+			}
+			textContent.append(textBlock.get("text"));
+		}
+		assistantMsg.put("content", textContent.toString());
 
-	    if (!toolUseBlocks.isEmpty()) {
-	        List<Map<String, Object>> toolCalls = new ArrayList<>();
+		if (!toolUseBlocks.isEmpty()) {
+			List<Map<String, Object>> toolCalls = new ArrayList<>();
 
-	        for (Map<String, Object> toolUse : toolUseBlocks) {
-	            Map<String, Object> toolCall = new HashMap<>();
-	            toolCall.put("id", toolUse.get("id"));
-	            toolCall.put("type", "function");
+			for (Map<String, Object> toolUse : toolUseBlocks) {
+				Map<String, Object> toolCall = new HashMap<>();
+				String toolUseId = (String) toolUse.get("id");
+				toolCall.put("id", toolUseId);
+				toolCall.put("type", "function");
 
-	            Map<String, Object> function = new HashMap<>();
-	            function.put("name", toolUse.get("name"));
+				Map<String, Object> function = new HashMap<>();
+				function.put("name", toolUse.get("name"));
+				function.put("arguments", toolUse.get("input"));
 
-	            Object input = toolUse.get("input");
-	            String argsJson;
-	            if (input instanceof String) {
-	                argsJson = (String) input;
-	            } else {
-	                argsJson = new Gson().toJson(input);
-	            }
-	            function.put("arguments", argsJson);
+				toolCall.put("function", function);
 
-	            toolCall.put("function", function);
-	            toolCalls.add(toolCall);
-	        }
+				// Re-attach the Vertex thought_signature for this tool_use_id
+				// if we have one cached. Consumed in Python at
+				// google_genai_builder.py: tool_call.get("thought_signature").
+				if (toolUseId != null && thoughtSigMap != null) {
+					String sig = thoughtSigMap.get(toolUseId);
+					if (sig != null && !sig.isEmpty()) {
+						toolCall.put("thought_signature", sig);
+					}
+				}
 
-	        assistantMsg.put("tool_calls", toolCalls);
-	    }
+				toolCalls.add(toolCall);
+			}
 
-	    if (!thinkingBlocks.isEmpty()) {
-	        StringBuilder thinking = new StringBuilder();
-	        for (Map<String, Object> thinkingBlock : thinkingBlocks) {
-	            if (thinking.length() > 0) {
-	                thinking.append("\n");
-	            }
-	            thinking.append(thinkingBlock.get("thinking"));
-	        }
-	        assistantMsg.put("thinking", thinking.toString());
-	    }
+			assistantMsg.put("tool_calls", toolCalls);
+		}
 
-	    openAIMessages.add(assistantMsg);
+		if (!thinkingBlocks.isEmpty()) {
+			StringBuilder thinking = new StringBuilder();
+			for (Map<String, Object> thinkingBlock : thinkingBlocks) {
+				if (thinking.length() > 0) {
+					thinking.append("\n");
+				}
+				thinking.append(thinkingBlock.get("thinking"));
+			}
+			assistantMsg.put("thinking", thinking.toString());
+		}
+
+		openAIMessages.add(assistantMsg);
 	}
 
 	/**
@@ -512,40 +591,44 @@ public final class AnthropicMessagesHelper {
 	 */
 	@SuppressWarnings("unchecked")
 	private static String extractToolResultContent(Object toolContent) {
-	    if (toolContent instanceof String) {
-	        return (String) toolContent;
-	    }
-
-	    if (toolContent instanceof List) {
-	        StringBuilder textAggregator = new StringBuilder();
-	        for (Map<String, Object> innerBlock : (List<Map<String, Object>>) toolContent) {
-	            String innerType = (String) innerBlock.get("type");
-	            if ("text".equals(innerType)) {
-	                if (textAggregator.length() > 0) {
-	                    textAggregator.append("\n");
-	                }
-	                textAggregator.append(innerBlock.get("text"));
-	            }
-	            // Note: Images in tool results are harder to represent in OpenAI format
-	            // may need to handle these separately or skip them
-	        }
-	        return textAggregator.toString();
-	    }
-
-	    return "";
+		if (toolContent instanceof String) {
+			return (String) toolContent;
+		}
+		if (toolContent instanceof List) {
+			StringBuilder textAggregator = new StringBuilder();
+			for (Map<String, Object> innerBlock : (List<Map<String, Object>>) toolContent) {
+				String innerType = (String) innerBlock.get("type");
+				if ("text".equals(innerType)) {
+					if (textAggregator.length() > 0) {
+						textAggregator.append("\n");
+					}
+					textAggregator.append(innerBlock.get("text"));
+				} else if ("tool_reference".equals(innerType)) {
+					if (textAggregator.length() > 0) {
+						textAggregator.append("\n");
+					}
+					textAggregator.append("Tool loaded: " + innerBlock.get("tool_name"));
+				}
+			}
+			return textAggregator.toString();
+		}
+		return "";
 	}
-	
+
 	/**
-	 * Converts an Anthropic user message, system prompt, and tools to OpenAI/MCP format.
-	 * Messages are converted to OpenAI format, tools are converted to MCP format.
+	 * Converts an Anthropic user message, system prompt, and tools to OpenAI/MCP
+	 * format. Messages are converted to OpenAI format, tools are converted to MCP
+	 * format.
 	 * 
 	 * @param message      The Anthropic formatted user message
 	 * @param systemPrompt The system prompt string (already extracted)
 	 * @param tools        The Anthropic formatted tools list
-	 * @return Map containing "messages" (List) in OpenAI format and optionally "tools" (List) in MCP format
+	 * @return Map containing "messages" (List) in OpenAI format and optionally
+	 *         "tools" (List) in MCP format
 	 */
 	@SuppressWarnings("unchecked")
-	public static Map<String, Object> normalizeAnthropicMessagestoOpenAIMessages(Map<String, Object> message, String systemPrompt, Object tools) {
+	public static Map<String, Object> normalizeAnthropicMessagestoOpenAIMessages(Map<String, Object> message,
+			String systemPrompt, Object tools) {
 		Map<String, Object> result = new HashMap<>();
 		List<Map<String, Object>> openAIMessages = new ArrayList<>();
 
@@ -640,7 +723,8 @@ public final class AnthropicMessagesHelper {
 					openAIMessages.add(userMsg);
 				}
 
-				// Handle tool_result blocks - each becomes a separate "tool" role message in OpenAI
+				// Handle tool_result blocks - each becomes a separate "tool" role message in
+				// OpenAI
 				for (Map<String, Object> toolResultBlock : toolResultBlocks) {
 					Map<String, Object> toolMsg = new HashMap<>();
 					toolMsg.put("role", "tool");
@@ -708,9 +792,8 @@ public final class AnthropicMessagesHelper {
 	}
 
 	/**
-	 * Extract Anthropic image source as an OpenAI compatible URL.
-	 * For base64 images, returns data URI format.
-	 * For URL images, returns the URL directly.
+	 * Extract Anthropic image source as an OpenAI compatible URL. For base64
+	 * images, returns data URI format. For URL images, returns the URL directly.
 	 */
 	@SuppressWarnings("unchecked")
 	private static String extractImageAsOpenAIUrl(Map<String, Object> block) {
@@ -729,7 +812,8 @@ public final class AnthropicMessagesHelper {
 	}
 
 	@SuppressWarnings("unchecked")
-	public static Map<String, Object> normalizeMessageForAskRoom(Map<String, Object> message, Room room, Insight insight) {
+	public static Map<String, Object> normalizeMessageForAskRoom(Map<String, Object> message, Room room,
+			Insight insight) {
 		Map<String, Object> normalizedMessageData = new HashMap<>();
 
 		Object content = message.get("content");
@@ -771,8 +855,9 @@ public final class AnthropicMessagesHelper {
 				if (!textBlocks.isEmpty() || !imageBlocks.isEmpty()) {
 					// Combine all text
 					for (Map<String, Object> textBlock : textBlocks) {
-						if (finalTextContent.length() > 0)
+						if (finalTextContent.length() > 0) {
 							finalTextContent.append("\n");
+						}
 						finalTextContent.append(textBlock.get("text"));
 					}
 					String finalText = finalTextContent.toString();
@@ -851,10 +936,9 @@ public final class AnthropicMessagesHelper {
 		return null;
 	}
 
-
 	private static String uploadImageToRoom(String inputImage, Room room, Insight insight) {
 		Path roomPath = Path.of(room.getRoomFolderPath());
-		return MessageUtils.writeBase64ImageDataUriToDir(inputImage, roomPath);
+		return RoomUtils.writeBase64ImageDataUriToDir(inputImage, roomPath);
 	}
 
 	/**
@@ -901,8 +985,8 @@ public final class AnthropicMessagesHelper {
 	 * Anthropic format: {"name": "get_weather", "description": "...",
 	 * "input_schema": {"type": "object", "properties": {...}}}
 	 * 
-	 * MCP format: {"name": "get_weather", "description": "...",
-	 * "inputSchema": {"type": "object", "properties": {...}}}
+	 * MCP format: {"name": "get_weather", "description": "...", "inputSchema":
+	 * {"type": "object", "properties": {...}}}
 	 */
 	@SuppressWarnings("unchecked")
 	public static List<Map<String, Object>> normalizeToolsToMCP(Object tools) {
@@ -1002,7 +1086,7 @@ public final class AnthropicMessagesHelper {
 	 * for simple text responses.
 	 */
 	public static void writeCompleteTextStream(String messageId, String engineId, String text, Integer inputTokens,
-			Integer outputTokens, Writer writer) throws JsonProcessingException, IOException {
+			Integer outputTokens, Writer writer) throws IOException {
 		// 1. message_start
 		writeMessageStart(messageId, engineId, inputTokens != null ? inputTokens : 0, writer);
 
@@ -1040,8 +1124,7 @@ public final class AnthropicMessagesHelper {
 	/**
 	 * Writes an error event for streaming responses.
 	 */
-	public static void writeErrorEvent(String errorType, String message, Writer writer)
-			throws JsonProcessingException, IOException {
+	public static void writeErrorEvent(String errorType, String message, Writer writer) throws IOException {
 		Map<String, Object> errorData = createErrorResponse(errorType, message);
 		writeSSEEvent("error", errorData, writer);
 	}

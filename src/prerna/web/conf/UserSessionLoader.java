@@ -42,7 +42,7 @@ import javax.servlet.http.HttpSessionListener;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import prerna.auth.SyncUserAppsThread;
+import prerna.auth.SyncUserAssetsThread;
 import prerna.auth.User;
 import prerna.cluster.util.ClusterUtil;
 import prerna.engine.impl.model.Room;
@@ -51,6 +51,7 @@ import prerna.engine.impl.r.IRUserConnection;
 import prerna.om.ClientProcessWrapper;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
+import prerna.om.LocalUserStore;
 import prerna.semoss.web.services.local.MCPResource;
 import prerna.usertracking.UserTrackingUtils;
 import prerna.util.Constants;
@@ -67,11 +68,24 @@ public class UserSessionLoader implements HttpSessionListener {
 	private static final Logger classLogger = LogManager.getLogger(UserSessionLoader.class);
 	private static final String DIR_SEPARATOR = java.nio.file.FileSystems.getDefault().getSeparator();
 
+	/**
+	 * No-op session creation hook.
+	 *
+	 * @param sessionEvent the servlet session event
+	 */
 	@Override
 	public void sessionCreated(HttpSessionEvent sessionEvent) {
 		// nothing to do
 	}
 
+	/**
+	 * Performs best-effort cleanup when an HTTP session is destroyed.
+	 * <p>
+	 * Cleanup is intentionally defensive; each step is wrapped in try/catch so
+	 * remaining cleanup actions can continue even if one step fails.
+	 *
+	 * @param sessionEvent the servlet session event
+	 */
 	@Override
 	public void sessionDestroyed(HttpSessionEvent sessionEvent) {
 		classLogger.info("Starting logout");
@@ -88,19 +102,18 @@ public class UserSessionLoader implements HttpSessionListener {
 		} else {
 			boolean isUserLogout = Boolean.parseBoolean(session.getAttribute(UserSessionLoader.IS_USER_LOGOUT) + "");
 			if (isUserLogout) {
-				classLogger.info("User " + User.getSingleLogginName(thisUser) + " has logged out to end session");
+				classLogger.info("User {} has logged out to end session", User.getSingleLogginName(thisUser));
 			} else {
-				classLogger.info(
-						"User " + User.getSingleLogginName(thisUser) + " is ending session from non-logout event");
+				classLogger.info("User {} is ending session from non-logout event", User.getSingleLogginName(thisUser));
 			}
 			// remove the user memory
 			thisUser.removeUserMemory();
 		}
-		// back up the workspace and asset apps
+		// back up the user asset apps
 		try {
-			SyncUserAppsThread.execute(session);
+			SyncUserAssetsThread.execute(session);
 		} catch (Exception e) {
-			classLogger.error("Error during session cleanup while backing up user apps", e);
+			classLogger.error("Failed to back up user apps during session cleanup", e);
 		}
 
 		// clear up insight store
@@ -133,7 +146,7 @@ public class UserSessionLoader implements HttpSessionListener {
 			String sessionStorage = Utility.getInsightCacheDir() + DIR_SEPARATOR + sessionId;
 			FileSystemUtil.deleteFolderIfExists(sessionStorage);
 		} catch (Exception e) {
-			classLogger.error("Error deleting user session cache folder", e);
+			classLogger.error("Failed to delete user session cache folder", e);
 		}
 
 		// clear from the mcp thread
@@ -146,6 +159,11 @@ public class UserSessionLoader implements HttpSessionListener {
 				}
 			}
 		}
+		// also attempt to clear via just the sessionId
+		MCPResource.clearInsight(sessionId);
+
+		// clear temporal user values and identify any agent user for cleanup
+		User subAgent = removeAgentUserFromTemporalAccessKey(thisUser);
 
 		// drop the r thread if not netty
 		try {
@@ -153,8 +171,7 @@ public class UserSessionLoader implements HttpSessionListener {
 				IRUserConnection rserve = thisUser.getRcon();
 				if (rserve != null && !rserve.isStopped()) {
 					classLogger.info("Dropping user r serve");
-					ExecutorService executor = Executors.newSingleThreadExecutor();
-					try {
+					try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
 						executor.submit(new Callable<Void>() {
 							@Override
 							public Void call() throws Exception {
@@ -162,95 +179,144 @@ public class UserSessionLoader implements HttpSessionListener {
 									rserve.stopR();
 									classLogger.info("Successfully dropped user r serve");
 								} catch (Exception e) {
-									classLogger.warn("Unable to drop user r serve");
+									classLogger.warn("Unable to drop user r serve during session user cleanup", e);
 								}
 								return null;
 							}
 						});
-					} finally {
-						executor.shutdown();
 					}
 				}
 			}
 		} catch (Exception e) {
-			classLogger.error("Error during session cleanup while dropping R connection", e);
+			classLogger.error("Failed to stop R connection during session user cleanup", e);
 		}
 
-		try {
-			if (thisUser != null) {
-				// stop the netty thread if used for either r or python
-				ClientProcessWrapper cpw = thisUser.getPythonClientProcessWrapper();
-				if (cpw != null) {
-					cpw.shutdown(true);
-				}
-			}
-		} catch (Exception e) {
-			classLogger.error("Error during session cleanup while shutting down client process wrapper", e);
-		}
+		// stop netty/python wrappers and chroot mounts for session user
+		cleanupUserProcessAndChroot(thisUser, "session user");
 
-		// remove the mounts if chroot enabled
-		try {
-			if (Boolean.parseBoolean(Utility.getDIHelperProperty(Constants.CHROOT_ENABLE))) {
-				if (thisUser != null) {
-					SymlinkHelper chrootHelper = thisUser.getUserSymlinkHelper();
-					if (chrootHelper != null) {
-						chrootHelper.removeChrootFolder();
-					}
-				}
-			}
-		} catch (Exception e) {
-			classLogger.error("Error during session cleanup while removing chroot folder", e);
+		// remove agent users
+		if (subAgent != thisUser) {
+			cleanupUserProcessAndChroot(subAgent, "agent user");
 		}
 
 		// if cloud sync enabled, push and clear the rooms
-		if (ClusterUtil.IS_CLUSTER) {
-			if (thisUser != null && thisUser.roomHash != null) {
-				Map<String, Object> roomHash = thisUser.roomHash;
-				for (Map.Entry<String, Object> entry : roomHash.entrySet()) {
-					String roomId = entry.getKey();
-					Object roomObj = entry.getValue();
-					try {
-						// Assume roomObj has a getRoomFolderPath() method or similar
-						String roomFolderPath = null;
-						Room room = null;
-						if (roomObj != null) {
-							try {
-								room = (Room) roomObj;
-								roomFolderPath = room.getRoomFolderPath();
-							} catch (Exception e) {
-								classLogger.warn("Could not get room folder path for room {}", roomId, e);
-							}
-						}
-						if (roomFolderPath != null) {
-							java.io.File roomFolder = new java.io.File(roomFolderPath);
-							if (roomFolder.exists() && roomFolder.isDirectory() && RoomUtils.hasFiles(room)) {
-								// Push to cloud (placeholder, implement as needed)
-								try {
-									ClusterUtil.pushRoom(roomId);
-									classLogger.info("Pushed room {} to cloud", roomId);
-								} catch (Exception e) {
-									classLogger.error("Failed to push room {} to cloud", roomId, e);
-								}
-							}
-							// Remove local folder
-							try {
-								FileSystemUtil.deleteFolderIfExists(roomFolderPath);
-								classLogger.info("Deleted local room folder for room {}", roomId);
-							} catch (Exception e) {
-								classLogger.error("Failed to delete local room folder for room {}", roomId, e);
-							}
-
-						}
-					} catch (Exception e) {
-						classLogger.error("Error processing room {} on logout", roomId, e);
-					}
-				}
-			}
+		cleanupUserRooms(thisUser, "session user");
+		if (subAgent != thisUser) {
+			cleanupUserRooms(subAgent, "agent user");
 		}
 
 		// register the successful logout
 		UserTrackingUtils.registerLogout(sessionId);
 		classLogger.info("Finished logout");
+	}
+
+	/**
+	 * Cleans up user-owned client process and optional chroot resources.
+	 *
+	 * @param user     the user to clean up
+	 * @param userType descriptive label used in logs (for example, session user)
+	 */
+	private void cleanupUserProcessAndChroot(User user, String userType) {
+		if (user == null) {
+			return;
+		}
+
+		try {
+			// stop the netty thread if used for either r or python
+			ClientProcessWrapper cpw = user.getPythonClientProcessWrapper();
+			if (cpw != null) {
+				cpw.shutdown(true);
+			}
+		} catch (Exception e) {
+			classLogger.error("Failed to shut down client process wrapper during {} cleanup", userType, e);
+		}
+
+		// remove mounts if chroot is enabled
+		try {
+			if (Boolean.parseBoolean(Utility.getDIHelperProperty(Constants.CHROOT_ENABLE))) {
+				SymlinkHelper chrootHelper = user.getUserSymlinkHelper();
+				if (chrootHelper != null) {
+					chrootHelper.removeChrootFolder();
+				}
+			}
+		} catch (Exception e) {
+			classLogger.error("Failed to remove chroot folder during {} cleanup", userType, e);
+		}
+	}
+
+	/**
+	 * Pushes user rooms to cloud and removes local room folders when cluster mode
+	 * is enabled.
+	 *
+	 * @param user     the user whose room map should be processed
+	 * @param userType descriptive label used in logs (for example, session user)
+	 */
+	private void cleanupUserRooms(User user, String userType) {
+		if (!ClusterUtil.IS_CLUSTER || user == null || user.getRoomHash() == null) {
+			return;
+		}
+
+		Map<String, Room> roomHash = user.getRoomHash();
+		for (Map.Entry<String, Room> entry : roomHash.entrySet()) {
+			String roomId = entry.getKey();
+			Room room = entry.getValue();
+			try {
+				String roomFolderPath = null;
+				if (room != null) {
+					try {
+						roomFolderPath = room.getRoomFolderPath();
+					} catch (Exception e) {
+						classLogger.warn("Could not get room folder path for room {} during {} cleanup", roomId,
+								userType, e);
+					}
+				}
+				if (roomFolderPath != null) {
+					java.io.File roomFolder = new java.io.File(roomFolderPath);
+					if (roomFolder.exists() && roomFolder.isDirectory() && RoomUtils.hasFiles(room)) {
+						try {
+							ClusterUtil.pushRoom(roomId);
+							classLogger.info("Pushed room {} to cloud during {} cleanup", roomId, userType);
+						} catch (Exception e) {
+							classLogger.error("Failed to push room {} to cloud during {} cleanup", roomId, userType, e);
+						}
+					}
+					try {
+						FileSystemUtil.deleteFolderIfExists(roomFolderPath);
+						classLogger.info("Deleted local room folder for room {} during {} cleanup", roomId, userType);
+					} catch (Exception e) {
+						classLogger.error("Failed to delete local room folder for room {} during {} cleanup", roomId,
+								userType, e);
+					}
+				}
+			} catch (Exception e) {
+				classLogger.error("Error processing room {} during {} cleanup", roomId, userType, e);
+			}
+		}
+	}
+
+	/**
+	 * Removes any agent user associated with the session user's temporal access
+	 * key.
+	 *
+	 * @param user the session user
+	 * @return the removed agent user, or {@code null} when none exists or cleanup
+	 *         fails
+	 */
+	private User removeAgentUserFromTemporalAccessKey(User user) {
+		if (user == null) {
+			return null;
+		}
+
+		try {
+			String accessKey = user.getCachedTemporalAccessKey();
+			if (accessKey == null || accessKey.isEmpty()) {
+				return null;
+			}
+			return LocalUserStore.getInstance().remove(accessKey);
+		} catch (Exception e) {
+			classLogger.error("Failed to clear temporal access key during session user cleanup", e);
+			return null;
+		}
 	}
 
 }

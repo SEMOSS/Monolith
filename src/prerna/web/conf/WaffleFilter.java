@@ -55,7 +55,7 @@ import prerna.web.conf.util.UserFileLogUtil;
 
 public class WaffleFilter implements Filter {
 
-	private static final Logger logger = LogManager.getLogger(WaffleFilter.class.getName()); 
+	private static final Logger classLogger = LogManager.getLogger(WaffleFilter.class.getName());
 
 	// filter init params
 	private static final String AUTO_ADD = "autoAdd";
@@ -73,32 +73,35 @@ public class WaffleFilter implements Filter {
 	private static FilterConfig filterConfig;
 
 	@Override
-	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
+	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2)
+			throws IOException, ServletException {
 		setInitParams(arg0);
 
-		HttpSession session = ((HttpServletRequest)arg0).getSession(true);
+		HttpSession session = ((HttpServletRequest) arg0).getSession(true);
 		User user = (User) session.getAttribute(Constants.SESSION_USER);
-		if(user == null) {
+		if (user == null) {
 			// grab the waffle elements
 			Principal principal = ((HttpServletRequest) arg0).getUserPrincipal();
 			String id = principal.getName();
-			String name = id.substring(id.lastIndexOf('\\')+1);
+			String name = id.substring(id.lastIndexOf('\\') + 1);
 
 			AccessToken token = new AccessToken();
 			token.setProvider(AuthProvider.WINDOWS_USER);
 			token.setId(id);
 			token.setName(name);
-			logger.info("Valid request coming from user " + token.getName());
-			// store in session, log in user tracking db, and add the user to security db if autoadd
-			UserResource.addAccessToken(token, ((HttpServletRequest)arg0), WaffleFilter.autoAdd);
+			classLogger.info("Valid request coming from user {}", token.getName());
+			// store in session, log in user tracking db, and add the user to security db if
+			// autoadd
+			UserResource.addAccessToken(token, ((HttpServletRequest) arg0), WaffleFilter.autoAdd);
 			// do we need to count?
-			if(tracker != null) {
+			if (tracker != null) {
 				tracker.addToQueue(LocalDate.now());
 			}
 
 			// are we logging their information?
-			if(userLogger != null) {
-				userLogger.addToQueue(new String[] {id, name, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))});
+			if (userLogger != null) {
+				userLogger.addToQueue(new String[] { id, name,
+						LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) });
 			}
 		}
 
@@ -117,9 +120,9 @@ public class WaffleFilter implements Filter {
 	}
 
 	private void setInitParams(ServletRequest arg0) {
-		if(WaffleFilter.autoAdd == null) {
+		if (WaffleFilter.autoAdd == null) {
 			String autoAddStr = WaffleFilter.filterConfig.getInitParameter(AUTO_ADD);
-			if(autoAddStr != null) {
+			if (autoAddStr != null) {
 				WaffleFilter.autoAdd = Boolean.parseBoolean(autoAddStr);
 			} else {
 				// Default value is true
@@ -128,51 +131,40 @@ public class WaffleFilter implements Filter {
 
 			boolean logUsers = false;
 			String logUserInfoStr = WaffleFilter.filterConfig.getInitParameter(LOG_USER_INFO);
-			if(logUserInfoStr != null) {
+			if (logUserInfoStr != null) {
 				logUsers = Boolean.parseBoolean(logUserInfoStr);
 			}
-			if(logUsers) {
+			if (logUsers) {
 				String logInfoPath = WaffleFilter.filterConfig.getInitParameter(LOG_USER_INFO_PATH);
 				String logInfoSep = WaffleFilter.filterConfig.getInitParameter(LOG_USER_INFO_SEP);
-				if(logInfoPath == null) {
-					logger.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
-					logger.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
-					logger.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
-					logger.info("SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
+				if (logInfoPath == null) {
+					classLogger.info(
+							"SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
 				}
 				try {
 					userLogger = UserFileLogUtil.getInstance(logInfoPath, logInfoSep);
-				} catch(Exception e) {
-					logger.info(e.getMessage());
-					logger.info(e.getMessage());
-					logger.info(e.getMessage());
-					logger.info(e.getMessage());
+				} catch (Exception e) {
+					classLogger.info(e.getMessage());
 				}
 			}
 
 			boolean countUsers = false;
 			String countUsersStr = WaffleFilter.filterConfig.getInitParameter(COUNT_USER_ENTRY);
-			if(countUsersStr != null) {
+			if (countUsersStr != null) {
 				countUsers = Boolean.parseBoolean(countUsersStr);
 			} else {
 				countUsers = false;
 			}
 
-			if(countUsers) {
+			if (countUsers) {
 				String countDatabaseId = WaffleFilter.filterConfig.getInitParameter(COUNT_USER_ENTRY_DATABASE);
-				if(countDatabaseId == null) {
-					logger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
-					logger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
-					logger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
-					logger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
+				if (countDatabaseId == null) {
+					classLogger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
 				}
 				try {
 					tracker = CACTrackingUtil.getInstance(countDatabaseId);
-				} catch(Exception e) {
-					logger.info(e.getMessage());
-					logger.info(e.getMessage());
-					logger.info(e.getMessage());
-					logger.info(e.getMessage());
+				} catch (Exception e) {
+					classLogger.info(e.getMessage());
 				}
 			}
 		}

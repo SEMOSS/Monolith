@@ -27,7 +27,6 @@
  *******************************************************************************/
 package prerna.semoss.web.services.local.auth;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -85,8 +84,7 @@ public class GroupEngineAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
@@ -110,11 +108,11 @@ public class GroupEngineAuthorizationResource {
 			ret.put("permission", permission);
 			return WebUtility.getResponse(ret, 200);
 		} catch (IllegalArgumentException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve group app permission.", e);
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve group app permission.", e);
 			errorMap.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorMap, 500);
 		}
@@ -135,8 +133,7 @@ public class GroupEngineAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -164,21 +161,21 @@ public class GroupEngineAuthorizationResource {
 
 			SecurityGroupEngineUtils.addEngineGroupPermission(user, groupId, type, engineId, permission, endDate);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to add groups to engine " + engineId + " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.warn("User is trying to add groups to engine {} without having proper access", engineId);
+			classLogger.error("Failed to add group engine permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to add group engine permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has added group " + groupId + " and type " + type + " to engine " + engineId
-				+ " with permission " + permission);
+		classLogger.info("User has added group {} and type {} to engine {} with permission {}", groupId, type, engineId,
+				permission);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -200,8 +197,7 @@ public class GroupEngineAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -227,22 +223,23 @@ public class GroupEngineAuthorizationResource {
 			}
 			SecurityGroupEngineUtils.editDatabaseGroupPermission(user, groupId, type, appId, newPermission, endDate);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to edit group " + groupId + " and type " + type + " permissions for app "
-					+ appId + " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.warn(
+					"User is trying to edit group {} and type {} permissions for app {} without having proper access",
+					groupId, type, appId);
+			classLogger.error("Failed to update group app permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update group app permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has edited group " + groupId + " and type " + type + " permission to app " + appId
-				+ " with level " + newPermission);
+		classLogger.info("User has edited group {} and type {} permission to app {} with level {}", groupId, type,
+				appId, newPermission);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -264,7 +261,7 @@ public class GroupEngineAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -286,22 +283,22 @@ public class GroupEngineAuthorizationResource {
 
 			SecurityGroupEngineUtils.removeDatabaseGroupPermission(user, groupId, type, appId);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to remove group " + groupId + " and type " + type
-					+ " from having access to app " + appId + " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.warn(
+					"User is trying to remove group {} and type {} from having access to app {} without having proper access",
+					groupId, type, appId);
+			classLogger.error("Failed to remove group app permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to remove group app permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info(
-				"User has removed group " + groupId + " and type " + type + " from having access to app " + appId);
+		classLogger.info("User has removed group {} and type {} from having access to app {}", groupId, type, appId);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -324,25 +321,28 @@ public class GroupEngineAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		List<Map<String, Object>> groups = new ArrayList<Map<String, Object>>();
+		Map<String, Object> ret = new HashMap<String, Object>();
 		try {
-			groups = SecurityGroupEngineUtils.getGroupsWithAccessToEngine(user, engineId, limit, offset);
-			return WebUtility.getResponse(groups, 200);
+			List<Map<String, Object>> groups = SecurityGroupEngineUtils.getGroupsWithAccessToEngine(user, engineId,
+					limit, offset);
+			long totalMembers = SecurityGroupEngineUtils.getNumGroupsWithAccessToEngine(user, engineId);
+			ret.put("totalGroups", totalMembers);
+			ret.put("groups", groups);
+			return WebUtility.getResponse(ret, 200);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to get details for engine " + engineId + " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.warn("User is trying to get details for engine {} without having proper access", engineId);
+			classLogger.error("Failed to retrieve all groups with access to engine.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve all groups with access to engine.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);

@@ -33,26 +33,29 @@ import java.util.Set;
 import javax.ws.rs.ApplicationPath;
 import javax.ws.rs.core.Application;
 
-import prerna.cluster.RawSelectWrapperService;
 import prerna.semoss.web.form.FormResource;
 import prerna.semoss.web.services.config.ServerConfigurationResource;
+import prerna.semoss.web.services.local.AdminThemeResource;
+import prerna.semoss.web.services.local.AnthropicEndpoints;
+import prerna.semoss.web.services.local.A2AResource;
 import prerna.semoss.web.services.local.AuthorizationResource;
 import prerna.semoss.web.services.local.DatabaseEngineResource;
 import prerna.semoss.web.services.local.EngineRouteResource;
 import prerna.semoss.web.services.local.ExecuteInsightResource;
+import prerna.semoss.web.services.local.FunctionEngineResource;
 import prerna.semoss.web.services.local.LegacyAppResource;
 import prerna.semoss.web.services.local.MCPResource;
 import prerna.semoss.web.services.local.ModelEngineResource;
 import prerna.semoss.web.services.local.NameServer;
+import prerna.semoss.web.services.local.OllamaEndpoints;
 import prerna.semoss.web.services.local.OpenAIEndpoints;
-import prerna.semoss.web.services.local.AnthropicEndpoints;
 import prerna.semoss.web.services.local.ProjectResource;
 import prerna.semoss.web.services.local.SchedulerResource;
 import prerna.semoss.web.services.local.SessionResource;
 import prerna.semoss.web.services.local.ShareInsightResource;
 import prerna.semoss.web.services.local.StorageEngineResource;
-import prerna.semoss.web.services.local.ThemeResource;
 import prerna.semoss.web.services.local.UserResource;
+import prerna.semoss.web.services.local.VectorEngineResource;
 import prerna.semoss.web.services.local.auth.AdminDatabaseAuthorizationResource;
 import prerna.semoss.web.services.local.auth.AdminDatabaseAuthorizationResource2;
 import prerna.semoss.web.services.local.auth.AdminEngineAuthorizationResource;
@@ -74,63 +77,68 @@ import prerna.upload.ImageUploader;
 
 @ApplicationPath("/api")
 public class MonolithApplication extends Application {
-	
-   private Set<Object> singletons = new HashSet<Object>();
 
-   public MonolithApplication() {
-	   // core
-      singletons.add(new UserResource());
-      singletons.add(new NameServer());
-      singletons.add(new EngineRouteResource());
-      singletons.add(new LegacyAppResource());
-      singletons.add(new DatabaseEngineResource());
-      singletons.add(new StorageEngineResource());
-      singletons.add(new ModelEngineResource());
-      singletons.add(new ProjectResource());
-      singletons.add(new FileUploader());
-      singletons.add(new ImageUploader());
-      singletons.add(new SessionResource());
-      // authorization resources
-      singletons.add(new AuthorizationResource());
-      singletons.add(new DatabaseAuthorizationResource());
-      singletons.add(new DatabaseAuthorizationResource2());
-      singletons.add(new EngineAuthorizationResource());
-      singletons.add(new ProjectAuthorizationResource());
-      singletons.add(new InsightAuthorizationResource());
-      singletons.add(new UserAuthorizationResource());
-      // admin authorization
-      singletons.add(new AdminDatabaseAuthorizationResource());
-      singletons.add(new AdminDatabaseAuthorizationResource2());
-      singletons.add(new AdminEngineAuthorizationResource());
-      singletons.add(new AdminProjectAuthorizationResource());
-      singletons.add(new AdminInsightAuthorizationResource());
-      singletons.add(new AdminUserAuthorizationResource());
-      // group authorization
-      singletons.add(new GroupEngineAuthorizationResource());
-      singletons.add(new GroupProjectAuthorizationResource());
-      singletons.add(new GroupInsightAuthorizationResource());
-      // group admin authorization
-      singletons.add(new AdminGroupAuthorizationResource());
-      // insight execution
-      singletons.add(new ExecuteInsightResource());
-      singletons.add(new ShareInsightResource());
-      singletons.add(new SchedulerResource());
-      // other
-      singletons.add(new ThemeResource());
-      singletons.add(new ServerConfigurationResource());
-      singletons.add(new RawSelectWrapperService());
-      // legacy forms - still used in production - RDF specific
-      singletons.add(new FormResource());
-      
-      // openai endpoints for CFG AI Model Inference
-      singletons.add(new OpenAIEndpoints());
-      singletons.add(new AnthropicEndpoints());
-      // MCP
-      singletons.add(new MCPResource());
-   }
+	private Set<Object> singletons = new HashSet<Object>();
 
-   @Override
-   public Set<Object> getSingletons() {
-      return singletons;
-   }
+	public MonolithApplication() {
+		// core
+		singletons.add(new UserResource());
+		singletons.add(new NameServer());
+		singletons.add(new LegacyAppResource());
+		singletons.add(new FileUploader());
+		singletons.add(new ImageUploader());
+		singletons.add(new SessionResource());
+		// engine interfaces
+		singletons.add(new EngineRouteResource());
+		singletons.add(new DatabaseEngineResource());
+		singletons.add(new StorageEngineResource());
+		singletons.add(new ModelEngineResource());
+		singletons.add(new VectorEngineResource());
+		singletons.add(new FunctionEngineResource());
+		singletons.add(new ProjectResource());
+		// authorization resources
+		singletons.add(new AuthorizationResource());
+		singletons.add(new DatabaseAuthorizationResource());
+		singletons.add(new DatabaseAuthorizationResource2());
+		singletons.add(new EngineAuthorizationResource());
+		singletons.add(new ProjectAuthorizationResource());
+		singletons.add(new InsightAuthorizationResource());
+		singletons.add(new UserAuthorizationResource());
+		// admin authorization
+		singletons.add(new AdminDatabaseAuthorizationResource());
+		singletons.add(new AdminDatabaseAuthorizationResource2());
+		singletons.add(new AdminEngineAuthorizationResource());
+		singletons.add(new AdminProjectAuthorizationResource());
+		singletons.add(new AdminInsightAuthorizationResource());
+		singletons.add(new AdminUserAuthorizationResource());
+		// group authorization
+		singletons.add(new GroupEngineAuthorizationResource());
+		singletons.add(new GroupProjectAuthorizationResource());
+		singletons.add(new GroupInsightAuthorizationResource());
+		// group admin authorization
+		singletons.add(new AdminGroupAuthorizationResource());
+		// insight execution
+		singletons.add(new ExecuteInsightResource());
+		singletons.add(new ShareInsightResource());
+		singletons.add(new SchedulerResource());
+		// other
+		singletons.add(new AdminThemeResource());
+		singletons.add(new ServerConfigurationResource());
+		// legacy forms - still used in production - RDF specific
+		singletons.add(new FormResource());
+
+		// openai endpoints for CFG AI Model Inference
+		singletons.add(new OpenAIEndpoints());
+		singletons.add(new AnthropicEndpoints());
+		singletons.add(new OllamaEndpoints());
+		// MCP
+		singletons.add(new MCPResource());
+		// A2A
+		singletons.add(new A2AResource());
+	}
+
+	@Override
+	public Set<Object> getSingletons() {
+		return singletons;
+	}
 }

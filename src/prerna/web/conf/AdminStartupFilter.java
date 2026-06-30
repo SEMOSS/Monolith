@@ -41,24 +41,23 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.owasp.encoder.Encode;
 
-import prerna.engine.api.IDatabaseEngine;
+import prerna.engine.api.IRDBMSEngine;
 import prerna.engine.api.IRawSelectWrapper;
 import prerna.rdf.engine.wrappers.WrapperManager;
-import prerna.util.Constants;
-import prerna.util.Utility;
+import prerna.util.SystemEngineRegistry;
 
 public class AdminStartupFilter implements Filter {
-	
-	private static final Logger logger = LogManager.getLogger(AdminStartupFilter.class);
+
+	private static final Logger classLogger = LogManager.getLogger(AdminStartupFilter.class);
+
 	private static String initialRedirect;
 
 	@Override
-	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
-		IDatabaseEngine engine = Utility.getDatabase(Constants.SECURITY_DB);
+	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2)
+			throws IOException, ServletException {
+		IRDBMSEngine engine = SystemEngineRegistry.getSecurityDb();
 		String q = "SELECT * FROM SMSS_USER LIMIT 1";
-		IRawSelectWrapper wrapper = null;
-		try {
-			wrapper = WrapperManager.getInstance().getRawWrapper(engine, q);
+		try (IRawSelectWrapper wrapper = WrapperManager.getInstance().getRawWrapper(engine, q)) {
 			boolean hasUser = wrapper.hasNext();
 			// if there are users, redirect to the main semoss page
 			// we do not want to allow the person to make any admin requests
@@ -72,15 +71,7 @@ public class AdminStartupFilter implements Filter {
 				}
 			}
 		} catch (Exception e) {
-			logger.error(Constants.STACKTRACE, e);
-		} finally {
-			if (wrapper != null) {
-				try {
-					wrapper.close();
-				} catch(IOException e) {
-					logger.error(Constants.STACKTRACE, e);
-				}
-			}
+			classLogger.error("Error checking whether an initial admin user exists during startup filtering", e);
 		}
 
 		arg2.doFilter(arg0, arg1);

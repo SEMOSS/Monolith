@@ -60,6 +60,7 @@ import org.apache.tika.mime.MimeTypes;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
+import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
@@ -67,6 +68,7 @@ import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityInsightUtils;
 import prerna.auth.utils.SecurityProjectUtils;
 import prerna.auth.utils.SecurityQueryUtils;
+import prerna.cluster.util.ClusterUtil;
 import prerna.engine.api.IEngine;
 import prerna.io.connector.antivirus.VirusScannerUtils;
 import prerna.io.connector.antivirus.VirusScanningException;
@@ -79,6 +81,7 @@ import prerna.util.AssetUtility;
 import prerna.util.Constants;
 import prerna.util.EngineUtility;
 import prerna.util.Utility;
+import prerna.util.git.GitRepoUtils;
 import prerna.web.services.util.WebUtility;
 
 @Path("/uploadFile")
@@ -259,7 +262,8 @@ public class FileUploader extends Uploader {
 	@Consumes(MediaType.MULTIPART_FORM_DATA)
 	public Response baseUpload(@Context ServletContext context, @Context HttpServletRequest request,
 			@QueryParam("insightId") String insightId, @QueryParam("path") String relativePath,
-			@QueryParam("projectId") String projectId, @QueryParam("engineId") String engineId) {
+			@QueryParam("projectId") String projectId, @QueryParam("engineId") String engineId,
+			@QueryParam("userSpace") boolean userSpace) {
 
 		insightId = WebUtility.inputSanitizer(insightId);
 		relativePath = WebUtility.inputSanitizer(relativePath);
@@ -316,7 +320,7 @@ public class FileUploader extends Uploader {
 			List<FileItem> fileItems = processRequest(context, request, insightId);
 			// collect all of the data input on the form
 			List<Map<String, String>> inputData = getBaseUploadData(fileItems, in, relativePath, projectId, engineId,
-					user);
+					userSpace, user);
 			return WebUtility.getResponse(inputData, 200);
 		} catch (VirusScanningException e) {
 			classLogger.error("Virus scan failed during upload", e);
@@ -341,13 +345,20 @@ public class FileUploader extends Uploader {
 	 * @param relativePath The relative path to upload the file to.
 	 * @param projectId    The ID of the project to upload the file to.
 	 * @param engineId     The ID of the engine to upload the file to.
+	 * @param userSpace    Boolean true to write to the user assets project.
 	 * @param user         The user uploading the file.
 	 * @return A list of maps containing the file name and file location.
 	 * @throws VirusScanningException if a virus is detected in the file.
 	 * @throws IOException            if an error occurs while writing the file.
 	 */
 	private List<Map<String, String>> getBaseUploadData(List<FileItem> fileItems, Insight in, String relativePath,
-			String projectId, String engineId, User user) throws VirusScanningException, IOException {
+			String projectId, String engineId, boolean userSpace, User user)
+			throws VirusScanningException, IOException {
+		boolean pushEngine = false;
+		boolean pushRoom = false;
+		boolean pushUser = false;
+		IEngine engine = null;
+
 		// get base asset folder
 		String assetFolder = null;
 		String fePath = DIR_SEPARATOR;
@@ -356,15 +367,27 @@ public class FileUploader extends Uploader {
 				AuthProvider provider = user.getPrimaryLogin();
 				projectId = user.getAssetProjectId(provider);
 				String projectName = "Asset";
-				assetFolder = AssetUtility.getUserAssetAndWorkspaceAppRootFolder(projectName, projectId);
+				assetFolder = AssetUtility.getUserAssetAppRootFolder(projectName, projectId);
+				pushUser = true;
 			} else {
-				IProject project = Utility.getProject(projectId);
-				assetFolder = AssetUtility.getProjectAppRootFolder(project.getProjectName(), projectId);
+				engine = Utility.getProject(projectId);
+				assetFolder = EngineUtility.getSpecificEngineAppRootFolder(IEngine.CATALOG_TYPE.PROJECT,
+						engine.getEngineId(), engine.getEngineName());
+				pushEngine = true;
 			}
 		} else if (engineId != null) {
-			assetFolder = EngineUtility.getSpecificEngineBaseFolder(engineId);
+			engine = Utility.getEngine(engineId);
+			assetFolder = EngineUtility.getSpecificEngineBaseFolder(engine.getCatalogType(), engine.getEngineId(),
+					engine.getEngineName());
+			pushEngine = true;
+		} else if (userSpace) {
+			engine = user.getAssetProject();
+			assetFolder = AssetUtility.getUserAssetFolder(engine.getEngineName(), engine.getEngineId());
 		} else {
 			assetFolder = in.getInsightFolder();
+			if (in.getRoomId() != null) {
+				pushRoom = true;
+			}
 		}
 		String filePath = assetFolder;
 		// add relative path
@@ -376,17 +399,91 @@ public class FileUploader extends Uploader {
 		if (!fileDir.exists()) {
 			Boolean success = fileDir.mkdirs();
 			if (!success) {
-				classLogger.info("Unable to make direction at location: " + Utility.cleanLogString(filePath));
+				classLogger.warn("Unable to make directory at location: {}", Utility.cleanLogString(filePath));
 			}
 		}
 
 		List<Map<String, String>> retData = processFileItems(fileItems, filePath, fePath);
+		if (pushEngine) {
+			if (engine instanceof IProject) {
+				if (userSpace) {
+					ClusterUtil.pushUserAsset(engine.getEngineId());
+				} else {
+					ClusterUtil.pushProjectFolder((IProject) engine, filePath);
+				}
+			} else {
+				ClusterUtil.pushEngineFolder(engine, filePath);
+			}
+		} else if (pushRoom) {
+			ClusterUtil.pushRoom(in.getRoomId());
+		} else if (pushUser) {
+			ClusterUtil.pushUserAsset(projectId);
+		}
 		return retData;
 	}
 
 	/**
+	 * Uploads a file to the user assets project.
+	 *
+	 * @param context      The servlet context.
+	 * @param request      The HTTP servlet request.
+	 * @param insightId    The ID of the insight to upload the file to.
+	 * @param relativePath The relative path to upload the file to.
+	 * @return A response containing a list of maps with the file name and location.
+	 */
+	@POST
+	@Path("userAssetsUpload")
+	@Produces(MediaType.APPLICATION_JSON)
+	@Consumes(MediaType.MULTIPART_FORM_DATA)
+	public Response userAssetsUpload(@Context ServletContext context, @Context HttpServletRequest request,
+			@QueryParam("insightId") String insightId, @QueryParam("path") String relativePath) {
+
+		insightId = WebUtility.inputSanitizer(insightId);
+		relativePath = WebUtility.inputSanitizer(relativePath);
+
+		Insight in = getValidInsight(insightId);
+		if (in == null) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Session could not be validated in order to upload files");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		User user = in.getUser();
+
+		Response permResponse = checkGeneralUserPermissions(user);
+		if (permResponse != null) {
+			return permResponse;
+		}
+
+		if (user.isAnonymous()) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload files to user assets");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		ThreadStore.setSessionId(request.getSession().getId());
+		try {
+			List<FileItem> fileItems = processRequest(context, request, insightId);
+			List<Map<String, String>> inputData = getBaseUploadData(fileItems, in, relativePath, null, null, true,
+					user);
+			return WebUtility.getResponse(inputData, 200);
+		} catch (VirusScanningException e) {
+			classLogger.error("Virus scan failed during upload", e);
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		} catch (Exception e) {
+			classLogger.error("Error during file upload", e);
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Error uploading file. Error = " + e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		} finally {
+			ThreadStore.remove();
+		}
+	}
+
+	/**
 	 * Uploads a file to the project assets.
-	 * 
+	 *
 	 * @param context      The servlet context.
 	 * @param request      The HTTP servlet request.
 	 * @param insightId    The ID of the insight to upload the file to.
@@ -617,11 +714,45 @@ public class FileUploader extends Uploader {
 		if (!fileDir.exists()) {
 			Boolean success = fileDir.mkdirs();
 			if (!success) {
-				classLogger.info("Unable to make direction at location: " + Utility.cleanLogString(filePath));
+				classLogger.info("Unable to make direction at location: {}", Utility.cleanLogString(filePath));
 			}
 		}
 
 		List<Map<String, String>> retData = processFileItems(fileItems, filePath, fePath);
+
+		// Track uploaded files in git for all engine types
+		try {
+			String gitFolder = EngineUtility.getSpecificEngineVersionFolder(engine.getCatalogType(),
+					engine.getEngineId(), engine.getEngineName());
+			List<String> gitRelativeFilePaths = new ArrayList<>();
+			for (Map<String, String> fileMap : retData) {
+				String fileName = fileMap.get("fileName");
+				String gitRelPath;
+				if (relativePath != null && !relativePath.isEmpty() && !relativePath.equals("/")) {
+					String cleanRelPath = relativePath.replaceAll("^/+|/+$", "");
+					gitRelPath = Constants.ASSETS_FOLDER + DIR_SEPARATOR + cleanRelPath + DIR_SEPARATOR + fileName;
+				} else {
+					gitRelPath = Constants.ASSETS_FOLDER + DIR_SEPARATOR + fileName;
+				}
+				gitRelativeFilePaths.add(gitRelPath);
+			}
+			if (!gitRelativeFilePaths.isEmpty()) {
+				AccessToken accessToken = user.getAccessToken(user.getPrimaryLogin());
+				String author = accessToken.getUsername();
+				String email = accessToken.getEmail();
+				String fileNames = String.join(", ", gitRelativeFilePaths);
+				GitRepoUtils.addSpecificFiles(gitFolder, gitRelativeFilePaths);
+				GitRepoUtils.commitAddedFiles(gitFolder, "add: uploaded " + fileNames, author, email);
+			}
+		} catch (Exception e) {
+			classLogger.error("Error committing uploaded files to git for engine {}", engine.getEngineId(), e);
+		}
+
+		if (engine instanceof IProject) {
+			ClusterUtil.pushProjectFolder((IProject) engine, filePath);
+		} else {
+			ClusterUtil.pushEngineFolder(engine, filePath);
+		}
 		return retData;
 	}
 
@@ -697,7 +828,7 @@ public class FileUploader extends Uploader {
 
 				File file = new File(WebUtility.normalizePath(fileLocation));
 				writeFile(fi, file);
-				classLogger.info(Utility.cleanLogString("Saved Pasted Data To " + file));
+				classLogger.info("Saved Pasted Data To {}", Utility.cleanLogString(file.toString()));
 
 				String savedName = FilenameUtils.getName(fileLocation);
 				Map<String, String> fileMap = new HashMap<String, String>();
@@ -730,8 +861,8 @@ public class FileUploader extends Uploader {
 						fi.getInputStream());
 
 				if (!viruses.isEmpty()) {
-					classLogger.warn(
-							Utility.cleanLogString("Virus scanner errors map for " + fi.getName() + " : " + viruses));
+					classLogger.warn("Virus scanner errors map for {} : {}", Utility.cleanLogString(fi.getName()),
+							Utility.cleanLogString(String.valueOf(viruses)));
 					String error = "Detected " + viruses.size() + " virus";
 
 					if (viruses.size() > 1) {

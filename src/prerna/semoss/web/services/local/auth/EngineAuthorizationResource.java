@@ -94,7 +94,7 @@ public class EngineAuthorizationResource {
 //			@QueryParam("metaFilters") Map<String, Object> metaFilters,
 			@QueryParam("noMeta") Boolean noMeta, @QueryParam("userT") Boolean includeUserTracking) {
 
-		searchTerm = WebUtility.inputSanitizer(searchTerm);
+		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
 		engineFilter = WebUtility.inputSanitizer(engineFilter);
 		engineTypes = WebUtility.inputSanitizer(engineTypes);
 		metaKeys = WebUtility.inputSanitizer(metaKeys);
@@ -103,8 +103,7 @@ public class EngineAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -115,7 +114,7 @@ public class EngineAuthorizationResource {
 		Insight temp = new Insight();
 		temp.setUser(user);
 		reactor.setInsight(temp);
-		searchTerm = WebUtility.inputSanitizer(searchTerm);
+		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
 		if (searchTerm != null) {
 			GenRowStruct struct = new GenRowStruct();
 			struct.add(new NounMetadata(searchTerm, PixelDataType.CONST_STRING));
@@ -185,8 +184,7 @@ public class EngineAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -288,8 +286,7 @@ public class EngineAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -301,8 +298,8 @@ public class EngineAuthorizationResource {
 			if (SecurityEngineUtils.engineIsDiscoverable(engineId)) {
 				permission = "DISCOVERABLE";
 			} else {
-				classLogger.warn("User is trying to pull permission details for engine " + engineId
-						+ " without having proper access");
+				classLogger.warn("User is trying to pull permission details for engine {} without having proper access",
+						engineId);
 				Map<String, String> errorMap = new HashMap<String, String>();
 				errorMap.put(Constants.ERROR_MESSAGE, "User does not have access to this engine");
 				return WebUtility.getResponse(errorMap, 401);
@@ -337,8 +334,7 @@ public class EngineAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -353,8 +349,8 @@ public class EngineAuthorizationResource {
 			ret.put("totalMembers", totalMembers);
 			ret.put("members", members);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to pull users for engine " + engineId + " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.warn("User is trying to pull users for engine {} without having proper access", engineId);
+			classLogger.error("Failed to retrieve engine users.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -380,8 +376,7 @@ public class EngineAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -389,7 +384,7 @@ public class EngineAuthorizationResource {
 
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess(engineId) && !SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn("User is trying to add users for engine " + engineId + " but is not an admin");
+			classLogger.warn("User is trying to add users for engine {} but is not an admin", engineId);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
 			return WebUtility.getResponse(errorMap, 401);
@@ -412,7 +407,7 @@ public class EngineAuthorizationResource {
 			try {
 				maxTokens = Integer.parseInt(maxTokensStr);
 			} catch (NumberFormatException e) {
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.error("Failed to add engine user permission.", e);
 				ret.put(Constants.ERROR_MESSAGE, "maxTokens must be a valid integer value");
 				return WebUtility.getResponse(ret, 400);
 			}
@@ -424,7 +419,7 @@ public class EngineAuthorizationResource {
 			try {
 				maxResponseTime = Double.parseDouble(maxResponseTimeStr);
 			} catch (NumberFormatException e) {
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.error("Failed to add engine user permission.", e);
 				ret.put(Constants.ERROR_MESSAGE, "maxResponseTime must be a valid double value");
 				return WebUtility.getResponse(ret, 400);
 			}
@@ -434,16 +429,15 @@ public class EngineAuthorizationResource {
 			SecurityEngineUtils.addEngineUser(user, newUserId, engineId, permission, endDate, usageRestriction,
 					usageFrequency, maxTokens, maxResponseTime);
 		} catch (Exception e) {
-			classLogger.warn("User is trying to add users for engine " + engineId + " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.warn("User is trying to add users for engine {} without having proper access", engineId);
+			classLogger.error("Failed to add engine user permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger
-				.info("User has added user " + newUserId + " to engine " + engineId + " with permission " + permission);
+		classLogger.info("User has added user {} to engine {} with permission {}", newUserId, engineId, permission);
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
@@ -464,7 +458,7 @@ public class EngineAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -473,7 +467,7 @@ public class EngineAuthorizationResource {
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess(engineId) && !SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn("User is trying to add user permissions to engine " + engineId + " but is not an admin");
+			classLogger.warn("User is trying to add user permissions to engine {} but is not an admin", engineId);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
 			return WebUtility.getResponse(errorMap, 401);
@@ -509,14 +503,14 @@ public class EngineAuthorizationResource {
 			// now add the permission
 			SecurityEngineUtils.addEngineUserPermissions(user, engineId, permission);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to add engine user permissions.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has added user permissions to engine " + engineId);
+		classLogger.info("User has added user permissions to engine {}", engineId);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -540,17 +534,17 @@ public class EngineAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			ret.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(ret, 401);
 		}
 
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		String existingUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
+		String existingUserType = WebUtility.inputSQLSanitizer(form.getFirst("type"));
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess(engineId) && !SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn("User is trying to edit user " + existingUserId + " permissions for engine " + engineId
-					+ " but is not an admin");
+			classLogger.warn("User is trying to edit user {} permissions for engine {} but is not an admin",
+					existingUserId, engineId);
 			ret.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
 			return WebUtility.getResponse(ret, 401);
 		}
@@ -571,7 +565,7 @@ public class EngineAuthorizationResource {
 			try {
 				maxTokens = Integer.parseInt(maxTokensStr);
 			} catch (NumberFormatException e) {
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.error("Failed to update engine user permission.", e);
 				ret.put(Constants.ERROR_MESSAGE, "maxTokens must be a valid integer value");
 				return WebUtility.getResponse(ret, 400);
 			}
@@ -583,30 +577,30 @@ public class EngineAuthorizationResource {
 			try {
 				maxResponseTime = Double.parseDouble(maxResponseTimeStr);
 			} catch (NumberFormatException e) {
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.error("Failed to update engine user permission.", e);
 				ret.put(Constants.ERROR_MESSAGE, "maxResponseTime must be a valid double value");
 				return WebUtility.getResponse(ret, 400);
 			}
 		}
 
 		try {
-			SecurityEngineUtils.editEngineUserPermission(user, existingUserId, engineId, newPermission, endDate,
-					usageRestriction, usageFrequency, maxTokens, maxResponseTime);
+			SecurityEngineUtils.editEngineUserPermission(user, existingUserId, existingUserType, engineId,
+					newPermission, endDate, usageRestriction, usageFrequency, maxTokens, maxResponseTime);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to edit user " + existingUserId + " permissions for engine " + engineId
-					+ " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.warn("User is trying to edit user {} permissions for engine {} without having proper access",
+					existingUserId, engineId);
+			classLogger.error("Failed to update engine user permission.", e);
 			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(ret, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update engine user permission.", e);
 			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(ret, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has edited user " + existingUserId + " permission to engine " + engineId + " with level "
-				+ newPermission);
+		classLogger.info("User has edited user {} permission to engine {} with level {}", existingUserId, engineId,
+				newPermission);
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
@@ -627,8 +621,7 @@ public class EngineAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -636,7 +629,7 @@ public class EngineAuthorizationResource {
 
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess(engineId) && !SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn("User is trying to edit user permissions for engine " + engineId + " but is not an admin");
+			classLogger.warn("User is trying to edit user permissions for engine {} but is not an admin", engineId);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
 			return WebUtility.getResponse(errorMap, 401);
@@ -646,21 +639,21 @@ public class EngineAuthorizationResource {
 		try {
 			SecurityEngineUtils.editEngineUserPermissions(user, engineId, requests);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(
-					"User is trying to edit user permissions for engine " + engineId + " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.warn("User is trying to edit user permissions for engine {} without having proper access",
+					engineId);
+			classLogger.error("Failed to update engine user permissions.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update engine user permissions.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has edited user permission to engine " + engineId);
+		classLogger.info("User has edited user permission to engine {}", engineId);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -683,7 +676,7 @@ public class EngineAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -693,8 +686,8 @@ public class EngineAuthorizationResource {
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess(engineId) && !SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn("User is trying to remove user " + existingUserId + " from having access to engine "
-					+ engineId + " but is not an admin");
+			classLogger.warn("User is trying to remove user {} from having access to engine {} but is not an admin",
+					existingUserId, engineId);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
 			return WebUtility.getResponse(errorMap, 401);
@@ -703,21 +696,22 @@ public class EngineAuthorizationResource {
 		try {
 			SecurityEngineUtils.removeEngineUser(user, existingUserId, engineId);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to remove user " + existingUserId + " from having access to engine "
-					+ engineId + " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.warn(
+					"User is trying to remove user {} from having access to engine {} without having proper access",
+					existingUserId, engineId);
+			classLogger.error("Failed to remove engine user permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to remove engine user permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has removed user " + existingUserId + " from having access to engine " + engineId);
+		classLogger.info("User has removed user {} from having access to engine {}", existingUserId, engineId);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -740,7 +734,7 @@ public class EngineAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -752,8 +746,8 @@ public class EngineAuthorizationResource {
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess(engineId) && !SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn(
-					"User is trying to remove users from having access to engine " + engineId + " but is not an admin");
+			classLogger.warn("User is trying to remove users from having access to engine {} but is not an admin",
+					engineId);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
 			return WebUtility.getResponse(errorMap, 401);
@@ -762,21 +756,22 @@ public class EngineAuthorizationResource {
 		try {
 			SecurityEngineUtils.removeEngineUsers(user, ids, engineId);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to remove users from having access to engine " + engineId
-					+ " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.warn(
+					"User is trying to remove users from having access to engine {} without having proper access",
+					engineId);
+			classLogger.error("Failed to remove engine user permissions.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to remove engine user permissions.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has removed users from having access to engine " + engineId);
+		classLogger.info("User has removed users from having access to engine {}", engineId);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -798,8 +793,7 @@ public class EngineAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -810,7 +804,7 @@ public class EngineAuthorizationResource {
 		String logPublic = isPublic ? " public " : " private";
 
 		if (AbstractSecurityUtils.adminOnlyEngineSetPublic(engineId) && !SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn("User is trying to set the engine " + engineId + logPublic + " but is not an admin");
+			classLogger.warn("User is trying to set the engine {}{} but is not an admin", engineId, logPublic);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
 			return WebUtility.getResponse(errorMap, 401);
@@ -819,21 +813,20 @@ public class EngineAuthorizationResource {
 		try {
 			SecurityEngineUtils.setEngineGlobal(user, engineId, isPublic);
 		} catch (IllegalAccessException e) {
-			classLogger
-					.warn("User is trying to set the engine " + engineId + logPublic + " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.warn("User is trying to set the engine {}{} without having proper access", engineId, logPublic);
+			classLogger.error("Failed to update engine global.", e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update engine global.", e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
 
 		// log the operation
-		classLogger.info("User has set the engine " + engineId + logPublic);
+		classLogger.info("User has set the engine {} {}", engineId, logPublic.trim());
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -855,8 +848,7 @@ public class EngineAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -867,7 +859,7 @@ public class EngineAuthorizationResource {
 		String logDiscoverable = isDiscoverable ? " discoverable " : " not discoverable";
 
 		if (AbstractSecurityUtils.adminOnlyEngineSetPublic(engineId) && !SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn("User is trying to set the engine " + engineId + logDiscoverable + " but is not an admin");
+			classLogger.warn("User is trying to set the engine {}{} but is not an admin", engineId, logDiscoverable);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -876,21 +868,21 @@ public class EngineAuthorizationResource {
 		try {
 			SecurityEngineUtils.setEngineDiscoverable(user, engineId, isDiscoverable);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(
-					"User is trying to set the engine " + engineId + logDiscoverable + " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.warn("User is trying to set the engine {}{} without having proper access", engineId,
+					logDiscoverable);
+			classLogger.error("Failed to update engine discoverable.", e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update engine discoverable.", e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
 
 		// log the operation
-		classLogger.info("User has set the engine " + engineId + logDiscoverable);
+		classLogger.info("User has set the engine {} {}", engineId, logDiscoverable.trim());
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -912,8 +904,7 @@ public class EngineAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -926,21 +917,21 @@ public class EngineAuthorizationResource {
 		try {
 			SecurityEngineUtils.setEngineVisibility(user, engineId, visible);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(
-					"User is trying to set the engine " + engineId + logVisible + " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.warn("User is trying to set the engine {}{} without having proper access", engineId,
+					logVisible);
+			classLogger.error("Failed to update engine visibility.", e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update engine visibility.", e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
 
 		// log the operation
-		classLogger.info("User has set the engine " + engineId + logVisible);
+		classLogger.info("User has set the engine {} {}", engineId, logVisible.trim());
 
 		return WebUtility.getResponse(true, 200);
 	}
@@ -960,8 +951,7 @@ public class EngineAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -974,21 +964,21 @@ public class EngineAuthorizationResource {
 		try {
 			SecurityEngineUtils.setEngineFavorite(user, engineId, isFavorite);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(
-					"User is trying to set the engine " + engineId + logFavorited + " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.warn("User is trying to set the engine {}{} without having proper access", engineId,
+					logFavorited);
+			classLogger.error("Failed to update engine favorite.", e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update engine favorite.", e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
 		}
 
 		// log the operation
-		classLogger.info("User has set the engine " + engineId + logFavorited);
+		classLogger.info("User has set the engine {} {}", engineId, logFavorited.trim());
 
 		return WebUtility.getResponse(true, 200);
 	}
@@ -1007,14 +997,14 @@ public class EngineAuthorizationResource {
 			@QueryParam("engineId") String engineId, @QueryParam("searchTerm") String searchTerm,
 			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
 		engineId = WebUtility.inputSanitizer(engineId);
-		searchTerm = WebUtility.inputSanitizer(searchTerm);
+		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
 
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User  invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve engine users no credentials.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -1031,9 +1021,10 @@ public class EngineAuthorizationResource {
 						searchTerm, limit, offset);
 				return WebUtility.getResponse(ret, 200);
 			} catch (IllegalAccessException e) {
-				classLogger.warn("User is trying to pull users for " + engineId
-						+ " that do not have credentials without having proper access");
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.warn(
+						"User is trying to pull users for {} that do not have credentials without having proper access",
+						engineId);
+				classLogger.error("Failed to retrieve engine users no credentials.", e);
 				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 				return WebUtility.getResponse(errorMap, 401);
@@ -1047,7 +1038,7 @@ public class EngineAuthorizationResource {
 					graphApiGroupId, limit, offset, false);
 			return WebUtility.getResponse(filteredUsers, 200);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve engine users no credentials.", e);
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 500);
@@ -1070,7 +1061,7 @@ public class EngineAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -1080,7 +1071,7 @@ public class EngineAuthorizationResource {
 		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess(engineId) && !SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn("User is trying to approve user access to engine " + engineId + " but is not an admin");
+			classLogger.warn("User is trying to approve user access to engine {} but is not an admin", engineId);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
 			return WebUtility.getResponse(errorMap, 401);
@@ -1091,21 +1082,20 @@ public class EngineAuthorizationResource {
 		try {
 			SecurityEngineUtils.approveEngineUserAccessRequests(user, engineId, requests, endDate);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(
-					"User is trying to grant user access to engine " + engineId + " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.warn("User is trying to grant user access to engine {} without having proper access", engineId);
+			classLogger.error("Failed to approve engine user access request.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to approve engine user access request.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has approved user access and added user permissions to engine " + engineId);
+		classLogger.info("User has approved user access and added user permissions to engine {}", engineId);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -1128,7 +1118,7 @@ public class EngineAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -1137,7 +1127,7 @@ public class EngineAuthorizationResource {
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 
 		if (AbstractSecurityUtils.adminOnlyEngineAddAccess(engineId) && !SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn("User is trying to deny user access to engine " + engineId + " but is not an admin");
+			classLogger.warn("User is trying to deny user access to engine {} but is not an admin", engineId);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
 			return WebUtility.getResponse(errorMap, 401);
@@ -1149,14 +1139,14 @@ public class EngineAuthorizationResource {
 		try {
 			SecurityEngineUtils.denyEngineUserAccessRequests(user, engineId, requestIds);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to deny engine user access request.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has denied user access requests to engine " + engineId);
+		classLogger.info("User has denied user access requests to engine {}", engineId);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);

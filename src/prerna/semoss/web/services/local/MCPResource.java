@@ -28,18 +28,19 @@
 package prerna.semoss.web.services.local;
 
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.io.OutputStreamWriter;
-import java.nio.charset.StandardCharsets;
 import java.time.ZoneId;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 import javax.annotation.security.PermitAll;
 import javax.inject.Singleton;
@@ -52,11 +53,8 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
-import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.StreamingOutput;
 import javax.ws.rs.sse.Sse;
 import javax.ws.rs.sse.SseEventSink;
 
@@ -70,6 +68,7 @@ import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.util.Constants;
 import prerna.util.Utility;
+import prerna.web.services.util.WebUtility;
 
 @Singleton
 @Path("/ext/mcp/{toolbox_id}")
@@ -78,30 +77,21 @@ public class MCPResource {
 
 	private static final Logger classLogger = LogManager.getLogger(MCPResource.class);
 
+	private static final long MAX_IDLE_TIMEOUT_MINUTES = 30;
+
 	public static final String MCP_AUTH_KEY = "MCP_AUTH_KEY";
 	private static final Map<String, Insight> INSIGHT_MAP = new ConcurrentHashMap<>();
 
-	@POST
-	@Path("/it")
-	@Consumes(MediaType.APPLICATION_JSON) // Assume JSON input
-	@Produces(MediaType.TEXT_PLAIN)
-	public Response getInsightData(InputStream is) {
-		classLogger.debug("Came into the MCP");
-		StreamingOutput stream = output -> {
-			try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(output, StandardCharsets.UTF_8))) {
-				// Simulate processing input and generating streamed response
-				for (int i = 0; i < 10; i++) {
-					BufferedReader reader = new BufferedReader(new InputStreamReader(is));
-					String outputLine = "Processed: " + reader.readLine() + " - Item: " + i;
-					writer.write(outputLine + "\n");
-					writer.flush(); // Flush after each write to ensure streaming
-					Thread.sleep(500); // Simulate some processing time
-				}
-			} catch (IOException | InterruptedException e) {
-				throw new WebApplicationException(e); // Handle exception appropriately
-			}
-		};
-		return Response.ok(stream).build();
+	private static final ExecutorService SSE_EXECUTOR;
+	static {
+		ThreadPoolExecutor executor = new ThreadPoolExecutor(25, 150, 60L, TimeUnit.SECONDS,
+				new LinkedBlockingQueue<>(), r -> {
+					Thread t = new Thread(r, "mcp-sse-worker");
+					t.setDaemon(true);
+					return t;
+				});
+		executor.allowCoreThreadTimeOut(true);
+		SSE_EXECUTOR = executor;
 	}
 
 	/**
@@ -139,11 +129,17 @@ public class MCPResource {
 			String sessionId = session.getId();
 			Insight insight = getInsight(session, authorization);
 
+			int sessionTimeoutSeconds = session.getMaxInactiveInterval();
+			long idleTimeoutMinutes = (sessionTimeoutSeconds <= 0) ? MAX_IDLE_TIMEOUT_MINUTES
+					: Math.min(MAX_IDLE_TIMEOUT_MINUTES, sessionTimeoutSeconds / 60L);
+
 			MCPReaper reaper = new MCPReaper(insight, sessionId, is, os, toolbox_id, request.getRequestURL().toString(),
-					ThreadContext.getImmutableContext());
+					ThreadContext.getImmutableContext(), idleTimeoutMinutes);
 			reaper.run();
 		} catch (IOException e) {
-			classLogger.error("Error running tool via streamable http.... {}", toolbox_id, e);
+			if (!WebUtility.handleStreamingException(e, classLogger, toolbox_id, null, null)) {
+				classLogger.error("Error running tool via streamable http.... {}", toolbox_id, e);
+			}
 		}
 	}
 
@@ -183,10 +179,11 @@ public class MCPResource {
 			BufferedReader reader = new BufferedReader(new InputStreamReader(is));
 			MCPReaper reaper = new MCPReaper(insight, sessionId, reader, eventSink, sse, toolbox_id,
 					request.getRequestURL().toString(), ThreadContext.getImmutableContext());
-			Thread t = new Thread(reaper);
-			t.start();
+			SSE_EXECUTOR.submit(reaper);
 		} catch (IOException e) {
-			classLogger.error("Error running tool via sse.... {}", toolbox_id, e);
+			if (!WebUtility.handleStreamingException(e, classLogger, toolbox_id, null, null)) {
+				classLogger.error("Error running tool via sse.... {}", toolbox_id, e);
+			}
 		}
 	}
 
@@ -212,25 +209,37 @@ public class MCPResource {
 	/**
 	 * Remove a key from the mcpThread cache
 	 * 
-	 * @param authorization
+	 * @param key
 	 */
-	public static void clearInsight(String authorization) {
-		if (authorization != null) {
-			Insight removedInsight = INSIGHT_MAP.remove(authorization);
+	public static void clearInsight(String key) {
+		if (key != null) {
+			Insight removedInsight = INSIGHT_MAP.remove(key);
 			if (removedInsight != null) {
-				classLogger.info("Removed cached insight from MCP thread for auth key");
+				classLogger.info("Removed cached insight from MCP thread");
 			}
 		}
 	}
 
 	/**
-	 * 
+	 *
 	 * @param session
 	 * @param authorization
 	 * @return
 	 */
 	private Insight getInsight(HttpSession session, String authorization) {
-		return INSIGHT_MAP.computeIfAbsent(authorization, key -> initSession(session));
+		// no authorization key - default to session id
+		String key = authorization != null ? authorization : session.getId();
+		// fast path: avoid compute lock on cache hit
+		Insight existing = INSIGHT_MAP.get(key);
+		if (existing != null && InsightStore.getInstance().get(existing.getInsightId()) != null) {
+			return existing;
+		}
+		return INSIGHT_MAP.compute(key, (k, e) -> {
+			if (e != null && InsightStore.getInstance().get(e.getInsightId()) != null) {
+				return e;
+			}
+			return initSession(session);
+		});
 	}
 
 	/**

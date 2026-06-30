@@ -28,14 +28,29 @@
 package prerna.websocket;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import javax.websocket.Session;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 public class SocketSessionHandler {
 
-	private List<Session> sessions = new ArrayList<>();
+	private static final Logger classLogger = LogManager.getLogger(SocketSessionHandler.class);
+
+	private final List<Session> sessions = new CopyOnWriteArrayList<>();
+
+	/**
+	 * Active streamers keyed by a unique key (e.g. "claude_code:roomId" or a file
+	 * path)
+	 */
+	private final Map<String, FileStreamer> streamers = new ConcurrentHashMap<>();
+	/** Threads running the streamers */
+	private final Map<String, Thread> streamerThreads = new ConcurrentHashMap<>();
 
 	public void addSession(Session session) {
 		sessions.add(session);
@@ -43,10 +58,63 @@ public class SocketSessionHandler {
 
 	public void removeSession(Session session) {
 		sessions.remove(session);
+
+		// If no clients remain, stop all streamers for this handler
+		if (sessions.isEmpty()) {
+			stopAllStreamers();
+		}
+	}
+
+	/**
+	 * Start a streamer if one isn't already running for the given key.
+	 *
+	 * @param key      unique identifier for this streamer (e.g.
+	 *                 "claude_code:abc-123")
+	 * @param streamer the FileStreamer instance to run
+	 */
+	public void startStreamer(String key, FileStreamer streamer) {
+		if (streamers.containsKey(key)) {
+			classLogger.info("Streamer already running for key={}", key);
+			return;
+		}
+
+		streamers.put(key, streamer);
+
+		Thread thread = new Thread(streamer::start, "streamer-" + key);
+		thread.setDaemon(true);
+		thread.start();
+		streamerThreads.put(key, thread);
+
+		classLogger.info("Started streamer for key={}", key);
+	}
+
+	/** Stop a specific streamer by key. */
+	public void stopStreamer(String key) {
+		FileStreamer streamer = streamers.remove(key);
+		if (streamer != null) {
+			streamer.stop();
+		}
+		Thread thread = streamerThreads.remove(key);
+		if (thread != null) {
+			thread.interrupt();
+		}
+		classLogger.info("Stopped streamer for key={}", key);
+	}
+
+	/** Stop all active streamers (called when last client disconnects). */
+	public void stopAllStreamers() {
+		// Copy keys to avoid ConcurrentModificationException
+		for (String key : streamers.keySet().toArray(new String[0])) {
+			stopStreamer(key);
+		}
+	}
+
+	public boolean isEmpty() {
+		return sessions.isEmpty();
 	}
 
 	private void sendReturnData(String message) {
-		for(Session session : sessions) {
+		for (Session session : sessions) {
 			try {
 				session.getBasicRemote().sendText(message);
 			} catch (IOException e) {

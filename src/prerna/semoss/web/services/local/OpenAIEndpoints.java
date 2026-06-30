@@ -36,7 +36,6 @@ import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -61,12 +60,10 @@ import javax.ws.rs.core.StreamingOutput;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.f4b6a3.uuid.alt.GUID;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
 
 import prerna.auth.User;
 import prerna.auth.utils.SecurityEngineUtils;
@@ -76,24 +73,22 @@ import prerna.engine.api.IModelEngine;
 import prerna.engine.impl.model.AbstractModelEngine;
 import prerna.engine.impl.model.Room;
 import prerna.engine.impl.model.RoomUtils;
-import prerna.engine.impl.model.message.InputMessage;
-import prerna.engine.impl.model.message.ResponseMessage;
 import prerna.engine.impl.model.responses.AskModelEngineResponse;
 import prerna.engine.impl.model.responses.EmbeddingsModelEngineResponse;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
-import prerna.om.ThreadStore;
 import prerna.reactor.security.MyEnginesReactor;
 import prerna.sablecc2.PixelRunner;
 import prerna.sablecc2.comm.PixelJobManager;
+import prerna.sablecc2.comm.PixelJobRunner;
 import prerna.sablecc2.comm.PixelJobStatus;
-import prerna.sablecc2.comm.PixelJobThread;
 import prerna.sablecc2.om.GenRowStruct;
 import prerna.sablecc2.om.PixelDataType;
 import prerna.sablecc2.om.ReactorKeysEnum;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.util.Constants;
 import prerna.util.Utility;
+import prerna.web.services.util.ModelPixelExecutor;
 import prerna.web.services.util.WebUtility;
 
 @Path("/model/openai")
@@ -120,47 +115,18 @@ public class OpenAIEndpoints {
 	@Consumes({ "application/json" })
 	@Produces({ "application/json;charset=utf-8", "text/event-stream" })
 	public Response runModelChatCompletion(@Context HttpServletRequest request) {
-		
 		HttpSession session = request.getSession(false);
-		User user = null;
-
-		if (session != null) {
-			user = ((User) session.getAttribute(Constants.SESSION_USER));
-		}
-		// how did you even get past the no user in session filter?
+		User user = ModelPixelExecutor.getSessionUser(session);
 		if (user == null) {
-			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
-				session.invalidate();
-			}
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
+			return ModelPixelExecutor.invalidSessionResponse(request, session);
 		}
+		// set the user timezone
+		ModelPixelExecutor.applyUserTimezone(user, request);
 
 		final String SESSION_ID = session.getId();
 		final String JOB_ID = GUID.v7().toUUID().toString();
 		Insight insight = null;
 		Room room = null;
-		ObjectMapper objectMapper = new ObjectMapper();
-
-		// set the user timezone
-		ZoneId zoneId = null;
-		String strTz = WebUtility.inputSanitizer(request.getParameter("tz"));
-		if (strTz == null || (strTz = strTz.trim()).isEmpty()) {
-			zoneId = ZoneId.of(Utility.getApplicationZoneId());
-		} else {
-			try {
-				zoneId = ZoneId.of(strTz);
-			} catch (Exception e) {
-				classLogger.warn("Error parsing out users timezone value: " + strTz);
-				classLogger.error(Constants.STACKTRACE, e);
-				zoneId = ZoneId.of(Utility.getApplicationZoneId());
-			}
-		}
-		// need null check if security is off
-		if (user != null) {
-			user.setZoneId(zoneId);
-		}
 
 		// Retrieve raw data from the request
 		StringBuilder requestData = new StringBuilder();
@@ -170,27 +136,24 @@ public class OpenAIEndpoints {
 			while ((line = reader.readLine()) != null) {
 				requestData.append(line);
 			}
-
 		} catch (IOException e) {
-			classLogger.error(Constants.STACKTRACE, e);
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Bad Request: The 'data' parameter is missing.");
-			return WebUtility.getResponse(errorMap, 400);
+			classLogger.error("Failed to read chat completions request body for path '{}': {}", request.getRequestURI(),
+					e.getMessage(), e);
+			return ModelPixelExecutor.errorResponse(400, "Bad Request: The 'data' parameter is missing.");
 		}
 
-		classLogger.info("Chat completion request data: " + requestData.toString());
+		classLogger.info("Chat completion request data: {}", requestData);
 
 		// Convert the JSON string to a Map
-		TypeReference<Map<String, Object>> mapType = new TypeReference<Map<String, Object>>() {
-		};
 		Map<String, Object> dataMap;
 		try {
-			dataMap = objectMapper.readValue(WebUtility.jsonSanitizer(requestData.toString()), mapType);
-		} catch (JsonProcessingException e) {
-			classLogger.error(Constants.STACKTRACE, e);
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Error processing JSON data: " + e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
+			dataMap = GSON.fromJson(WebUtility.jsonSanitizer(requestData.toString()),
+					new TypeToken<Map<String, Object>>() {
+					}.getType());
+		} catch (Exception e) {
+			classLogger.error("Failed to parse chat completions request JSON for path '{}': {}",
+					request.getRequestURI(), e.getMessage(), e);
+			return ModelPixelExecutor.errorResponse(400, "Error processing JSON data: " + e.getMessage());
 		}
 
 		boolean isStreamingRequest = false;
@@ -200,25 +163,19 @@ public class OpenAIEndpoints {
 
 		String engineId = WebUtility.inputSanitizer((String) dataMap.remove("model"));
 		if (engineId == null || engineId.isEmpty()) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE,
+			return ModelPixelExecutor.errorResponse(400,
 					"Bad Request: The 'data' parameter is missing the required 'model' field.");
-			return WebUtility.getResponse(errorMap, 400);
 		}
 		IModelEngine engine = Utility.getModel(engineId);
 
 		Object fullPrompt = dataMap.remove("messages");
 		if (fullPrompt == null) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Please provide 'messages'.");
-			return WebUtility.getResponse(errorMap, 400);
+			return ModelPixelExecutor.errorResponse(400, "Please provide 'messages'.");
 		}
 
 		if (!SecurityEngineUtils.userCanViewEngine(user, engineId)) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE,
+			return ModelPixelExecutor.errorResponse(403,
 					"Model " + engineId + " does not exist or user does not have access to this model");
-			return WebUtility.getResponse(errorMap, 403);
 		}
 
 		String insightId = WebUtility.inputSanitizer((String) dataMap.remove("insight_id"));
@@ -250,20 +207,22 @@ public class OpenAIEndpoints {
 		// set the user
 		insight.setUser(user);
 
+		// Room ID from JSON body, or from bearer token 3rd segment
+		// (GitHubCopilotManager)
 		String roomId = WebUtility.inputSanitizer((String) dataMap.remove("room_id"));
+		if (roomId == null) {
+			roomId = (String) request.getAttribute("roomId");
+		}
 		// room name gets updated during parsing of full prompt
 		room = RoomUtils.createRoomIfNotExists(roomId, insight, engine, null);
 		// this is if you are passing full prompt but want us to maintain the history
 		boolean appendFullPrompt = Boolean
 				.parseBoolean(WebUtility.inputSanitizer((String) dataMap.remove("append_full_prompt")) + "");
 
-		ThreadStore.setInsightId(insight.getInsightId());
-		ThreadStore.setSessionId(SESSION_ID);
-		ThreadStore.setJobId(JOB_ID);
-		ThreadStore.setUser(insight.getUser());
+		ModelPixelExecutor.initializeThreadStore(insight, SESSION_ID, JOB_ID);
 
-		final Insight finalInsight = insight;
-		final Room finalRoom = room;
+		final Insight FINAL_INSIGHT = insight;
+		final Room FINAL_ROOM = room;
 
 		dataMap.put(AbstractModelEngine.FULL_PROMPT, fullPrompt);
 		dataMap.put(AbstractModelEngine.APPEND_FULL_PROMPT, appendFullPrompt);
@@ -271,22 +230,17 @@ public class OpenAIEndpoints {
 		if (!isStreamingRequest) {
 			AskModelEngineResponse llmResponse;
 			try {
-				InputMessage msg = InputMessage.builder(room).withModelType(engine.getModelType()).withParamMap(dataMap)
-						.build();
-				ResponseMessage response = room.ask(msg, engine);
-				llmResponse = response.getModelEngineResponse();
+				llmResponse = ModelPixelExecutor.askModelSync(engine, FINAL_INSIGHT, FINAL_ROOM, dataMap);
 			} catch (Exception e) {
-				classLogger.error(Constants.STACKTRACE, e);
-				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-				return WebUtility.getResponse(errorMap, 400);
+				classLogger.error("Chat completions synchronous model call failed for engine '{}'", engineId, e);
+				return ModelPixelExecutor.errorResponse(400, e.getMessage());
 			}
 
 			Map<String, Object> processedResposne = OpenAIChatCompletionsHelper.processAskModelEngineResponse(engineId,
 					llmResponse);
 			return WebUtility.getResponse(processedResposne, 200);
 		} else {
-			classLogger.info("Starting streaming response for model: " + engineId);
+			classLogger.info("Starting streaming response for model: {}", engineId);
 			return Response.ok().header("Content-Type", "text/event-stream").header("Cache-Control", "no-cache")
 					.header("Connection", "keep-alive").entity(new StreamingOutput() {
 						@Override
@@ -298,13 +252,24 @@ public class OpenAIEndpoints {
 							try (Writer writer = new BufferedWriter(
 									new OutputStreamWriter(output, StandardCharsets.UTF_8))) {
 								// Execute model request but get job ID so can poll for partial responses
-								jobId = startAsyncModelRequest(engine, finalInsight, finalRoom, dataMap, SESSION_ID);
+								jobId = ModelPixelExecutor.startAsyncModelRequest(engine, FINAL_INSIGHT, FINAL_ROOM,
+										dataMap, SESSION_ID);
 
 								boolean started = false;
 
+								// Token usage forwarded by Python via stream_type="usage".
+								// Surfaced as a usage-only chunk before the terminal [DONE].
+								// Names follow Anthropic/Responses-API spelling on the wire
+								// from Python; we translate to Chat-Completions wire fields
+								// (prompt/completion) inside writeFinishReason.
+								Integer capturedPromptTokens = null;
+								Integer capturedCompletionTokens = null;
+								Integer capturedCachedTokens = null;
+								Integer capturedReasoningTokens = null;
+
 								// polling streaming endpoint until response complete
 								STREAM_COMPLETE_LOOP: while (true) {
-									PixelJobThread jt = PixelJobManager.getManager().getJob(jobId);
+									PixelJobRunner jt = PixelJobManager.getManager().getJob(jobId);
 									List<Map<String, Object>> partialResponseContent = PixelJobManager.getManager()
 											.getStreamOut(jobId);
 									PixelJobStatus jobStatus = jt == null ? PixelJobStatus.UNKNOWN_JOB
@@ -325,12 +290,33 @@ public class OpenAIEndpoints {
 										for (Map<String, Object> streamObj : partialResponseContent) {
 											String streamType = (String) streamObj.get("stream_type");
 											Map<String, Object> dataMap = (Map<String, Object>) streamObj.get("data");
+											if ("usage".equalsIgnoreCase(streamType)) {
+												Object inT = dataMap.get("input_tokens");
+												if (inT instanceof Number) {
+													capturedPromptTokens = ((Number) inT).intValue();
+												}
+												Object outT = dataMap.get("output_tokens");
+												if (outT instanceof Number) {
+													capturedCompletionTokens = ((Number) outT).intValue();
+												}
+												Object crT = dataMap.get("cache_read_input_tokens");
+												if (crT instanceof Number) {
+													capturedCachedTokens = ((Number) crT).intValue();
+												}
+												Object rT = dataMap.get("reasoning_tokens");
+												if (rT instanceof Number) {
+													capturedReasoningTokens = ((Number) rT).intValue();
+												}
+												continue;
+											}
 											if (streamType.equalsIgnoreCase("content")) {
 												if (dataMap.containsKey("finish_reason")) {
 													String finishReason = (String) dataMap.get("finish_reason");
 													// this is a map only on finish reason
 													OpenAIChatCompletionsHelper.writeFinishReason(engineId, messageId,
-															creationTimestamp, finishReason, writer);
+															creationTimestamp, finishReason, capturedPromptTokens,
+															capturedCompletionTokens, capturedCachedTokens,
+															capturedReasoningTokens, writer);
 													break STREAM_COMPLETE_LOOP;
 												} else {
 													String newContent = (String) dataMap.get("content");
@@ -341,13 +327,27 @@ public class OpenAIEndpoints {
 														started = true;
 													}
 												}
+												// TODO: handle "thinking" stream type from models like Gemini/Claude
+												// that emit reasoning chunks separately. These would need to be
+												// forwarded as content chunks since OpenAI chat completions format
+												// has no dedicated thinking field.
+//										} else if (streamType.equalsIgnoreCase("thinking")) {
+//											String thinkingContent = (String) dataMap.get("thinking");
+//											if (thinkingContent != null && !thinkingContent.isEmpty()) {
+//												OpenAIChatCompletionsHelper.writeContentChunk(engineId,
+//														messageId, creationTimestamp, thinkingContent, started,
+//														writer);
+//												started = true;
+//											}
 											} else {
 												// assuming only other type is tool at the moment
 												if (dataMap.containsKey("finish_reason")) {
 													// send the finish chunk
 													String finishReason = (String) dataMap.get("finish_reason");
 													OpenAIChatCompletionsHelper.writeFinishReason(engineId, messageId,
-															creationTimestamp, finishReason, writer);
+															creationTimestamp, finishReason, capturedPromptTokens,
+															capturedCompletionTokens, capturedCachedTokens,
+															capturedReasoningTokens, writer);
 													break STREAM_COMPLETE_LOOP;
 												} else {
 													OpenAIChatCompletionsHelper.writeToolChunk(engineId, messageId,
@@ -363,7 +363,9 @@ public class OpenAIEndpoints {
 									if (jobStatus == PixelJobStatus.PROGRESS_COMPLETE && started) {
 										// send final chunk with empty delta && finish_reason="stop"
 										OpenAIChatCompletionsHelper.writeFinishReason(engineId, messageId,
-												creationTimestamp, "stop", writer);
+												creationTimestamp, "stop", capturedPromptTokens,
+												capturedCompletionTokens, capturedCachedTokens, capturedReasoningTokens,
+												writer);
 										break STREAM_COMPLETE_LOOP;
 									} else if (jobStatus == PixelJobStatus.PROGRESS_COMPLETE && !started) {
 										// we didn't start
@@ -391,7 +393,9 @@ public class OpenAIEndpoints {
 														messageId, creationTimestamp, response, writer);
 											}
 											OpenAIChatCompletionsHelper.writeFinishReason(engineId, messageId,
-													creationTimestamp, "tool_calls", writer);
+													creationTimestamp, "tool_calls", capturedPromptTokens,
+													capturedCompletionTokens, capturedCachedTokens,
+													capturedReasoningTokens, writer);
 										} else {
 											// Handle regular text response
 											String content = null;
@@ -405,7 +409,9 @@ public class OpenAIEndpoints {
 
 											// send final chunk with empty delta && finish_reason="stop"
 											OpenAIChatCompletionsHelper.writeFinishReason(engineId, messageId,
-													creationTimestamp, "stop", writer);
+													creationTimestamp, "stop", capturedPromptTokens,
+													capturedCompletionTokens, capturedCachedTokens,
+													capturedReasoningTokens, writer);
 										}
 
 										// job is marked complete, always break
@@ -420,8 +426,19 @@ public class OpenAIEndpoints {
 										break;
 									}
 								}
+							} catch (IOException ioe) {
+								final String capturedJobId = jobId;
+								if (!WebUtility.handleStreamingException(ioe, classLogger, engineId, capturedJobId,
+										() -> PixelJobManager.getManager().interruptThread(capturedJobId))) {
+									classLogger.error(
+											"Streaming chat completions response failed for engine '{}' and job '{}': {}",
+											engineId, jobId, ioe.getMessage(), ioe);
+									throw new WebApplicationException(ioe, 500);
+								}
 							} catch (Exception e) {
-								classLogger.error("Error in streaming response", e);
+								classLogger.error(
+										"Streaming chat completions response failed for engine '{}' and job '{}': {}",
+										engineId, jobId, e.getMessage(), e);
 								throw new WebApplicationException(e, 500);
 							} finally {
 								if (jobId != null) {
@@ -442,49 +459,23 @@ public class OpenAIEndpoints {
 		return runResponses(request);
 	}
 
-
 	@POST
 	@Path("/responses")
 	@Consumes({ "application/json" })
 	@Produces({ "application/json;charset=utf-8", "text/event-stream" })
 	public Response runResponses(@Context HttpServletRequest request) {
 		HttpSession session = request.getSession(false);
-		User user = null;
-
-		if (session != null) {
-			user = ((User) session.getAttribute(Constants.SESSION_USER));
-		}
-
+		User user = ModelPixelExecutor.getSessionUser(session);
 		if (user == null) {
-			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
-				session.invalidate();
-			}
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
+			return ModelPixelExecutor.invalidSessionResponse(request, session);
 		}
+		// set the user timezone
+		ModelPixelExecutor.applyUserTimezone(user, request);
 
 		final String SESSION_ID = session.getId();
 		final String JOB_ID = GUID.v7().toUUID().toString();
 		Insight insight = null;
 		Room room = null;
-		ObjectMapper objectMapper = new ObjectMapper();
-
-		ZoneId zoneId = null;
-		String strTz = WebUtility.inputSanitizer(request.getParameter("tz"));
-		if (strTz == null || (strTz = strTz.trim()).isEmpty()) {
-			zoneId = ZoneId.of(Utility.getApplicationZoneId());
-		} else {
-			try {
-				zoneId = ZoneId.of(strTz);
-			} catch (Exception e) {
-				classLogger.error("Error parsing timezone", e);
-				zoneId = ZoneId.of(Utility.getApplicationZoneId());
-			}
-		}
-		if (user != null) {
-			user.setZoneId(zoneId);
-		}
 
 		StringBuilder requestData = new StringBuilder();
 		try (BufferedReader reader = new BufferedReader(new InputStreamReader(request.getInputStream()))) {
@@ -493,42 +484,34 @@ public class OpenAIEndpoints {
 				requestData.append(line);
 			}
 		} catch (IOException e) {
-			classLogger.error(Constants.STACKTRACE, e);
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Bad Request: Data parameter missing.");
-			return WebUtility.getResponse(errorMap, 400);
+			classLogger.error("Failed to read responses request body for path '{}': {}", request.getRequestURI(),
+					e.getMessage(), e);
+			return ModelPixelExecutor.errorResponse(400, "Bad Request: Data parameter missing.");
 		}
 
-		TypeReference<Map<String, Object>> mapType = new TypeReference<Map<String, Object>>() {
-		};
 		Map<String, Object> dataMap;
 		try {
-			dataMap = objectMapper.readValue(WebUtility.jsonSanitizer(requestData.toString()), mapType);
-		} catch (JsonProcessingException e) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Error processing JSON: " + e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
+			dataMap = GSON.fromJson(WebUtility.jsonSanitizer(requestData.toString()),
+					new TypeToken<Map<String, Object>>() {
+					}.getType());
+		} catch (Exception e) {
+			return ModelPixelExecutor.errorResponse(400, "Error processing JSON: " + e.getMessage());
 		}
 
 		boolean isStreamingRequest = Boolean.parseBoolean(dataMap.getOrDefault("stream", false).toString());
 		String engineId = WebUtility.inputSanitizer((String) dataMap.remove("model"));
 
 		if (engineId == null || engineId.isEmpty()) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Missing 'model' field.");
-			return WebUtility.getResponse(errorMap, 400);
+			return ModelPixelExecutor.errorResponse(400, "Missing 'model' field.");
 		}
 
 		if (!SecurityEngineUtils.userCanViewEngine(user, engineId)) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Model " + engineId + " inaccessible.");
-			return WebUtility.getResponse(errorMap, 403);
+			return ModelPixelExecutor.errorResponse(403, "Model " + engineId + " inaccessible.");
 		}
 
 		IModelEngine engine = Utility.getModel(engineId);
 		Object messages = dataMap.remove("input");
-		
-		
+
 		messages = OpenAIResponsesHelper.normalizeMessages(messages);
 
 		String insightId = WebUtility.inputSanitizer((String) dataMap.remove("insight_id"));
@@ -548,244 +531,626 @@ public class OpenAIEndpoints {
 		}
 
 		if (insight == null) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Insight not found: " + insightId);
-			return WebUtility.getResponse(errorMap, 400);
+			return ModelPixelExecutor.errorResponse(400, "Insight not found: " + insightId);
 		}
 		insight.setUser(user);
 
+		// Room ID from JSON body, or from bearer token 3rd segment
+		// (GitHubCopilotManager)
 		String roomId = WebUtility.inputSanitizer((String) dataMap.remove("room_id"));
+		if (roomId == null) {
+			roomId = (String) request.getAttribute("roomId");
+		}
+		if (roomId == null) {
+			roomId = resolveRoomIdFromCodexHeaders(request);
+		}
 		room = RoomUtils.createRoomIfNotExists(roomId, insight, engine, null);
 
-		ThreadStore.setInsightId(insight.getInsightId());
-		ThreadStore.setSessionId(SESSION_ID);
-		ThreadStore.setJobId(JOB_ID);
-		ThreadStore.setUser(insight.getUser());
+		ModelPixelExecutor.initializeThreadStore(insight, SESSION_ID, JOB_ID);
 
 		dataMap.put(AbstractModelEngine.FULL_PROMPT, messages);
 
 		if (!isStreamingRequest) {
 			try {
-				InputMessage msg = InputMessage.builder(room).withModelType(engine.getModelType()).withParamMap(dataMap)
-						.build();
-				ResponseMessage response = room.ask(msg, engine);
-				AskModelEngineResponse llmResponse = response.getModelEngineResponse();
+				AskModelEngineResponse llmResponse = ModelPixelExecutor.askModelSync(engine, insight, room, dataMap);
 
-				Map<String, Object> processedResponse = OpenAIChatCompletionsHelper
-						.processAskModelEngineResponse(engineId, llmResponse);
+				Map<String, Object> processedResponse = OpenAIResponsesHelper.processAskModelEngineResponse(engineId,
+						llmResponse);
 				return WebUtility.getResponse(processedResponse, 200);
 			} catch (Exception e) {
-				classLogger.error(Constants.STACKTRACE, e);
-				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-				return WebUtility.getResponse(errorMap, 400);
+				classLogger.error("Responses synchronous model call failed for engine '{}'", engineId, e);
+				return ModelPixelExecutor.errorResponse(400, e.getMessage());
 			}
 		} else {
 			return handleStreamingResponse(engine, insight, room, dataMap, SESSION_ID, JOB_ID, engineId);
 		}
 	}
 
-	private Response handleStreamingResponse(IModelEngine engine, Insight finalInsight, Room finalRoom,
-	        Map<String, Object> dataMap, String SESSION_ID, String JOB_ID, String engineId) {
+	private String resolveRoomIdFromCodexHeaders(HttpServletRequest request) {
+		String threadId = getSanitizedHeader(request, "thread-id");
+		if (threadId == null) {
+			threadId = getSanitizedHeader(request, "thread_id");
+		}
+		if (threadId != null) {
+			return threadId;
+		}
 
-	    classLogger.info("Starting Precise Sticky-State Stream for Codex: " + engineId);
-
-	    return Response.ok()
-	            .header("Content-Type", "text/event-stream")
-	            .header("Cache-Control", "no-cache")
-	            .header("Connection", "keep-alive")
-	            .header("X-Content-Type-Options", "nosniff")
-	            .entity(new StreamingOutput() {
-	                @Override
-	                public void write(OutputStream output) throws IOException, WebApplicationException {
-	                    String responseId = "resp_" + JOB_ID;
-	                    long creationTimestamp = Instant.now().getEpochSecond();
-	                    String jobId = null;
-	                    int seq = 0;
-
-	                    // --- STATE TRACKING ---
-	                    // These variables persist across chunks
-	                    String currentItemId = null;
-	                    String currentItemType = null;
-	                    String currentToolName = null; 
-	                    boolean isContentPartOpen = false;
-	                    
-	                    int outputIndex = 0;
-	                    int contentIndex = 0;
-	                    StringBuilder currentAccumulator = new StringBuilder();
-
-	                    try (Writer writer = new BufferedWriter(new OutputStreamWriter(output, StandardCharsets.UTF_8))) {
-	                        
-	                        // 1. Initial Handshake Events
-	                        OpenAIResponsesHelper.writeSSEEvent(OpenAIResponsesHelper.createBaseEvent("response.created", seq++, responseId, engineId, creationTimestamp), writer);
-	                        OpenAIResponsesHelper.writeSSEEvent(OpenAIResponsesHelper.createBaseEvent("response.in_progress", seq++, responseId, engineId, creationTimestamp), writer);
-
-	                        jobId = startAsyncModelRequest(engine, finalInsight, finalRoom, dataMap, SESSION_ID);
-
-	                        // 2. MAIN POLLING LOOP
-	                        STREAM_LOOP: while (true) {
-	                            PixelJobThread jt = PixelJobManager.getManager().getJob(jobId);
-	                            List<Map<String, Object>> partialResponseContent = PixelJobManager.getManager().getStreamOut(jobId);
-	                            PixelJobStatus jobStatus = jt == null ? PixelJobStatus.UNKNOWN_JOB : jt.getPixelJobStatus();
-
-	                            if (partialResponseContent != null && !partialResponseContent.isEmpty()) {
-	                                for (Map<String, Object> streamObj : partialResponseContent) {
-	                                    classLogger.info("Stream chunk received: {}", new ObjectMapper().writeValueAsString(streamObj));
-
-	                                    
-	                                    String streamType = (String) streamObj.get("stream_type");
-	                                    Map<String, Object> streamData = (Map<String, Object>) streamObj.get("data");
-
-	                                    boolean isChunkTool = "tool".equalsIgnoreCase(streamType) || "function_call".equalsIgnoreCase(streamType);
-	                                    String targetType = isChunkTool ? "function_call" : "message";
-	                                    
-	                                    String incomingId = (String) streamData.get("id");
-
-	                                    // --- TRANSITION LOGIC ---
-	                                    // Rule 1: Nothing started yett
-	                                    // Rule 2: Type switched (Thnking --->> Tool)
-	                                    // Rule 3: A NEW Tool ID appeared (Tool A -> Tool B)
-	                                    boolean shouldSwitch = (currentItemId == null) 
-	                                            || (!targetType.equals(currentItemType)) 
-	                                            || (isChunkTool && incomingId != null && !incomingId.equals(currentItemId));
-
-	                                    if (shouldSwitch) {
-	                                        // A. close previous item if it exists
-	                                        if (currentItemId != null) {
-	                                            if ("message".equals(currentItemType) && isContentPartOpen) {
-	                                                OpenAIResponsesHelper.sendTextDone(writer, seq++, responseId, currentItemId, outputIndex, contentIndex, currentAccumulator.toString());
-	                                                OpenAIResponsesHelper.sendContentPartDone(writer, seq++, responseId, currentItemId, outputIndex, contentIndex, currentAccumulator.toString());
-	                                                isContentPartOpen = false;
-	                                            }
-	                                            OpenAIResponsesHelper.sendItemDone(writer, seq++, responseId, currentItemId, outputIndex, currentItemType, currentAccumulator.toString(), currentToolName);
-	                                            
-	                                            outputIndex++;
-	                                            currentAccumulator.setLength(0);
-	                                        }
-
-	                                        // B. Setup NEW Item
-	                                        currentItemType = targetType;
-	                                        currentItemId = (incomingId != null) ? incomingId : "msg_" + GUID.v7().toUUID().toString();
-	                                        
-	                                        if (isChunkTool) {
-	                                            currentToolName = (String) streamData.get("name");
-	                                            
-	                                            if (currentToolName == null) {
-	                                                Map<String, Object> functionObj = (Map<String, Object>) streamData.get("function");
-	                                                if (functionObj != null) {
-	                                                    currentToolName = (String) functionObj.get("name");
-	                                                }
-	                                            }
-	                                            
-	                                            if (currentToolName == null) currentToolName = "shell";
-	                                        }
-
-	                                        // C. Send ADDED event
-	                                        OpenAIResponsesHelper.sendItemAdded(writer, seq++, responseId, currentItemId, outputIndex, currentItemType, currentToolName);
-	                                        
-	                                        if ("message".equals(currentItemType)) {
-	                                            OpenAIResponsesHelper.sendContentPartAdded(writer, seq++, responseId, currentItemId, outputIndex, contentIndex);
-	                                            isContentPartOpen = true;
-	                                        }
-	                                    }
-
-	                                    // --- DELTA LOGIC: stream the actual data ---
-	                                    if ("message".equals(currentItemType)) {
-	                                        String content = (String) streamData.get("content");
-	                                        if (content != null && !content.isEmpty()) {
-	                                            currentAccumulator.append(content);
-	                                            OpenAIResponsesHelper.sendTextDelta(writer, seq++, responseId, currentItemId, outputIndex, contentIndex, content);
-	                                        }
-	                                    } else {
-	                                        Object argsObj = streamData.get("arguments");
-	                                        
-	                                        if (argsObj == null) {
-	                                            Map<String, Object> functionObj = (Map<String, Object>) streamData.get("function");
-	                                            if (functionObj != null) {
-	                                                argsObj = functionObj.get("arguments");
-	                                                
-	                                                if (currentToolName == null || "shell".equals(currentToolName)) {
-	                                                    String nestedName = (String) functionObj.get("name");
-	                                                    if (nestedName != null) {
-	                                                        currentToolName = nestedName;
-	                                                    }
-	                                                }
-	                                            }
-	                                        }
-	                                        
-	                                        if (argsObj == null) argsObj = streamData.get("content");
-	                                        
-	                                        if (argsObj != null) {
-	                                            String argsString = (argsObj instanceof String) ? (String) argsObj : new ObjectMapper().writeValueAsString(argsObj);
-	                                            if (!argsString.isEmpty()) {
-	                                                currentAccumulator.append(argsString);
-	                                                OpenAIResponsesHelper.sendToolDelta(writer, seq++, responseId, currentItemId, outputIndex, argsString);
-	                                            }
-	                                        }
-	                                    }
-
-	                                    if (streamData.containsKey("finish_reason")) break STREAM_LOOP;
-	                                }
-	                            }
-
-	                            if (jobStatus == PixelJobStatus.PROGRESS_COMPLETE) break STREAM_LOOP;
-	                            
-	                            try { Thread.sleep(50); } catch (InterruptedException e) { Thread.currentThread().interrupt(); break; }
-	                        }
-
-	                        if (currentItemId != null) {
-	                            if ("message".equals(currentItemType) && isContentPartOpen) {
-	                                OpenAIResponsesHelper.sendTextDone(writer, seq++, responseId, currentItemId, outputIndex, contentIndex, currentAccumulator.toString());
-	                                OpenAIResponsesHelper.sendContentPartDone(writer, seq++, responseId, currentItemId, outputIndex, contentIndex, currentAccumulator.toString());
-	                            }
-	                            OpenAIResponsesHelper.sendItemDone(writer, seq++, responseId, currentItemId, outputIndex, currentItemType, currentAccumulator.toString(), currentToolName);
-	                        }
-
-	                        Map<String, Object> completedEvent = OpenAIResponsesHelper.createBaseEvent("response.completed", seq++, responseId, engineId, creationTimestamp);
-	                        completedEvent.put("status", "completed");
-	                        OpenAIResponsesHelper.writeSSEEvent(completedEvent, writer);
-
-	                    } catch (Exception e) {
-	                        classLogger.error("Streaming Error", e);
-	                    } finally {
-	                        if (jobId != null) {
-	                            PixelJobManager.getManager().clearJob(jobId);
-	                            PixelJobManager.getManager().removeJob(jobId);
-	                        }
-	                    }
-	                }
-	            }).build();
+		String sessionId = getSanitizedHeader(request, "session-id");
+		if (sessionId == null) {
+			sessionId = getSanitizedHeader(request, "session_id");
+		}
+		return sessionId;
 	}
 
-	/**
-	 * Start an asynchronous model request and return the job ID
-	 * 
-	 * @param engine
-	 * @param insight
-	 * @param dataMap
-	 * @return
-	 */
-	private String startAsyncModelRequest(IModelEngine engine, Insight insight, Room room, Map<String, Object> dataMap,
-			String sessionId) {
-		try {
-			// start async job
-			PixelJobManager manager = PixelJobManager.getManager();
-			PixelJobThread jt = manager.makeJob(insight, sessionId, null);
-			String jobId = jt.getJobId();
+	private String getSanitizedHeader(HttpServletRequest request, String headerName) {
+		return WebUtility.inputSanitizer(request.getHeader(headerName));
+	}
 
-			String modelPixel = "LLM(engine='" + engine.getEngineId() + "',roomId='" + room.getId()
-					+ "',command='<encode>ignore</encode>'"
-					// this should have the full_prompt
-					+ ",paramValues=[" + GSON.toJson(dataMap) + "]);";
-			classLogger.info(modelPixel);
-			jt.addPixel(modelPixel);
-			jt.start();
-			return jobId;
-		} catch (Exception e) {
-			classLogger.warn("Failed to start async job");
-			classLogger.error(Constants.STACKTRACE, e);
-			throw new IllegalArgumentException(e.getMessage());
+	private Response handleStreamingResponse(IModelEngine engine, final Insight FINAL_INSIGHT, final Room FINAL_ROOM,
+			final Map<String, Object> FINAL_DATA_MAP, final String FINAL_SESSION_ID, final String FINAL_JOB_ID,
+			final String FINAL_ENGINE_ID) {
+		classLogger.info("Starting responses streaming for engine: {}", FINAL_ENGINE_ID);
+
+		return Response.ok().header("Content-Type", "text/event-stream").header("Cache-Control", "no-cache")
+				.header("Connection", "keep-alive").header("X-Content-Type-Options", "nosniff")
+				.entity(new StreamingOutput() {
+					@Override
+					public void write(OutputStream output) throws IOException, WebApplicationException {
+						String responseId = "resp_" + FINAL_JOB_ID;
+						long creationTimestamp = Instant.now().getEpochSecond();
+						String jobId = null;
+						int seq = 0;
+
+						// --- STATE TRACKING ---
+						// These variables persist across chunks
+						String currentItemId = null;
+						String currentItemType = null;
+						String currentToolName = null;
+						boolean isContentPartOpen = false;
+
+						// Image-generation item id; non-null while partial frames are
+						// streaming for the same image. Cleared after the completed/done
+						// pair so a subsequent image opens a fresh item.
+						String imgItemId = null;
+
+						int outputIndex = 0;
+						int contentIndex = 0;
+						StringBuilder currentAccumulator = new StringBuilder();
+
+						// Token usage forwarded by Python via stream_type="usage".
+						// Attached to response.completed.response.usage at end of stream.
+						Integer capturedInputTokens = null;
+						Integer capturedOutputTokens = null;
+						Integer capturedCachedTokens = null;
+						Integer capturedReasoningTokens = null;
+
+						try (Writer writer = new BufferedWriter(
+								new OutputStreamWriter(output, StandardCharsets.UTF_8))) {
+
+							// 1. Initial Handshake Events
+							OpenAIResponsesHelper.writeSSEEvent(OpenAIResponsesHelper.createBaseEvent(
+									"response.created", seq++, responseId, FINAL_ENGINE_ID, creationTimestamp), writer);
+							OpenAIResponsesHelper
+									.writeSSEEvent(OpenAIResponsesHelper.createBaseEvent("response.in_progress", seq++,
+											responseId, FINAL_ENGINE_ID, creationTimestamp), writer);
+
+							jobId = ModelPixelExecutor.startAsyncModelRequest(engine, FINAL_INSIGHT, FINAL_ROOM,
+									FINAL_DATA_MAP, FINAL_SESSION_ID);
+
+							// 2. MAIN POLLING LOOP
+							STREAM_LOOP: while (true) {
+								PixelJobRunner jt = PixelJobManager.getManager().getJob(jobId);
+								List<Map<String, Object>> partialResponseContent = PixelJobManager.getManager()
+										.getStreamOut(jobId);
+								PixelJobStatus jobStatus = jt == null ? PixelJobStatus.UNKNOWN_JOB
+										: jt.getPixelJobStatus();
+
+								if (partialResponseContent != null && !partialResponseContent.isEmpty()) {
+									for (Map<String, Object> streamObj : partialResponseContent) {
+//										classLogger.info("Stream chunk received: {}",
+//												GSON.toJson(streamObj));
+
+										String streamType = (String) streamObj.get("stream_type");
+										Map<String, Object> streamData = (Map<String, Object>) streamObj.get("data");
+
+										// Media (image) chunks. The Responses API protocol expects:
+										// output_item.added (status=in_progress) - once
+										// image_generation_call.partial_image - zero or more, all under
+										// the same item_id, each carrying partial_image_b64 and an
+										// incrementing partial_image_index
+										// image_generation_call.completed - once (bare lifecycle event)
+										// output_item.done (status=completed, item.result=<base64>) - once
+										// We open the item lazily on the first media chunk and close it on
+										// the final (partial_image_index == null), so the openai SDK sees
+										// one image item from added -> done.
+										if ("media".equalsIgnoreCase(streamType)) {
+											if (currentItemId != null) {
+												if ("message".equals(currentItemType) && isContentPartOpen) {
+													OpenAIResponsesHelper.sendTextDone(writer, seq++, responseId,
+															currentItemId, outputIndex, contentIndex,
+															currentAccumulator.toString());
+													OpenAIResponsesHelper.sendContentPartDone(writer, seq++, responseId,
+															currentItemId, outputIndex, contentIndex,
+															currentAccumulator.toString());
+													isContentPartOpen = false;
+												}
+												OpenAIResponsesHelper.sendItemDone(writer, seq++, responseId,
+														currentItemId, outputIndex, currentItemType,
+														currentAccumulator.toString(), currentToolName);
+												outputIndex++;
+												currentAccumulator.setLength(0);
+												currentItemId = null;
+												currentItemType = null;
+												currentToolName = null;
+											}
+
+											Map<String, Object> mediaInfo = (Map<String, Object>) streamData
+													.get("media_info");
+											Object partialIdx = streamData.get("partial_image_index");
+
+											if (imgItemId == null) {
+												imgItemId = "img_" + GUID.v7().toUUID().toString();
+												Map<String, Object> imgItem = new HashMap<>();
+												imgItem.put("id", imgItemId);
+												imgItem.put("type", "image_generation_call");
+												imgItem.put("status", "in_progress");
+												Map<String, Object> addedEvent = new HashMap<>();
+												addedEvent.put("type", "response.output_item.added");
+												addedEvent.put("sequence_number", seq++);
+												addedEvent.put("response_id", responseId);
+												addedEvent.put("output_index", outputIndex);
+												addedEvent.put("item", imgItem);
+												OpenAIResponsesHelper.writeSSEEvent(addedEvent, writer);
+											}
+
+											if (partialIdx != null) {
+												OpenAIResponsesHelper.sendImageGenerationPartialImage(writer, seq++,
+														responseId, imgItemId, outputIndex, mediaInfo, partialIdx);
+											} else {
+												OpenAIResponsesHelper.sendImageGenerationCompleted(writer, seq++,
+														responseId, imgItemId, outputIndex);
+
+												Map<String, Object> doneItem = new HashMap<>();
+												doneItem.put("id", imgItemId);
+												doneItem.put("type", "image_generation_call");
+												doneItem.put("status", "completed");
+												if (mediaInfo != null) {
+													Object b64 = mediaInfo.get("base64Data");
+													if (b64 instanceof String && !((String) b64).isEmpty()) {
+														doneItem.put("result", b64);
+													}
+												}
+												Map<String, Object> doneEvent = new HashMap<>();
+												doneEvent.put("type", "response.output_item.done");
+												doneEvent.put("sequence_number", seq++);
+												doneEvent.put("response_id", responseId);
+												doneEvent.put("output_index", outputIndex);
+												doneEvent.put("item", doneItem);
+												OpenAIResponsesHelper.writeSSEEvent(doneEvent, writer);
+
+												outputIndex++;
+												imgItemId = null;
+											}
+
+											if (streamData.containsKey("finish_reason")) {
+												break STREAM_LOOP;
+											}
+											continue;
+										}
+
+										if ("usage".equalsIgnoreCase(streamType)) {
+											Object inT = streamData.get("input_tokens");
+											if (inT instanceof Number) {
+												capturedInputTokens = ((Number) inT).intValue();
+											}
+											Object outT = streamData.get("output_tokens");
+											if (outT instanceof Number) {
+												capturedOutputTokens = ((Number) outT).intValue();
+											}
+											Object crT = streamData.get("cache_read_input_tokens");
+											if (crT instanceof Number) {
+												capturedCachedTokens = ((Number) crT).intValue();
+											}
+											Object rT = streamData.get("reasoning_tokens");
+											if (rT instanceof Number) {
+												capturedReasoningTokens = ((Number) rT).intValue();
+											}
+											continue;
+										}
+
+										boolean isChunkTool = "tool".equalsIgnoreCase(streamType)
+												|| "function_call".equalsIgnoreCase(streamType);
+										String targetType = isChunkTool ? "function_call" : "message";
+
+										String incomingId = (String) streamData.get("id");
+
+										// --- TRANSITION LOGIC ---
+										// Rule 1: Nothing started yett
+										// Rule 2: Type switched (Thnking --->> Tool)
+										// Rule 3: A NEW Tool ID appeared (Tool A -> Tool B)
+										boolean shouldSwitch = (currentItemId == null)
+												|| (!targetType.equals(currentItemType)) || (isChunkTool
+														&& incomingId != null && !incomingId.equals(currentItemId));
+
+										if (shouldSwitch) {
+											// A. close previous item if it exists
+											if (currentItemId != null) {
+												if ("message".equals(currentItemType) && isContentPartOpen) {
+													OpenAIResponsesHelper.sendTextDone(writer, seq++, responseId,
+															currentItemId, outputIndex, contentIndex,
+															currentAccumulator.toString());
+													OpenAIResponsesHelper.sendContentPartDone(writer, seq++, responseId,
+															currentItemId, outputIndex, contentIndex,
+															currentAccumulator.toString());
+													isContentPartOpen = false;
+												}
+												OpenAIResponsesHelper.sendItemDone(writer, seq++, responseId,
+														currentItemId, outputIndex, currentItemType,
+														currentAccumulator.toString(), currentToolName);
+
+												outputIndex++;
+												currentAccumulator.setLength(0);
+											}
+
+											// B. Setup NEW Item
+											currentItemType = targetType;
+											currentItemId = (incomingId != null) ? incomingId
+													: "msg_" + GUID.v7().toUUID().toString();
+
+											if (isChunkTool) {
+												currentToolName = (String) streamData.get("name");
+
+												if (currentToolName == null) {
+													Map<String, Object> functionObj = (Map<String, Object>) streamData
+															.get("function");
+													if (functionObj != null) {
+														currentToolName = (String) functionObj.get("name");
+													}
+												}
+
+												if (currentToolName == null) {
+													currentToolName = "shell";
+												}
+											}
+
+											// C. Send ADDED event
+											OpenAIResponsesHelper.sendItemAdded(writer, seq++, responseId,
+													currentItemId, outputIndex, currentItemType, currentToolName);
+
+											if ("message".equals(currentItemType)) {
+												OpenAIResponsesHelper.sendContentPartAdded(writer, seq++, responseId,
+														currentItemId, outputIndex, contentIndex);
+												isContentPartOpen = true;
+											}
+										}
+
+										// --- DELTA LOGIC: stream the actual data ---
+										if ("message".equals(currentItemType)) {
+											String content = (String) streamData.get("content");
+											if (content != null && !content.isEmpty()) {
+												currentAccumulator.append(content);
+												OpenAIResponsesHelper.sendTextDelta(writer, seq++, responseId,
+														currentItemId, outputIndex, contentIndex, content);
+											}
+										} else {
+											Object argsObj = streamData.get("arguments");
+
+											if (argsObj == null) {
+												Map<String, Object> functionObj = (Map<String, Object>) streamData
+														.get("function");
+												if (functionObj != null) {
+													argsObj = functionObj.get("arguments");
+
+													if (currentToolName == null || "shell".equals(currentToolName)) {
+														String nestedName = (String) functionObj.get("name");
+														if (nestedName != null) {
+															currentToolName = nestedName;
+														}
+													}
+												}
+											}
+
+											if (argsObj == null) {
+												argsObj = streamData.get("content");
+											}
+
+											if (argsObj != null) {
+												String argsString = (argsObj instanceof String) ? (String) argsObj
+														: GSON.toJson(argsObj);
+												if (!argsString.isEmpty()) {
+													currentAccumulator.append(argsString);
+													OpenAIResponsesHelper.sendToolDelta(writer, seq++, responseId,
+															currentItemId, outputIndex, argsString);
+												}
+											}
+										}
+
+										if (streamData.containsKey("finish_reason")) {
+											break STREAM_LOOP;
+										}
+									}
+								}
+
+								if (jobStatus == PixelJobStatus.PROGRESS_COMPLETE) {
+									break STREAM_LOOP;
+								}
+
+								try {
+									Thread.sleep(50);
+								} catch (InterruptedException e) {
+									Thread.currentThread().interrupt();
+									break;
+								}
+							}
+
+							if (currentItemId != null) {
+								if ("message".equals(currentItemType) && isContentPartOpen) {
+									OpenAIResponsesHelper.sendTextDone(writer, seq++, responseId, currentItemId,
+											outputIndex, contentIndex, currentAccumulator.toString());
+									OpenAIResponsesHelper.sendContentPartDone(writer, seq++, responseId, currentItemId,
+											outputIndex, contentIndex, currentAccumulator.toString());
+								}
+								OpenAIResponsesHelper.sendItemDone(writer, seq++, responseId, currentItemId,
+										outputIndex, currentItemType, currentAccumulator.toString(), currentToolName);
+							}
+
+							Map<String, Object> completedEvent = OpenAIResponsesHelper.createBaseEvent(
+									"response.completed", seq++, responseId, FINAL_ENGINE_ID, creationTimestamp);
+							completedEvent.put("status", "completed");
+							OpenAIResponsesHelper.attachUsage(completedEvent, capturedInputTokens, capturedOutputTokens,
+									capturedCachedTokens, capturedReasoningTokens);
+							OpenAIResponsesHelper.writeSSEEvent(completedEvent, writer);
+
+						} catch (IOException ioe) {
+							final String capturedJobId = jobId;
+							if (!WebUtility.handleStreamingException(ioe, classLogger, FINAL_ENGINE_ID, capturedJobId,
+									() -> PixelJobManager.getManager().interruptThread(capturedJobId))) {
+								classLogger.error("I/O error processing responses streaming for engine '{}'",
+										FINAL_ENGINE_ID, ioe);
+							}
+						} catch (Exception e) {
+							classLogger.error("Error processing responses streaming for engine '{}'", FINAL_ENGINE_ID,
+									e);
+						} finally {
+							if (jobId != null) {
+								PixelJobManager.getManager().clearJob(jobId);
+								PixelJobManager.getManager().removeJob(jobId);
+							}
+						}
+					}
+				}).build();
+	}
+
+	@POST
+	@Path("/v1/images/generations")
+	@Consumes({ "application/json" })
+	@Produces({ "application/json;charset=utf-8", "text/event-stream" })
+	public Response runV1ImagesGenerations(@Context HttpServletRequest request) {
+		return runImagesGenerations(request);
+	}
+
+	@POST
+	@Path("/images/generations")
+	@Consumes({ "application/json" })
+	@Produces({ "application/json;charset=utf-8", "text/event-stream" })
+	public Response runImagesGenerationsAlias(@Context HttpServletRequest request) {
+		return runImagesGenerations(request);
+	}
+
+	private Response runImagesGenerations(@Context HttpServletRequest request) {
+		HttpSession session = request.getSession(false);
+		User user = ModelPixelExecutor.getSessionUser(session);
+		if (user == null) {
+			return ModelPixelExecutor.invalidSessionResponse(request, session);
 		}
+		// set the user timezone
+		ModelPixelExecutor.applyUserTimezone(user, request);
+
+		final String SESSION_ID = session.getId();
+		final String JOB_ID = GUID.v7().toUUID().toString();
+		Insight insight = null;
+		Room room = null;
+
+		StringBuilder requestData = new StringBuilder();
+		try (BufferedReader reader = new BufferedReader(new InputStreamReader(request.getInputStream()))) {
+			String line;
+			while ((line = reader.readLine()) != null) {
+				requestData.append(line);
+			}
+		} catch (IOException e) {
+			classLogger.error("Failed to read images/generations request body: {}", e.getMessage(), e);
+			return ModelPixelExecutor.errorResponse(400, "Bad Request: failed to read request body.");
+		}
+
+		Map<String, Object> dataMap;
+		try {
+			dataMap = GSON.fromJson(WebUtility.jsonSanitizer(requestData.toString()),
+					new TypeToken<Map<String, Object>>() {
+					}.getType());
+		} catch (Exception e) {
+			return ModelPixelExecutor.errorResponse(400, "Error processing JSON: " + e.getMessage());
+		}
+
+		boolean isStreamingRequest = Boolean.parseBoolean(dataMap.getOrDefault("stream", false).toString());
+		String engineId = WebUtility.inputSanitizer((String) dataMap.remove("model"));
+		if (engineId == null || engineId.isEmpty()) {
+			return ModelPixelExecutor.errorResponse(400, "Missing required field 'model'.");
+		}
+
+		String prompt = WebUtility.inputSanitizer((String) dataMap.remove("prompt"));
+		if (prompt == null || prompt.isEmpty()) {
+			return ModelPixelExecutor.errorResponse(400, "Missing required field 'prompt'.");
+		}
+
+		if (!SecurityEngineUtils.userCanViewEngine(user, engineId)) {
+			return ModelPixelExecutor.errorResponse(403,
+					"Model " + engineId + " does not exist or user does not have access.");
+		}
+
+		IModelEngine engine = Utility.getModel(engineId);
+
+		String insightId = WebUtility.inputSanitizer((String) dataMap.remove("insight_id"));
+		if (insightId == null) {
+			Set<String> sessionInsights = InsightStore.getInstance().getInsightIDsForSession(SESSION_ID);
+			if (sessionInsights == null || sessionInsights.isEmpty()) {
+				insight = new Insight();
+				InsightStore.getInstance().put(insight);
+				insightId = insight.getInsightId();
+				InsightStore.getInstance().addToSessionHash(SESSION_ID, insightId);
+			} else {
+				insightId = sessionInsights.iterator().next();
+				insight = InsightStore.getInstance().get(insightId);
+			}
+		} else {
+			insight = InsightStore.getInstance().get(insightId);
+			InsightStore.getInstance().addToSessionHash(SESSION_ID, insightId);
+		}
+
+		if (insight == null) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Could not find the Insight with an Insight ID of " + insightId);
+			errorMap.put(ERROR_TYPE, INSIGHT_NOT_FOUND);
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		insight.setUser(user);
+
+		String roomId = WebUtility.inputSanitizer((String) dataMap.remove("room_id"));
+		if (roomId == null) {
+			roomId = (String) request.getAttribute("roomId");
+		}
+		room = RoomUtils.createRoomIfNotExists(roomId, insight, engine, null);
+
+		ModelPixelExecutor.initializeThreadStore(insight, SESSION_ID, JOB_ID);
+
+		List<Map<String, Object>> messages = new ArrayList<>();
+		Map<String, Object> userMsg = new HashMap<>();
+		userMsg.put("role", "user");
+		userMsg.put("content", prompt);
+		messages.add(userMsg);
+		dataMap.put(AbstractModelEngine.FULL_PROMPT, messages);
+
+		final String OUTPUT_FORMAT = (String) dataMap.get("output_format");
+		final String QUALITY = (String) dataMap.get("quality");
+		final String SIZE = (String) dataMap.get("size");
+
+		if (!isStreamingRequest) {
+			try {
+				AskModelEngineResponse<?> llmResponse = ModelPixelExecutor.askModelSync(engine, insight, room, dataMap);
+				long createdAt = Instant.now().getEpochSecond();
+				Map<String, Object> responseMap = OpenAIImagesHelper.buildNonStreamingResponse(createdAt, llmResponse);
+				return WebUtility.getResponse(responseMap, 200);
+			} catch (Exception e) {
+				classLogger.error("Images synchronous model call failed for engine '{}'", engineId, e);
+				return ModelPixelExecutor.errorResponse(400, e.getMessage());
+			}
+		} else {
+			return handleImagesStreamingResponse(engine, insight, room, dataMap, SESSION_ID, JOB_ID, engineId,
+					OUTPUT_FORMAT, QUALITY, SIZE);
+		}
+	}
+
+	private Response handleImagesStreamingResponse(IModelEngine engine, final Insight FINAL_INSIGHT,
+			final Room FINAL_ROOM, final Map<String, Object> FINAL_DATA_MAP, final String FINAL_SESSION_ID,
+			final String FINAL_JOB_ID, final String FINAL_ENGINE_ID, final String FINAL_OUTPUT_FORMAT,
+			final String FINAL_QUALITY, final String FINAL_SIZE) {
+		classLogger.info("Starting images/generations streaming for engine: {}", FINAL_ENGINE_ID);
+
+		return Response.ok().header("Content-Type", "text/event-stream").header("Cache-Control", "no-cache")
+				.header("Connection", "keep-alive").header("X-Content-Type-Options", "nosniff")
+				.entity(new StreamingOutput() {
+					@Override
+					public void write(OutputStream output) throws IOException, WebApplicationException {
+						long creationTimestamp = Instant.now().getEpochSecond();
+						String jobId = null;
+
+						try (Writer writer = new BufferedWriter(
+								new OutputStreamWriter(output, StandardCharsets.UTF_8))) {
+
+							jobId = ModelPixelExecutor.startAsyncModelRequest(engine, FINAL_INSIGHT, FINAL_ROOM,
+									FINAL_DATA_MAP, FINAL_SESSION_ID);
+
+							STREAM_LOOP: while (true) {
+								PixelJobRunner jt = PixelJobManager.getManager().getJob(jobId);
+								List<Map<String, Object>> partialResponseContent = PixelJobManager.getManager()
+										.getStreamOut(jobId);
+								PixelJobStatus jobStatus = jt == null ? PixelJobStatus.UNKNOWN_JOB
+										: jt.getPixelJobStatus();
+
+								if (partialResponseContent != null && !partialResponseContent.isEmpty()) {
+									for (Map<String, Object> streamObj : partialResponseContent) {
+										String streamType = (String) streamObj.get("stream_type");
+										@SuppressWarnings("unchecked")
+										Map<String, Object> streamData = (Map<String, Object>) streamObj.get("data");
+										if (streamData == null) {
+											continue;
+										}
+
+										if ("media".equalsIgnoreCase(streamType)) {
+											@SuppressWarnings("unchecked")
+											Map<String, Object> mediaInfo = (Map<String, Object>) streamData
+													.get("media_info");
+											Object partialIdxObj = streamData.get("partial_image_index");
+
+											if (mediaInfo == null) {
+												if (streamData.containsKey("finish_reason")) {
+													break STREAM_LOOP;
+												}
+												continue;
+											}
+
+											Object b64Obj = mediaInfo.get("base64Data");
+											String b64 = (b64Obj instanceof String) ? (String) b64Obj : null;
+											if (b64 == null || b64.isEmpty()) {
+												continue;
+											}
+
+											if (partialIdxObj != null) {
+												int partialIdx = ((Number) partialIdxObj).intValue();
+												OpenAIImagesHelper.writePartialImageEvent(writer, b64, partialIdx,
+														FINAL_ENGINE_ID, creationTimestamp, FINAL_OUTPUT_FORMAT,
+														FINAL_QUALITY, FINAL_SIZE);
+											} else {
+												OpenAIImagesHelper.writeCompletedEvent(writer, b64, FINAL_ENGINE_ID,
+														creationTimestamp, FINAL_OUTPUT_FORMAT, FINAL_QUALITY,
+														FINAL_SIZE, null, null);
+												writer.write("data: [DONE]\n\n");
+												writer.flush();
+												break STREAM_LOOP;
+											}
+										}
+									}
+								}
+
+								if (jobStatus == PixelJobStatus.PROGRESS_COMPLETE) {
+									break STREAM_LOOP;
+								}
+
+								try {
+									Thread.sleep(50);
+								} catch (InterruptedException e) {
+									Thread.currentThread().interrupt();
+									break;
+								}
+							}
+
+						} catch (IOException ioe) {
+							final String capturedJobId = jobId;
+							if (!WebUtility.handleStreamingException(ioe, classLogger, FINAL_ENGINE_ID, capturedJobId,
+									() -> PixelJobManager.getManager().interruptThread(capturedJobId))) {
+								classLogger.error("I/O error processing images/generations streaming for engine '{}'",
+										FINAL_ENGINE_ID, ioe);
+							}
+						} catch (Exception e) {
+							classLogger.error("Error processing images/generations streaming for engine '{}'",
+									FINAL_ENGINE_ID, e);
+						} finally {
+							if (jobId != null) {
+								PixelJobManager.getManager().clearJob(jobId);
+								PixelJobManager.getManager().removeJob(jobId);
+							}
+						}
+					}
+				}).build();
 	}
 
 	// TODO: move paylaod generation logic into a new OpenAICompletionsHelper
@@ -796,45 +1161,17 @@ public class OpenAIEndpoints {
 	@Produces({ "application/json;charset=utf-8", "text/event-stream" })
 	public Response runModelCompletion(@Context HttpServletRequest request) {
 		HttpSession session = request.getSession(false);
-		User user = null;
-
-		if (session != null) {
-			user = ((User) session.getAttribute(Constants.SESSION_USER));
-		}
-		// how did you even get past the no user in session filter?
+		User user = ModelPixelExecutor.getSessionUser(session);
 		if (user == null) {
-			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
-				session.invalidate();
-			}
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
+			return ModelPixelExecutor.invalidSessionResponse(request, session);
 		}
+		// set the user timezone
+		ModelPixelExecutor.applyUserTimezone(user, request);
 
 		final String SESSION_ID = session.getId();
 		final String JOB_ID = GUID.v7().toUUID().toString();
 		Insight insight = null;
 		Room room = null;
-		ObjectMapper objectMapper = new ObjectMapper();
-
-		// set the user timezone
-		ZoneId zoneId = null;
-		String strTz = request.getParameter("tz");
-		if (strTz == null || (strTz = strTz.trim()).isEmpty()) {
-			zoneId = ZoneId.of(Utility.getApplicationZoneId());
-		} else {
-			try {
-				zoneId = ZoneId.of(strTz);
-			} catch (Exception e) {
-				classLogger.warn("Error parsing out users timezone value: " + strTz);
-				classLogger.error(Constants.STACKTRACE, e);
-				zoneId = ZoneId.of(Utility.getApplicationZoneId());
-			}
-		}
-		// need null check if security is off
-		if (user != null) {
-			user.setZoneId(zoneId);
-		}
 
 		// Retrieve raw data from the request
 		StringBuilder requestData = new StringBuilder();
@@ -844,41 +1181,34 @@ public class OpenAIEndpoints {
 			while ((line = reader.readLine()) != null) {
 				requestData.append(line);
 			}
-
 		} catch (IOException e) {
-			classLogger.error(Constants.STACKTRACE, e);
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Bad Request: The 'data' parameter is missing.");
-			return WebUtility.getResponse(errorMap, 400);
+			classLogger.error("Failed to read completions request body for path '{}': {}", request.getRequestURI(),
+					e.getMessage(), e);
+			return ModelPixelExecutor.errorResponse(400, "Bad Request: The 'data' parameter is missing.");
 		}
 
 		// Convert the JSON string to a Map
-		TypeReference<Map<String, Object>> mapType = new TypeReference<Map<String, Object>>() {
-		};
 		Map<String, Object> dataMap;
 		try {
-			dataMap = objectMapper.readValue(WebUtility.jsonSanitizer(requestData.toString()), mapType);
-		} catch (JsonProcessingException e) {
-			classLogger.error(Constants.STACKTRACE, e);
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Error processing JSON data: " + e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
+			dataMap = GSON.fromJson(WebUtility.jsonSanitizer(requestData.toString()),
+					new TypeToken<Map<String, Object>>() {
+					}.getType());
+		} catch (Exception e) {
+			classLogger.error("Failed to parse completions request JSON for path '{}': {}", request.getRequestURI(),
+					e.getMessage(), e);
+			return ModelPixelExecutor.errorResponse(400, "Error processing JSON data: " + e.getMessage());
 		}
 
 		String engineId = WebUtility.inputSanitizer((String) dataMap.remove("model"));
 		if (engineId == null || engineId.isEmpty()) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE,
+			return ModelPixelExecutor.errorResponse(400,
 					"Bad Request: The 'data' parameter is missing the required 'model' field.");
-			return WebUtility.getResponse(errorMap, 400);
 		}
 		IModelEngine engine = Utility.getModel(engineId);
 
 		String question = (String) dataMap.remove("prompt");
 		if (question == null) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Please provide 'prompt'.");
-			return WebUtility.getResponse(errorMap, 400);
+			return ModelPixelExecutor.errorResponse(400, "Please provide 'prompt'.");
 		}
 
 		boolean isStreamingRequest = false;
@@ -887,10 +1217,8 @@ public class OpenAIEndpoints {
 		}
 
 		if (!SecurityEngineUtils.userCanViewEngine(user, engineId)) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE,
+			return ModelPixelExecutor.errorResponse(403,
 					"Model " + engineId + " does not exist or user does not have access to this model");
-			return WebUtility.getResponse(errorMap, 403);
 		}
 
 		String insightId = WebUtility.inputSanitizer((String) dataMap.remove("insight_id"));
@@ -926,23 +1254,23 @@ public class OpenAIEndpoints {
 		// room name gets updated during parsing of full prompt
 		room = RoomUtils.createRoomIfNotExists(roomId, insight, engine, null);
 
-		ThreadStore.setInsightId(insight.getInsightId());
-		ThreadStore.setSessionId(SESSION_ID);
-		ThreadStore.setJobId(JOB_ID);
-		ThreadStore.setUser(insight.getUser());
+		ModelPixelExecutor.initializeThreadStore(insight, SESSION_ID, JOB_ID);
+
+		// route through the LLM pixel by carrying the prompt as a full_prompt message
+		List<Map<String, Object>> completionMessages = new ArrayList<>();
+		Map<String, Object> completionUserMessage = new HashMap<>();
+		completionUserMessage.put("role", "user");
+		completionUserMessage.put("content", question);
+		completionMessages.add(completionUserMessage);
+		dataMap.put(AbstractModelEngine.FULL_PROMPT, completionMessages);
 
 		if (!isStreamingRequest) {
 			AskModelEngineResponse llmResponse;
 			try {
-				InputMessage msg = InputMessage.builder(room).withModelType(engine.getModelType())
-						.withInputUIPrompt(question).withInputPrompt(question).withParamMap(dataMap).build();
-				ResponseMessage response = room.ask(msg, engine);
-				llmResponse = response.getModelEngineResponse();
+				llmResponse = ModelPixelExecutor.askModelSync(engine, insight, room, dataMap);
 			} catch (Exception e) {
-				classLogger.error(Constants.STACKTRACE, e);
-				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-				return WebUtility.getResponse(errorMap, 400);
+				classLogger.error("Model completion synchronous call failed for engine '{}'", engineId, e);
+				return ModelPixelExecutor.errorResponse(400, e.getMessage());
 			}
 
 			String response = llmResponse.getStringResponse();
@@ -998,20 +1326,18 @@ public class OpenAIEndpoints {
 			final String messageId = "chatcmpl-" + GUID.v7().toUUID().toString();
 			final long creationTimestamp = Instant.now().getEpochSecond();
 
-			classLogger.info("Starting fake streaming response for model: " + engineId);
+			classLogger.info("Starting fake streaming response for model: {}", engineId);
 
 			final Insight FINAL_INSIGHT = insight;
 			final Room FINAL_ROOM = room;
 			return Response.ok().header("Content-Type", "text/event-stream").header("Cache-Control", "no-cache")
 					.header("Connection", "keep-alive").entity((StreamingOutput) output -> {
-						ObjectMapper mapper = new ObjectMapper();
+
 						try (Writer writer = new BufferedWriter(
 								new OutputStreamWriter(output, StandardCharsets.UTF_8))) {
-							// Get full completion from your model in one go
-							InputMessage msg = InputMessage.builder(FINAL_ROOM).withModelType(engine.getModelType())
-									.withInputUIPrompt(question).withInputPrompt(question).withParamMap(dataMap)
-									.build();
-							AskModelEngineResponse llmResponse = engine.askRoom(question, FINAL_ROOM, msg, dataMap);
+							// Get full completion from the model in one go through the LLM pixel
+							AskModelEngineResponse llmResponse = ModelPixelExecutor.askModelSync(engine, FINAL_INSIGHT,
+									FINAL_ROOM, dataMap);
 							String completionText = llmResponse.getStringResponse();
 							Integer promptTokens = llmResponse.getNumberOfTokensInPrompt();
 							Integer responseTokens = llmResponse.getNumberOfTokensInResponse();
@@ -1044,12 +1370,19 @@ public class OpenAIEndpoints {
 							}
 							chunk.put("usage", usage);
 
-							writer.write("data: " + mapper.writeValueAsString(chunk) + "\n\n");
+							writer.write("data: " + GSON.toJson(chunk) + "\n\n");
 							writer.write("data: [DONE]\n\n");
 							writer.flush();
 
+						} catch (IOException ioe) {
+							if (!WebUtility.handleStreamingException(ioe, classLogger, engineId, null, null)) {
+								classLogger.error("Fake streaming completion response failed for engine '{}': {}",
+										engineId, ioe.getMessage(), ioe);
+								throw new WebApplicationException(ioe, 500);
+							}
 						} catch (Exception e) {
-							classLogger.error("Error in fake streaming response", e);
+							classLogger.error("Fake streaming completion response failed for engine '{}': {}", engineId,
+									e.getMessage(), e);
 							throw new WebApplicationException(e, 500);
 						}
 					}).build();
@@ -1062,44 +1395,16 @@ public class OpenAIEndpoints {
 	@Produces("application/json;charset=utf-8")
 	public Response runModelEmbeddings(@Context HttpServletRequest request) {
 		HttpSession session = request.getSession(false);
-		User user = null;
-
-		if (session != null) {
-			user = ((User) session.getAttribute(Constants.SESSION_USER));
-		}
-		// how did you even get past the no user in session filter?
+		User user = ModelPixelExecutor.getSessionUser(session);
 		if (user == null) {
-			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
-				session.invalidate();
-			}
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
+			return ModelPixelExecutor.invalidSessionResponse(request, session);
 		}
+		// set the user timezone
+		ModelPixelExecutor.applyUserTimezone(user, request);
 
 		final String SESSION_ID = session.getId();
 		final String JOB_ID = GUID.v7().toUUID().toString();
 		Insight insight = null;
-		ObjectMapper objectMapper = new ObjectMapper();
-
-		// set the user timezone
-		ZoneId zoneId = null;
-		String strTz = request.getParameter("tz");
-		if (strTz == null || (strTz = strTz.trim()).isEmpty()) {
-			zoneId = ZoneId.of(Utility.getApplicationZoneId());
-		} else {
-			try {
-				zoneId = ZoneId.of(strTz);
-			} catch (Exception e) {
-				classLogger.warn("Error parsing out users timezone value: " + strTz);
-				classLogger.error(Constants.STACKTRACE, e);
-				zoneId = ZoneId.of(Utility.getApplicationZoneId());
-			}
-		}
-		// need null check if security is off
-		if (user != null) {
-			user.setZoneId(zoneId);
-		}
 
 		// Retrieve raw data from the request
 		StringBuilder requestData = new StringBuilder();
@@ -1109,47 +1414,39 @@ public class OpenAIEndpoints {
 				requestData.append(line);
 			}
 		} catch (IOException e) {
-			classLogger.error(Constants.STACKTRACE, e);
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Bad Request: The 'data' parameter is missing.");
-			return WebUtility.getResponse(errorMap, 400);
+			classLogger.error("Failed to read embeddings request body for path '{}': {}", request.getRequestURI(),
+					e.getMessage(), e);
+			return ModelPixelExecutor.errorResponse(400, "Bad Request: The 'data' parameter is missing.");
 		}
 
 		// Convert the JSON string to a Map
-		TypeReference<Map<String, Object>> mapType = new TypeReference<Map<String, Object>>() {
-		};
 		Map<String, Object> dataMap;
 		try {
-			dataMap = objectMapper.readValue(WebUtility.jsonSanitizer(requestData.toString()), mapType);
-		} catch (JsonProcessingException e) {
-			classLogger.error(Constants.STACKTRACE, e);
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Error processing JSON data: " + e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
+			dataMap = GSON.fromJson(WebUtility.jsonSanitizer(requestData.toString()),
+					new TypeToken<Map<String, Object>>() {
+					}.getType());
+		} catch (Exception e) {
+			classLogger.error("Failed to parse embeddings request JSON for path '{}': {}", request.getRequestURI(),
+					e.getMessage(), e);
+			return ModelPixelExecutor.errorResponse(400, "Error processing JSON data: " + e.getMessage());
 		}
 
 		String engineId = WebUtility.inputSanitizer((String) dataMap.remove("model"));
 		if (engineId == null || engineId.isEmpty()) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE,
+			return ModelPixelExecutor.errorResponse(400,
 					"Bad Request: The 'data' parameter is missing the required 'model' field.");
-			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		List<String> stringsToEncode = (List<String>) dataMap.remove("input");
 		if (stringsToEncode == null || stringsToEncode.isEmpty()) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE,
+			return ModelPixelExecutor.errorResponse(400,
 					"Bad Request: The 'data' parameter is missing the required 'input' field.");
-			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// make sure the user can view the engine
 		if (!SecurityEngineUtils.userCanViewEngine(user, engineId)) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE,
+			return ModelPixelExecutor.errorResponse(403,
 					"Model " + engineId + " does not exist or user does not have access to this model");
-			return WebUtility.getResponse(errorMap, 403);
 		}
 
 		String insightId = WebUtility.inputSanitizer((String) dataMap.remove("insight_id"));
@@ -1179,10 +1476,7 @@ public class OpenAIEndpoints {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
-		ThreadStore.setInsightId(insight.getInsightId());
-		ThreadStore.setSessionId(SESSION_ID);
-		ThreadStore.setJobId(JOB_ID);
-		ThreadStore.setUser(insight.getUser());
+		ModelPixelExecutor.initializeThreadStore(insight, SESSION_ID, JOB_ID);
 
 		// set the user
 		insight.setUser(user);
@@ -1192,10 +1486,8 @@ public class OpenAIEndpoints {
 		try {
 			embeddingsResponse = engine.embeddings(stringsToEncode, insight, dataMap);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
+			classLogger.error("Embeddings call failed for engine '{}'", engineId, e);
+			return ModelPixelExecutor.errorResponse(400, e.getMessage());
 		}
 
 		List<List<Double>> embeddings = embeddingsResponse.getResponse();
@@ -1234,24 +1526,23 @@ public class OpenAIEndpoints {
 	}
 
 	@GET
+	@Path("/v1/models")
+	@Consumes({ "application/json" })
+	@Produces("application/json;charset=utf-8")
+	public Response listV1Models(@Context HttpServletRequest request) {
+		return listModels(request);
+	}
+
+	@GET
 	@Path("/models")
 	@Consumes({ "application/json" })
 	@Produces("application/json;charset=utf-8")
 	public Response listModels(@Context HttpServletRequest request) {
 		// https://platform.openai.com/docs/api-reference/models/list
 		HttpSession session = request.getSession(false);
-		User user = null;
-		if (session != null) {
-			user = ((User) session.getAttribute(Constants.SESSION_USER));
-		}
-		// how did you even get past the no user in session filter?
+		User user = ModelPixelExecutor.getSessionUser(session);
 		if (user == null) {
-			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
-				session.invalidate();
-			}
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
+			return ModelPixelExecutor.invalidSessionResponse(request, session);
 		}
 
 		MyEnginesReactor reactor = new MyEnginesReactor();
@@ -1284,24 +1575,23 @@ public class OpenAIEndpoints {
 	}
 
 	@GET
+	@Path("/v1/models/{modelId}")
+	@Consumes({ "application/json" })
+	@Produces("application/json;charset=utf-8")
+	public Response retrieveV1Model(@Context HttpServletRequest request, @PathParam("modelId") String modelId) {
+		return retrieveModel(request, modelId);
+	}
+
+	@GET
 	@Path("/models/{modelId}")
 	@Consumes({ "application/json" })
 	@Produces("application/json;charset=utf-8")
 	public Response retrieveModel(@Context HttpServletRequest request, @PathParam("modelId") String modelId) {
 		// https://platform.openai.com/docs/api-reference/models/retrieve
 		HttpSession session = request.getSession(false);
-		User user = null;
-		if (session != null) {
-			user = ((User) session.getAttribute(Constants.SESSION_USER));
-		}
-		// how did you even get past the no user in session filter?
+		User user = ModelPixelExecutor.getSessionUser(session);
 		if (user == null) {
-			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
-				session.invalidate();
-			}
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
+			return ModelPixelExecutor.invalidSessionResponse(request, session);
 		}
 
 		MyEnginesReactor reactor = new MyEnginesReactor();
@@ -1333,9 +1623,7 @@ public class OpenAIEndpoints {
 		NounMetadata outputNoun = reactor.execute();
 		List<Map<String, Object>> openAiResponse = processModelList(outputNoun);
 		if (openAiResponse == null || openAiResponse.isEmpty()) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Could not find model = '" + modelId + "'");
-			return WebUtility.getResponse(errorMap, 400);
+			return ModelPixelExecutor.errorResponse(400, "Could not find model = '" + modelId + "'");
 		}
 		return WebUtility.getResponse(openAiResponse.get(0), 200);
 	}

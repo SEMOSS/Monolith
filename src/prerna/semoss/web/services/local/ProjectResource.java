@@ -30,7 +30,6 @@ package prerna.semoss.web.services.local;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileFilter;
-import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -86,6 +85,7 @@ import prerna.engine.impl.CaseInsensitiveProperties;
 import prerna.engine.impl.SmssUtilities;
 import prerna.io.connector.couch.CouchException;
 import prerna.io.connector.couch.CouchUtil;
+import prerna.notifications.NotificationDbUtils;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.ThreadStore;
@@ -97,9 +97,11 @@ import prerna.sablecc2.om.NounStore;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.util.AssetUtility;
 import prerna.util.Constants;
+import prerna.util.DefaultImageGeneratorUtil;
+import prerna.util.EmailUtility;
 import prerna.util.EngineUtility;
+import prerna.util.NotificationConstants;
 import prerna.util.Utility;
-import prerna.util.insight.TextToGraphic;
 import prerna.web.requests.OverrideParametersServletRequest;
 import prerna.web.services.util.WebUtility;
 
@@ -224,20 +226,20 @@ public class ProjectResource {
 			}
 			project.open(currentSmssFileLocation);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to apply updated project SMSS for project {}", projectId, e);
 			// reset the values
 			try {
 				project.close();
 			} catch (IOException e1) {
 				// will ignore this and try to reopen the project
-				classLogger.error(Constants.STACKTRACE, e1);
+				classLogger.error("Failed to close project while reverting SMSS update for project {}", projectId, e1);
 			}
 			currentSmssFile.delete();
 			try (FileWriter fw = new FileWriter(currentSmssFile, false)) {
 				fw.write(currentSmssContent);
 				project.open(currentSmssFileLocation);
 			} catch (Exception e2) {
-				classLogger.error(Constants.STACKTRACE, e2);
+				classLogger.error("Failed to restore original project SMSS for project {}", projectId, e2);
 				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put(Constants.ERROR_MESSAGE,
 						"A fatal error occurred and could not revert the project to an operational state. Detailed message = "
@@ -252,6 +254,14 @@ public class ProjectResource {
 
 		// push to cloud
 		ClusterUtil.pushProjectSmss(projectId);
+		if (Utility.isNotificationDatabaseEnabled()) {
+			// Adding notification
+			NotificationDbUtils.createNotification(user, null, null, projectId, NotificationConstants.Type.SMSS_UPDATE,
+					NotificationConstants.APP_CATALOG, NotificationConstants.Priority.MEDIUM, null, null);
+
+			// Adding email notification
+			EmailUtility.sendSmssUpdateEmailNotification(user, projectId, EmailUtility.RESOURCE_TYPE.PROJECT);
+		}
 
 		Map<String, Object> success = new HashMap<>();
 		success.put("success", true);
@@ -592,7 +602,7 @@ public class ProjectResource {
 				selectors.put(CouchUtil.PROJECT, projectId);
 				return CouchUtil.download(CouchUtil.PROJECT, selectors);
 			} catch (CouchException e) {
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.error("Failed to download project image from CouchDB for project {}", projectId, e);
 			}
 		}
 
@@ -600,7 +610,7 @@ public class ProjectResource {
 		try {
 			exportFile = getProjectImageFile(projectId);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to resolve project image file for project {}", projectId, e);
 		}
 		if (exportFile != null && exportFile.exists()) {
 			String exportName = projectId + "_Image." + FilenameUtils.getExtension(exportFile.getAbsolutePath());
@@ -655,15 +665,13 @@ public class ProjectResource {
 			if (!f.exists()) {
 				Boolean success = f.mkdirs();
 				if (!success) {
-					classLogger.info("Unable to make direction at location: " + Utility.cleanLogString(fileLocation));
+					classLogger.info("Unable to create directory at location: {}",
+							Utility.cleanLogString(fileLocation));
 				}
 			}
 			fileLocation = fileLocation + DIR_SEPARATOR + "image.png";
-			if (projectName != null) {
-				TextToGraphic.makeImage(projectName, fileLocation);
-			} else {
-				TextToGraphic.makeImage(WebUtility.inputSanitizer(projectId), fileLocation);
-			}
+
+			DefaultImageGeneratorUtil.pickRandomImage(fileLocation);
 			f = new File(fileLocation);
 			return f;
 		}
@@ -706,7 +714,8 @@ public class ProjectResource {
 				selectors.put(CouchUtil.PROJECT, projectId);
 				return CouchUtil.download(CouchUtil.INSIGHT, selectors);
 			} catch (CouchException e) {
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.error("Failed to download insight image from CouchDB for project {} and insight {}",
+						projectId, id, e);
 			}
 		}
 
@@ -825,88 +834,6 @@ public class ProjectResource {
 		return null;
 	}
 
-	/**
-	 * Close a file stream
-	 * 
-	 * @param fis
-	 */
-	protected void closeStream(FileInputStream fis) {
-		if (fis != null) {
-			try {
-				fis.close();
-			} catch (IOException e) {
-				classLogger.error(Constants.STACKTRACE, e);
-			}
-		}
-	}
-
-	///////////////////////////////////////////////////////
-	///////////////////////////////////////////////////////
-	///////////////////////////////////////////////////////
-	///////////////////////////////////////////////////////
-	///////////////////////////////////////////////////////
-
-	/*
-	 * Currently not used below...
-	 */
-
-	@GET
-	@Path("/projectWidget")
-	@Produces(MediaType.APPLICATION_OCTET_STREAM)
-	public Response getAppWidget(@PathParam("projectId") String projectId, @QueryParam("widget") String widgetName,
-			@QueryParam("file") String fileName) {
-
-		projectId = WebUtility.inputSanitizer(projectId);
-
-		widgetName = WebUtility.inputSanitizer(widgetName);
-		fileName = WebUtility.inputSanitizer(fileName);
-
-		// TODO: this is wrong structure ... needs projectName as well...
-		// TODO: this is wrong structure ... needs projectName as well...
-		// TODO: this is wrong structure ... needs projectName as well...
-		// TODO: this is wrong structure ... needs projectName as well...
-		// TODO: this is wrong structure ... needs projectName as well...
-
-		final String basePath = Utility.getBaseFolder();
-		String appWidgetDirLoc = basePath + DIR_SEPARATOR + Constants.PROJECT_FOLDER + DIR_SEPARATOR + projectId
-				+ DIR_SEPARATOR + "app_root" + DIR_SEPARATOR + "version" + DIR_SEPARATOR + "widgets";
-
-		// Get widget file
-		String widgetFile = appWidgetDirLoc + DIR_SEPARATOR + widgetName + DIR_SEPARATOR + fileName;
-		File f = new File(WebUtility.normalizePath(widgetFile));
-		FileInputStream fis = null;
-		if (f.exists()) {
-			try {
-				fis = new FileInputStream(f);
-				byte[] byteArray = IOUtils.toByteArray(fis);
-				// return file
-				return Response.status(200).entity(byteArray).build();
-			} catch (IOException e) {
-				classLogger.error(Constants.STACKTRACE, e);
-			} finally {
-				closeStream(fis);
-			}
-		}
-		// return error
-		Map<String, String> errorMap = new HashMap<>();
-		errorMap.put(Constants.ERROR_MESSAGE, "error sending widget file " + widgetName + "\\" + fileName);
-		return WebUtility.getResponse(errorMap, 400);
-	}
-
-	///// JDBC pieces
-	// the project id can be a full project id
-	// or it can be "session" - session basically means load the insight from this
-	///// session
-	// if it is an insight
-	// needs to do the open insight
-	// return the insight
-	// and pull data from it
-
-	// this rest api will take 3 parameters
-	// project id - session or the project id
-	// insight id - runtime insight id or the actual insight id to open
-	// sql query
-	// optional frame
 	@GET
 	@Path("/jdbc")
 	@Produces(MediaType.APPLICATION_OCTET_STREAM)
@@ -931,7 +858,8 @@ public class ProjectResource {
 				sql = sql.replace("'", "\\\'");
 				sql = sql.replace("\"", "\\\"");
 			} catch (IOException e) {
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.error("Failed to read SQL payload for JDBC output for project {} and insight {}", projectId,
+						insightId, e);
 			}
 		}
 
@@ -970,7 +898,9 @@ public class ProjectResource {
 				insightId = obj.getJSONArray("pixelReturn").getJSONObject(0).getJSONObject("output")
 						.getJSONObject("insightData").getString("insightID");
 			} catch (WebApplicationException | IOException e) {
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.error(
+						"Failed to process OpenInsight response for JDBC output for project {} and insight {}",
+						projectId, insightId, e);
 			}
 		}
 		// now we have the insight id.. execute
@@ -1050,7 +980,8 @@ public class ProjectResource {
 				sql = sql.replace("'", "\\\'");
 				sql = sql.replace("\"", "\\\"");
 			} catch (IOException e) {
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.error("Failed to read SQL payload for JDBC JSON output for project {} and insight {}",
+						projectId, insightId, e);
 			}
 		}
 
@@ -1077,7 +1008,9 @@ public class ProjectResource {
 				insightId = obj.getJSONArray("pixelReturn").getJSONObject(0).getJSONObject("output")
 						.getJSONObject("insightData").getString("insightID");
 			} catch (WebApplicationException | IOException e) {
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.error(
+						"Failed to process OpenInsight response for JDBC JSON output for project {} and insight {}",
+						projectId, insightId, e);
 			}
 		}
 		Insight insight = InsightStore.getInstance().get(insightId);
@@ -1151,7 +1084,8 @@ public class ProjectResource {
 				sql = sql.replace("'", "\\\'");
 				sql = sql.replace("\"", "\\\"");
 			} catch (IOException e) {
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.error("Failed to read SQL payload for JDBC CSV output for project {} and insight {}",
+						projectId, insightId, e);
 			}
 		}
 
@@ -1180,7 +1114,9 @@ public class ProjectResource {
 				insightId = obj.getJSONArray("pixelReturn").getJSONObject(0).getJSONObject("output")
 						.getJSONObject("insightData").getString("insightID");
 			} catch (WebApplicationException | IOException e) {
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.error(
+						"Failed to process OpenInsight response for JDBC CSV output for project {} and insight {}",
+						projectId, insightId, e);
 			}
 		}
 

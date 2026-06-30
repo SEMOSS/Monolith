@@ -389,25 +389,53 @@
 			<url>https://s3.amazonaws.com/redshift-maven-repository/release</url>
 		</repository>
 	</repositories>
+	<dependencyManagement>
+		<dependencies>
+			<!-- CVE force: CVE-2026-42579 - override transitive Netty DNS artifacts to fixed version -->
+			<dependency>
+				<groupId>io.netty</groupId>
+				<artifactId>netty-bom</artifactId>
+				<version>4.1.133.Final</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+			<!-- GHSA-2m67-wjpj-xhg9 / CVE-2026-29062: force transitive tools.jackson.core (Jackson 3.x) from mcp-json-jackson3 up to fixed version -->
+			<dependency>
+				<groupId>tools.jackson.core</groupId>
+				<artifactId>jackson-core</artifactId>
+				<version>3.1.1</version>
+			</dependency>
+			<dependency>
+				<groupId>tools.jackson.core</groupId>
+				<artifactId>jackson-databind</artifactId>
+				<version>3.1.1</version>
+			</dependency>
+			<!-- CVE force: CVE-2025-12183/CVE-2025-66566 - override transitive org.lz4:lz4-java version (1.8.0) -->
+			<dependency>
+				<groupId>org.lz4</groupId>
+				<artifactId>lz4-java</artifactId>
+				<version>1.8.1</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
 	<dependencies>
 		<dependency>
 			<groupId>org.semoss</groupId>
 			<artifactId>semoss</artifactId>
 			<version>${ci.version}</version>
 			<classifier>shaded-dependencies</classifier>
-			<exclusions>
-				<exclusion>
-					<groupId>com.amazon.athena</groupId>
-					<artifactId>athena-jdbc-uber</artifactId>
-				</exclusion>
-			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>org.a2aproject.sdk</groupId>
+			<artifactId>a2a-java-sdk-spec</artifactId>
+			<version>1.0.0.CR1</version>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/org.apache.tomcat/tomcat-catalina -->
 		<!-- this is the primary tomcat specific jar -->
 		<dependency>
 			<groupId>org.apache.tomcat</groupId>
 			<artifactId>tomcat-catalina</artifactId>
-			<version>9.0.112</version>
+			<version>9.0.119</version>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/javax.websocket/javax.websocket-api -->
 		<dependency>
@@ -520,6 +548,10 @@
 				    <artifactId>*</artifactId>
 				</exclusion>
 				<exclusion>
+					<groupId>org.assertj</groupId>
+					<artifactId>assertj-core</artifactId>
+				</exclusion>
+				<exclusion>
 					<groupId>org.openidentityplatform.commons.i18n-framework</groupId>
 					<artifactId>slf4j</artifactId>
 				</exclusion>
@@ -596,7 +628,7 @@
 		<dependency>
 			<groupId>joda-time</groupId>
 			<artifactId>joda-time</artifactId>
-			<version>2.14.0</version>
+			<version>2.14.2</version>
 			<exclusions>
 				<exclusion>
 					<groupId>org.joda</groupId>
@@ -610,5 +642,13 @@
 			<artifactId>json-sanitizer</artifactId>
 			<version>1.2.3</version>
 		</dependency>
-	</dependencies>
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-bom</artifactId>
+            <!-- Update to 4.1.133.Final or 4.2.13.Final -->
+            <version>4.1.133.Final</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+    </dependencies>
 </project>

@@ -52,7 +52,6 @@ import prerna.auth.utils.SecurityAPIUserUtils;
 import prerna.auth.utils.SecurityTokenUtils;
 import prerna.cluster.util.ClusterUtil;
 import prerna.date.SemossDate;
-import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
@@ -61,7 +60,7 @@ import prerna.web.services.util.WebUtility;
 @PermitAll
 public class TrustedTokenService {
 
-	private static final Logger logger = LogManager.getLogger(TrustedTokenService.class);
+	private static final Logger classLogger = LogManager.getLogger(TrustedTokenService.class);
 
 	private static long expirationMinutes = 120L;
 	private static ConcurrentMap<String, Object[]> tokenStorage = null;
@@ -81,7 +80,7 @@ public class TrustedTokenService {
 			return WebUtility.getResponse(ret, 401);
 		}
 		String clientId = WebUtility.inputSanitizer(request.getParameter("client_id"));
-		String ip = ResourceUtility.getClientIp(request);
+		String ip = WebUtility.getClientIp(request);
 		Object[] tokenDetails = null;
 		if (ClusterUtil.IS_CLUSTER) {
 			tokenDetails = getClusterToken(ip, clientId);
@@ -111,7 +110,7 @@ public class TrustedTokenService {
 				return WebUtility.getResponse(ret, 401);
 			}
 		}
-		String ip = ResourceUtility.getClientIp(request);
+		String ip = WebUtility.getClientIp(request);
 		Object[] tokenDetails = null;
 		if (ClusterUtil.IS_CLUSTER) {
 			tokenDetails = getClusterToken(ip, clientId);
@@ -136,12 +135,12 @@ public class TrustedTokenService {
 		SecurityTokenUtils.clearExpiredTokens(TrustedTokenService.expirationMinutes);
 		Object[] tokenDetails = SecurityTokenUtils.getToken(ip);
 		if (tokenDetails == null) {
-			logger.info(Utility.cleanLogString("IP = " + ip + ", generating new token id"));
+			classLogger.info("IP = {}, generating new token id", Utility.cleanLogString(ip));
 			tokenDetails = SecurityTokenUtils.generateToken(ip, clientId);
 			return tokenDetails;
 		}
 
-		logger.info(Utility.cleanLogString("IP = " + ip + ", requesting existing token id"));
+		classLogger.info("IP = {}, requesting existing token id", Utility.cleanLogString(ip));
 		return tokenDetails;
 	}
 
@@ -156,12 +155,12 @@ public class TrustedTokenService {
 
 		if (tokenStorage.containsKey(ip)) {
 			tokenDetails = tokenStorage.get(ip);
-			logger.info(Utility.cleanLogString("IP = " + ip + ", requesting existing token id"));
+			classLogger.info("IP = {}, requesting existing token id", Utility.cleanLogString(ip));
 		} else {
 			String token = UUID.randomUUID().toString();
 			tokenDetails = new Object[] { token, new SemossDate(Utility.getCurrentZonedDateTimeUTC()), clientId };
 			tokenStorage.put(ip, tokenDetails);
-			logger.info(Utility.cleanLogString("IP = " + ip + ", generating new token id"));
+			classLogger.info("IP = {}, generating new token id", Utility.cleanLogString(ip));
 		}
 
 		return tokenDetails;

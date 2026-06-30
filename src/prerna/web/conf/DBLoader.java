@@ -52,7 +52,6 @@ import prerna.engine.api.IDatabaseEngine;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.IEngine.CATALOG_TYPE;
 import prerna.engine.impl.r.RserveUtil;
-import prerna.forms.AbstractFormBuilder;
 import prerna.logging.SemossLogUtils;
 import prerna.masterdatabase.utility.MasterDatabaseUtility;
 import prerna.om.Insight;
@@ -62,8 +61,10 @@ import prerna.reactor.scheduler.SchedulerDatabaseUtility;
 import prerna.reactor.scheduler.SchedulerFactorySingleton;
 import prerna.util.AbstractFileWatcher;
 import prerna.util.ChromeDriverUtility;
+import prerna.util.ChrootTemplate;
 import prerna.util.Constants;
 import prerna.util.DIHelper;
+import prerna.util.SystemEngineRegistry;
 import prerna.util.Utility;
 import prerna.util.insight.InsightUtility;
 
@@ -88,7 +89,7 @@ public class DBLoader implements ServletContextListener {
 	private static String customLogoutUrl = null;
 
 	// keep track of all the watcher threads to kill
-	private static List<AbstractFileWatcher> watcherList = new ArrayList<>();
+	private static List<Thread> watcherList = new ArrayList<>();
 
 	@Override
 	public void contextInitialized(ServletContextEvent arg0) {
@@ -165,14 +166,14 @@ public class DBLoader implements ServletContextListener {
 			}
 		}
 
-		classLogger.log(STARTUP, "Initializing application context..." + Utility.cleanLogString(contextPath));
+		classLogger.log(STARTUP, "Initializing application context... {}", Utility.cleanLogString(contextPath));
 
 		// Set default file separator system variable
 		classLogger.log(STARTUP, "Changing file separator value to: '/'");
 		System.setProperty("file.separator", "/");
 
 		// Load RDF_Map.prop file
-		classLogger.log(STARTUP, "Loading RDF_Map.prop: " + Utility.cleanLogString(rdfPropFile));
+		classLogger.log(STARTUP, "Loading RDF_Map.prop: {}", Utility.cleanLogString(rdfPropFile));
 		DIHelper.getInstance().loadCoreProp(rdfPropFile);
 
 		if (RserveUtil.R_KILL_ON_STARTUP) {
@@ -180,7 +181,7 @@ public class DBLoader implements ServletContextListener {
 			try {
 				RserveUtil.endR();
 			} catch (Exception e) {
-				classLogger.log(STARTUP, "Unable to kill existing RServes running on the machine");
+				classLogger.log(STARTUP, "Unable to kill existing RServes running on the machine", e);
 			}
 		}
 
@@ -197,45 +198,23 @@ public class DBLoader implements ServletContextListener {
 
 		// Load empty engine list into DIHelper, then load engines from db folder
 		classLogger.log(STARTUP, "Loading engines...");
-		String engines = "";
-		DIHelper.getInstance().setEngineProperty(Constants.ENGINES, engines);
+		DIHelper.getInstance().setEngineProperty(Constants.ENGINES, "");
 		loadSmss(Constants.ENGINE_WEB_WATCHER);
-		String projects = "";
-		DIHelper.getInstance().setProjectProperty(Constants.PROJECTS, projects);
-		loadSmss(Constants.PROJECT_WATCHER);
-
 		// if there was an issue starting up the server
 		// we should do it here so that we can redirect the user
 		{
-			IDatabaseEngine localmaster = (IDatabaseEngine) DIHelper.getInstance()
-					.getEngineProperty(Constants.LOCAL_MASTER_DB);
-			IDatabaseEngine security = (IDatabaseEngine) DIHelper.getInstance()
-					.getEngineProperty(Constants.SECURITY_DB);
-			IDatabaseEngine auditDb = (IDatabaseEngine) DIHelper.getInstance()
-					.getEngineProperty(Constants.AUDIT_LOGS_DB);
-			IDatabaseEngine scheduler = (IDatabaseEngine) DIHelper.getInstance()
-					.getEngineProperty(Constants.SCHEDULER_DB);
-			IDatabaseEngine userTracking = (IDatabaseEngine) DIHelper.getInstance()
-					.getEngineProperty(Constants.USER_TRACKING_DB);
 			boolean startupFailed = false;
-
 			// Check localmaster
-			if (localmaster == null) {
-				classLogger.error("STARTUP CHECK FAILED: localmaster is NULL");
-				startupFailed = true;
-			} else if (!localmaster.isConnected()) {
-				classLogger.error("STARTUP CHECK FAILED: localmaster is NOT CONNECTED");
+			if (!SystemEngineRegistry.isLocalMasterDbLoaded()) {
+				classLogger.error("STARTUP CHECK FAILED: localmaster is not loaded");
 				startupFailed = true;
 			} else {
 				classLogger.info("STARTUP CHECK PASSED: localmaster is connected");
 			}
 
 			// Check security
-			if (security == null) {
-				classLogger.error("STARTUP CHECK FAILED: security is NULL");
-				startupFailed = true;
-			} else if (!security.isConnected()) {
-				classLogger.error("STARTUP CHECK FAILED: security is NOT CONNECTED");
+			if (!SystemEngineRegistry.isSecurityDbLoaded()) {
+				classLogger.error("STARTUP CHECK FAILED: security is not loaded");
 				startupFailed = true;
 			} else {
 				classLogger.info("STARTUP CHECK PASSED: security is connected");
@@ -243,12 +222,8 @@ public class DBLoader implements ServletContextListener {
 
 			// Check scheduler (conditional)
 			if (!Utility.schedulerForceDisable()) {
-				if (scheduler == null) {
-					classLogger.error("STARTUP CHECK FAILED: scheduler is NULL (SCHEDULER_FORCE_DISABLE=false)");
-					startupFailed = true;
-				} else if (!scheduler.isConnected()) {
-					classLogger
-							.error("STARTUP CHECK FAILED: scheduler is NOT CONNECTED (SCHEDULER_FORCE_DISABLE=false)");
+				if (!SystemEngineRegistry.isSchedulerDbLoaded()) {
+					classLogger.error("STARTUP CHECK FAILED: scheduler is not loaded (SCHEDULER_FORCE_DISABLE=false)");
 					startupFailed = true;
 				} else {
 					classLogger.info("STARTUP CHECK PASSED: scheduler is connected");
@@ -259,12 +234,8 @@ public class DBLoader implements ServletContextListener {
 
 			// Check userTracking (conditional)
 			if (Utility.isUserTrackingEnabled()) {
-				if (userTracking == null) {
-					classLogger.error("STARTUP CHECK FAILED: userTracking is NULL (USER_TRACKING_ENABLED=true)");
-					startupFailed = true;
-				} else if (!userTracking.isConnected()) {
-					classLogger
-							.error("STARTUP CHECK FAILED: userTracking is NOT CONNECTED (USER_TRACKING_ENABLED=true)");
+				if (!SystemEngineRegistry.isUserTrackingDbLoaded()) {
+					classLogger.error("STARTUP CHECK FAILED: userTracking is not loaded (USER_TRACKING_ENABLED=true)");
 					startupFailed = true;
 				} else {
 					classLogger.info("STARTUP CHECK PASSED: userTracking is connected");
@@ -275,18 +246,40 @@ public class DBLoader implements ServletContextListener {
 
 			// Check auditDb (conditional)
 			if (Utility.isAuditLogsDatabaseEnabled()) {
-				if (auditDb == null) {
-					classLogger.error("STARTUP CHECK FAILED: auditDb is NULL (AUDIT_LOGS_DATABASE_ENABLED=true)");
-					startupFailed = true;
-				} else if (!auditDb.isConnected()) {
-					classLogger
-							.error("STARTUP CHECK FAILED: auditDb is NOT CONNECTED (AUDIT_LOGS_DATABASE_ENABLED=true)");
+				if (!SystemEngineRegistry.isAuditLogsDbLoaded()) {
+					classLogger.error("STARTUP CHECK FAILED: auditDb is not loaded (AUDIT_LOGS_DATABASE_ENABLED=true)");
 					startupFailed = true;
 				} else {
 					classLogger.info("STARTUP CHECK PASSED: auditDb is connected");
 				}
 			} else {
 				classLogger.info("STARTUP CHECK SKIPPED: auditDb (AUDIT_LOGS_DATABASE_ENABLED=false)");
+			}
+
+			// Check auditDb (conditional)
+			if (Utility.isModelInferenceLogsEnabled()) {
+				if (!SystemEngineRegistry.isModelInferenceLogsDbLoaded()) {
+					classLogger.error(
+							"STARTUP CHECK FAILED: modelInferenceLogsDb is not loaded (MODEL_INFERENCE_LOGS_ENABLED=true)");
+					startupFailed = true;
+				} else {
+					classLogger.info("STARTUP CHECK PASSED: modelInferenceLogsDb is connected");
+				}
+			} else {
+				classLogger.info("STARTUP CHECK SKIPPED: modelInferenceLogsDb (MODEL_INFERENCE_LOGS_ENABLED=false)");
+			}
+
+			// Check notificationDb (conditional)
+			if (Utility.isNotificationDatabaseEnabled()) {
+				if (!SystemEngineRegistry.isNotificationDbLoaded()) {
+					classLogger.error(
+							"STARTUP CHECK FAILED: notificationDb is not loaded (NOTIFICATION_DATABASE_ENABLED=true)");
+					startupFailed = true;
+				} else {
+					classLogger.info("STARTUP CHECK PASSED: notificationDb is connected");
+				}
+			} else {
+				classLogger.info("STARTUP CHECK SKIPPED: notificationDb (NOTIFICATION_DATABASE_ENABLED=false)");
 			}
 
 			if (startupFailed) {
@@ -297,14 +290,18 @@ public class DBLoader implements ServletContextListener {
 			}
 
 			classLogger.info("STARTUP SUCCESS - All required components are connected");
+		}
 
-			// Load and run triggerOnLoad jobs
-			if (!Utility.schedulerForceDisable() && scheduler != null) {
-				try {
-					SchedulerDatabaseUtility.executeAllTriggerOnLoads();
-				} catch (Exception e) {
-					// ignore
-				}
+		classLogger.log(STARTUP, "Loading projects...");
+		DIHelper.getInstance().setProjectProperty(Constants.PROJECTS, "");
+		loadSmss(Constants.PROJECT_WATCHER);
+
+		// Load and run triggerOnLoad jobs
+		if (!Utility.schedulerForceDisable() && SystemEngineRegistry.isSchedulerDbLoaded()) {
+			try {
+				SchedulerDatabaseUtility.executeAllTriggerOnLoads();
+			} catch (Exception e) {
+				classLogger.warn("Failed to execute triggerOnLoad scheduler jobs", e);
 			}
 		}
 
@@ -319,6 +316,12 @@ public class DBLoader implements ServletContextListener {
 					ClusterUtil.pullEngineAndProjectImageFolder(eType);
 				}
 			}.start();
+		}
+
+		// create and wait for chroot template before allowing users to access
+		if (Boolean.parseBoolean(Utility.getDIHelperProperty(Constants.CHROOT_ENABLE))) {
+			ChrootTemplate.warmAsync();
+			ChrootTemplate.awaitReady();
 		}
 	}
 
@@ -336,10 +339,10 @@ public class DBLoader implements ServletContextListener {
 			while (watchers.hasMoreElements()) {
 				String watcher = watchers.nextToken();
 				if (watcher != null && !(watcher = watcher.trim()).isEmpty()) {
-					String watcherClass = DIHelper.getInstance().getProperty(watcher);
-					String folder = DIHelper.getInstance().getProperty(watcher + "_DIR");
-					String ext = DIHelper.getInstance().getProperty(watcher + "_EXT");
-					String engineType = DIHelper.getInstance().getProperty(watcher + "_ETYPE");
+					String watcherClass = Utility.getDIHelperProperty(watcher);
+					String folder = Utility.getDIHelperProperty(watcher + "_DIR");
+					String ext = Utility.getDIHelperProperty(watcher + "_EXT");
+					String engineType = Utility.getDIHelperProperty(watcher + "_ETYPE");
 					AbstractFileWatcher watcherInstance = (AbstractFileWatcher) Class.forName(watcherClass)
 							.getConstructor().newInstance();
 					watcherInstance.setFolderToWatch(folder);
@@ -349,17 +352,16 @@ public class DBLoader implements ServletContextListener {
 					}
 					watcherInstance.init();
 					// start the watcher thread with MDC
-					Thread thread = new Thread(() -> {
+					Thread watcherThread = Thread.ofPlatform().daemon().start(() -> {
 						try (var ctx = org.apache.logging.log4j.CloseableThreadContext.putAll(parentMDC)) {
 							watcherInstance.run();
 						}
 					});
-					thread.start();
-					watcherList.add(watcherInstance);
+					watcherList.add(watcherThread);
 				}
 			}
 		} catch (Exception ex) {
-			classLogger.log(STARTUP, Constants.STACKTRACE, ex);
+			classLogger.log(STARTUP, "Failed to init and start thread for file watchers", ex);
 		}
 	}
 
@@ -371,66 +373,70 @@ public class DBLoader implements ServletContextListener {
 		ThreadContext.put(SemossLogUtils.SESSION_ID, "SHUTDOWN");
 		ThreadContext.put(SemossLogUtils.CLIENT_IP, "SHUTDOWN");
 
-		classLogger.log(SHUTDOWN, "Start shutdown");
+		classLogger.log(SHUTDOWN, "Starting application shutdown");
 
 		Set<String> insights = new HashSet<>(InsightStore.getInstance().getAllInsights());
 		for (String id : insights) {
 			Insight in = InsightStore.getInstance().get(id);
-			classLogger.log(SHUTDOWN, "Closing insight " + id);
+			classLogger.log(SHUTDOWN, "Closing insight {}", id);
 			InsightUtility.dropInsight(in);
 		}
 
 		// close watchers
-		for (AbstractFileWatcher watcher : watcherList) {
-			watcher.shutdown();
+		for (Thread watcherThread : watcherList) {
+			watcherThread.interrupt();
 		}
+		for (Thread watcherThread : watcherList) {
+			try {
+				watcherThread.join(2000); // Wait up to 2 seconds per thread
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+			}
+		}
+		watcherList.clear();
 
 		// we need to close all the engine ids
 		List<String> eIds = MasterDatabaseUtility.getAllDatabaseIds();
 		for (String id : eIds) {
 			// grab only loaded engines
-			IDatabaseEngine engine = (IDatabaseEngine) DIHelper.getInstance().getEngineProperty(id);
+			IEngine engine = (IEngine) DIHelper.getInstance().getEngineProperty(id);
 			if (engine != null) {
 				// if it is loaded, close it
-				classLogger.log(SHUTDOWN, "Closing database " + id);
+				classLogger.log(SHUTDOWN, "Closing engine {}", id);
 				try {
 					engine.close();
 				} catch (IOException e) {
-					classLogger.error(Constants.STACKTRACE, e);
+					classLogger.error("Unable to close engine {}", engine.getEngineId(), e);
 				}
 			}
 		}
 
-		String[] autoLoadedDbs = new String[] { AbstractFormBuilder.FORM_BUILDER_ENGINE_NAME, Constants.SECURITY_DB,
-				Constants.USER_TRACKING_DB, Constants.LOCAL_MASTER_DB, };
-
-		for (String db : autoLoadedDbs) {
-			IDatabaseEngine engine = Utility.getDatabase(db, false);
+		IDatabaseEngine[] autoLoadedDbs = new IDatabaseEngine[] { SystemEngineRegistry.getSecurityDb(),
+				SystemEngineRegistry.getLocalMasterDb(), SystemEngineRegistry.getLocalMasterDb() };
+		for (IDatabaseEngine engine : autoLoadedDbs) {
 			if (engine != null) {
-				classLogger.log(SHUTDOWN, "Closing database " + db);
+				classLogger.log(SHUTDOWN, "Closing database {}", engine.getEngineId());
 				try {
 					engine.close();
 				} catch (IOException e) {
-					classLogger.error(Constants.STACKTRACE, e);
+					classLogger.error("Unable to close engine {}", engine.getEngineId(), e);
 				}
-			} else {
-				classLogger.log(SHUTDOWN, "Couldn't find database " + db);
 			}
 		}
 
 		if (SchedulerFactorySingleton.isInit()) {
 			classLogger.log(SHUTDOWN, "Closing scheduler");
 			SchedulerFactorySingleton.getInstance().shutdownScheduler(true);
-			IDatabaseEngine engine = Utility.getDatabase(Constants.SCHEDULER_DB, false);
+			IDatabaseEngine engine = SystemEngineRegistry.getSchedulerDb();
 			if (engine != null) {
-				classLogger.log(SHUTDOWN, "Closing database " + Constants.SCHEDULER_DB);
+				classLogger.log(SHUTDOWN, "Closing database {}", Constants.SCHEDULER_DB);
 				try {
 					engine.close();
 				} catch (IOException e) {
-					classLogger.error(Constants.STACKTRACE, e);
+					classLogger.error("Unable to close engine {}", Constants.SCHEDULER_DB, e);
 				}
 			} else {
-				classLogger.log(SHUTDOWN, "Couldn't find database " + Constants.SCHEDULER_DB);
+				classLogger.warn("Couldn't find database {} during shutdown", Constants.SCHEDULER_DB);
 			}
 		}
 
@@ -438,10 +444,10 @@ public class DBLoader implements ServletContextListener {
 		try {
 			RJavaTranslatorFactory.stopRConnection();
 		} catch (Exception e) {
-			classLogger.log(SHUTDOWN, Constants.STACKTRACE, e);
+			classLogger.log(SHUTDOWN, "Error occurred closing R connections", e);
 		}
 
-		classLogger.log(SHUTDOWN, "Finished shutdown");
+		classLogger.log(SHUTDOWN, "Application shutdown complete");
 	}
 
 	/**
@@ -463,6 +469,11 @@ public class DBLoader implements ServletContextListener {
 		return DBLoader.useLogoutPage;
 	}
 
+	/**
+	 * Get a custom logout url
+	 * 
+	 * @return
+	 */
 	public static String getCustomLogoutUrl() {
 		return DBLoader.customLogoutUrl;
 	}

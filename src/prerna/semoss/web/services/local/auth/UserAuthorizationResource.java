@@ -92,7 +92,7 @@ public class UserAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update user.", e);
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
@@ -111,7 +111,7 @@ public class UserAuthorizationResource {
 				JSONObject jsonObj = new JSONObject(jsonBuffer.toString());
 				userInfo = jsonObj.toMap();
 			} catch (IOException | org.json.JSONException e) {
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.error("Failed to update user.", e);
 				errorMap.put(Constants.ERROR_MESSAGE, "Error reading request body.");
 				return WebUtility.getResponse(errorMap, 400);
 			}
@@ -122,7 +122,7 @@ public class UserAuthorizationResource {
 				JSONObject jsonObj = new JSONObject(userJson);
 				userInfo = jsonObj.toMap();
 			} catch (org.json.JSONException e) {
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.error("Failed to update user.", e);
 				errorMap.put(Constants.ERROR_MESSAGE, "Error parsing user JSON from form data.");
 				return WebUtility.getResponse(errorMap, 400);
 			}
@@ -154,7 +154,7 @@ public class UserAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to delete user.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -208,7 +208,7 @@ public class UserAuthorizationResource {
 				tokenName = root.has("tokenName") ? root.getString("tokenName") : null;
 				tokenDescription = root.has("tokenDescription") ? root.getString("tokenDescription") : null;
 			} catch (IOException | org.json.JSONException e) {
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.error("Failed to create user access key.", e);
 				Map<String, String> errorMap = new HashMap<String, String>();
 				errorMap.put(Constants.ERROR_MESSAGE, "Error parsing JSON request body.");
 				return WebUtility.getResponse(errorMap, 400);
@@ -265,7 +265,7 @@ public class UserAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to delete user access key.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -289,7 +289,7 @@ public class UserAuthorizationResource {
 				JSONObject root = new JSONObject(jsonBuffer.toString());
 				accessKey = root.getString("accessKey");
 			} catch (IOException | org.json.JSONException e) {
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.error("Failed to delete user access key.", e);
 				Map<String, String> errorMap = new HashMap<String, String>();
 				errorMap.put(Constants.ERROR_MESSAGE, "Error parsing JSON request body.");
 				return WebUtility.getResponse(errorMap, 400);
@@ -335,7 +335,7 @@ public class UserAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve user access keys.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -368,7 +368,7 @@ public class UserAuthorizationResource {
 				return WebUtility.getResponse(errorMap, 401);
 			}
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to setup reset password.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -377,7 +377,7 @@ public class UserAuthorizationResource {
 		String email = null;
 		String type = null;
 		String resetEmailUrl = null;
-		String sender = null;
+		String subject = null;
 
 		String contentType = request.getContentType();
 		if (contentType != null && contentType.startsWith("application/json")) {
@@ -393,9 +393,9 @@ public class UserAuthorizationResource {
 				email = root.has("email") ? root.getString("email") : null;
 				type = root.has("type") ? root.getString("type") : null;
 				resetEmailUrl = root.has("url") ? root.getString("url") : null;
-				sender = root.has("sender") ? root.getString("sender") : null;
+				subject = root.has("subject") ? root.getString("subject") : null;
 			} catch (IOException | org.json.JSONException e) {
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.error("Failed to setup reset password.", e);
 				Map<String, String> errorMap = new HashMap<String, String>();
 				errorMap.put(Constants.ERROR_MESSAGE, "Error parsing JSON request body.");
 				return WebUtility.getResponse(errorMap, 400);
@@ -404,19 +404,19 @@ public class UserAuthorizationResource {
 			email = request.getParameter("email");
 			type = request.getParameter("type");
 			resetEmailUrl = request.getParameter("url");
-			sender = request.getParameter("sender");
+			subject = request.getParameter("subject");
 		}
 
 		email = WebUtility.inputSQLSanitizer(email);
 		type = WebUtility.inputSQLSanitizer(type);
 		resetEmailUrl = WebUtility.inputSQLSanitizer(resetEmailUrl);
-		sender = WebUtility.inputSQLSanitizer(sender);
+		subject = WebUtility.inputSQLSanitizer(subject);
 
 		String uniqueToken = null;
 		try {
 			uniqueToken = SecurityPasswordResetUtils.allowUserResetPassword(email, type);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to setup reset password.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -431,14 +431,14 @@ public class UserAuthorizationResource {
 			resetEmailUrl += "?token=" + uniqueToken;
 		}
 
-		if (!UserRegistrationEmailService.getInstance().sendPasswordResetRequestEmail(email, resetEmailUrl, sender)) {
+		if (!UserRegistrationEmailService.getInstance().sendPasswordResetRequestEmail(email, resetEmailUrl, subject)) {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Error occurred sending email to " + email);
 			SecurityPasswordResetUtils.deleteToken(uniqueToken);
 			return WebUtility.getResponse(errorMap, 500);
 		}
 
-		classLogger.info("User has requested a password reset for email = " + email);
+		classLogger.info("User has requested a password reset for email = {}", email);
 
 		Map<String, Object> retMap = new HashMap<>();
 		retMap.put("success", true);
@@ -466,7 +466,7 @@ public class UserAuthorizationResource {
 				return WebUtility.getResponse(errorMap, 401);
 			}
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to reset password.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -491,7 +491,7 @@ public class UserAuthorizationResource {
 				password = root.has("password") ? root.getString("password") : null;
 				sender = root.has("sender") ? root.getString("sender") : null;
 			} catch (IOException | org.json.JSONException e) {
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.error("Failed to reset password.", e);
 				Map<String, String> errorMap = new HashMap<String, String>();
 				errorMap.put(Constants.ERROR_MESSAGE, "Error parsing JSON request body.");
 				return WebUtility.getResponse(errorMap, 400);
@@ -510,7 +510,7 @@ public class UserAuthorizationResource {
 		try {
 			resetDetails = SecurityPasswordResetUtils.userResetPassword(token, password);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to reset password.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -520,8 +520,8 @@ public class UserAuthorizationResource {
 		String email = (String) resetDetails.get("email");
 		SemossDate dateAdded = (SemossDate) resetDetails.get("dateAdded");
 
-		classLogger.info("User has changed password for user id = " + userId + " for reset request on " + dateAdded
-				+ " with email " + email);
+		classLogger.info("User has changed password for user id = {} for reset request on {} with email {}", userId,
+				dateAdded, email);
 
 		UserRegistrationEmailService.getInstance().sendPasswordResetSuccessEmail(email, sender);
 
@@ -547,7 +547,7 @@ public class UserAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update user metadata.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -575,7 +575,7 @@ public class UserAuthorizationResource {
 					metaValue = root.has("metaValue") ? root.getString("metaValue") : null;
 				}
 			} catch (IOException | org.json.JSONException e) {
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.error("Failed to update user metadata.", e);
 				Map<String, String> errorMap = new HashMap<String, String>();
 				errorMap.put(Constants.ERROR_MESSAGE, "Error parsing JSON request body.");
 				return WebUtility.getResponse(errorMap, 400);
@@ -600,7 +600,7 @@ public class UserAuthorizationResource {
 		try {
 			SecurityUserUtils.updateUserMetadata(user, metaKey, metaValue);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update user metadata.", e);
 			Map<String, String> errorRet = new HashMap<String, String>();
 			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorRet, 500);
@@ -659,7 +659,7 @@ public class UserAuthorizationResource {
 					currentPassword = root.getString("currentPassword");
 					newPassword = root.getString("newPassword");
 				} catch (IOException | org.json.JSONException e) {
-					classLogger.error(Constants.STACKTRACE, e);
+					classLogger.error("Failed to change password.", e);
 					Map<String, String> errorMap = new HashMap<String, String>();
 					errorMap.put(Constants.ERROR_MESSAGE, "Error parsing JSON request body.");
 					return WebUtility.getResponse(errorMap, 400);
@@ -683,7 +683,7 @@ public class UserAuthorizationResource {
 					retMap.put("success", true);
 					retMap.put("userId", userId);
 					retMap.put("message", "User has changed the password for user id = " + userId);
-					classLogger.info("User has changed the password for user id = " + userId);
+					classLogger.info("User has changed the password for user id = {}", userId);
 					return WebUtility.getResponse(retMap, 200);
 				} else {
 					classLogger.warn("User entered invalid new password");
@@ -704,7 +704,7 @@ public class UserAuthorizationResource {
 				return WebUtility.getResponse(retMap, 401);
 			}
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to change password.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);

@@ -27,7 +27,6 @@
  *******************************************************************************/
 package prerna.semoss.web.services.local.auth;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -86,8 +85,7 @@ public class GroupProjectAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
@@ -111,11 +109,11 @@ public class GroupProjectAuthorizationResource {
 			ret.put("permission", permission);
 			return WebUtility.getResponse(ret, 200);
 		} catch (IllegalArgumentException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve group project permission.", e);
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve group project permission.", e);
 			errorMap.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(errorMap, 500);
 		}
@@ -137,8 +135,7 @@ public class GroupProjectAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -166,21 +163,21 @@ public class GroupProjectAuthorizationResource {
 
 			SecurityGroupProjectUtils.addProjectGroupPermission(user, groupId, type, projectId, permission, endDate);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to add groups to project " + projectId + " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.warn("User is trying to add groups to project {} without having proper access", projectId);
+			classLogger.error("Failed to add group project permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to add group project permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has added group " + groupId + " and type " + type + " to project " + projectId
-				+ " with permission " + permission);
+		classLogger.info("User has added group {} and type {} to project {} with permission {}", groupId, type,
+				projectId, permission);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -203,8 +200,7 @@ public class GroupProjectAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -231,22 +227,23 @@ public class GroupProjectAuthorizationResource {
 			SecurityGroupProjectUtils.editProjectGroupPermission(user, groupId, type, projectId, newPermission,
 					endDate);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to edit group " + groupId + " and type " + type
-					+ " permissions for project " + projectId + " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.warn(
+					"User is trying to edit group {} and type {} permissions for project {} without having proper access",
+					groupId, type, projectId);
+			classLogger.error("Failed to update group project permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update group project permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has edited group " + groupId + " and type " + type + " permission to project "
-				+ projectId + " with level " + newPermission);
+		classLogger.info("User has edited group {} and type {} permission to project {} with level {}", groupId, type,
+				projectId, newPermission);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -269,7 +266,7 @@ public class GroupProjectAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -291,22 +288,23 @@ public class GroupProjectAuthorizationResource {
 
 			SecurityGroupProjectUtils.removeProjectGroupPermission(user, groupId, type, projectId);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to remove group " + groupId + " and type " + type
-					+ " from having access to project " + projectId + " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.warn(
+					"User is trying to remove group {} and type {} from having access to project {} without having proper access",
+					groupId, type, projectId);
+			classLogger.error("Failed to remove group project permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to remove group project permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has removed group " + groupId + " and type " + type + " from having access to project "
-				+ projectId);
+		classLogger.info("User has removed group {} and type {} from having access to project {}", groupId, type,
+				projectId);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -329,26 +327,28 @@ public class GroupProjectAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		List<Map<String, Object>> groups = new ArrayList<Map<String, Object>>();
+		Map<String, Object> ret = new HashMap<String, Object>();
 		try {
-			groups = SecurityGroupProjectUtils.getGroupsWithAccessToProject(user, projectId, limit, offset);
-			return WebUtility.getResponse(groups, 200);
+			List<Map<String, Object>> groups = SecurityGroupProjectUtils.getGroupsWithAccessToProject(user, projectId,
+					limit, offset);
+			long totalMembers = SecurityGroupProjectUtils.getNumGroupsWithAccessToProject(user, projectId);
+			ret.put("totalGroups", totalMembers);
+			ret.put("groups", groups);
+			return WebUtility.getResponse(ret, 200);
 		} catch (IllegalAccessException e) {
-			classLogger
-					.warn("User is trying to get details for project " + projectId + " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.warn("User is trying to get details for project {} without having proper access", projectId);
+			classLogger.error("Failed to retrieve all groups with access to project.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve all groups with access to project.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);

@@ -87,8 +87,7 @@ public class InsightAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -119,14 +118,13 @@ public class InsightAuthorizationResource {
 			@QueryParam("searchTerm") String searchTerm) {
 
 		projectId = WebUtility.inputSanitizer(projectId);
-		searchTerm = WebUtility.inputSanitizer(searchTerm);
+		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
 
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -156,8 +154,7 @@ public class InsightAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -165,8 +162,9 @@ public class InsightAuthorizationResource {
 
 		String permission = SecurityInsightUtils.getActualUserInsightPermission(user, projectId, insightId);
 		if (permission == null) {
-			classLogger.warn("User is trying to pull permission details for insight " + insightId + " in project "
-					+ projectId + " without having proper access");
+			classLogger.warn(
+					"User is trying to pull permission details for insight {} in project {} without having proper access",
+					insightId, projectId);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User does not have access to this insight");
 			return WebUtility.getResponse(errorMap, 401);
@@ -201,8 +199,7 @@ public class InsightAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -217,9 +214,10 @@ public class InsightAuthorizationResource {
 			ret.put("totalMembers", totalMembers);
 			ret.put("members", members);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to pull permission details for insight " + insightId + " in project "
-					+ projectId + " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.warn(
+					"User is trying to pull permission details for insight {} in project {} without having proper access",
+					insightId, projectId);
+			classLogger.error("Failed to retrieve insight users.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -243,7 +241,7 @@ public class InsightAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -261,14 +259,15 @@ public class InsightAuthorizationResource {
 				SecurityProjectUtils.addProjectUser(user, newUserId, projectId,
 						AccessPermissionEnum.READ_ONLY.getPermission(), endDate);
 			} catch (IllegalAccessException e) {
-				classLogger.warn("User is trying to add user " + newUserId + " to insight " + insightId + " in project "
-						+ projectId + " without having proper access");
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.warn(
+						"User is trying to add user {} to insight {} in project {} without having proper access",
+						newUserId, insightId, projectId);
+				classLogger.error("Failed to add insight user permission.", e);
 				Map<String, String> errorMap = new HashMap<String, String>();
 				errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 				return WebUtility.getResponse(errorMap, 400);
 			} catch (Exception e) {
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.error("Failed to add insight user permission.", e);
 				Map<String, String> errorMap = new HashMap<String, String>();
 				errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 				return WebUtility.getResponse(errorMap, 400);
@@ -278,15 +277,15 @@ public class InsightAuthorizationResource {
 		try {
 			SecurityInsightUtils.addInsightUser(user, newUserId, projectId, insightId, permission, endDate);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to add insight user permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has added user " + newUserId + " to insight " + insightId + " in project " + projectId
-				+ " with permission " + permission);
+		classLogger.info("User has added user {} to insight {} in project {} with permission {}", newUserId, insightId,
+				projectId, permission);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -309,8 +308,7 @@ public class InsightAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -326,22 +324,23 @@ public class InsightAuthorizationResource {
 			SecurityInsightUtils.editInsightUserPermission(user, existingUserId, projectId, insightId, newPermission,
 					endDate);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to edit user " + existingUserId + " permissions for insight " + insightId
-					+ " in project " + projectId + " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.warn(
+					"User is trying to edit user {} permissions for insight {} in project {} without having proper access",
+					existingUserId, insightId, projectId);
+			classLogger.error("Failed to update insight user permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update insight user permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has edited user " + existingUserId + " permission to insight " + insightId
-				+ " in project " + projectId + " with level " + newPermission);
+		classLogger.info("User has edited user {} permission to insight {} in project {} with level {}", existingUserId,
+				insightId, projectId, newPermission);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -364,8 +363,7 @@ public class InsightAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -376,8 +374,7 @@ public class InsightAuthorizationResource {
 		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyInsightAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger
-					.warn("User is trying to edit user permissions for insight " + insightId + " but is not an admin");
+			classLogger.warn("User is trying to edit user permissions for insight {} but is not an admin", insightId);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
 			return WebUtility.getResponse(errorMap, 401);
@@ -387,21 +384,21 @@ public class InsightAuthorizationResource {
 		try {
 			SecurityInsightUtils.editInsightUserPermissions(user, projectId, insightId, requests, endDate);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to edit user permissions for insight " + insightId
-					+ " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.warn("User is trying to edit user permissions for insight {} without having proper access",
+					insightId);
+			classLogger.error("Failed to update insight user permissions.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update insight user permissions.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has edited user permission to insight " + insightId);
+		classLogger.info("User has edited user permission to insight {}", insightId);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -424,8 +421,7 @@ public class InsightAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -438,22 +434,23 @@ public class InsightAuthorizationResource {
 		try {
 			SecurityInsightUtils.removeInsightUser(user, existingUserId, projectId, insightId);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to remove user " + existingUserId + " from having access to insight "
-					+ insightId + " in project " + projectId + " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.warn(
+					"User is trying to remove user {} from having access to insight {} in project {} without having proper access",
+					existingUserId, insightId, projectId);
+			classLogger.error("Failed to remove insight user permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to remove insight user permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has removed user " + existingUserId + " from having access to insight " + insightId
-				+ " in project " + projectId);
+		classLogger.info("User has removed user {} from having access to insight {} in project {}", existingUserId,
+				insightId, projectId);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -475,8 +472,7 @@ public class InsightAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -487,8 +483,8 @@ public class InsightAuthorizationResource {
 		boolean isPublic = Boolean.parseBoolean(form.getFirst("isPublic"));
 		if (isPublic && AbstractSecurityUtils.adminOnlyInsightSetPublic()) {
 			if (!SecurityAdminUtils.userIsAdmin(user)) {
-				classLogger.warn("User is trying to set the insight " + insightId + " in project " + projectId
-						+ "  public is not an admin");
+				classLogger.warn("User is trying to set the insight {} in project {}  public is not an admin",
+						insightId, projectId);
 				Map<String, String> errorMap = new HashMap<String, String>();
 				errorMap.put(Constants.ERROR_MESSAGE, "Only an admin can set an insight as public");
 				return WebUtility.getResponse(errorMap, 401);
@@ -513,21 +509,21 @@ public class InsightAuthorizationResource {
 //			ClusterUtil.reactorPushInsightDB(appId);
 
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to set the insight " + insightId + " in project " + projectId + logPublic
-					+ " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.warn("User is trying to set the insight {} in project {}{} without having proper access",
+					insightId, projectId, logPublic);
+			classLogger.error("Failed to update insight global.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update insight global.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has set the insight " + insightId + " in project " + projectId + logPublic);
+		classLogger.info("User has set the insight {} in project {} {}", insightId, projectId, logPublic.trim());
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -551,8 +547,7 @@ public class InsightAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -566,21 +561,21 @@ public class InsightAuthorizationResource {
 		try {
 			SecurityInsightUtils.setInsightFavorite(user, projectId, insightId, isFavorite);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to set the insight " + insightId + " in project " + projectId
-					+ logFavorited + " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.warn("User is trying to set the insight {} in project {}{} without having proper access",
+					insightId, projectId, logFavorited);
+			classLogger.error("Failed to update insight favorite.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update insight favorite.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has set the insight " + insightId + " in project " + appId + logFavorited);
+		classLogger.info("User has set the insight {} in project {} {}", insightId, appId, logFavorited.trim());
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -604,14 +599,14 @@ public class InsightAuthorizationResource {
 
 		projectId = WebUtility.inputSanitizer(projectId);
 		insightId = WebUtility.inputSanitizer(insightId);
-		searchTerm = WebUtility.inputSanitizer(searchTerm);
+		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
 
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User  user does not have access to provided insight");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve insight users no credentials.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -622,9 +617,10 @@ public class InsightAuthorizationResource {
 			ret = SecurityInsightUtils.getInsightUsersNoCredentials(user, projectId, insightId, searchTerm, limit,
 					offset);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User  is trying to pull users without access to insight " + insightId + " in project "
-					+ projectId + " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.warn(
+					"User  is trying to pull users without access to insight {} in project {} without having proper access",
+					insightId, projectId);
+			classLogger.error("Failed to retrieve insight users no credentials.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -649,7 +645,7 @@ public class InsightAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -659,7 +655,7 @@ public class InsightAuthorizationResource {
 		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyInsightAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn("User is trying to add user permissions to insight " + insightId + " but is not an admin");
+			classLogger.warn("User is trying to add user permissions to insight {} but is not an admin", insightId);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
 			return WebUtility.getResponse(errorMap, 401);
@@ -670,14 +666,14 @@ public class InsightAuthorizationResource {
 		try {
 			SecurityInsightUtils.addInsightUserPermissions(user, projectId, insightId, permission, endDate);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to add insight user permissions.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has added user permissions to insight " + insightId);
+		classLogger.info("User has added user permissions to insight {}", insightId);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -700,7 +696,7 @@ public class InsightAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -712,8 +708,8 @@ public class InsightAuthorizationResource {
 		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
 
 		if (AbstractSecurityUtils.adminOnlyProjectAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn("User is trying to remove users from having access to insight " + insightId
-					+ " but is not an admin");
+			classLogger.warn("User is trying to remove users from having access to insight {} but is not an admin",
+					insightId);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
 			return WebUtility.getResponse(errorMap, 401);
@@ -722,21 +718,22 @@ public class InsightAuthorizationResource {
 		try {
 			SecurityInsightUtils.removeInsightUsers(user, ids, projectId, insightId);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to remove users from having access to insight " + insightId
-					+ " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.warn(
+					"User is trying to remove users from having access to insight {} without having proper access",
+					insightId);
+			classLogger.error("Failed to remove insight user permissions.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to remove insight user permissions.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has removed users from having access to project " + projectId);
+		classLogger.info("User has removed users from having access to project {}", projectId);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -759,7 +756,7 @@ public class InsightAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -770,7 +767,7 @@ public class InsightAuthorizationResource {
 		String endDate = null; // form.getFirst("endDate");
 
 		if (AbstractSecurityUtils.adminOnlyInsightAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn("User is trying to approve user access to insight " + insightId + " but is not an admin");
+			classLogger.warn("User is trying to approve user access to insight {} but is not an admin", insightId);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
 			return WebUtility.getResponse(errorMap, 401);
@@ -781,21 +778,21 @@ public class InsightAuthorizationResource {
 		try {
 			SecurityInsightUtils.approveInsightUserAccessRequests(user, projectId, insightId, requests, endDate);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(
-					"User is trying to grant user access to insight " + insightId + " without having proper access");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.warn("User is trying to grant user access to insight {} without having proper access",
+					insightId);
+			classLogger.error("Failed to approve insight user access request.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to approve insight user access request.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has approved user access and added user permissions to insight " + insightId);
+		classLogger.info("User has approved user access and added user permissions to insight {}", insightId);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -818,7 +815,7 @@ public class InsightAuthorizationResource {
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("Invalid user session trying to access authorization resources");
+			classLogger.error("Invalid user session trying to access authorization resources", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
@@ -828,7 +825,7 @@ public class InsightAuthorizationResource {
 		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
 
 		if (AbstractSecurityUtils.adminOnlyInsightAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn("User is trying to deny user access to insight " + insightId + " but is not an admin");
+			classLogger.warn("User is trying to deny user access to insight {} but is not an admin", insightId);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
 			return WebUtility.getResponse(errorMap, 401);
@@ -840,14 +837,14 @@ public class InsightAuthorizationResource {
 		try {
 			SecurityInsightUtils.denyInsightUserAccessRequests(user, projectId, insightId, requestIds);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to deny insight user access request.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has denied user access requests to project " + projectId);
+		classLogger.info("User has denied user access requests to project {}", projectId);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);

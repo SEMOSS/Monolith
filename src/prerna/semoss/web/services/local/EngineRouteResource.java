@@ -59,6 +59,9 @@ import org.apache.commons.io.filefilter.WildcardFileFilter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+
 import prerna.auth.User;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityEngineUtils;
@@ -71,9 +74,12 @@ import prerna.io.connector.couch.CouchException;
 import prerna.io.connector.couch.CouchUtil;
 import prerna.io.connector.secrets.ISecrets;
 import prerna.io.connector.secrets.SecretsFactory;
+import prerna.notifications.NotificationDbUtils;
 import prerna.util.Constants;
 import prerna.util.DefaultImageGeneratorUtil;
+import prerna.util.EmailUtility;
 import prerna.util.EngineUtility;
+import prerna.util.NotificationConstants;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
@@ -83,6 +89,47 @@ public class EngineRouteResource {
 
 	private static final Logger classLogger = LogManager.getLogger(ModelEngineResource.class);
 
+	public static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
+
+	/**
+	 * Append {@code key=<json value>} to a pixel argument list when the body has a
+	 * non-null, non-empty value for the given key. The leading {@code ", "} is
+	 * added on the assumption that the caller already wrote at least one argument
+	 * before this one.
+	 */
+	public static void appendIfPresent(StringBuilder pixel, Map<String, Object> body, String key) {
+		Object value = body.get(key);
+		if (value == null) {
+			return;
+		}
+		if (value instanceof String && ((String) value).isEmpty()) {
+			return;
+		}
+		pixel.append(", ").append(key).append("=").append(GSON.toJson(value));
+	}
+
+	/**
+	 * Build an error response with the standard error message envelope used by the
+	 * engine resource endpoints.
+	 */
+	public static Response error(String message, int status) {
+		Map<String, String> errorMap = new HashMap<>();
+		errorMap.put(Constants.ERROR_MESSAGE, message);
+		return WebUtility.getResponse(errorMap, status);
+	}
+
+	/**
+	 * Verify that the given user is allowed to interact with this engine. The
+	 * engine id is first resolved through any user-specific alias mapping; the user
+	 * is then allowed if they either have explicit view permission or the engine is
+	 * marked discoverable.
+	 *
+	 * @param user     the calling user
+	 * @param engineId the engine id (or user alias) being accessed
+	 * @return {@code true} when access is granted
+	 * @throws IllegalAccessException if the engine does not exist or the user has
+	 *                                no view/discoverable access
+	 */
 	private boolean canAccessOrDiscoverableEngine(User user, String engineId) throws IllegalAccessException {
 		engineId = SecurityQueryUtils.testUserEngineIdForAlias(user, engineId);
 		if (!SecurityEngineUtils.userCanViewEngine(user, engineId)
@@ -93,12 +140,63 @@ public class EngineRouteResource {
 		return true;
 	}
 
-	///////////////////////////////////////////////////////////////////////////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////////////
+	/**
+	 * Return the {@link IEngine.CATALOG_TYPE} for this engine.
+	 */
+	@GET
+	@Path("/type")
+	@Produces("application/json;charset=utf-8")
+	public Response getEngineType(@Context HttpServletRequest request, @PathParam("engineId") String engineId) {
+		engineId = WebUtility.inputSanitizer(engineId);
 
+		User user;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			return error("User session is invalid", 401);
+		}
+		try {
+			canAccessOrDiscoverableEngine(user, engineId);
+		} catch (IllegalAccessException e) {
+			return error(e.getMessage(), 401);
+		}
+
+		IEngine.CATALOG_TYPE engineType;
+		try {
+			engineType = (IEngine.CATALOG_TYPE) SecurityEngineUtils.getEngineTypeAndSubtype(engineId)[0];
+		} catch (Exception e) {
+			classLogger.error("Failed to look up engine type for engine '{}'", engineId, e);
+			return error("Unknown engine with id " + engineId, 400);
+		}
+
+		Map<String, Object> ret = new HashMap<>();
+		ret.put("engineId", engineId);
+		ret.put("engineType", engineType.toString());
+		return WebUtility.getResponse(ret, 200);
+	}
+
+	/**
+	 * Replace the smss file backing this engine with the contents supplied in the
+	 * {@code smss} form parameter. Only the engine owner (or an admin) may call
+	 * this. The engine id, alias, and type are validated to be unchanged. Any
+	 * concealed sensitive values (e.g. passwords) are unconcealed against the
+	 * current values before persisting.
+	 * <p>
+	 * If a secret store is configured the new values are written there and the
+	 * engine is reopened. Otherwise the smss file on disk is rewritten in place,
+	 * with a best-effort rollback to the previous contents if reopening the engine
+	 * with the new file fails.
+	 * <p>
+	 * On success this also pushes the updated smss to cloud storage (when in a
+	 * cluster), records a notification, and emails the user.
+	 *
+	 * @param request  the incoming HTTP request (provides the user session and the
+	 *                 {@code smss} parameter)
+	 * @param engineId the engine to update
+	 * @return 200 with {@code {"success": true}} on success; 400 with an error
+	 *         envelope on validation/IO failure; 401 if the user is not the engine
+	 *         owner
+	 */
 	@POST
 	@Path("/updateSmssFile")
 	@Produces("application/json;charset=utf-8")
@@ -181,7 +279,8 @@ public class EngineRouteResource {
 				engine.close();
 				engine.open(currentSmssFileLocation);
 			} catch (Exception e) {
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.error("Failed to reopen engine '{}' after writing updated secrets to the secret store",
+						engineId, e);
 				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put(Constants.ERROR_MESSAGE,
 						"An error occurred re-connecting to the engine with the new credentials. Detailed message = "
@@ -214,7 +313,7 @@ public class EngineRouteResource {
 		try {
 			engine.close();
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to close engine '{}' before overwriting its smss file", engineId, e);
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE,
 					"An error occurred closing the engine. Detailed message = " + e.getMessage());
@@ -226,20 +325,24 @@ public class EngineRouteResource {
 			}
 			engine.open(currentSmssFileLocation);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error(
+					"Failed to write new smss content or reopen engine '{}' with the new properties; attempting rollback",
+					engineId, e);
 			// reset the values
 			try {
 				// close the engine again
 				engine.close();
 			} catch (IOException e1) {
-				classLogger.error(Constants.STACKTRACE, e1);
+				classLogger.error("Failed to close engine '{}' while rolling back smss update", engineId, e1);
 			}
 			currentSmssFile.delete();
 			try (FileWriter fw = new FileWriter(currentSmssFile, false)) {
 				fw.write(currentSmssContent);
 				engine.open(currentSmssFileLocation);
 			} catch (Exception e2) {
-				classLogger.error(Constants.STACKTRACE, e2);
+				classLogger.error(
+						"Failed to restore previous smss for engine '{}' during rollback - engine is left in an unrecoverable state",
+						engineId, e2);
 				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put(Constants.ERROR_MESSAGE,
 						"A fatal error occurred and could not revert the engine to an operational state. Detailed message = "
@@ -254,22 +357,41 @@ public class EngineRouteResource {
 
 		// push to cloud
 		ClusterUtil.pushEngineSmss(engineId, engine.getCatalogType());
+		if (Utility.isNotificationDatabaseEnabled()) {
+			// Adding notification
+			String engineType = String.valueOf(SecurityEngineUtils.getEngineType(engineId)).toLowerCase();
+			NotificationDbUtils.createNotification(user, null, null, engineId, NotificationConstants.Type.SMSS_UPDATE,
+					engineType, NotificationConstants.Priority.MEDIUM, null, null);
+
+			// Adding email notification
+			EmailUtility.sendSmssUpdateEmailNotification(user, engineId, EmailUtility.RESOURCE_TYPE.ENGINE);
+		}
 
 		Map<String, Object> success = new HashMap<>();
 		success.put("success", true);
 		return WebUtility.getResponse(success, 200);
 	}
 
-	///////////////////////////////////////////////////////////////////////////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////////////
-
 	/*
 	 * Code below is around engine images
 	 */
 
+	/**
+	 * Download the image associated with this engine. The lookup falls through
+	 * three sources in order: CouchDB (if enabled), cloud storage (if running in
+	 * cluster mode), and finally the engine's local version folder. If no image
+	 * exists locally a default placeholder image is generated.
+	 * <p>
+	 * Honors HTTP {@code If-None-Match} via an entity tag built from the file's
+	 * last-modified timestamp, so an unchanged image returns 304.
+	 *
+	 * @param coreRequest the JAX-RS request, used for cache precondition evaluation
+	 * @param request     the underlying HTTP request (provides the user session)
+	 * @param engineId    the engine whose image is being downloaded
+	 * @return 200 with the image bytes (or the appropriate 3xx via
+	 *         {@link Request#evaluatePreconditions}); 400 if the image cannot be
+	 *         resolved; 401 if the user has no view/discoverable access
+	 */
 	@GET
 	@Path("/image/download")
 	@Produces({ MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML })
@@ -314,7 +436,9 @@ public class EngineRouteResource {
 			couchSelector = EngineUtility.getCouchSelector(engineType);
 			engineVersionPath = EngineUtility.getSpecificEngineVersionFolder(engineType, engineNameAndId);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error(
+					"Failed to resolve couch selector or engine version folder for engine '{}' (type {}) during image download",
+					engineNameAndId, engineType, e);
 			Map<String, String> returnMap = new HashMap<>();
 			returnMap.put(Constants.ERROR_MESSAGE,
 					"Unknown engine type '" + engineType + "' for engine " + engineNameAndId);
@@ -329,7 +453,9 @@ public class EngineRouteResource {
 				selectors.put(couchSelector, engineId);
 				return CouchUtil.download(couchSelector, selectors);
 			} catch (CouchException e) {
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.error(
+						"Failed to download engine image from CouchDB for engine '{}' using selector '{}'; falling through to other sources",
+						engineId, couchSelector, e);
 			}
 		}
 		// is the image in cloud storage
@@ -337,7 +463,8 @@ public class EngineRouteResource {
 			try {
 				exportFile = ClusterUtil.getEngineAndProjectImage(engineId, engineType);
 			} catch (Exception e) {
-				classLogger.error(Constants.STACKTRACE, e);
+				classLogger.error("Failed to fetch engine image from cluster storage for engine '{}' (type {})",
+						engineId, engineType, e);
 				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put(Constants.ERROR_MESSAGE, "Error sending image file");
 				return WebUtility.getResponse(errorMap, 400);
@@ -393,7 +520,7 @@ public class EngineRouteResource {
 		extensions.add("image.jpg");
 		extensions.add("image.gif");
 		extensions.add("image.svg");
-		FileFilter imageExtensionFilter = new WildcardFileFilter(extensions);
+		FileFilter imageExtensionFilter = WildcardFileFilter.builder().setWildcards(extensions).get();
 		File baseFolder = new File(WebUtility.normalizePath(folderDirectory));
 		File[] imageFiles = baseFolder.listFiles(imageExtensionFilter);
 		if (imageFiles != null && imageFiles.length > 0) {

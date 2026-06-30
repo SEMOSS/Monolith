@@ -37,6 +37,13 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 import javax.ws.rs.sse.OutboundSseEvent;
 import javax.ws.rs.sse.Sse;
@@ -52,16 +59,23 @@ import prerna.om.ThreadStore;
 import prerna.reactor.agent.mcp.MCPErrorCode;
 import prerna.sablecc2.PixelRunner;
 import prerna.sablecc2.comm.PixelJobManager;
+import prerna.sablecc2.comm.PixelJobRunner;
 import prerna.sablecc2.comm.PixelJobStatus;
-import prerna.sablecc2.comm.PixelJobThread;
 import prerna.sablecc2.om.execptions.SemossMCPException;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
-import prerna.util.Constants;
 import prerna.web.services.util.WebUtility;
 
 public class MCPReaper implements Runnable {
 
 	private static final Logger classLogger = LogManager.getLogger(MCPReaper.class);
+
+	private static final ScheduledExecutorService CONNECTION_REAPER = Executors.newSingleThreadScheduledExecutor(r -> {
+		Thread t = new Thread(r, "mcp-connection-reaper");
+		t.setDaemon(true);
+		return t;
+	});
+
+	private final long idleTimeoutMinutes;
 
 	private enum Mode {
 		SSE, HTTP_STREAM
@@ -95,7 +109,7 @@ public class MCPReaper implements Runnable {
 	 * @param log4jContextMap
 	 */
 	public MCPReaper(Insight insight, String sessionId, InputStream is, OutputStream os, String toolbox,
-			String requestUrl, Map<String, String> log4jContextMap) {
+			String requestUrl, Map<String, String> log4jContextMap, long idleTimeoutMinutes) {
 		this.mode = Mode.HTTP_STREAM;
 		this.insight = insight;
 		this.sessionId = sessionId;
@@ -103,6 +117,7 @@ public class MCPReaper implements Runnable {
 		this.os = os;
 		this.toolbox = toolbox;
 		this.requestUrl = requestUrl;
+		this.idleTimeoutMinutes = idleTimeoutMinutes;
 
 		if (log4jContextMap == null) {
 			this.log4jContextMap = new HashMap<>();
@@ -133,6 +148,7 @@ public class MCPReaper implements Runnable {
 		this.sse = sse;
 		this.toolbox = toolbox;
 		this.requestUrl = requestUrl;
+		this.idleTimeoutMinutes = 0; // unused for one-shot SSE
 
 		if (log4jContextMap == null) {
 			this.log4jContextMap = new HashMap<>();
@@ -154,27 +170,57 @@ public class MCPReaper implements Runnable {
 	 * Runs the bidirectional HTTP stream communication
 	 */
 	private void runHttp() {
+		AtomicBoolean timedOut = new AtomicBoolean(false);
+		AtomicReference<ScheduledFuture<?>> idleTimer = new AtomicReference<>();
+		AtomicLong timerGeneration = new AtomicLong(0);
+
+		Runnable resetIdleTimer = () -> {
+			long gen = timerGeneration.incrementAndGet();
+			ScheduledFuture<?> existing = idleTimer.get();
+			if (existing != null) {
+				existing.cancel(false);
+			}
+			idleTimer.set(CONNECTION_REAPER.schedule(() -> {
+				// only act if this task is still the current generation
+				if (timerGeneration.get() == gen) {
+					timedOut.set(true);
+					try {
+						this.is.close();
+					} catch (IOException ignored) {
+					}
+				}
+			}, idleTimeoutMinutes, TimeUnit.MINUTES));
+		};
+
+		// start the idle timer before blocking on readLine
+		resetIdleTimer.run();
+
 		try (var ctx = org.apache.logging.log4j.CloseableThreadContext.putAll(this.log4jContextMap);
 				BufferedReader streamReader = new BufferedReader(
 						new InputStreamReader(this.is, StandardCharsets.UTF_8))) {
 
-			String actualContent = null;
-			// that will block every time.. we are good
+			String actualContent;
 			while ((actualContent = streamReader.readLine()) != null) {
-				classLogger.info("HTTP REQUEST :::: " + actualContent);
-				// Stream the file in chunks
+				resetIdleTimer.run(); // message received - reset idle clock
+				classLogger.debug("HTTP REQUEST :::: {}", actualContent);
 				String output = generateResponse(actualContent, sessionId, toolbox, insight);
-				classLogger.info("HTTP RESPONSE :::: " + output);
+				classLogger.debug("HTTP RESPONSE :::: {}", output);
 
 				if (output != null) {
 					sendHttpEvent(output);
 				}
 			}
 		} catch (IOException e) {
-			// Log the exception and let the thread terminate.
-			// The client will see this as an unexpected connection closure.
-			classLogger.error("MCPReaper (HTTP) encountered an I/O error: " + e.getMessage());
-			classLogger.error(Constants.STACKTRACE, e);
+			if (timedOut.get()) {
+				classLogger.info("MCP HTTP connection closed after {}min idle timeout", idleTimeoutMinutes);
+			} else {
+				classLogger.error("MCPReaper (HTTP) encountered an I/O error", e);
+			}
+		} finally {
+			ScheduledFuture<?> timer = idleTimer.get();
+			if (timer != null) {
+				timer.cancel(false);
+			}
 		}
 
 		classLogger.debug("Done with MCPReaper HTTP thread, client has closed the connection.");
@@ -200,10 +246,9 @@ public class MCPReaper implements Runnable {
 			String actualContent = null;
 			// This will block, read one line, and then the loop will terminate
 			if ((actualContent = this.reader.readLine()) != null) {
-				classLogger.info("SSE REQUEST :::: " + actualContent);
-				// Stream the file in chunks
+				classLogger.debug("SSE REQUEST :::: {}", actualContent);
 				String output = generateResponse(actualContent, this.sessionId, this.toolbox, this.insight);
-				classLogger.info("SSE RESPONSE :::: " + output);
+				classLogger.debug("SSE RESPONSE :::: {}", output);
 
 				if (output != null) {
 					OutboundSseEvent event = this.sse.newEventBuilder().data(String.class, output).build();
@@ -211,7 +256,7 @@ public class MCPReaper implements Runnable {
 				}
 			}
 		} catch (IOException e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("MCPReaper (SSE) encountered an I/O error", e);
 			JSONObject error = new JSONObject();
 			error.put("jsonrpc", "2.0");
 			error.put("id", 3);
@@ -244,24 +289,20 @@ public class MCPReaper implements Runnable {
 	 * @return
 	 */
 	private Object runPixel(User user, Insight insight, String expression, String sessionId) {
-		// get the session
-		// see if the user is available
-		// get the insight from it
-		// if not make a new insight
-		// set up pixel runner and get output from it
-		// pass it back.
 		boolean dropLogging = true;
 
 		String jobId = "";
 		String insightId = WebUtility.inputSanitizer(insight.getInsightId());
 
-		// set if we are scheduler mode
-		Boolean schedulerMode = ThreadStore.isSchedulerMode();
-		if (schedulerMode != null) {
-			insight.setSchedulerMode(schedulerMode);
+		// serialize concurrent calls on the same insight - multiple parallel
+		// HTTP streaming connections from the same client share an insight instance
+		synchronized (insight) {
+			Boolean schedulerMode = ThreadStore.isSchedulerMode();
+			if (schedulerMode != null) {
+				insight.setSchedulerMode(schedulerMode);
+			}
+			return runPixelJob(user, insight, expression, jobId, insightId, sessionId, null, dropLogging);
 		}
-
-		return runPixelJob(user, insight, expression, jobId, insightId, sessionId, null, dropLogging);
 	}
 
 	/**
@@ -279,11 +320,12 @@ public class MCPReaper implements Runnable {
 	private static Object runPixelJob(User user, Insight insight, String expression, String jobId, String insightId,
 			String sessionId, String routeId, boolean dropLogging) {
 		PixelJobManager manager = PixelJobManager.getManager();
-		PixelJobThread jt = manager.makeJob(WebUtility.inputSanitizer(insightId), insight, sessionId, routeId);
-		jobId = jt.getJobId();
-		jt.addPixel(expression);
-		jt.run();
-		PixelRunner pixelRunner = jt.getRunner();
+		PixelJobRunner jobRunner = manager.makeJob(WebUtility.inputSanitizer(insightId), insight, sessionId, routeId);
+		jobId = jobRunner.getJobId();
+		jobRunner.addPixel(expression);
+		// this just runs as a method call
+		jobRunner.run();
+		PixelRunner pixelRunner = jobRunner.getRunner();
 		List<NounMetadata> output = pixelRunner.getResults();
 		// there are times when we spin up
 		// other runPixel requests on the same
@@ -291,7 +333,7 @@ public class MCPReaper implements Runnable {
 		// console logging
 		// example is ExportToExcel grids
 		if (dropLogging) {
-			jt.setStatus(PixelJobStatus.COMPLETE);
+			jobRunner.setStatus(PixelJobStatus.COMPLETE);
 			manager.clearJob(jobId);
 			manager.removeJob(jobId);
 		}
@@ -443,7 +485,7 @@ public class MCPReaper implements Runnable {
 			String pixel = "RunMCPTool(project='" + projectId + "'" + ", function='" + callName + "'" + ", paramValues="
 					+ arguments + ");";
 
-			classLogger.info("Making call to " + callName);
+			classLogger.info("Making call to {}", callName);
 			Object retObject = null;
 			try {
 				retObject = runPixel(insight.getUser(), insight, pixel, sessionId);
@@ -492,11 +534,7 @@ public class MCPReaper implements Runnable {
 	 * @return
 	 */
 	private boolean isNotification(String method) {
-		return method.startsWith("notifications/") || method.equals("notifications/initialized")
-				|| method.equals("notifications/cancelled") || method.equals("notifications/progress")
-				|| method.equals("notifications/message") || method.equals("notifications/resources/updated")
-				|| method.equals("notifications/tools/list_changed")
-				|| method.equals("notifications/prompts/list_changed");
+		return method.startsWith("notifications/");
 	}
 
 	/**
@@ -505,44 +543,29 @@ public class MCPReaper implements Runnable {
 	 * @param root
 	 */
 	private void handleNotification(String method, JSONObject root) {
-		if (method.equalsIgnoreCase("notifications/initialized")) {
+		if (method.equals("notifications/initialized")) {
 			classLogger.info("Client initialization complete");
-			// Perform any post-initialization setup here
-			// Don't think we have any at this time
-
-		} else if (method.equalsIgnoreCase("notifications/cancelled")) {
+		} else if (method.equals("notifications/cancelled")) {
 			if (root.has("params") && root.getJSONObject("params").has("requestId")) {
 				Object requestId = root.getJSONObject("params").get("requestId");
-				classLogger.info("Request cancelled: " + requestId);
-				// Don't have a way to cancel at this time ...
+				classLogger.info("Request cancelled: {}", requestId);
 			}
-		} else if (method.equalsIgnoreCase("notifications/progress")) {
+		} else if (method.equals("notifications/progress")) {
 			if (root.has("params")) {
-				JSONObject params = root.getJSONObject("params");
-				classLogger.info("Progress update: " + params.toString());
+				classLogger.info("Progress update: {}", root.getJSONObject("params"));
 			}
-		} else if (method.equalsIgnoreCase("notifications/message")) {
+		} else if (method.equals("notifications/message")) {
 			if (root.has("params")) {
-				JSONObject params = root.getJSONObject("params");
-				classLogger.info("Message notification: " + params.toString());
+				classLogger.info("Message notification: {}", root.getJSONObject("params"));
 			}
-		} else if (method.equalsIgnoreCase("notifications/resources/updated")) {
+		} else if (method.equals("notifications/resources/updated")) {
 			classLogger.info("Resources updated notification received");
-			// Handle resource updates
-			// Don't think we have any at this time
-
-		} else if (method.equalsIgnoreCase("notifications/tools/list_changed")) {
+		} else if (method.equals("notifications/tools/list_changed")) {
 			classLogger.info("Tools list changed notification received");
-			// Handle tools list changes
-			// Don't think we have any at this time
-
-		} else if (method.equalsIgnoreCase("notifications/prompts/list_changed")) {
+		} else if (method.equals("notifications/prompts/list_changed")) {
 			classLogger.info("Prompts list changed notification received");
-			// Handle prompts list changes
-			// Don't think we have any at this time
-
 		} else {
-			classLogger.warn("Unknown notification method: " + method);
+			classLogger.warn("Unknown notification method: {}", method);
 		}
 	}
 

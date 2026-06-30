@@ -31,7 +31,6 @@
       <filter-name>SetCharacterEncoding</filter-name>
       <url-pattern>/*</url-pattern>
    </filter-mapping>
-   <!-- 
    <filter>
       <filter-name>CustomRestCsrfPreventionFilter</filter-name>
       <filter-class>prerna.web.conf.CustomRestCsrfPreventionFilter</filter-class>
@@ -47,12 +46,15 @@
          <param-name>randomClass</param-name>
          <param-value>java.security.SecureRandom</param-value>
       </init-param>
+      <init-param>
+         <param-name>excluded-paths</param-name>
+         <param-value>/api/model/openai,/api/ext,/api/model/anthropic,/api/model/ollama</param-value>
+      </init-param>
    </filter>
    <filter-mapping>
       <filter-name>CustomRestCsrfPreventionFilter</filter-name>
       <url-pattern>/*</url-pattern>
    </filter-mapping>
-   -->
    <filter>
       <filter-name>HeaderSecurityFilter</filter-name>
       <filter-class>org.apache.catalina.filters.HttpHeaderSecurityFilter</filter-class>
@@ -81,7 +83,7 @@
          <param-value>true</param-value>
       </init-param>
    </filter>
-  <filter-mapping>
+   <filter-mapping>
       <filter-name>HeaderSecurityFilter</filter-name>
       <url-pattern>/*</url-pattern>
    </filter-mapping>
@@ -214,6 +216,32 @@
       <filter-name>OpenAIFilter</filter-name>
       <url-pattern>/api/model/anthropic/*</url-pattern>
    </filter-mapping>
+   <filter-mapping>
+      <filter-name>OpenAIFilter</filter-name>
+      <url-pattern>/api/model/ollama/*</url-pattern>
+   </filter-mapping>
+
+   <!-- Code Assistant Filer -->
+   <filter>
+      <filter-name>CodeAssistantFilter</filter-name>
+      <filter-class>prerna.web.conf.CodeAssistantFilter</filter-class>
+   </filter>
+   <filter-mapping>
+      <filter-name>CodeAssistantFilter</filter-name>
+      <url-pattern>/api/model/openai/*</url-pattern>
+   </filter-mapping>
+   <filter-mapping>
+      <filter-name>CodeAssistantFilter</filter-name>
+      <url-pattern>/api/ext/*</url-pattern>
+   </filter-mapping>
+   <filter-mapping>
+      <filter-name>CodeAssistantFilter</filter-name>
+      <url-pattern>/api/model/anthropic/*</url-pattern>
+   </filter-mapping>
+   <filter-mapping>
+      <filter-name>CodeAssistantFilter</filter-name>
+      <url-pattern>/api/model/ollama/*</url-pattern>
+   </filter-mapping>
 
    <!-- scheduler filter -->
    <filter>
@@ -223,16 +251,6 @@
    <filter-mapping>
       <filter-name>SchedulerFilter</filter-name>
       <url-pattern>/api/schedule/*</url-pattern>
-   </filter-mapping>
-   
-   <!-- Generate API User -->
-   <filter>
-      <filter-name>APIFilter</filter-name>
-      <filter-class>prerna.web.conf.APIFilter</filter-class>
-   </filter>
-   <filter-mapping>
-      <filter-name>APIFilter</filter-name>
-      <url-pattern>/data/*</url-pattern>
    </filter-mapping>
    
    <!-- SSO Filter for SAML -->
@@ -573,6 +591,23 @@
       <servlet-name>MainApplication</servlet-name>
       <url-pattern>/api/*</url-pattern>
    </servlet-mapping>
+   <!--  GitHub Integration Endpoints -->
+   <servlet>
+      <servlet-name>GitHubApplication</servlet-name>
+      <servlet-class>org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher</servlet-class>
+      <init-param>
+         <param-name>javax.ws.rs.Application</param-name>
+         <param-value>prerna.semoss.web.app.GitHubApplication</param-value>
+      </init-param>
+      <init-param>
+         <param-name>resteasy.servlet.mapping.prefix</param-name>
+         <param-value>/github</param-value>
+      </init-param>
+   </servlet>
+   <servlet-mapping>
+      <servlet-name>GitHubApplication</servlet-name>
+      <url-pattern>/github/*</url-pattern>
+   </servlet-mapping>
    <!-- Servlet For External Applications Registering a Trusted Token To Alias User -->
    <servlet>
       <servlet-name>TrustedTokenApplication</servlet-name>
@@ -589,23 +624,6 @@
    <servlet-mapping>
       <servlet-name>TrustedTokenApplication</servlet-name>
       <url-pattern>/token/*</url-pattern>
-   </servlet-mapping>
-   <!-- Servlet For External Applications Registering an API User -->
-   <servlet>
-      <servlet-name>APIApplication</servlet-name>
-      <servlet-class>org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher</servlet-class>
-      <init-param>
-         <param-name>javax.ws.rs.Application</param-name>
-         <param-value>prerna.semoss.web.app.APIApplication</param-value>
-      </init-param>
-      <init-param>
-	     <param-name>resteasy.servlet.mapping.prefix</param-name>
-	     <param-value>/token</param-value>
-	  </init-param>
-   </servlet>
-   <servlet-mapping>
-      <servlet-name>APIApplication</servlet-name>
-      <url-pattern>/data/*</url-pattern>
    </servlet-mapping>
    <!-- SAML Response Handler -->
    <servlet>
@@ -697,6 +715,9 @@
    <listener>
       <listener-class>prerna.web.conf.NoUserInSessionTrustedTokenListener</listener-class>
    </listener>
+   <listener>
+      <listener-class>prerna.semoss.web.github.GitHubLifecycleListener</listener-class>
+   </listener>	
    <session-config>
       <session-timeout>120</session-timeout>
       <cookie-config>
@@ -706,4 +727,3 @@
 	  </cookie-config>
    </session-config>
 </web-app>
-

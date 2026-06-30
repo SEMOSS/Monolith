@@ -35,7 +35,7 @@ public class NoUserInSessionTrustedTokenListener implements HttpSessionListener 
 	@Override
 	public void sessionCreated(HttpSessionEvent se) {
 		// do nothing
-		
+
 	}
 
 	@Override

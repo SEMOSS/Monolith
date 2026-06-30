@@ -87,7 +87,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to see all the insights when not an admin");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to retrieve insights.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -124,8 +124,8 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to see all the insight for project " + projectId + " when not an admin");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.warn("User is trying to see all the insight for project {} when not an admin", projectId);
+			classLogger.error("Failed to retrieve project insights.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -156,9 +156,9 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to see all the user insight access for project " + projectId
-					+ " when not an admin");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.warn("User is trying to see all the user insight access for project {} when not an admin",
+					projectId);
+			classLogger.error("Failed to retrieve all project insight users.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -190,8 +190,8 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to delete insight from projectId " + projectId + " when not an admin");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.warn("User is trying to delete insight from projectId {} when not an admin", projectId);
+			classLogger.error("Failed to delete project insights.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -200,7 +200,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		try {
 			adminUtils.deleteProjectInsights(projectId, insightIds);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to delete project insights.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -241,9 +241,10 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to get all users who have access to insight " + insightId + " in project "
-					+ projectId + " when not an admin");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.warn(
+					"User is trying to get all users who have access to insight {} in project {} when not an admin",
+					insightId, projectId);
+			classLogger.error("Failed to retrieve insight users.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -283,9 +284,9 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to add user " + newUserId + " to insight " + insightId + " in project "
-					+ projectId + " when not an admin");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.warn("User is trying to add user {} to insight {} in project {} when not an admin", newUserId,
+					insightId, projectId);
+			classLogger.error("Failed to add insight user permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -294,15 +295,15 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		try {
 			adminUtils.addInsightUser(newUserId, projectId, insightId, permission, user, endDate);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to add insight user permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has added user " + newUserId + " to insight " + insightId + " in project " + projectId
-				+ " with permission " + permission);
+		classLogger.info("User has added user {} to insight {} in project {} with permission {}", newUserId, insightId,
+				projectId, permission);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -329,9 +330,9 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(
-					"User is trying to pull the projects that user " + userId + " has access to when not an admin");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.warn("User is trying to pull the projects that user {} has access to when not an admin",
+					userId);
+			classLogger.error("Failed to grant all project insights.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -340,14 +341,14 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		try {
 			adminUtils.grantAllProjectInsights(projectId, userId, permission, user);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to grant all project insights.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has granted all projects to " + userId + "with permission " + permission);
+		classLogger.info("User has granted all projects to {} with permission {}", userId, permission);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -377,7 +378,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to grant new users insight access when not an admin");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to grant new users insight access.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -386,14 +387,14 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		try {
 			adminUtils.grantNewUsersInsightAccess(projectId, insightId, permission, user, endDate);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to grant new users insight access.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has granted new users with permission " + permission);
+		classLogger.info("User has granted new users with permission {}", permission);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -422,9 +423,9 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to add all users to insight " + insightId + " in project " + projectId
-					+ " when not an admin");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.warn("User is trying to add all users to insight {} in project {} when not an admin", insightId,
+					projectId);
+			classLogger.error("Failed to add all users.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -433,14 +434,14 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		try {
 			adminUtils.addAllInsightUsers(projectId, insightId, permission, user, endDate);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to add all users.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has added all users to project " + projectId + " with permission " + permission);
+		classLogger.info("User has added all users to project {} with permission {}", projectId, permission);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -472,9 +473,10 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to edit user " + existingUserId + " permissions for insight " + insightId
-					+ " in project " + projectId + " when not an admin");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.warn(
+					"User is trying to edit user {} permissions for insight {} in project {} when not an admin",
+					existingUserId, insightId, projectId);
+			classLogger.error("Failed to update insight user permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -483,15 +485,15 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		try {
 			adminUtils.editInsightUserPermission(existingUserId, projectId, insightId, newPermission, user, endDate);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update insight user permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has edited user " + existingUserId + " permission to insight " + insightId
-				+ " in project " + projectId + " with level " + newPermission);
+		classLogger.info("User has edited user {} permission to insight {} in project {} with level {}", existingUserId,
+				insightId, projectId, newPermission);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -519,9 +521,9 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.error(Constants.STACKTRACE, e);
-			classLogger.warn(
-					"User is trying to edit user access permissions for insight " + insightId + " when not an admin");
+			classLogger.error("Failed to update insight user permissions.", e);
+			classLogger.warn("User is trying to edit user access permissions for insight {} when not an admin",
+					insightId);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -531,14 +533,14 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		try {
 			adminUtils.editInsightUserPermissions(projectId, insightId, requests, user, endDate);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update insight user permissions.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has edited user access permissions to insight " + insightId);
+		classLogger.info("User has edited user access permissions to insight {}", insightId);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -566,8 +568,8 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.error(Constants.STACKTRACE, e);
-			classLogger.warn("User is trying to edit user permissions for project " + projectId + " when not an admin");
+			classLogger.error("Failed to update app user permissions.", e);
+			classLogger.warn("User is trying to edit user permissions for project {} when not an admin", projectId);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -576,14 +578,14 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		try {
 			adminUtils.updateInsightUserPermissions(projectId, insightId, newPermission, user, endDate);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update app user permissions.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has added all users to insight " + insightId + " with level " + newPermission);
+		classLogger.info("User has added all users to insight {} with level {}", insightId, newPermission);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -613,9 +615,10 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to remove user " + existingUserId + " from having access to insight "
-					+ insightId + " in project " + projectId + " when not an admin");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.warn(
+					"User is trying to remove user {} from having access to insight {} in project {} when not an admin",
+					existingUserId, insightId, projectId);
+			classLogger.error("Failed to remove insight user permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -624,15 +627,15 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		try {
 			adminUtils.removeInsightUser(existingUserId, projectId, insightId);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to remove insight user permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has removed user " + existingUserId + " from having access to insight " + insightId
-				+ " in project " + projectId);
+		classLogger.info("User has removed user {} from having access to insight {} in project {}", existingUserId,
+				insightId, projectId);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -662,9 +665,9 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to set the insight " + insightId + " in project " + projectId + logPublic
-					+ " when not an admin");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.warn("User is trying to set the insight {} in project {}{} when not an admin", insightId,
+					projectId, logPublic);
+			classLogger.error("Failed to update insight global.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -676,14 +679,14 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			InsightAdministrator admin = new InsightAdministrator(project.getInsightDatabase());
 			admin.updateInsightGlobal(insightId, isGlobal);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to update insight global.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has set the insight " + insightId + " in project " + projectId + logPublic);
+		classLogger.info("User has set the insight {} in project {} {}", insightId, projectId, logPublic.trim());
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -714,9 +717,10 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to get all users who have access to insight " + insightId + " in project "
-					+ projectId + " when not an admin");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.warn(
+					"User is trying to get all users who have access to insight {} in project {} when not an admin",
+					insightId, projectId);
+			classLogger.error("Failed to retrieve insight users no credentials.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -747,8 +751,8 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to add user permission to insight " + insightId + " when not an admin");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.warn("User is trying to add user permission to insight {} when not an admin", insightId);
+			classLogger.error("Failed to add insight user permissions.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -758,14 +762,14 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		try {
 			adminUtils.addInsightUserPermissions(projectId, insightId, permission, user, endDate);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to add insight user permissions.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has added user permissions to insight " + insightId);
+		classLogger.info("User has added user permissions to insight {}", insightId);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -792,9 +796,9 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(
-					"User is trying to remove usersfrom having access to insight " + insightId + " when not an admin");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.warn("User is trying to remove usersfrom having access to insight {} when not an admin",
+					insightId);
+			classLogger.error("Failed to remove insight user permissions.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -804,14 +808,14 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		try {
 			adminUtils.removeInsightUsers(ids, projectId, insightId);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to remove insight user permissions.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has removed users from having access to insight " + insightId);
+		classLogger.info("User has removed users from having access to insight {}", insightId);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -839,9 +843,9 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to approve user request for permission to insight " + insightId
-					+ " when not an admin");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.warn("User is trying to approve user request for permission to insight {} when not an admin",
+					insightId);
+			classLogger.error("Failed to approve insight user access request.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -855,15 +859,15 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			String userType = token.getProvider().toString();
 			adminUtils.approveInsightUserAccessRequests(userId, userType, projectId, insightId, requests, endDate);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to approve insight user access request.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has approved user access requests and added user permissions to project " + projectId
-				+ " insigth " + insightId);
+		classLogger.info("User has approved user access requests and added user permissions to project {} insigth {}",
+				projectId, insightId);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
@@ -891,9 +895,9 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to deny user request for permission to insight " + insightId
-					+ " when not an admin");
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.warn("User is trying to deny user request for permission to insight {} when not an admin",
+					insightId);
+			classLogger.error("Failed to deny insight user access request.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -907,14 +911,14 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			String userType = token.getProvider().toString();
 			adminUtils.denyInsightUserAccessRequests(userId, userType, projectId, insightId, requestids);
 		} catch (Exception e) {
-			classLogger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to deny insight user access request.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// log the operation
-		classLogger.info("User has denied user access requests to insight " + insightId);
+		classLogger.info("User has denied user access requests to insight {}", insightId);
 
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);

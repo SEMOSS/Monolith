@@ -27,37 +27,112 @@
  *******************************************************************************/
 package prerna.semoss.web.services.local;
 
+import java.io.IOException;
+import java.util.Map;
+
+import javax.annotation.security.PermitAll;
+import javax.servlet.http.HttpServletRequest;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.POST;
 import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+import javax.ws.rs.Produces;
+import javax.ws.rs.core.Context;
+import javax.ws.rs.core.Response;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import prerna.auth.User;
-import prerna.auth.utils.SecurityEngineUtils;
-import prerna.auth.utils.SecurityQueryUtils;
+import prerna.web.services.util.WebUtility;
 
 @Path("/storage-{storageId}")
+@PermitAll
 public class StorageEngineResource {
 
-	private static final String DIR_SEPARATOR = java.nio.file.FileSystems.getDefault().getSeparator();
-	
 	private static final Logger classLogger = LogManager.getLogger(StorageEngineResource.class);
-	
-	private boolean canViewStorage(User user, String storageId) throws IllegalAccessException {
-		storageId = SecurityQueryUtils.testUserEngineIdForAlias(user, storageId);
-		if(!SecurityEngineUtils.userCanViewEngine(user, storageId)
-				&& !SecurityEngineUtils.engineIsDiscoverable(storageId)) {
-			throw new IllegalAccessException("Storage " + storageId + " does not exist or user does not have access");
+
+	/**
+	 * ListStoragePath(storage=[storageId], storagePath=[...])
+	 */
+	@POST
+	@Path("/list")
+	@Consumes({ "application/x-www-form-urlencoded", "application/json" })
+	@Produces("application/json;charset=utf-8")
+	public Response list(@Context HttpServletRequest request, @PathParam("storageId") String storageId) {
+		storageId = WebUtility.inputSanitizer(storageId);
+
+		Map<String, Object> body;
+		try {
+			body = ResourceUtility.parseRequestBody(request);
+		} catch (IOException e) {
+			classLogger.error("Failed to read request body for /list on storage engine '{}'", storageId, e);
+			return EngineRouteResource.error("Invalid request body: " + e.getMessage(), 400);
 		}
-	
-		return true;
+
+		Object storagePath = body.get("storagePath");
+		if (storagePath == null || storagePath.toString().trim().isEmpty()) {
+			return EngineRouteResource.error("Must pass in 'storagePath' to list", 400);
+		}
+
+		String pixel = "ListStoragePath(storage=" + EngineRouteResource.GSON.toJson(storageId) + ", storagePath="
+				+ EngineRouteResource.GSON.toJson(storagePath) + ")";
+		return ResourceUtility.runPixel(request, pixel);
 	}
-	
-	///////////////////////////////////////////////////////////////////////////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////////////
-	
-	
+
+	/**
+	 * ListStoragePathDetails(storage=[storageId], storagePath=[...])
+	 */
+	@POST
+	@Path("/listDetails")
+	@Consumes({ "application/x-www-form-urlencoded", "application/json" })
+	@Produces("application/json;charset=utf-8")
+	public Response listDetails(@Context HttpServletRequest request, @PathParam("storageId") String storageId) {
+		storageId = WebUtility.inputSanitizer(storageId);
+
+		Map<String, Object> body;
+		try {
+			body = ResourceUtility.parseRequestBody(request);
+		} catch (IOException e) {
+			classLogger.error("Failed to read request body for /listDetails on storage engine '{}'", storageId, e);
+			return EngineRouteResource.error("Invalid request body: " + e.getMessage(), 400);
+		}
+
+		Object storagePath = body.get("storagePath");
+		if (storagePath == null || storagePath.toString().trim().isEmpty()) {
+			return EngineRouteResource.error("Must pass in 'storagePath' to list", 400);
+		}
+
+		String pixel = "ListStoragePathDetails(storage=" + EngineRouteResource.GSON.toJson(storageId) + ", storagePath="
+				+ EngineRouteResource.GSON.toJson(storagePath) + ")";
+		return ResourceUtility.runPixel(request, pixel);
+	}
+
+	/**
+	 * DeleteFromStorage(storage=[storageId], storagePath=[...])
+	 */
+	@POST
+	@Path("/delete")
+	@Consumes({ "application/x-www-form-urlencoded", "application/json" })
+	@Produces("application/json;charset=utf-8")
+	public Response delete(@Context HttpServletRequest request, @PathParam("storageId") String storageId) {
+		storageId = WebUtility.inputSanitizer(storageId);
+
+		Map<String, Object> body;
+		try {
+			body = ResourceUtility.parseRequestBody(request);
+		} catch (IOException e) {
+			classLogger.error("Failed to read request body for /delete on storage engine '{}'", storageId, e);
+			return EngineRouteResource.error("Invalid request body: " + e.getMessage(), 400);
+		}
+
+		Object storagePath = body.get("storagePath");
+		if (storagePath == null || storagePath.toString().trim().isEmpty()) {
+			return EngineRouteResource.error("Must pass in 'storagePath' to delete", 400);
+		}
+
+		String pixel = "DeleteFromStorage(storage=" + EngineRouteResource.GSON.toJson(storageId) + ", storagePath="
+				+ EngineRouteResource.GSON.toJson(storagePath) + ")";
+		return ResourceUtility.runPixel(request, pixel);
+	}
+
 }

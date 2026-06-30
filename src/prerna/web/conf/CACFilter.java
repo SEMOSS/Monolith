@@ -70,12 +70,12 @@ import prerna.engine.api.IRDBMSEngine;
 import prerna.engine.api.IRawSelectWrapper;
 import prerna.forms.FormBuilder;
 import prerna.rdf.engine.wrappers.WrapperManager;
-import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.semoss.web.services.local.UserResource;
 import prerna.util.Constants;
 import prerna.util.Utility;
 import prerna.web.conf.util.CACTrackingUtil;
 import prerna.web.conf.util.UserFileLogUtil;
+import prerna.web.services.util.WebUtility;
 
 public class CACFilter implements Filter {
 
@@ -125,7 +125,7 @@ public class CACFilter implements Filter {
 					X509Certificate cert = certs[i];
 
 					String fullName = cert.getSubjectX500Principal().getName();
-					classLogger.info("REQUEST COMING FROM " + Utility.cleanLogString(fullName));
+					classLogger.info("REQUEST COMING FROM {}", Utility.cleanLogString(fullName));
 
 					LdapName ldapDN;
 
@@ -197,7 +197,9 @@ public class CACFilter implements Filter {
 									}
 								}
 							} catch (CertificateParsingException e) {
-								classLogger.error(Constants.STACKTRACE, e);
+								classLogger.error(
+										"Failed to parse the X509 subject alternative names while extracting the user email from the CAC certificate",
+										e);
 							}
 
 							if (email != null) {
@@ -218,8 +220,7 @@ public class CACFilter implements Filter {
 							break CERT_LOOP;
 						} // end rdn loop
 					} catch (InvalidNameException e) {
-						classLogger.error("ERROR WITH PARSING CAC INFORMATION!");
-						classLogger.error(Constants.STACKTRACE, e);
+						classLogger.error("ERROR WITH PARSING CAC INFORMATION!", e);
 					}
 				}
 
@@ -227,7 +228,7 @@ public class CACFilter implements Filter {
 				// and it has values filled in
 				// we know we can populate the user
 				if (token.getName() != null) {
-					classLogger.info("Valid request coming from user " + token.getName());
+					classLogger.info("Valid request coming from user {}", token.getName());
 					// store in session, log in user tracking db, and add the user to security db if
 					// autoadd
 					UserResource.addAccessToken(token, ((HttpServletRequest) arg0), CACFilter.autoAdd);
@@ -249,7 +250,7 @@ public class CACFilter implements Filter {
 						// grab the ip address
 						userLogger.addToQueue(new String[] { cacId, name,
 								LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
-								ResourceUtility.getClientIp((HttpServletRequest) arg0) });
+								WebUtility.getClientIp((HttpServletRequest) arg0) });
 					}
 				}
 			}
@@ -264,7 +265,7 @@ public class CACFilter implements Filter {
 			sans = JcaX509ExtensionUtils.getSubjectAlternativeNames(cert);
 			// get all subject alt names
 			if (sans != null) {
-				classLogger.info("Subject Alternative Names: " + sans.toString());
+				classLogger.info("Subject Alternative Names: {}", sans.toString());
 				for (List<?> l : sans) {
 
 					// expected size is 2
@@ -296,7 +297,9 @@ public class CACFilter implements Filter {
 			}
 		} catch (CertificateParsingException e) {
 			// TODO Auto-generated catch block
-			e.printStackTrace();
+			classLogger.error(
+					"Failed to parse the X509 subject alternative names while extracting the UPN from the certificate",
+					e);
 		}
 
 		return null;
@@ -343,19 +346,10 @@ public class CACFilter implements Filter {
 				if (logInfoPath == null) {
 					classLogger.info(
 							"SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
-					classLogger.info(
-							"SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
-					classLogger.info(
-							"SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
-					classLogger.info(
-							"SYSTEM HAS REGISTERED TO PERFORM A USER FILE LOG BUT NOT FILE PATH HAS BEEN ENTERED!!!");
 				}
 				try {
 					userLogger = UserFileLogUtil.getInstance(logInfoPath, logInfoSep);
 				} catch (Exception e) {
-					classLogger.info(e.getMessage());
-					classLogger.info(e.getMessage());
-					classLogger.info(e.getMessage());
 					classLogger.info(e.getMessage());
 				}
 			}
@@ -372,16 +366,10 @@ public class CACFilter implements Filter {
 				String countDatabaseId = CACFilter.filterConfig.getInitParameter(COUNT_USER_ENTRY_DATABASE);
 				if (countDatabaseId == null) {
 					classLogger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
-					classLogger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
-					classLogger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
-					classLogger.info("SYSTEM HAS REGISTERED TO PERFORM A COUNT BUT NO DATABASE ID HAS BEEN ENTERED!!!");
 				}
 				try {
 					tracker = CACTrackingUtil.getInstance(countDatabaseId);
 				} catch (Exception e) {
-					classLogger.info(e.getMessage());
-					classLogger.info(e.getMessage());
-					classLogger.info(e.getMessage());
 					classLogger.info(e.getMessage());
 				}
 			}
@@ -413,7 +401,7 @@ public class CACFilter implements Filter {
 					try {
 						securityDb.insertData(updateQuery);
 					} catch (SQLException e) {
-						classLogger.error(Constants.STACKTRACE, e);
+						classLogger.error("Failed to update the user id in SMSS_USER in the security database", e);
 					}
 
 					// need to update all the places the user id is used
@@ -422,7 +410,8 @@ public class CACFilter implements Filter {
 					try {
 						securityDb.insertData(updateQuery);
 					} catch (SQLException e) {
-						classLogger.error(Constants.STACKTRACE, e);
+						classLogger.error("Failed to update the user id in ENGINEPERMISSION in the security database",
+								e);
 					}
 
 					// need to update all the places the user id is used
@@ -431,17 +420,20 @@ public class CACFilter implements Filter {
 					try {
 						securityDb.insertData(updateQuery);
 					} catch (SQLException e) {
-						classLogger.error(Constants.STACKTRACE, e);
+						classLogger.error(
+								"Failed to update the user id in USERINSIGHTPERMISSION in the security database", e);
 					}
 				}
 			} catch (Exception e1) {
-				classLogger.error(Constants.STACKTRACE, e1);
+				classLogger.error(
+						"Failed to migrate the user id from the old CAC id to the new id in the security database", e1);
 			} finally {
 				if (wrapper != null) {
 					try {
 						wrapper.close();
 					} catch (IOException e) {
-						classLogger.error(Constants.STACKTRACE, e);
+						classLogger.error(
+								"Failed to close the result wrapper for the security database user lookup query", e);
 					}
 				}
 			}
@@ -472,13 +464,17 @@ public class CACFilter implements Filter {
 								formEngine.insertData("UPDATE FORMS_USER_ACCESS SET EMAIL = USER_ID;");
 							}
 						} catch (Exception e) {
-							classLogger.error(Constants.STACKTRACE, e);
+							classLogger.error(
+									"Failed to add the EMAIL column and backfill it on the FORMS_USER_ACCESS table in the form builder engine",
+									e);
 						} finally {
 							if (requireFormUpdateWrapper != null) {
 								try {
 									requireFormUpdateWrapper.close();
 								} catch (IOException e) {
-									classLogger.error(Constants.STACKTRACE, e);
+									classLogger.error(
+											"Failed to close the result wrapper for the FORMS_USER_ACCESS EMAIL column existence check",
+											e);
 								}
 							}
 						}
@@ -489,18 +485,23 @@ public class CACFilter implements Filter {
 						try {
 							formEngine.insertData(updateQuery);
 						} catch (SQLException e) {
-							classLogger.error(Constants.STACKTRACE, e);
+							classLogger.error(
+									"Failed to update the user id in FORMS_USER_ACCESS in the form builder engine", e);
 						}
 
 					}
 				} catch (Exception e1) {
-					classLogger.error(Constants.STACKTRACE, e1);
+					classLogger.error(
+							"Failed to migrate the user id from the old CAC id to the new id in the form builder engine",
+							e1);
 				} finally {
 					if (wrapper != null) {
 						try {
 							wrapper.close();
 						} catch (IOException e) {
-							classLogger.error(Constants.STACKTRACE, e);
+							classLogger.error(
+									"Failed to close the result wrapper for the form builder engine user lookup query",
+									e);
 						}
 					}
 				}

@@ -66,7 +66,7 @@ import prerna.web.services.util.WebUtility;
 @PermitAll
 public class SessionResource {
 
-	private static final Logger logger = LogManager.getLogger(SessionResource.class);
+	private static final Logger classLogger = LogManager.getLogger(SessionResource.class);
 	private static final String CANCEL_INVALIDATION = "cancelInvalidation";
 	private Object lock = new Object();
 
@@ -88,7 +88,7 @@ public class SessionResource {
 			if (session != null) {
 				user = (User) session.getAttribute(Constants.SESSION_USER);
 			}
-			logger.info("User is pulling the # of active sessions");
+			classLogger.info("User is pulling the # of active sessions");
 
 			StandardManager manager = getManager(session);
 			if (manager != null) {
@@ -125,7 +125,7 @@ public class SessionResource {
 			StandardContext standardContext = (StandardContext) standardContextField.get(appContext);
 			return (StandardManager) standardContext.getManager();
 		} catch (IllegalAccessException | IllegalArgumentException | NoSuchFieldException | SecurityException e) {
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error("Failed to access the StandardManager from the servlet context via reflection", e);
 		}
 
 		return null;
@@ -144,12 +144,12 @@ public class SessionResource {
 
 		HttpSession session = request.getSession(false);
 		if (session == null) {
-			logger.info("Invalid session for cleaning");
+			classLogger.info("Invalid session for cleaning");
 			Map<String, String> ret = new HashMap<>();
 			ret.put("output", "Invalid session");
 			return WebUtility.getResponse(ret, 400);
 		}
-		logger.info("Start invalidation of session");
+		classLogger.info("Start invalidation of session");
 		String sessionId = session.getId();
 		// clear up insight store
 		InsightStore inStore = InsightStore.getInstance();
@@ -163,7 +163,7 @@ public class SessionResource {
 				}
 				InsightUtility.dropInsight(insight);
 			}
-			logger.info("Successfully removed insight information from session");
+			classLogger.info("Successfully removed insight information from session");
 
 			// clear the current session store
 			insightIDs.removeAll(copy);
@@ -174,7 +174,7 @@ public class SessionResource {
 			Thread.sleep(10_000);
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
-			logger.error(Constants.STACKTRACE, e);
+			classLogger.error("Interrupted while waiting to invalidate the session during cleanup", e);
 		}
 
 		String output = null;
@@ -186,17 +186,17 @@ public class SessionResource {
 			}
 			if (cancelTime == null) {
 				// kill the entire session
-				logger.info("Invalidating session");
+				classLogger.info("Invalidating session");
 				session.invalidate();
 				output = "invalidated";
 			} else {
 				boolean isCancelled = execTime.before(cancelTime);
 				if (isCancelled) {
-					logger.info("Cancelled invalidating session");
+					classLogger.info("Cancelled invalidating session");
 					output = "cancelled";
 				} else {
 					// kill the entire session
-					logger.info("Invalidating session");
+					classLogger.info("Invalidating session");
 					session.invalidate();
 					output = "invalidated";
 				}
@@ -205,7 +205,7 @@ public class SessionResource {
 			// in case during the time this was called
 			// the session has been invalidated by some other means
 			// like a logout
-			logger.info("Session has already been invalidated");
+			classLogger.info("Session has already been invalidated");
 			output = "invalidated";
 		}
 
@@ -224,7 +224,7 @@ public class SessionResource {
 			ret.put("output", "Invalid session");
 			return WebUtility.getResponse(ret, 400);
 		}
-		logger.info("Cancelling invalidation...");
+		classLogger.info("Cancelling invalidation...");
 		Date d = new Date();
 		synchronized (lock) {
 			session.setAttribute(CANCEL_INVALIDATION, d);
@@ -250,11 +250,11 @@ public class SessionResource {
 		}
 
 		// log the user logout
-		logger.info("User is being forcibly invalidated");
+		classLogger.info("User is being forcibly invalidated");
 
 		// redirect to login/logout page
 		if (DBLoader.useLogoutPage()) {
-			logger.info("Session ended. Redirect to logout page");
+			classLogger.info("Session ended. Redirect to logout page");
 
 			String customUrl = DBLoader.getCustomLogoutUrl();
 			if (customUrl != null && !customUrl.isEmpty()) {
@@ -282,7 +282,7 @@ public class SessionResource {
 				response.sendError(302, "Need to redirect to " + redirectUrl);
 			}
 		} else {
-			logger.info("Session ended. Redirect to login page");
+			classLogger.info("Session ended. Redirect to login page");
 
 			redirectUrl = redirectUrl + WebUtility.determineLoginExtension(request);
 			String encodedRedirectUrl = Encode.forHtml(redirectUrl);
@@ -291,7 +291,7 @@ public class SessionResource {
 		}
 
 		if (session != null) {
-			logger.info("Invalidating session");
+			classLogger.info("Invalidating session");
 			session.invalidate();
 		}
 	}
