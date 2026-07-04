@@ -33,11 +33,12 @@ import java.util.Set;
 import javax.ws.rs.ApplicationPath;
 import javax.ws.rs.core.Application;
 
+import prerna.remoteviewer.api.BrowserSessionController;
 import prerna.semoss.web.form.FormResource;
 import prerna.semoss.web.services.config.ServerConfigurationResource;
+import prerna.semoss.web.services.local.A2AResource;
 import prerna.semoss.web.services.local.AdminThemeResource;
 import prerna.semoss.web.services.local.AnthropicEndpoints;
-import prerna.semoss.web.services.local.A2AResource;
 import prerna.semoss.web.services.local.AuthorizationResource;
 import prerna.semoss.web.services.local.DatabaseEngineResource;
 import prerna.semoss.web.services.local.EngineRouteResource;
@@ -68,7 +69,8 @@ import prerna.semoss.web.services.local.auth.InsightAuthorizationResource;
 import prerna.semoss.web.services.local.auth.ProjectAuthorizationResource;
 import prerna.semoss.web.services.local.auth.UserAuthorizationResource;
 import prerna.upload.FileUploader;
-import prerna.upload.ImageUploader;import prerna.remoteviewer.api.BrowserSessionController;
+import prerna.upload.ImageUploader;
+
 @ApplicationPath("/api")
 public class MonolithApplication extends Application {
 
