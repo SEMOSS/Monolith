@@ -35,14 +35,11 @@ import java.nio.charset.StandardCharsets;
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
-import java.util.regex.Pattern;
-import java.util.regex.PatternSyntaxException;
 
 import javax.annotation.security.PermitAll;
 import javax.servlet.http.HttpServletRequest;
@@ -66,9 +63,6 @@ import org.javatuples.Pair;
 import org.json.JSONArray;
 import org.owasp.encoder.Encode;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
@@ -89,11 +83,9 @@ import prerna.io.connector.IAccessTokenFiller;
 import prerna.io.connector.jira.JiraTokenFiller;
 import prerna.io.connector.salesforce.SalesforceTokenFiller;
 import prerna.io.connector.servicenow.ServiceNowTokenFiller;
-import prerna.sablecc2.om.execptions.SemossPixelException;
 import prerna.security.HttpHelperUtility;
 import prerna.security.PKCEUtil;
 import prerna.usertracking.UserTrackingUtils;
-import prerna.util.BeanFiller;
 import prerna.util.Constants;
 import prerna.util.SocialPropertiesUtil;
 import prerna.util.Utility;
@@ -752,60 +744,6 @@ public class UserResource {
 	}
 
 	/**
-	 * Fetches groups from an external URL and stores them on the access token.
-	 * Reads {prefix}groups, {prefix}group_url, {prefix}groupJsonPattern,
-	 * {prefix}group_string_return, and {prefix}group_string_regex from social
-	 * properties.
-	 */
-	private void fillUserGroups(AccessToken accessToken, String prefix, AuthProvider provider) {
-		if (!Boolean.parseBoolean(socialData.getProperty(prefix + "groups"))) {
-			return;
-		}
-		String group_url = socialData.getProperty(prefix + "group_url");
-		String groupsJson = HttpHelperUtility.makeGetCall(group_url, accessToken.getAccess_token());
-		boolean sanitizeGroupResponse = Boolean.parseBoolean(socialData.getProperty(prefix + "sanitizeGroupResponse"));
-		if (sanitizeGroupResponse) {
-			groupsJson = groupsJson.replace("\\", "\\\\");
-		}
-		Set<String> userGroups = new HashSet<String>();
-		boolean groupStringResponse = Boolean.parseBoolean(socialData.getProperty(prefix + "group_string_return"));
-		if (groupStringResponse) {
-			String groupJsonPattern = socialData.getProperty(prefix + "groupJsonPattern");
-			JsonNode result = BeanFiller.getJmesResult(groupsJson, groupJsonPattern);
-			try {
-				String groupText = result.asText();
-				String regexPattern = socialData.getProperty(prefix + "group_string_regex");
-				try {
-					Pattern.compile(regexPattern);
-				} catch (PatternSyntaxException e) {
-					classLogger.error("Invalid group_string_regex for prefix {}", prefix, e);
-					throw new SemossPixelException("Pattern input is not a valid regex");
-				}
-				String[] groups = groupText.split(regexPattern);
-				for (String group : groups) {
-					userGroups.add(group);
-				}
-			} catch (SemossPixelException e) {
-				throw e;
-			} catch (Exception e) {
-				classLogger.error("Could not parse group string response for prefix {}", prefix, e);
-				throw new SemossPixelException("Could not parse response as string");
-			}
-		} else {
-			String groupJsonPattern = socialData.getProperty(prefix + "groupJsonPattern");
-			JsonNode result = BeanFiller.getJmesResult(groupsJson, groupJsonPattern);
-			if ((result instanceof ArrayNode) && result.get(0) instanceof ObjectNode) {
-				throw new SemossPixelException("Group result must return flat array. Please check groupJsonPattern");
-			}
-			for (int inputIndex = 0; result != null && inputIndex < result.size(); inputIndex++) {
-				userGroups.add(result.get(inputIndex).asText());
-			}
-		}
-		accessToken.setUserGroups(userGroups);
-		accessToken.setUserGroupType(provider.toString());
-	}
-
-	/**
 	 * Handles Okta OAuth login callback flow.
 	 */
 	@GET
@@ -1175,6 +1113,8 @@ public class UserResource {
 				AuthProvider.GENERIC);
 		String prefix = AuthProvider.getSocialPrefixForPath(provider) + "_";
 		IAccessTokenFiller filler = providerEnum.newTokenFiller();
+		// we dont need to ever set redirect_uri so we will set a correct default
+		filler.setDefaultRedirectUri(WebUtility.getCurrentCallbackUrl(request));
 
 		HttpSession session = initializeOAuthLoginSession(request);
 		User userObj = getSessionUser(session);
@@ -1207,8 +1147,8 @@ public class UserResource {
 					// fills the user profile (reads userinfo_url/jsonPattern/beanProps +
 					// provider defaults internally); no-op for providers that fetch lazily
 					filler.fillAccessToken(accessToken, prefix);
-
-					fillUserGroups(accessToken, prefix, providerEnum);
+					// fill user groups
+					filler.fillUserGroups(accessToken, prefix);
 
 					addAccessToken(accessToken, request, autoAdd);
 
