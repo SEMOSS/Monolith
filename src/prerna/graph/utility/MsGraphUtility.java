@@ -76,7 +76,7 @@ public class MsGraphUtility {
 	 * @throws IllegalAccessException
 	 */
 	public static List<Map<String, Object>> getProjectUsers(HttpServletRequest request, User user, String projectId,
-			String searchTerm, String groupId, long limit, long offset) throws IllegalAccessException {
+			String searchTerm, String groupId, long limit, long offset, boolean isAdmin) throws IllegalAccessException {
 
 		boolean graphApiUsingSystemCredentials = Boolean.parseBoolean(
 				"" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_application_credentials"));
@@ -102,8 +102,12 @@ public class MsGraphUtility {
 		}
 
 		// Step 1: get the list of current users
-		List<Map<String, Object>> currentUsers = SecurityProjectUtils.getProjectUsers(user, projectId, searchTerm, "",
-				-1, -1);
+		List<Map<String, Object>> currentUsers = null;
+		if (isAdmin) {
+			currentUsers = SecurityAdminUtils.getInstance(user).getProjectUsers(projectId, searchTerm, "", -1, -1);
+		} else {
+			currentUsers = SecurityProjectUtils.getProjectUsers(user, projectId, searchTerm, "", -1, -1);
+		}
 
 		final List<Map<String, Object>> finalDbUsers = currentUsers;
 		String nextLink = (String) sessionData.get("nextLinkData");
