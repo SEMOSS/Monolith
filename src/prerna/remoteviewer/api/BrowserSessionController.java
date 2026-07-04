@@ -61,7 +61,8 @@ import prerna.semoss.web.services.local.ResourceUtility;
 /**
  * REST resource for creating and managing remote browser sessions.
  *
- * <p>Mounted at {@code /api/browser-sessions} via {@code MonolithApplication}.
+ * <p>
+ * Mounted at {@code /api/browser-sessions} via {@code MonolithApplication}.
  */
 @Path("/browser-sessions")
 public class BrowserSessionController {
@@ -72,7 +73,9 @@ public class BrowserSessionController {
 	/**
 	 * Creates a new isolated browser session and navigates to the requested URL.
 	 *
-	 * <p>POST /api/browser-sessions
+	 * <p>
+	 * POST /api/browser-sessions
+	 * 
 	 * <pre>
 	 * {
 	 *   "url": "https://github.com",
@@ -124,8 +127,8 @@ public class BrowserSessionController {
 		}
 
 		String wsUrl = "/browserSocket/" + session.getSessionId();
-		BrowserSessionCreateResponse resp = new BrowserSessionCreateResponse(
-				session.getSessionId(), wsUrl, session.getViewportWidth(), session.getViewportHeight());
+		BrowserSessionCreateResponse resp = new BrowserSessionCreateResponse(session.getSessionId(), wsUrl,
+				session.getViewportWidth(), session.getViewportHeight());
 
 		classLogger.info("Browser session {} created for user {}", session.getSessionId(), userId);
 		return Response.ok(GSON.toJson(resp)).build();
@@ -134,13 +137,13 @@ public class BrowserSessionController {
 	/**
 	 * Returns metadata for an existing session.
 	 *
-	 * <p>GET /api/browser-sessions/{sessionId}
+	 * <p>
+	 * GET /api/browser-sessions/{sessionId}
 	 */
 	@GET
 	@Path("/{sessionId}")
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response getSession(@Context HttpServletRequest request,
-			@PathParam("sessionId") String sessionId) {
+	public Response getSession(@Context HttpServletRequest request, @PathParam("sessionId") String sessionId) {
 		User user;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -171,13 +174,13 @@ public class BrowserSessionController {
 	/**
 	 * Returns the recorded steps for a session.
 	 *
-	 * <p>GET /api/browser-sessions/{sessionId}/steps
+	 * <p>
+	 * GET /api/browser-sessions/{sessionId}/steps
 	 */
 	@GET
 	@Path("/{sessionId}/steps")
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response getRecordedSteps(@Context HttpServletRequest request,
-			@PathParam("sessionId") String sessionId) {
+	public Response getRecordedSteps(@Context HttpServletRequest request, @PathParam("sessionId") String sessionId) {
 		User user;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -202,13 +205,13 @@ public class BrowserSessionController {
 	/**
 	 * Closes a browser session.
 	 *
-	 * <p>DELETE /api/browser-sessions/{sessionId}
+	 * <p>
+	 * DELETE /api/browser-sessions/{sessionId}
 	 */
 	@DELETE
 	@Path("/{sessionId}")
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response closeSession(@Context HttpServletRequest request,
-			@PathParam("sessionId") String sessionId) {
+	public Response closeSession(@Context HttpServletRequest request, @PathParam("sessionId") String sessionId) {
 		User user;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -226,7 +229,7 @@ public class BrowserSessionController {
 			return buildError(Response.Status.FORBIDDEN, "Access denied");
 		}
 
-		BrowserSessionManager.getInstance().closeSession(sessionId);
+		BrowserSessionManager.getInstance().closeSession(session);
 		classLogger.info("Browser session {} closed by user {}", sessionId, user.getPrimaryLoginToken().getId());
 		return Response.ok(GSON.toJson(Map.of("message", "Session closed"))).build();
 	}

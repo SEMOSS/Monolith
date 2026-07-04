@@ -36,9 +36,9 @@ import javax.websocket.server.ServerEndpointConfig.Configurator;
 import prerna.util.Constants;
 
 /**
- * WebSocket configurator for the remote browser viewer endpoint.
- * Extracts the authenticated SEMOSS {@code User} from the HTTP session
- * and injects it into the WebSocket endpoint config properties.
+ * WebSocket configurator for the remote browser viewer endpoint. Extracts the
+ * authenticated SEMOSS {@code User} from the HTTP session and injects it into
+ * the WebSocket endpoint config properties.
  */
 public class BrowserWSConfigurator extends Configurator {
 
