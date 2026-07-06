@@ -517,6 +517,17 @@ public class UserResource {
 	private boolean hasAccessToken(User user, AuthProvider provider) {
 		return user != null && user.getAccessToken(provider) != null;
 	}
+	
+	/**
+	 * Checks whether a user has a resource access token for the requested provider.
+	 *
+	 * @param user     user to inspect
+	 * @param provider authentication provider
+	 * @return {@code true} when a token exists
+	 */
+	private boolean hasResourceAccessToken(User user, AuthProvider provider) {
+		return user != null && user.getResourceAccessToken(provider) != null;
+	}
 
 	/**
 	 * Encodes the request query string for safe OAuth parsing.
@@ -1152,6 +1163,16 @@ public class UserResource {
 	}
 
 	/**
+	 * Checks whether the current session already has an authenticated login user.
+	 *
+	 * @param user session user to inspect
+	 * @return {@code true} when the session user exists and has at least one login
+	 */
+	private boolean hasLoggedInUser(User user) {
+		return user != null && user.getLogins() != null && !user.getLogins().isEmpty();
+	}
+
+	/**
 	 * Handles OAuth login callback flow for a generic provider.
 	 */
 	@GET
@@ -1160,9 +1181,12 @@ public class UserResource {
 	public Response loginGeneric(@PathParam("provider") String provider, @Context HttpServletRequest request,
 			@Context HttpServletResponse response) throws IOException {
 		provider = WebUtility.inputSanitizer(provider);
-		if (socialData.getLoginsAllowed().get(provider) == null || !socialData.getLoginsAllowed().get(provider)) {
-			Map<String, Object> ret = new HashMap<>();
-			ret.put(Constants.ERROR_MESSAGE, provider + " login is not allowed");
+		boolean isProviderLoginAllowed = socialData.getLoginsAllowed().getOrDefault(provider.toLowerCase(), false);
+		boolean isProviderConnectorAllowed = socialData.getConnectionsAllowed().getOrDefault(provider.toLowerCase(),
+				false);
+		if (!isProviderLoginAllowed && !isProviderConnectorAllowed) {
+			Map<String, String> ret = new HashMap<>();
+			ret.put(Constants.ERROR_MESSAGE, "Login/Connect with " + provider + " is not allowed");
 			return WebUtility.getResponse(ret, 400);
 		}
 
@@ -1180,9 +1204,21 @@ public class UserResource {
 
 		HttpSession session = initializeOAuthLoginSession(request);
 		User userObj = getSessionUser(session);
+		boolean useLoginFlow = isProviderLoginAllowed;
+		boolean useConnectorFlow = !useLoginFlow && isProviderConnectorAllowed;
+		if (useConnectorFlow && !hasLoggedInUser(userObj)) {
+			// A logged-in user is required to connect an external account, so if the
+			// session user is null or has no logins, return an error.
+			Map<String, Object> ret = new HashMap<>();
+			ret.put(Constants.ERROR_MESSAGE,
+					"Log in with a native or other social account before connecting " + provider);
+			return WebUtility.getResponse(ret, 401);
+		}
+		boolean needsLogin = useLoginFlow && !hasAccessToken(userObj, providerEnum);
+		boolean needsConnector = useConnectorFlow && !hasResourceAccessToken(userObj, providerEnum);
 		String queryString = getEncodedQueryString(request);
 		if (hasOAuthCode(queryString)) {
-			if (!hasAccessToken(userObj, providerEnum)) {
+			if (needsLogin || needsConnector) {
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				// oauth code should match [ -~]+ (1 or more ascii)
@@ -1212,7 +1248,14 @@ public class UserResource {
 					// fill user groups
 					filler.fillUserGroups(accessToken, prefix);
 
-					addAccessToken(accessToken, request, autoAdd);
+					if (needsLogin) {
+						// add the access token to the session user (creating a new user if needed)
+						addAccessToken(accessToken, request, autoAdd);
+					} else if (needsConnector) {
+						// add the access token to the session user (no auto-add since the user must
+						// already exist)
+						addResourceAccessToken(accessToken, request);
+					}
 
 					classLogger.debug("Access Token is.. {}", accessToken.getAccess_token());
 				}
@@ -1220,7 +1263,7 @@ public class UserResource {
 		}
 
 		userObj = refreshSessionUser(request, session);
-		if (!hasAccessToken(userObj, providerEnum)) {
+		if (needsLogin || needsConnector) {
 			// not authenticated
 			response.setStatus(302);
 			response.sendRedirect(buildProviderAuthorizeRedirect(filler, prefix, session));
