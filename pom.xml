@@ -424,12 +424,6 @@
 			<artifactId>semoss</artifactId>
 			<version>${ci.version}</version>
 			<classifier>shaded-dependencies</classifier>
-			<exclusions>
-				<exclusion>
-					<groupId>com.amazon.athena</groupId>
-					<artifactId>athena-jdbc-uber</artifactId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.a2aproject.sdk</groupId>
@@ -441,7 +435,7 @@
 		<dependency>
 			<groupId>org.apache.tomcat</groupId>
 			<artifactId>tomcat-catalina</artifactId>
-			<version>9.0.118</version>
+			<version>9.0.119</version>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/javax.websocket/javax.websocket-api -->
 		<dependency>
@@ -634,7 +628,7 @@
 		<dependency>
 			<groupId>joda-time</groupId>
 			<artifactId>joda-time</artifactId>
-			<version>2.14.0</version>
+			<version>2.14.2</version>
 			<exclusions>
 				<exclusion>
 					<groupId>org.joda</groupId>

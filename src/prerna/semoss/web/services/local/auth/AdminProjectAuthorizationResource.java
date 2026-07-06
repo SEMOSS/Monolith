@@ -801,7 +801,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 
 		try {
 			List<Map<String, Object>> filteredUsers = MsGraphUtility.getProjectUsers(request, user, projectId,
-					searchTerm, graphApiGroupId, limit, offset);
+					searchTerm, graphApiGroupId, limit, offset, true);
 			return WebUtility.getResponse(filteredUsers, 200);
 		} catch (Exception e) {
 			classLogger.error("Failed to retrieve project users no credentials.", e);
