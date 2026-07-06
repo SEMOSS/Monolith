@@ -520,6 +520,10 @@
 					<artifactId>jaxrpc-impl</artifactId>
 				</exclusion>
 				<exclusion>
+					<groupId>org.openidentityplatform.openam.jakarta</groupId>
+					<artifactId>jaxrpc-impl</artifactId>
+				</exclusion>
+				<exclusion>
 					<groupId>org.javassist</groupId>
 					<artifactId>javassist</artifactId>
 				</exclusion>
