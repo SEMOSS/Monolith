@@ -485,7 +485,7 @@
 		<dependency>
 			<groupId>org.openidentityplatform.openam</groupId>
 			<artifactId>openam-federation-library</artifactId>
-			<version>16.1.1</version>
+			<version>15.2.2</version>
 			<exclusions>
 				<exclusion>
 					<groupId>com.google.guava</groupId>
@@ -517,10 +517,6 @@
 				</exclusion>
 				<exclusion>
 					<groupId>com.sun.xml.rpc</groupId>
-					<artifactId>jaxrpc-impl</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.openidentityplatform.openam.jakarta</groupId>
 					<artifactId>jaxrpc-impl</artifactId>
 				</exclusion>
 				<exclusion>
