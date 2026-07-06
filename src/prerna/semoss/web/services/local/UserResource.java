@@ -31,20 +31,15 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.security.Principal;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
-import java.util.regex.Pattern;
-import java.util.regex.PatternSyntaxException;
 
 import javax.annotation.security.PermitAll;
 import javax.servlet.http.HttpServletRequest;
@@ -68,10 +63,6 @@ import org.javatuples.Pair;
 import org.json.JSONArray;
 import org.owasp.encoder.Encode;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
@@ -88,23 +79,16 @@ import prerna.auth.utils.SecurityNativeUserUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
 import prerna.auth.utils.SecurityUserUtils;
 import prerna.cluster.util.ClusterUtil;
-import prerna.io.connector.GenericTokenFiller;
-import prerna.io.connector.github.GithubTokenFiller;
-import prerna.io.connector.google.GoogleTokenFiller;
+import prerna.io.connector.IAccessTokenFiller;
 import prerna.io.connector.jira.JiraTokenFiller;
-import prerna.io.connector.ms.MicrosoftTokenFiller;
-import prerna.io.connector.okta.OktaTokenFiller;
 import prerna.io.connector.salesforce.SalesforceTokenFiller;
 import prerna.io.connector.servicenow.ServiceNowTokenFiller;
-import prerna.io.connector.surveymonkey.MonkeyProfile;
-import prerna.sablecc2.om.execptions.SemossPixelException;
 import prerna.security.HttpHelperUtility;
+import prerna.security.PKCEUtil;
 import prerna.usertracking.UserTrackingUtils;
-import prerna.util.BeanFiller;
 import prerna.util.Constants;
 import prerna.util.SocialPropertiesUtil;
 import prerna.util.Utility;
-import prerna.util.git.GitRepoUtils;
 import prerna.util.ldap.ILdapAuthenticator;
 import prerna.util.ldap.LDAPPasswordChangeRequiredException;
 import prerna.util.linotp.LinOTPResponse;
@@ -127,7 +111,11 @@ public class UserResource {
 		socialData = SocialPropertiesUtil.getInstance();
 	}
 
-	private static final Charset UTF8 = Charset.forName("UTF-8");
+	/**
+	 * Session attribute holding the PKCE code verifier between authorize and
+	 * callback.
+	 */
+	private static final String PKCE_VERIFIER_ATTR = "pkce_code_verifier";
 
 	/**
 	 * Returns the active login providers for the current session user.
@@ -351,581 +339,65 @@ public class UserResource {
 		}
 	}
 
-	//////////////////////////////////////////////////////////////////////////////////////
-	//////////////////////////////////////////////////////////////////////////////////////
-	//////////////////////////////////////////////////////////////////////////////////////
-	//////////////////////////////////////////////////////////////////////////////////////
-
 	/**
 	 * User info method calls
 	 */
 
 	/**
-	 * Gets user profile information for ADFS.
-	 */
-	@GET
-	@Produces("application/json")
-	@Path("/userinfo/adfs")
-	public Response userinfoADFS(@Context HttpServletRequest request) {
-		Map<String, String> ret = new HashMap<>();
-		HttpSession session = request.getSession(false);
-		User semossUser = null;
-		if (session != null) {
-			semossUser = (User) session.getAttribute(Constants.SESSION_USER);
-		}
-
-		if (semossUser == null) {
-			List<NewCookie> newCookies = new ArrayList<>();
-			// not authenticated
-			// remove any cookies we shouldn't have
-			WebUtility.expireSessionCookies(request, newCookies);
-
-			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
-				session.invalidate();
-			}
-
-			ret.put(Constants.ERROR_MESSAGE, "Log into your ADFS account");
-			return WebUtility.getResponseNoCache(ret, 200, newCookies.toArray(new NewCookie[] {}));
-		}
-
-		String prefix = "adfs_";
-		String beanProps = socialData.getProperty(prefix + "beanProps");
-		String jsonPattern = socialData.getProperty(prefix + "jsonPattern");
-
-		String[] beanPropsArr = beanProps.split(",", -1);
-
-		String accessString = null;
-		try {
-			AccessToken adfsToken = semossUser.getAccessToken(AuthProvider.ADFS);
-			accessString = adfsToken.getAccess_token();
-			String json = decodeTokenPayload(adfsToken.getAccess_token());
-			adfsToken = (AccessToken) BeanFiller.fillFromJson(json, jsonPattern, beanPropsArr, adfsToken);
-			String name = adfsToken.getName();
-			ret.put("name", name);
-
-			return WebUtility.getResponse(ret, 200);
-		} catch (Exception e) {
-			ret.put(Constants.ERROR_MESSAGE, "Log into your ADFS account");
-			return WebUtility.getResponse(ret, 200);
-		}
-	}
-
-	/**
-	 * Gets user profile information for Dropbox.
-	 */
-	@GET
-	@Produces("application/json")
-	@Path("/userinfo/dropbox")
-	public Response userinfoDropbox(@Context HttpServletRequest request) {
-		Map<String, String> ret = new HashMap<>();
-		HttpSession session = request.getSession(false);
-		User semossUser = null;
-		if (session != null) {
-			semossUser = (User) session.getAttribute(Constants.SESSION_USER);
-		}
-
-		if (semossUser == null) {
-			List<NewCookie> newCookies = new ArrayList<>();
-			// not authenticated
-			// remove any cookies we shouldn't have
-			WebUtility.expireSessionCookies(request, newCookies);
-
-			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
-				session.invalidate();
-			}
-
-			ret.put(Constants.ERROR_MESSAGE, "Log into your DropBox account");
-			return WebUtility.getResponseNoCache(ret, 200, newCookies.toArray(new NewCookie[] {}));
-		}
-
-		String[] beanProps = { "name", "profile" }; // add is done when you have a list
-		String jsonPattern = "[name.display_name, profile_photo_url]";
-		String accessString = null;
-		try {
-			AccessToken dropToken = semossUser.getAccessToken(AuthProvider.DROPBOX);
-			accessString = dropToken.getAccess_token();
-		} catch (Exception e) {
-			ret.put(Constants.ERROR_MESSAGE, "Log into your DropBox account");
-			return WebUtility.getResponse(ret, 200);
-		}
-		String url = "https://api.dropboxapi.com/2/users/get_current_account";
-
-		String output = HttpHelperUtility.makePostCall(url, accessString, null, true);
-		AccessToken accessToken2 = (AccessToken) BeanFiller.fillFromJson(output, jsonPattern, beanProps,
-				new AccessToken());
-		try {
-			if (accessToken2.getProfile() == null || accessToken2.getProfile().equalsIgnoreCase("null")) {
-				ret.put("picture", "");
-			} else {
-				ret.put("picture", accessToken2.getProfile());
-			}
-			ret.put("name", accessToken2.getName());
-		} catch (Exception e) {
-			classLogger.error("Unexpected error in userinfoDropbox", e);
-		}
-		return WebUtility.getResponse(ret, 200);
-
-	}
-
-	/**
-	 * Gets user profile information for GitHub.
-	 */
-	@GET
-	@Produces("application/json")
-	@Path("/userinfo/github")
-	public Response userinfoGithub(@Context HttpServletRequest request) {
-		Map<String, String> ret = new HashMap<>();
-		HttpSession session = request.getSession(false);
-		User semossUser = null;
-		if (session != null) {
-			semossUser = (User) session.getAttribute(Constants.SESSION_USER);
-		}
-
-		if (semossUser == null) {
-			List<NewCookie> newCookies = new ArrayList<>();
-			// not authenticated
-			// remove any cookies we shouldn't have
-			WebUtility.expireSessionCookies(request, newCookies);
-
-			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
-				session.invalidate();
-			}
-
-			ret.put(Constants.ERROR_MESSAGE, "Log into your Github account");
-			return WebUtility.getResponseNoCache(ret, 200, newCookies.toArray(new NewCookie[] {}));
-		}
-
-		String[] beanProps = { "name", "profile" }; // add is done when you have a list
-		String jsonPattern = "[name,login]";
-
-		String accessString = null;
-		try {
-			AccessToken gitToken = semossUser.getAccessToken(AuthProvider.GITHUB);
-			accessString = gitToken.getAccess_token();
-		} catch (Exception e) {
-			ret.put(Constants.ERROR_MESSAGE, "Log into your Github account");
-			return WebUtility.getResponse(ret, 200);
-		}
-
-		String url = "https://api.github.com/user";
-
-		String output = HttpHelperUtility.makeGetCall(url, accessString, null, true);
-		AccessToken accessToken2 = (AccessToken) BeanFiller.fillFromJson(output, jsonPattern, beanProps,
-				new AccessToken());
-		try {
-			ret.put("name", accessToken2.getProfile());
-		} catch (Exception e) {
-			classLogger.error("Unexpected error in userinfoGithub", e);
-		}
-		return WebUtility.getResponse(ret, 200);
-	}
-
-	/**
-	 * Gets user profile information for Google.
-	 */
-	@GET
-	@Produces("application/json")
-	@Path("/userinfo/google")
-	public Response userinfoGoogle(@Context HttpServletRequest request) {
-		Map<String, String> ret = new HashMap<>();
-		HttpSession session = request.getSession(false);
-		User semossUser = null;
-		if (session != null) {
-			semossUser = (User) session.getAttribute(Constants.SESSION_USER);
-		}
-
-		if (semossUser == null) {
-			List<NewCookie> newCookies = new ArrayList<>();
-			// not authenticated
-			// remove any cookies we shouldn't have
-			WebUtility.expireSessionCookies(request, newCookies);
-
-			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
-				session.invalidate();
-			}
-
-			ret.put(Constants.ERROR_MESSAGE, "Log into your Google account");
-			return WebUtility.getResponseNoCache(ret, 200, newCookies.toArray(new NewCookie[] {}));
-		}
-
-		String[] beanProps = { "name", "profile" };
-		String jsonPattern = "[name, picture]";
-		String accessString = null;
-		try {
-			AccessToken googleToken = semossUser.getAccessToken(AuthProvider.GOOGLE);
-			accessString = googleToken.getAccess_token();
-		} catch (Exception e) {
-			ret.put(Constants.ERROR_MESSAGE, "Log into your Google account");
-			return WebUtility.getResponse(ret, 200);
-		}
-
-		String url = "https://www.googleapis.com/oauth2/v3/userinfo";
-		Map<String, Object> params = new HashMap<>();
-		params.put("access_token", accessString);
-		params.put("alt", "json");
-
-		String output = HttpHelperUtility.makeGetCall(url, accessString, params, true);
-		AccessToken accessToken2 = (AccessToken) BeanFiller.fillFromJson(output, jsonPattern, beanProps,
-				new AccessToken());
-		try {
-			ret.put("name", accessToken2.getName());
-			if (accessToken2.getProfile() != null) {
-				ret.put("picture", accessToken2.getProfile());
-			}
-		} catch (Exception e) {
-			classLogger.error("Unexpected error in userinfoGoogle", e);
-		}
-
-		return WebUtility.getResponse(ret, 200);
-	}
-
-	/**
-	 * Gets user profile information for Jira.
-	 */
-	@GET
-	@Produces("application/json")
-	@Path("/userinfo/jira")
-	public Response userinfoJira(@Context HttpServletRequest request) {
-		Map<String, String> ret = new HashMap<>();
-		HttpSession session = request.getSession(false);
-		User semossUser = null;
-		if (session != null) {
-			semossUser = (User) session.getAttribute(Constants.SESSION_USER);
-		}
-		if (semossUser == null) {
-			List<NewCookie> newCookies = new ArrayList<>();
-			// not authenticated
-			// remove any cookies we shouldn't have
-			WebUtility.expireSessionCookies(request, newCookies);
-			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
-				session.invalidate();
-			}
-			ret.put(Constants.ERROR_MESSAGE, "Log into your Jira account");
-			return WebUtility.getResponseNoCache(ret, 200, newCookies.toArray(new NewCookie[] {}));
-		}
-		String[] beanProps = { "name" };
-		String jsonPattern = "[name]";
-		String accessString = null;
-		try {
-			AccessToken jiraToken = semossUser.getAccessToken(AuthProvider.JIRA);
-			accessString = jiraToken.getAccess_token();
-			String url = "https://api.atlassian.com/me";
-			Map<String, Object> params = new HashMap<>();
-			params.put("access_token", accessString);
-			params.put("alt", "json");
-			String output = HttpHelperUtility.makeGetCall(url, accessString, params, true);
-			AccessToken accessToken2 = (AccessToken) BeanFiller.fillFromJson(output, jsonPattern, beanProps,
-					new AccessToken());
-			String name = accessToken2.getName();
-			ret.put("name", name);
-			return WebUtility.getResponse(ret, 200);
-		} catch (Exception e) {
-			classLogger.error("Failed to fetch Jira user info", e);
-			ret.put(Constants.ERROR_MESSAGE, "Log into your Jira account");
-			return WebUtility.getResponse(ret, 401);
-		}
-	}
-
-	/**
-	 * Backwards-compatible alias for the Microsoft user-info endpoint.
-	 */
-	@GET
-	@Produces("application/json")
-	@Path("/userinfo/ms")
-	@Deprecated
-	public Response userinfoMs(@Context HttpServletRequest request) {
-		return userinfoMicrosoft(request);
-	}
-
-	/**
-	 * Gets user profile information for Microsoft.
+	 * Gets user profile information for any OAuth provider.
+	 * <p>
+	 * Resolves the provider (handling aliases such as
+	 * {@code microsoft}/{@code ms}), then refreshes the logged-in user's profile
+	 * from that provider using its {@link IAccessTokenFiller} strategy - the same
+	 * fetch/parse logic used at login, so no per-provider code is duplicated here.
 	 *
-	 * @param request inbound HTTP request
-	 * @return user info response for Microsoft
-	 */
-	@GET
-	@Produces("application/json")
-	@Path("/userinfo/microsoft")
-	public Response userinfoMicrosoft(@Context HttpServletRequest request) {
-		Map<String, String> ret = new HashMap<>();
-		HttpSession session = request.getSession(false);
-		User semossUser = null;
-		if (session != null) {
-			semossUser = (User) session.getAttribute(Constants.SESSION_USER);
-		}
-
-		if (semossUser == null) {
-			List<NewCookie> newCookies = new ArrayList<>();
-			// not authenticated
-			// remove any cookies we shouldn't have
-			WebUtility.expireSessionCookies(request, newCookies);
-
-			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
-				session.invalidate();
-			}
-
-			ret.put(Constants.ERROR_MESSAGE, "Log into your Microsoft account");
-			return WebUtility.getResponseNoCache(ret, 200, newCookies.toArray(new NewCookie[] {}));
-		}
-
-		String[] beanProps = { "name" };
-		String jsonPattern = "[displayName]";
-
-		String accessString = null;
-		try {
-			AccessToken msToken = semossUser.getAccessToken(AuthProvider.MICROSOFT);
-			accessString = msToken.getAccess_token();
-			String url = "https://graph.microsoft.com/v1.0/me/";
-			String output = HttpHelperUtility.makeGetCall(url, accessString, null, true);
-			AccessToken accessToken2 = (AccessToken) BeanFiller.fillFromJson(output, jsonPattern, beanProps,
-					new AccessToken());
-			String name = accessToken2.getName();
-			ret.put("name", name);
-			return WebUtility.getResponse(ret, 200);
-
-		} catch (Exception e) {
-			ret.put(Constants.ERROR_MESSAGE, "Log into your Microsoft account");
-			return WebUtility.getResponse(ret, 200);
-		}
-	}
-
-	/**
-	 * Gets user profile information for Okta.
-	 *
-	 * @param request inbound HTTP request
-	 * @return user info response for Okta
-	 */
-	@GET
-	@Produces("application/json")
-	@Path("/userinfo/okta")
-	public Response userinfoOkta(@Context HttpServletRequest request) {
-		String prefix = "okta_";
-
-		Map<String, String> ret = new HashMap<>();
-		HttpSession session = request.getSession(false);
-		User semossUser = null;
-		if (session != null) {
-			semossUser = (User) session.getAttribute(Constants.SESSION_USER);
-		}
-
-		if (semossUser == null) {
-			List<NewCookie> newCookies = new ArrayList<>();
-			// not authenticated
-			// remove any cookies we shouldn't have
-			WebUtility.expireSessionCookies(request, newCookies);
-
-			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
-				session.invalidate();
-			}
-
-			ret.put(Constants.ERROR_MESSAGE, "Log into your Okta account");
-			return WebUtility.getResponseNoCache(ret, 200, newCookies.toArray(new NewCookie[] {}));
-		}
-
-		String[] beanPropsArr = { "id", "name", "email", "phone" };
-		String jsonPattern = "[sub,name,email,phone_number]";
-
-		String accessString = null;
-		try {
-			AccessToken accessToken = semossUser.getAccessToken(AuthProvider.OKTA);
-			accessString = accessToken.getAccess_token();
-			String userInfoURL = socialData.getProperty(prefix + "userinfo_url");
-			String socialBeanProps = socialData.getProperty(prefix + "beanProps");
-
-			if (socialBeanProps != null && !socialBeanProps.trim().isEmpty()) {
-				beanPropsArr = socialBeanProps.split(",", -1);
-			}
-
-			String socialJsonPattern = socialData.getProperty(prefix + "jsonPattern");
-
-			if (socialJsonPattern != null && !socialJsonPattern.trim().isEmpty()) {
-				jsonPattern = socialJsonPattern;
-			}
-
-			String output = HttpHelperUtility.makeGetCall(userInfoURL, accessString, null, true);
-			AccessToken accessToken2 = (AccessToken) BeanFiller.fillFromJson(output, jsonPattern, beanPropsArr,
-					new AccessToken());
-			String name = accessToken2.getName();
-			ret.put("name", name);
-			return WebUtility.getResponse(ret, 200);
-		} catch (Exception e) {
-			ret.put(Constants.ERROR_MESSAGE, "Log into your Okta account");
-			return WebUtility.getResponse(ret, 200);
-		}
-	}
-
-	/**
-	 * Gets user profile information for Salesforce.
-	 */
-	@GET
-	@Produces("application/json")
-	@Path("/userinfo/salesforce")
-	public Response userinfoSalesforce(@Context HttpServletRequest request) {
-		Map<String, String> ret = new HashMap<>();
-		HttpSession session = request.getSession(false);
-		User semossUser = null;
-		if (session != null) {
-			semossUser = (User) session.getAttribute(Constants.SESSION_USER);
-		}
-
-		if (semossUser == null) {
-			List<NewCookie> newCookies = new ArrayList<>();
-			// not authenticated
-			// remove any cookies we shouldn't have
-			WebUtility.expireSessionCookies(request, newCookies);
-
-			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
-				session.invalidate();
-			}
-
-			ret.put(Constants.ERROR_MESSAGE, "Log into your Salesforce account");
-			return WebUtility.getResponseNoCache(ret, 200, newCookies.toArray(new NewCookie[] {}));
-		}
-
-		String[] beanProps = { "name" };
-		String jsonPattern = "[name]";
-
-		String accessString = null;
-		try {
-			AccessToken salesforceToken = semossUser.getAccessToken(AuthProvider.SALESFORCE);
-			accessString = salesforceToken.getAccess_token();
-			String url = "https://login.salesforce.com/services/oauth2/userinfo";
-			Map<String, Object> params = new HashMap<>();
-			params.put("access_token", accessString);
-			params.put("alt", "json");
-
-			String output = HttpHelperUtility.makeGetCall(url, accessString, params, true);
-			AccessToken accessToken2 = (AccessToken) BeanFiller.fillFromJson(output, jsonPattern, beanProps,
-					new AccessToken());
-			String name = accessToken2.getName();
-			ret.put("name", name);
-			return WebUtility.getResponse(ret, 200);
-
-		} catch (Exception e) {
-			classLogger.error("Failed to fetch Salesforce user info", e);
-			ret.put(Constants.ERROR_MESSAGE, "Log into your Salesforce account");
-			return WebUtility.getResponse(ret, 401);
-		}
-
-	}
-
-	/**
-	 * Gets user profile information for ServiceNow.
-	 */
-	@GET
-	@Produces("application/json")
-	@Path("/userinfo/servicenow")
-	public Response userinfoServiceNow(@Context HttpServletRequest request) {
-		Map<String, String> ret = new HashMap<>();
-		HttpSession session = request.getSession(false);
-		User semossUser = null;
-		if (session != null) {
-			semossUser = (User) session.getAttribute(Constants.SESSION_USER);
-		}
-
-		if (semossUser == null) {
-			List<NewCookie> newCookies = new ArrayList<>();
-			// not authenticated
-			// remove any cookies we shouldn't have
-			WebUtility.expireSessionCookies(request, newCookies);
-
-			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
-				session.invalidate();
-			}
-
-			ret.put(Constants.ERROR_MESSAGE, "Log into your ServiceNow account");
-			return WebUtility.getResponseNoCache(ret, 200, newCookies.toArray(new NewCookie[] {}));
-		}
-
-		String[] beanProps = { "name" };
-		String jsonPattern = "[result.name]";
-
-		String accessString = null;
-		try {
-			AccessToken servicenowToken = semossUser.getAccessToken(AuthProvider.SERVICENOW);
-			accessString = servicenowToken.getAccess_token();
-			String prefix = "servicenow_";
-			String userinfoUrl = socialData.getProperty(prefix + "userinfo_url");
-			Map<String, Object> params = new HashMap<>();
-			params.put("access_token", accessString);
-			params.put("alt", "json");
-
-			String output = HttpHelperUtility.makeGetCall(userinfoUrl, accessString, params, true);
-			AccessToken accessToken2 = (AccessToken) BeanFiller.fillFromJson(output, jsonPattern, beanProps,
-					new AccessToken());
-			String name = accessToken2.getName();
-			ret.put("name", name);
-			return WebUtility.getResponse(ret, 200);
-
-		} catch (Exception e) {
-			classLogger.error("Failed to fetch ServiceNow user info", e);
-			ret.put(Constants.ERROR_MESSAGE, "Log into your ServiceNow account");
-			return WebUtility.getResponse(ret, 401);
-		}
-
-	}
-
-	/**
-	 * Gets user profile information for a generic OAuth provider.
+	 * @param provider the provider path segment
+	 * @param request  inbound HTTP request
+	 * @return the user's display name, or a prompt to log in
 	 */
 	@GET
 	@Produces("application/json")
 	@Path("/userinfo/{provider}")
 	public Response userinfoGeneric(@PathParam("provider") String provider, @Context HttpServletRequest request) {
 		provider = WebUtility.inputSanitizer(provider);
+		AuthProvider providerEnum = AuthProvider.getSocialPropKeysToEnum().getOrDefault(provider.toLowerCase(),
+				AuthProvider.GENERIC);
+		String prefix = AuthProvider.getSocialPrefixForPath(provider) + "_";
 
-		AuthProvider providerEnum = AuthProvider.getProviderFromString(provider.toUpperCase());
-		Map<String, String> ret = new HashMap<>();
+		Map<String, Object> ret = new HashMap<>();
 		HttpSession session = request.getSession(false);
-
-		User semossUser = null;
-		if (session != null) {
-			semossUser = (User) session.getAttribute(Constants.SESSION_USER);
-		}
+		User semossUser = (session != null) ? (User) session.getAttribute(Constants.SESSION_USER) : null;
 
 		if (semossUser == null) {
 			List<NewCookie> newCookies = new ArrayList<>();
-			// not authenticated
-			// remove any cookies we shouldn't have
+			// not authenticated - remove any cookies we shouldn't have
 			WebUtility.expireSessionCookies(request, newCookies);
-
 			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
 				session.invalidate();
 			}
-
-			ret.put(Constants.ERROR_MESSAGE, "Log into your " + providerEnum.name() + " account");
+			ret.put(Constants.ERROR_MESSAGE, "Log into your " + providerEnum.getDisplayName() + " account");
 			return WebUtility.getResponseNoCache(ret, 200, newCookies.toArray(new NewCookie[] {}));
 		}
 
-		String prefix = provider + "_";
-		String userInfoURL = socialData.getProperty(prefix + "userinfo_url");
-		// "name","id","email"
-		String beanProps = socialData.getProperty(prefix + "beanProps");
-		String jsonPattern = socialData.getProperty(prefix + "jsonPattern");
-
-		String[] beanPropsArr = beanProps.split(",", -1);
-
-		String accessString = null;
 		try {
-			AccessToken genericToken = semossUser.getAccessToken(providerEnum);
-			accessString = genericToken.getAccess_token();
-			// String url = "https://graph.microsoft.com/v1.0/me/";
-			String output = HttpHelperUtility.makeGetCall(userInfoURL, accessString, null, true);
-			AccessToken accessToken2 = (AccessToken) BeanFiller.fillFromJson(output, jsonPattern, beanPropsArr,
-					new AccessToken());
-			String name = accessToken2.getName();
-			ret.put("name", name);
-
+			AccessToken loggedInToken = semossUser.getAccessToken(providerEnum);
+			if (loggedInToken == null) {
+				throw new IllegalStateException(
+						"No access token for provider " + providerEnum.name() + " - user needs to login");
+			}
+			// refresh the profile from the provider using its filler strategy (userinfo
+			// GET/POST, id_token decode, etc. are all encapsulated in the filler)
+			AccessToken newToken = new AccessToken();
+			newToken.setAccess_token(loggedInToken.getAccess_token());
+			providerEnum.newTokenFiller().fillAccessToken(newToken, prefix);
+			ret.putAll(newToken.toProviderMap(false, null, false));
 			return WebUtility.getResponse(ret, 200);
 		} catch (Exception e) {
-			ret.put(Constants.ERROR_MESSAGE, "Log into your " + providerEnum.toString() + " account");
+			classLogger.error("Failed to fetch user info for provider " + providerEnum.name(), e);
+			ret.put(Constants.ERROR_MESSAGE, "Log into your " + providerEnum.getDisplayName() + " account");
 			return WebUtility.getResponse(ret, 200);
 		}
 	}
-
-	//////////////////////////////////////////////////////////////////////////////////////
-	//////////////////////////////////////////////////////////////////////////////////////
-	//////////////////////////////////////////////////////////////////////////////////////
 
 	/**
 	 * Initializes an OAuth login flow session and stores a custom redirect value
@@ -1012,118 +484,8 @@ public class UserResource {
 	@Path("/login/adfs")
 	public Response loginADFS(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
-		if (socialData.getLoginsAllowed().get("adfs") == null || !socialData.getLoginsAllowed().get("adfs")) {
-			Map<String, Object> ret = new HashMap<>();
-			ret.put(Constants.ERROR_MESSAGE, "ADFS login is not allowed");
-			return WebUtility.getResponse(ret, 400);
-		}
-
-		HttpSession session = initializeOAuthLoginSession(request);
-		User userObj = getSessionUser(session);
-		String queryString = getEncodedQueryString(request);
-		if (hasOAuthCode(queryString)) {
-			if (!hasAccessToken(userObj, AuthProvider.ADFS)) {
-				String[] outputs = HttpHelperUtility.getCodes(queryString);
-
-				// oauth code should match [ -~]+ (1 or more ascii)
-				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
-				String code = URLDecoder.decode(outputs[0], StandardCharsets.UTF_8);
-				if (code.matches("[ -~]+")) {
-					String prefix = "adfs_";
-					String clientId = socialData.getProperty(prefix + "client_id");
-					String clientSecret = socialData.getProperty(prefix + "secret_key");
-					String redirectUri = socialData.getProperty(prefix + "redirect_uri");
-					String scope = socialData.getProperty(prefix + "scope");
-					String token_url = socialData.getProperty(prefix + "token_url");
-					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
-
-					classLogger.debug(">> {}", Utility.cleanLogString(request.getQueryString()));
-
-					Map<String, String> params = new HashMap<>();
-					params.put("client_id", clientId);
-					params.put("scope", scope);
-					params.put("redirect_uri", redirectUri);
-					params.put("code", code);
-					params.put("grant_type", "authorization_code");
-					params.put("client_secret", clientSecret);
-
-					if (Strings.isNullOrEmpty(token_url)) {
-						throw new IllegalArgumentException("Token URL can not be null or empty");
-					}
-
-					AccessToken accessToken = HttpHelperUtility.getIdToken(token_url, params, true, true);
-					if (accessToken == null) {
-						// not authenticated
-						response.setStatus(302);
-						response.sendRedirect(getADFSRedirect(request));
-						return null;
-					}
-					String json = decodeTokenPayload(accessToken.getAccess_token());
-
-					accessToken.setProvider(AuthProvider.ADFS);
-					String beanProps = socialData.getProperty(prefix + "beanProps");
-					String jsonPattern = socialData.getProperty(prefix + "jsonPattern");
-					String[] beanPropsArr = beanProps.split(",", -1);
-					accessToken = (AccessToken) BeanFiller.fillFromJson(json, jsonPattern, beanPropsArr, accessToken);
-
-					addAccessToken(accessToken, request, autoAdd);
-
-					classLogger.debug("Access Token is.. {}", accessToken.getAccess_token());
-				}
-			}
-		}
-
-		userObj = refreshSessionUser(request, session);
-		if (!hasAccessToken(userObj, AuthProvider.ADFS)) {
-			// not authenticated
-			response.setStatus(302);
-			response.sendRedirect(getADFSRedirect(request));
-			return null;
-		}
-
-		setMainPageRedirect(request, response);
-		return null;
-	}
-
-	/**
-	 * Decodes the JWT payload segment from a token value.
-	 *
-	 * @param token JWT access token
-	 * @return decoded JSON payload
-	 */
-	private String decodeTokenPayload(String token) {
-		String[] parts = token.split("\\.", 0);
-		byte[] bytes = Base64.getUrlDecoder().decode(parts[1]);
-		String payload = new String(bytes, StandardCharsets.UTF_8);
-		return payload;
-	}
-
-	/**
-	 * Builds the ADFS authorization redirect URL.
-	 *
-	 * @param request inbound HTTP request
-	 * @return ADFS authorize URL
-	 * @throws UnsupportedEncodingException when redirect parameters cannot be URL
-	 *                                      encoded
-	 */
-	private String getADFSRedirect(HttpServletRequest request) throws UnsupportedEncodingException {
-		String prefix = "adfs_";
-		String clientId = socialData.getProperty(prefix + "client_id");
-		String redirectUri = socialData.getProperty(prefix + "redirect_uri");
-		String scope = socialData.getProperty(prefix + "scope"); // need to set this up and reuse
-		String auth_url = socialData.getProperty(prefix + "auth_url");
-
-		String state = UUID.randomUUID().toString();
-
-		if (Strings.isNullOrEmpty(auth_url)) {
-			throw new IllegalArgumentException("A URL can not be null or empty");
-		}
-		String redirectUrl = auth_url + "?" + "client_id=" + clientId + "&response_type=code" + "&redirect_uri="
-				+ URLEncoder.encode(redirectUri, UTF8) + "&response_mode=query" + "&scope="
-				+ URLEncoder.encode(scope, UTF8) + "&state=" + state;
-
-		classLogger.debug("Sending redirect {}", Utility.cleanLogString(redirectUrl));
-		return redirectUrl;
+		// unified OAuth2/OIDC flow - see loginGeneric + AdfsTokenFiller (id_token mode)
+		return loginGeneric("adfs", request, response);
 	}
 
 	/**
@@ -1134,87 +496,8 @@ public class UserResource {
 	@Path("/login/dropbox")
 	public Response loginDropBox(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
-		if (socialData.getLoginsAllowed().get("dropbox") == null || !socialData.getLoginsAllowed().get("dropbox")) {
-			Map<String, Object> ret = new HashMap<>();
-			ret.put(Constants.ERROR_MESSAGE, "Dropbox login is not allowed");
-			return WebUtility.getResponse(ret, 400);
-		}
-
-		HttpSession session = initializeOAuthLoginSession(request);
-		User userObj = getSessionUser(session);
-		String queryString = getEncodedQueryString(request);
-		if (hasOAuthCode(queryString)) {
-			if (!hasAccessToken(userObj, AuthProvider.DROPBOX)) {
-				String[] outputs = HttpHelperUtility.getCodes(queryString);
-
-				// oauth code should match [ -~]+ (1 or more ascii)
-				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
-				String code = URLDecoder.decode(outputs[0], StandardCharsets.UTF_8);
-				if (code.matches("[ -~]+")) {
-					String prefix = "dropbox_";
-					String clientId = socialData.getProperty(prefix + "client_id");
-					String clientSecret = socialData.getProperty(prefix + "secret_key");
-					String redirectUri = socialData.getProperty(prefix + "redirect_uri");
-					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
-
-					classLogger.debug(">> {}", Utility.cleanLogString(request.getQueryString()));
-
-					Map<String, String> params = new HashMap<>();
-					params.put("client_id", clientId);
-					params.put("redirect_uri", redirectUri);
-					params.put("code", code);
-					params.put("grant_type", "authorization_code");
-					params.put("client_secret", clientSecret);
-
-					String url = "https://www.dropbox.com/oauth2/token";
-
-					AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, true, true);
-					if (accessToken == null) {
-						// not authenticated
-						response.setStatus(302);
-						response.sendRedirect(getDBRedirect(request));
-						return null;
-					}
-					accessToken.setProvider(AuthProvider.DROPBOX);
-					addAccessToken(accessToken, request, autoAdd);
-
-					classLogger.debug("Access Token is.. {}", accessToken.getAccess_token());
-				}
-			}
-		}
-
-		userObj = refreshSessionUser(request, session);
-		if (!hasAccessToken(userObj, AuthProvider.DROPBOX)) {
-			// not authenticated
-			response.setStatus(302);
-			response.sendRedirect(getDBRedirect(request));
-			return null;
-		}
-
-		setMainPageRedirect(request, response);
-		return null;
-	}
-
-	/**
-	 * Builds the Dropbox authorization redirect URL.
-	 *
-	 * @param request inbound HTTP request
-	 * @return Dropbox authorize URL
-	 * @throws UnsupportedEncodingException when redirect parameters cannot be URL
-	 *                                      encoded
-	 */
-	private String getDBRedirect(HttpServletRequest request) throws UnsupportedEncodingException {
-		String prefix = "dropbox_";
-
-		String clientId = socialData.getProperty(prefix + "client_id");
-		String redirectUri = socialData.getProperty(prefix + "redirect_uri");
-		String role = socialData.getProperty(prefix + "role"); // need to set this up and reuse
-		String redirectUrl = "https://www.dropbox.com/oauth2/authorize?" + "client_id=" + clientId
-				+ "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, UTF8) + "&require_role="
-				+ role + "&disable_signup=false";
-
-		classLogger.debug("Sending redirect {}", Utility.cleanLogString(redirectUrl));
-		return redirectUrl;
+		// unified OAuth2 flow - see loginGeneric + DropboxTokenFiller
+		return loginGeneric("dropbox", request, response);
 	}
 
 	/**
@@ -1226,104 +509,9 @@ public class UserResource {
 	@Path("/login/github")
 	public Response loginGithub(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
-		if (socialData.getLoginsAllowed().get("github") == null || !socialData.getLoginsAllowed().get("github")) {
-			Map<String, Object> ret = new HashMap<>();
-			ret.put(Constants.ERROR_MESSAGE, "GitHub login is not allowed");
-			return WebUtility.getResponse(ret, 400);
-		}
-
-		HttpSession session = initializeOAuthLoginSession(request);
-		User userObj = getSessionUser(session);
-		String queryString = getEncodedQueryString(request);
-		if (hasOAuthCode(queryString)) {
-			if (!hasAccessToken(userObj, AuthProvider.GITHUB)) {
-				String[] outputs = HttpHelperUtility.getCodes(queryString);
-
-				// oauth code and state should match [ -~]+ (1 or more ascii)
-				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.5
-				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
-				String code = URLDecoder.decode(outputs[0], StandardCharsets.UTF_8);
-				String state = URLDecoder.decode(outputs[1], StandardCharsets.UTF_8);
-				if (code.matches("[ -~]+") && state.matches("[ -~]+")) {
-					String prefix = "github_";
-					String clientId = socialData.getProperty(prefix + "client_id");
-					String clientSecret = socialData.getProperty(prefix + "secret_key");
-					String redirectUri = socialData.getProperty(prefix + "redirect_uri");
-					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
-
-					classLogger.debug(">> {}", Utility.cleanLogString(request.getQueryString()));
-
-					Map<String, String> params = new HashMap<>();
-					params.put("client_id", clientId);
-					params.put("redirect_uri", redirectUri);
-					params.put("code", code);
-					params.put("state", state);
-					params.put("client_secret", clientSecret);
-
-					String url = "https://github.com/login/oauth/access_token";
-
-					AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, false, true);
-					if (accessToken == null) {
-						// not authenticated
-						response.setStatus(302);
-						response.sendRedirect(getGithubRedirect(request));
-						return null;
-					}
-					accessToken.setProvider(AuthProvider.GITHUB);
-
-					try {
-						GitRepoUtils.addCertForDomain(url);
-					} catch (Exception e) {
-						classLogger.error("Unexpected error in loginGithub", e);
-					}
-					// add specific Git values
-					GithubTokenFiller profiler = new GithubTokenFiller();
-					profiler.fillAccessToken(accessToken, null, null, null, null);
-
-					addAccessToken(accessToken, request, autoAdd);
-
-					classLogger.debug("Access Token is.. {}", accessToken.getAccess_token());
-				}
-			}
-		}
-
-		userObj = refreshSessionUser(request, session);
-		if (!hasAccessToken(userObj, AuthProvider.GITHUB)) {
-			// not authenticated
-			try {
-				GitRepoUtils.addCertForDomain("https://github.com");
-			} catch (Exception e) {
-				classLogger.error("Unexpected error in loginGithub", e);
-			}
-			response.setStatus(302);
-			response.sendRedirect(getGithubRedirect(request));
-			return null;
-		}
-
-		setMainPageRedirect(request, response);
-		return null;
-	}
-
-	/**
-	 * Builds the GitHub authorization redirect URL.
-	 *
-	 * @param request inbound HTTP request
-	 * @return GitHub authorize URL
-	 * @throws UnsupportedEncodingException when redirect parameters cannot be URL
-	 *                                      encoded
-	 */
-	private String getGithubRedirect(HttpServletRequest request) throws UnsupportedEncodingException {
-		String prefix = "github_";
-		String clientId = socialData.getProperty(prefix + "client_id");
-		String redirectUri = socialData.getProperty(prefix + "redirect_uri");
-		String scope = socialData.getProperty(prefix + "scope");
-
-		String redirectUrl = "https://github.com/login/oauth/authorize?" + "client_id=" + clientId + "&redirect_uri="
-				+ redirectUri + "&state=" + UUID.randomUUID().toString() + "&allow_signup=true" + "&scope="
-				+ URLEncoder.encode(scope, UTF8);
-
-		classLogger.debug("Sending redirect {}", Utility.cleanLogString(redirectUrl));
-		return redirectUrl;
+		// unified OAuth2 flow - see loginGeneric + GithubTokenFiller
+		// (form-encoded token exchange + git cert install live in the filler)
+		return loginGeneric("github", request, response);
 	}
 
 	/**
@@ -1336,126 +524,8 @@ public class UserResource {
 	@Path("/login/gitlab")
 	public Response loginGitlab(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
-		if (socialData.getLoginsAllowed().get("gitlab") == null || !socialData.getLoginsAllowed().get("gitlab")) {
-			Map<String, Object> ret = new HashMap<>();
-			ret.put(Constants.ERROR_MESSAGE, "GitLab login is not allowed");
-			return WebUtility.getResponse(ret, 400);
-		}
-
-		HttpSession session = initializeOAuthLoginSession(request);
-		User userObj = getSessionUser(session);
-		String queryString = getEncodedQueryString(request);
-		String prefix = "gitlab_";
-
-		if (hasOAuthCode(queryString)) {
-			if (!hasAccessToken(userObj, AuthProvider.GITLAB)) {
-				String[] outputs = HttpHelperUtility.getCodes(queryString);
-
-				// oauth code and state should match [ -~]+ (1 or more ascii)
-				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.5
-				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
-				String code = URLDecoder.decode(outputs[0], StandardCharsets.UTF_8);
-				String state = URLDecoder.decode(outputs[1], StandardCharsets.UTF_8);
-				if (code.matches("[ -~]+") && state.matches("[ -~]+")) {
-					String clientId = socialData.getProperty(prefix + "client_id");
-					String clientSecret = socialData.getProperty(prefix + "secret_key");
-					String redirectUri = socialData.getProperty(prefix + "redirect_uri");
-					String token_url = socialData.getProperty(prefix + "token_url");
-					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
-
-					classLogger.debug(">> {}", Utility.cleanLogString(request.getQueryString()));
-
-					Map<String, String> params = new HashMap<>();
-					params.put("client_id", clientId);
-					params.put("redirect_uri", redirectUri);
-					params.put("code", code);
-					params.put("state", state);
-					params.put("client_secret", clientSecret);
-					params.put("grant_type", "authorization_code");
-
-					AccessToken accessToken = HttpHelperUtility.getAccessToken(token_url, params, true, true);
-					if (accessToken == null) {
-						// not authenticated
-						response.setStatus(302);
-						response.sendRedirect(getGitlabRedirect(request));
-						return null;
-					}
-					accessToken.setProvider(AuthProvider.GITLAB);
-
-					String beanProps = socialData.getProperty(prefix + "beanProps");
-					String jsonPattern = socialData.getProperty(prefix + "jsonPattern");
-					String userinfo_url = socialData.getProperty(prefix + "userinfo_url");
-					String[] beanPropsArr = beanProps.split(",", -1);
-
-					String output = HttpHelperUtility.makeGetCall(userinfo_url, accessToken.getAccess_token(), null,
-							true);
-					accessToken = (AccessToken) BeanFiller.fillFromJson(output, jsonPattern, beanPropsArr, accessToken);
-
-					addAccessToken(accessToken, request, autoAdd);
-
-					classLogger.debug("Access Token is.. {}", accessToken.getAccess_token());
-				}
-			}
-		}
-
-		userObj = refreshSessionUser(request, session);
-		if (!hasAccessToken(userObj, AuthProvider.GITLAB)) {
-			// not authenticated
-			response.setStatus(302);
-			response.sendRedirect(getGitlabRedirect(request));
-			return null;
-		}
-
-		if (Boolean.parseBoolean(socialData.getProperty(prefix + "groups"))) {
-			// get groups
-			String group_url = socialData.getProperty(prefix + "group_url");
-			String groupsJson = HttpHelperUtility.makeGetCall(group_url,
-					userObj.getAccessToken(AuthProvider.GITLAB).getAccess_token());
-			String groupJsonPattern = socialData.getProperty(prefix + "groupJsonPattern");
-			// String beanProps = socialData.getProperty(prefix + "groupBeanProps");
-			// String[] beanPropsArr = beanProps.split(",", -1);
-			Set<String> userGroups = new HashSet<String>();
-
-			JsonNode result = BeanFiller.getJmesResult(groupsJson, groupJsonPattern);
-			if ((result instanceof ArrayNode) && result.get(0) instanceof ObjectNode) {
-				throw new SemossPixelException("Group result must return flat array. Please check groupJsonPatter");
-			}
-			for (int inputIndex = 0; result != null && inputIndex < result.size(); inputIndex++) {
-				String thisInput = result.get(inputIndex).asText();
-				userGroups.add(thisInput);
-			}
-
-			userObj.getAccessToken(AuthProvider.GITLAB).setUserGroups(userGroups);
-			userObj.getAccessToken(AuthProvider.GITLAB).setUserGroupType(AuthProvider.GITLAB.toString());
-		}
-
-		setMainPageRedirect(request, response);
-		return null;
-	}
-
-	/**
-	 * Builds the GitLab authorization redirect URL.
-	 *
-	 * @param request inbound HTTP request
-	 * @return GitLab authorize URL
-	 * @throws UnsupportedEncodingException when redirect parameters cannot be URL
-	 *                                      encoded
-	 */
-	private String getGitlabRedirect(HttpServletRequest request) throws UnsupportedEncodingException {
-		String prefix = "gitlab_";
-		String clientId = socialData.getProperty(prefix + "client_id");
-		String redirectUri = socialData.getProperty(prefix + "redirect_uri");
-		String scope = socialData.getProperty(prefix + "scope");
-		String auth_url = socialData.getProperty(prefix + "auth_url");
-
-		scope = scope.replaceAll(" ", "+");
-		String state = UUID.randomUUID().toString();
-
-		String redirectUrl = auth_url + "?" + "client_id=" + clientId + "&response_type=code" + "&redirect_uri="
-				+ URLEncoder.encode(redirectUri, UTF8) + "&scope=" + scope + "&state=" + state;
-
-		classLogger.debug("Sending redirect {}", Utility.cleanLogString(redirectUrl));
-		return redirectUrl;
+		// unified OAuth2 flow - see loginGeneric + GitLabTokenFiller
+		return loginGeneric("gitlab", request, response);
 	}
 
 	/**
@@ -1467,98 +537,8 @@ public class UserResource {
 	@Path("/login/google")
 	public Response loginGoogle(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
-		if (socialData.getLoginsAllowed().get("google") == null || !socialData.getLoginsAllowed().get("google")) {
-			Map<String, Object> ret = new HashMap<>();
-			ret.put(Constants.ERROR_MESSAGE, "Google login is not allowed");
-			return WebUtility.getResponse(ret, 400);
-		}
-
-		HttpSession session = initializeOAuthLoginSession(request);
-		User userObj = getSessionUser(session);
-		String queryString = getEncodedQueryString(request);
-		if (hasOAuthCode(queryString)) {
-			if (!hasAccessToken(userObj, AuthProvider.GOOGLE)) {
-				String[] outputs = HttpHelperUtility.getCodes(queryString);
-
-				// oauth code should match [ -~]+ (1 or more ascii)
-				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
-				String code = URLDecoder.decode(outputs[0], StandardCharsets.UTF_8);
-				if (code.matches("[ -~]+")) {
-					String prefix = "google_";
-					String clientId = socialData.getProperty(prefix + "client_id");
-					String clientSecret = socialData.getProperty(prefix + "secret_key");
-					String redirectUri = socialData.getProperty(prefix + "redirect_uri");
-					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
-
-					classLogger.debug(">> {}", Utility.cleanLogString(request.getQueryString()));
-
-					// I need to decode the return code from google since the default param's are
-					// encoded on the post of getAccessToken
-					Map<String, String> params = new HashMap<>();
-					params.put("client_id", clientId);
-					params.put("redirect_uri", redirectUri);
-					params.put("code", code);
-					params.put("grant_type", "authorization_code");
-					params.put("client_secret", clientSecret);
-
-					String url = "https://www.googleapis.com/oauth2/v4/token";
-
-					// https://developers.google.com/api-client-library/java/google-api-java-client/oauth2
-					AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, true, true);
-					if (accessToken == null) {
-						// not authenticated
-						response.setStatus(302);
-						response.sendRedirect(getGoogleRedirect(request));
-						return null;
-					}
-					accessToken.setProvider(AuthProvider.GOOGLE);
-
-					// fill the access token with the other properties so we can properly create the
-					// user
-					GoogleTokenFiller profiler = new GoogleTokenFiller();
-					profiler.fillAccessToken(accessToken, null, null, null, null);
-					addAccessToken(accessToken, request, autoAdd);
-
-					// Shows how to make a google credential from an access token
-					classLogger.debug("Access Token is.. {}", accessToken.getAccess_token());
-				}
-			}
-		}
-
-		userObj = refreshSessionUser(request, session);
-		if (!hasAccessToken(userObj, AuthProvider.GOOGLE)) {
-			// not authenticated
-			response.setStatus(302);
-			response.sendRedirect(getGoogleRedirect(request));
-			return null;
-		}
-
-		setMainPageRedirect(request, response);
-		return null;
-	}
-
-	/**
-	 * Builds the Google authorization redirect URL.
-	 *
-	 * @param request inbound HTTP request
-	 * @return Google authorize URL
-	 * @throws UnsupportedEncodingException when redirect parameters cannot be URL
-	 *                                      encoded
-	 */
-	private String getGoogleRedirect(HttpServletRequest request) throws UnsupportedEncodingException {
-		String prefix = "google_";
-		String clientId = socialData.getProperty(prefix + "client_id");
-		String redirectUri = socialData.getProperty(prefix + "redirect_uri");
-		String scope = socialData.getProperty(prefix + "scope"); // need to set this up and reuse
-		String accessType = socialData.getProperty(prefix + "access_type"); // need to set this up and reuse
-		String state = UUID.randomUUID().toString();
-
-		String redirectUrl = "https://accounts.google.com/o/oauth2/v2/auth?" + "client_id=" + clientId
-				+ "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, UTF8) + "&access_type="
-				+ accessType + "&scope=" + URLEncoder.encode(scope, UTF8) + "&state=" + state;
-
-		classLogger.debug("Sending redirect {}", Utility.cleanLogString(redirectUrl));
-		return redirectUrl;
+		// unified OAuth2 flow - see loginGeneric + GoogleTokenFiller
+		return loginGeneric("google", request, response);
 	}
 
 	/**
@@ -1729,86 +709,8 @@ public class UserResource {
 	@Path("/login/linkedin")
 	public Response loginLinkedin(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
-		if (socialData.getLoginsAllowed().get("linkedin") == null || !socialData.getLoginsAllowed().get("linkedin")) {
-			Map<String, Object> ret = new HashMap<>();
-			ret.put(Constants.ERROR_MESSAGE, "LinkedIn login is not allowed");
-			return WebUtility.getResponse(ret, 400);
-		}
-
-		HttpSession session = initializeOAuthLoginSession(request);
-		User userObj = getSessionUser(session);
-		String queryString = getEncodedQueryString(request);
-		if (hasOAuthCode(queryString)) {
-			if (!hasAccessToken(userObj, AuthProvider.LINKEDIN)) {
-				String[] outputs = HttpHelperUtility.getCodes(queryString);
-
-				// oauth code should match [ -~]+ (1 or more ascii)
-				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
-				String code = URLDecoder.decode(outputs[0], StandardCharsets.UTF_8);
-				if (code.matches("[ -~]+")) {
-					String prefix = "linkedin_";
-					String clientId = socialData.getProperty(prefix + "client_id");
-					String clientSecret = socialData.getProperty(prefix + "secret_key");
-					String redirectUri = socialData.getProperty(prefix + "redirect_uri");
-					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
-
-					classLogger.debug(">> {}", Utility.cleanLogString(request.getQueryString()));
-
-					Map<String, String> params = new HashMap<>();
-					params.put("client_id", clientId);
-					params.put("redirect_uri", redirectUri);
-					params.put("code", code);
-					params.put("grant_type", "authorization_code");
-					params.put("client_secret", clientSecret);
-
-					String url = "https://www.linkedin.com/oauth/v2/accessToken";
-
-					AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, true, true);
-					if (accessToken == null) {
-						// not authenticated
-						response.setStatus(302);
-						response.sendRedirect(getLinkedinRedirect(request));
-						return null;
-					}
-					accessToken.setProvider(AuthProvider.LINKEDIN);
-					addAccessToken(accessToken, request, autoAdd);
-
-					classLogger.debug("Access Token is.. {}", accessToken.getAccess_token());
-				}
-			}
-		}
-
-		userObj = refreshSessionUser(request, session);
-		if (!hasAccessToken(userObj, AuthProvider.LINKEDIN)) {
-			response.setStatus(302);
-			response.sendRedirect(getLinkedinRedirect(request));
-			return null;
-		}
-
-		setMainPageRedirect(request, response);
-		return null;
-	}
-
-	/**
-	 * Builds the LinkedIn authorization redirect URL.
-	 *
-	 * @param request inbound HTTP request
-	 * @return LinkedIn authorize URL
-	 * @throws UnsupportedEncodingException when redirect parameters cannot be URL
-	 *                                      encoded
-	 */
-	private String getLinkedinRedirect(HttpServletRequest request) throws UnsupportedEncodingException {
-		String prefix = "linkedin_";
-		String clientId = socialData.getProperty(prefix + "client_id");
-		String redirectUri = socialData.getProperty(prefix + "redirect_uri");
-		String scope = socialData.getProperty(prefix + "scope");
-
-		String redirectUrl = "https://www.linkedin.com/oauth/v2/authorization?" + "client_id=" + clientId
-				+ "&redirect_uri=" + redirectUri + "&state=" + UUID.randomUUID().toString() + "&response_type=code"
-				+ "&scope=" + URLEncoder.encode(scope, UTF8);
-
-		classLogger.debug("Sending redirect {}", Utility.cleanLogString(redirectUrl));
-		return redirectUrl;
+		// unified OAuth2 flow - see loginGeneric + LinkedInTokenFiller
+		return loginGeneric("linkedin", request, response);
 	}
 
 	/**
@@ -1836,165 +738,9 @@ public class UserResource {
 	@Path("/login/microsoft")
 	public Response loginMicrosoft(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
-		if (socialData.getLoginsAllowed().get("ms") == null || !socialData.getLoginsAllowed().get("ms")) {
-			Map<String, Object> ret = new HashMap<>();
-			ret.put(Constants.ERROR_MESSAGE, "Microsoft login is not allowed");
-			return WebUtility.getResponse(ret, 400);
-		}
-
-		HttpSession session = initializeOAuthLoginSession(request);
-		User userObj = getSessionUser(session);
-		String queryString = getEncodedQueryString(request);
-		if (hasOAuthCode(queryString)) {
-			if (!hasAccessToken(userObj, AuthProvider.MICROSOFT)) {
-				String[] outputs = HttpHelperUtility.getCodes(queryString);
-
-				// oauth code should match [ -~]+ (1 or more ascii)
-				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
-				String code = URLDecoder.decode(outputs[0], StandardCharsets.UTF_8);
-				if (code.matches("[ -~]+")) {
-					String prefix = "ms_";
-					String clientId = socialData.getProperty(prefix + "client_id");
-					String clientSecret = socialData.getProperty(prefix + "secret_key");
-					String redirectUri = socialData.getProperty(prefix + "redirect_uri");
-					String tenant = socialData.getProperty(prefix + "tenant");
-					String scope = socialData.getProperty(prefix + "scope");
-					String token_url = socialData.getProperty(prefix + "token_url");
-					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
-					boolean login_external_allowed = Boolean
-							.parseBoolean(socialData.getProperty(prefix + "login_external"));
-
-					classLogger.debug(">> {}", Utility.cleanLogString(request.getQueryString()));
-
-					Map<String, String> params = new HashMap<>();
-					params.put("client_id", clientId);
-					params.put("scope", scope);
-					params.put("redirect_uri", redirectUri);
-					params.put("code", code);
-					params.put("grant_type", "authorization_code");
-					params.put("client_secret", clientSecret);
-
-					if (Strings.isNullOrEmpty(token_url)) {
-						token_url = "https://login.microsoftonline.com/" + tenant + "/oauth2/v2.0/token";
-					}
-
-					AccessToken accessToken = HttpHelperUtility.getAccessToken(token_url, params, true, true);
-					if (accessToken == null) {
-						// not authenticated
-						response.setStatus(302);
-						response.sendRedirect(getMicrosoftRedirect(request));
-						return null;
-					}
-
-					accessToken.setProvider(AuthProvider.MICROSOFT);
-					MicrosoftTokenFiller profiler = new MicrosoftTokenFiller();
-					profiler.fillAccessToken(accessToken, null, null, null, null);
-					if (!login_external_allowed) {
-						if (accessToken.getName().contains("External")) {
-							accessToken = null;
-							throw new IllegalArgumentException("External users are not allowed");
-						}
-					}
-					fillUserGroups(accessToken, "ms_", AuthProvider.MICROSOFT);
-					addAccessToken(accessToken, request, autoAdd);
-
-					classLogger.debug("Access Token is.. {}", accessToken.getAccess_token());
-				}
-			}
-		}
-
-		userObj = refreshSessionUser(request, session);
-		if (!hasAccessToken(userObj, AuthProvider.MICROSOFT)) {
-			// not authenticated
-			response.setStatus(302);
-			response.sendRedirect(getMicrosoftRedirect(request));
-			return null;
-		}
-
-		setMainPageRedirect(request, response);
-		return null;
-	}
-
-	/**
-	 * Builds the Microsoft authorization redirect URL.
-	 *
-	 * @param request inbound HTTP request
-	 * @return Microsoft authorize URL
-	 * @throws UnsupportedEncodingException when redirect parameters cannot be URL
-	 *                                      encoded
-	 */
-	private String getMicrosoftRedirect(HttpServletRequest request) throws UnsupportedEncodingException {
-		String prefix = "ms_";
-		String clientId = socialData.getProperty(prefix + "client_id");
-		String redirectUri = socialData.getProperty(prefix + "redirect_uri");
-		String tenant = socialData.getProperty(prefix + "tenant");
-		String scope = socialData.getProperty(prefix + "scope"); // need to set this up and reuse
-		String auth_url = socialData.getProperty(prefix + "auth_url");
-
-		String state = UUID.randomUUID().toString();
-
-		if (Strings.isNullOrEmpty(auth_url)) {
-			auth_url = "https://login.microsoftonline.com/" + tenant + "/oauth2/v2.0/authorize";
-		}
-		String redirectUrl = auth_url + "?" + "client_id=" + clientId + "&response_type=code" + "&redirect_uri="
-				+ URLEncoder.encode(redirectUri, UTF8) + "&response_mode=query" + "&scope="
-				+ URLEncoder.encode(scope, UTF8) + "&state=" + state;
-
-		classLogger.debug("Sending redirect {}", Utility.cleanLogString(redirectUrl));
-		return redirectUrl;
-	}
-
-	/**
-	 * Fetches groups from an external URL and stores them on the access token.
-	 * Reads {prefix}groups, {prefix}group_url, {prefix}groupJsonPattern,
-	 * {prefix}group_string_return, and {prefix}group_string_regex from social properties.
-	 */
-	private void fillUserGroups(AccessToken accessToken, String prefix, AuthProvider provider) {
-		if (!Boolean.parseBoolean(socialData.getProperty(prefix + "groups"))) {
-			return;
-		}
-		String group_url = socialData.getProperty(prefix + "group_url");
-		String groupsJson = HttpHelperUtility.makeGetCall(group_url, accessToken.getAccess_token());
-		boolean sanitizeGroupResponse = Boolean.parseBoolean(socialData.getProperty(prefix + "sanitizeGroupResponse"));
-		if (sanitizeGroupResponse) {
-			groupsJson = groupsJson.replace("\\", "\\\\");
-		}
-		Set<String> userGroups = new HashSet<String>();
-		boolean groupStringResponse = Boolean.parseBoolean(socialData.getProperty(prefix + "group_string_return"));
-		if (groupStringResponse) {
-			String groupJsonPattern = socialData.getProperty(prefix + "groupJsonPattern");
-			JsonNode result = BeanFiller.getJmesResult(groupsJson, groupJsonPattern);
-			try {
-				String groupText = result.asText();
-				String regexPattern = socialData.getProperty(prefix + "group_string_regex");
-				try {
-					Pattern.compile(regexPattern);
-				} catch (PatternSyntaxException e) {
-					classLogger.error("Invalid group_string_regex for prefix {}", prefix, e);
-					throw new SemossPixelException("Pattern input is not a valid regex");
-				}
-				String[] groups = groupText.split(regexPattern);
-				for (String group : groups) {
-					userGroups.add(group);
-				}
-			} catch (SemossPixelException e) {
-				throw e;
-			} catch (Exception e) {
-				classLogger.error("Could not parse group string response for prefix {}", prefix, e);
-				throw new SemossPixelException("Could not parse response as string");
-			}
-		} else {
-			String groupJsonPattern = socialData.getProperty(prefix + "groupJsonPattern");
-			JsonNode result = BeanFiller.getJmesResult(groupsJson, groupJsonPattern);
-			if ((result instanceof ArrayNode) && result.get(0) instanceof ObjectNode) {
-				throw new SemossPixelException("Group result must return flat array. Please check groupJsonPattern");
-			}
-			for (int inputIndex = 0; result != null && inputIndex < result.size(); inputIndex++) {
-				userGroups.add(result.get(inputIndex).asText());
-			}
-		}
-		accessToken.setUserGroups(userGroups);
-		accessToken.setUserGroupType(provider.toString());
+		// unified OAuth2 flow - see loginGeneric + MicrosoftTokenFiller
+		// (tenant-templated endpoints + login_external enforcement live in the filler)
+		return loginGeneric("ms", request, response);
 	}
 
 	/**
@@ -2005,99 +751,8 @@ public class UserResource {
 	@Path("/login/okta")
 	public Response loginOkta(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
-		if (socialData.getLoginsAllowed().get("okta") == null || !socialData.getLoginsAllowed().get("okta")) {
-			Map<String, Object> ret = new HashMap<>();
-			ret.put(Constants.ERROR_MESSAGE, "Okta login is not allowed");
-			return WebUtility.getResponse(ret, 400);
-		}
-
-		HttpSession session = initializeOAuthLoginSession(request);
-		User userObj = getSessionUser(session);
-		String queryString = getEncodedQueryString(request);
-		if (hasOAuthCode(queryString)) {
-			if (!hasAccessToken(userObj, AuthProvider.MICROSOFT)) {
-				String[] outputs = HttpHelperUtility.getCodes(queryString);
-
-				// oauth code should match [ -~]+ (1 or more ascii)
-				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
-				String code = URLDecoder.decode(outputs[0], StandardCharsets.UTF_8);
-				if (code.matches("[ -~]+")) {
-					String prefix = "okta_";
-					String clientId = socialData.getProperty(prefix + "client_id");
-					String clientSecret = socialData.getProperty(prefix + "secret_key");
-					String redirectUri = socialData.getProperty(prefix + "redirect_uri");
-					String scope = socialData.getProperty(prefix + "scope");
-					String token_url = socialData.getProperty(prefix + "token_url");
-					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
-
-					classLogger.debug(">> {}", Utility.cleanLogString(request.getQueryString()));
-
-					Map<String, String> params = new HashMap<>();
-					params.put("client_id", clientId);
-					params.put("scope", scope);
-					params.put("redirect_uri", redirectUri);
-					params.put("code", code);
-					params.put("grant_type", "authorization_code");
-					params.put("client_secret", clientSecret);
-
-					AccessToken accessToken = HttpHelperUtility.getAccessToken(token_url, params, true, true);
-					if (accessToken == null) {
-						// not authenticated
-						response.setStatus(302);
-						response.sendRedirect(getOktaRedirect(request));
-						return null;
-					}
-
-					accessToken.setProvider(AuthProvider.OKTA);
-
-					// sub is the unique id for a user in okta
-					String userinfo_url = socialData.getProperty(prefix + "userinfo_url");
-					String beanProps = socialData.getProperty(prefix + "beanProps");
-					String[] beanPropsArr = beanProps.split(",", -1);
-					String jsonPattern = socialData.getProperty(prefix + "jsonPattern");
-
-					OktaTokenFiller profiler = new OktaTokenFiller();
-					profiler.fillAccessToken(accessToken, userinfo_url, jsonPattern, beanPropsArr, null);
-					addAccessToken(accessToken, request, autoAdd);
-					classLogger.debug("Access Token is.. {}", accessToken.getAccess_token());
-				}
-			}
-		}
-
-		userObj = refreshSessionUser(request, session);
-		if (!hasAccessToken(userObj, AuthProvider.OKTA)) {
-			// not authenticated
-			response.setStatus(302);
-			response.sendRedirect(getOktaRedirect(request));
-			return null;
-		}
-
-		setMainPageRedirect(request, response);
-		return null;
-	}
-
-	/**
-	 * Builds the Okta authorization redirect URL.
-	 *
-	 * @param request inbound HTTP request
-	 * @return Okta authorize URL
-	 * @throws UnsupportedEncodingException when redirect parameters cannot be URL
-	 *                                      encoded
-	 */
-	private String getOktaRedirect(HttpServletRequest request) throws UnsupportedEncodingException {
-		String prefix = "okta_";
-		String clientId = socialData.getProperty(prefix + "client_id");
-		String redirectUri = socialData.getProperty(prefix + "redirect_uri");
-		String scope = socialData.getProperty(prefix + "scope"); // need to set this up and reuse
-		String auth_url = socialData.getProperty(prefix + "auth_url");
-		String state = UUID.randomUUID().toString();
-
-		String redirectUrl = auth_url + "?" + "client_id=" + clientId + "&response_type=code" + "&redirect_uri="
-				+ URLEncoder.encode(redirectUri, UTF8) + "&response_mode=query" + "&scope="
-				+ URLEncoder.encode(scope, UTF8) + "&state=" + state;
-
-		classLogger.debug("Sending redirect {}", Utility.cleanLogString(redirectUrl));
-		return redirectUrl;
+		// unified OAuth2 flow - see loginGeneric + OktaTokenFiller
+		return loginGeneric("okta", request, response);
 	}
 
 	@Path("/login/producthunt")
@@ -2111,88 +766,8 @@ public class UserResource {
 	 */
 	public Response loginProducthunt(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
-		if (socialData.getLoginsAllowed().get("producthunt") == null
-				|| !socialData.getLoginsAllowed().get("producthunt")) {
-			Map<String, Object> ret = new HashMap<>();
-			ret.put(Constants.ERROR_MESSAGE, "Producthunt login is not allowed");
-			return WebUtility.getResponse(ret, 400);
-		}
-
-		HttpSession session = initializeOAuthLoginSession(request);
-		User userObj = getSessionUser(session);
-		String queryString = getEncodedQueryString(request);
-		if (hasOAuthCode(queryString)) {
-			if (!hasAccessToken(userObj, AuthProvider.PRODUCT_HUNT)) {
-				String[] outputs = HttpHelperUtility.getCodes(queryString);
-
-				// oauth code should match [ -~]+ (1 or more ascii)
-				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
-				String code = URLDecoder.decode(outputs[0], StandardCharsets.UTF_8);
-				if (code.matches("[ -~]+")) {
-					String prefix = "producthunt_";
-					String clientId = socialData.getProperty(prefix + "client_id");
-					String clientSecret = socialData.getProperty(prefix + "secret_key");
-					String redirectUri = socialData.getProperty(prefix + "redirect_uri");
-					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
-
-					classLogger.debug(">> {}", Utility.cleanLogString(request.getQueryString()));
-
-					Map<String, String> params = new HashMap<>();
-					params.put("client_id", clientId);
-					params.put("redirect_uri", redirectUri);
-					params.put("code", code);
-					params.put("grant_type", "authorization_code");
-					params.put("client_secret", clientSecret);
-
-					String url = "https://api.producthunt.com/v1/oauth/token";
-
-					AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, true, true);
-					if (accessToken == null) {
-						// not authenticated
-						response.setStatus(302);
-						response.sendRedirect(getProducthuntRedirect(request));
-						return null;
-					}
-					accessToken.setProvider(AuthProvider.PRODUCT_HUNT);
-					addAccessToken(accessToken, request, autoAdd);
-
-					classLogger.debug("Access Token is.. {}", accessToken.getAccess_token());
-				}
-			}
-		}
-
-		userObj = refreshSessionUser(request, session);
-		if (!hasAccessToken(userObj, AuthProvider.PRODUCT_HUNT)) {
-			response.setStatus(302);
-			response.sendRedirect(getProducthuntRedirect(request));
-			return null;
-		}
-
-		setMainPageRedirect(request, response);
-		return null;
-	}
-
-	/**
-	 * Builds the Product Hunt authorization redirect URL.
-	 *
-	 * @param request inbound HTTP request
-	 * @return Product Hunt authorize URL
-	 * @throws UnsupportedEncodingException when redirect parameters cannot be URL
-	 *                                      encoded
-	 */
-	private String getProducthuntRedirect(HttpServletRequest request) throws UnsupportedEncodingException {
-		String prefix = "producthunt_";
-
-		String clientId = socialData.getProperty(prefix + "client_id");
-		String redirectUri = socialData.getProperty(prefix + "redirect_uri");
-		String scope = socialData.getProperty(prefix + "scope");
-
-		String redirectUrl = "https://api.producthunt.com/v1/oauth/authorize?" + "client_id=" + clientId
-				+ "&response_type=code" + "&redirect_uri=" + URLEncoder.encode(redirectUri, UTF8) + "&scope="
-				+ URLEncoder.encode(scope, UTF8);
-
-		classLogger.debug("Sending redirect {}", Utility.cleanLogString(redirectUrl));
-		return redirectUrl;
+		// unified OAuth2 flow - see loginGeneric + ProductHuntTokenFiller
+		return loginGeneric("producthunt", request, response);
 	}
 
 	/**
@@ -2203,91 +778,8 @@ public class UserResource {
 	@Path("/login/salesforce")
 	public Response loginSalesforce(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
-		if (socialData.getLoginsAllowed().get("salesforce") == null
-				|| !socialData.getLoginsAllowed().get("salesforce")) {
-			Map<String, Object> ret = new HashMap<>();
-			ret.put(Constants.ERROR_MESSAGE, "Salesforce login is not allowed");
-			return WebUtility.getResponse(ret, 400);
-		}
-
-		HttpSession session = initializeOAuthLoginSession(request);
-		User userObj = getSessionUser(session);
-		String queryString = getEncodedQueryString(request);
-		if (hasOAuthCode(queryString)) {
-			if (!hasAccessToken(userObj, AuthProvider.SALESFORCE)) {
-				String[] outputs = HttpHelperUtility.getCodes(queryString);
-
-				// oauth code should match [ -~]+ (1 or more ascii)
-				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
-				String code = URLDecoder.decode(outputs[0], StandardCharsets.UTF_8);
-				if (code.matches("[ -~]+")) {
-					String prefix = "salesforce_";
-					String clientId = socialData.getProperty(prefix + "client_id");
-					String clientSecret = socialData.getProperty(prefix + "secret_key");
-					String redirectUri = socialData.getProperty(prefix + "redirect_uri");
-					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
-
-					classLogger.debug(">> {}", Utility.cleanLogString(request.getQueryString()));
-
-					Map<String, String> params = new HashMap<>();
-					params.put("client_id", clientId);
-					params.put("grant_type", "authorization_code");
-					params.put("redirect_uri", redirectUri);
-					params.put("code", code);
-					params.put("client_secret", clientSecret);
-
-					String url = "https://login.salesforce.com/services/oauth2/token";
-
-					AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, true, true);
-					if (accessToken == null) {
-						// not authenticated
-						response.setStatus(302);
-						response.sendRedirect(getSalesforceRedirect(request));
-						return null;
-					}
-					accessToken.setProvider(AuthProvider.SALESFORCE);
-
-					// fill the access token with the other properties so we can properly create the
-					// user
-					SalesforceTokenFiller profiler = new SalesforceTokenFiller();
-					profiler.fillAccessToken(accessToken, null, null, null, null);
-					addAccessToken(accessToken, request, autoAdd);
-
-					classLogger.debug("Access Token is.. {}", accessToken.getAccess_token());
-				}
-			}
-		}
-
-		userObj = refreshSessionUser(request, session);
-		if (!hasAccessToken(userObj, AuthProvider.SALESFORCE)) {
-			// not authenticated
-			response.setStatus(302);
-			response.sendRedirect(getSalesforceRedirect(request));
-			return null;
-		}
-
-		setMainPageRedirect(request, response);
-		return null;
-	}
-
-	/**
-	 * Builds the Salesforce authorization redirect URL.
-	 *
-	 * @param request inbound HTTP request
-	 * @return Salesforce authorize URL
-	 * @throws UnsupportedEncodingException when redirect parameters cannot be URL
-	 *                                      encoded
-	 */
-	private String getSalesforceRedirect(HttpServletRequest request) throws UnsupportedEncodingException {
-		String prefix = "salesforce_";
-		String clientId = socialData.getProperty(prefix + "client_id");
-		String redirectUri = socialData.getProperty(prefix + "redirect_uri");
-
-		String redirectUrl = "https://login.salesforce.com/services/oauth2/authorize?" + "client_id=" + clientId
-				+ "&response_type=code" + "&redirect_uri=" + redirectUri + "&scope=" + URLEncoder.encode("api", UTF8);
-
-		classLogger.debug("Sending redirect {}", Utility.cleanLogString(redirectUrl));
-		return redirectUrl;
+		// unified OAuth2 flow - see loginGeneric + SalesforceTokenFiller
+		return loginGeneric("salesforce", request, response);
 	}
 
 	/**
@@ -2423,93 +915,8 @@ public class UserResource {
 	@Path("/login/servicenow")
 	public Response loginServiceNow(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
-		if (socialData.getLoginsAllowed().get("servicenow") == null
-				|| !socialData.getLoginsAllowed().get("servicenow")) {
-			Map<String, Object> ret = new HashMap<>();
-			ret.put(Constants.ERROR_MESSAGE, "Servicenow login is not allowed");
-			return WebUtility.getResponse(ret, 400);
-		}
-
-		HttpSession session = initializeOAuthLoginSession(request);
-		User userObj = getSessionUser(session);
-		String queryString = getEncodedQueryString(request);
-		if (hasOAuthCode(queryString)) {
-			if (!hasAccessToken(userObj, AuthProvider.SERVICENOW)) {
-				String[] outputs = HttpHelperUtility.getCodes(queryString);
-
-				// oauth code should match [ -~]+ (1 or more ascii)
-				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
-				String code = URLDecoder.decode(outputs[0], StandardCharsets.UTF_8);
-				if (code.matches("[ -~]+")) {
-					String prefix = "servicenow_";
-					String clientId = socialData.getProperty(prefix + "client_id");
-					String clientSecret = socialData.getProperty(prefix + "secret_key");
-					String redirectUri = socialData.getProperty(prefix + "redirect_uri");
-					String instanceUrl = socialData.getProperty(prefix + "instance_url");
-					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
-
-					classLogger.debug(">> {}", Utility.cleanLogString(request.getQueryString()));
-
-					Map<String, String> params = new HashMap<>();
-					params.put("client_id", clientId);
-					params.put("grant_type", "authorization_code");
-					params.put("redirect_uri", redirectUri);
-					params.put("code", code);
-					params.put("client_secret", clientSecret);
-
-					String url = instanceUrl + "/oauth_token.do";
-
-					AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, true, true);
-					if (accessToken == null) {
-						// not authenticated
-						response.setStatus(302);
-						response.sendRedirect(getServiceNowRedirect(request));
-						return null;
-					}
-					accessToken.setProvider(AuthProvider.SERVICENOW);
-
-					// fill the access token with the other properties so we can properly create the
-					// user
-					ServiceNowTokenFiller profiler = new ServiceNowTokenFiller();
-					profiler.fillAccessToken(accessToken, null, null, null, null);
-					addAccessToken(accessToken, request, autoAdd);
-
-					classLogger.debug("Access Token is.. {}", accessToken.getAccess_token());
-				}
-			}
-		}
-
-		userObj = refreshSessionUser(request, session);
-		if (!hasAccessToken(userObj, AuthProvider.SERVICENOW)) {
-			// not authenticated
-			response.setStatus(302);
-			response.sendRedirect(getServiceNowRedirect(request));
-			return null;
-		}
-
-		setMainPageRedirect(request, response);
-		return null;
-	}
-
-	/**
-	 * Builds the ServiceNow authorization redirect URL.
-	 *
-	 * @param request inbound HTTP request
-	 * @return ServiceNow authorize URL
-	 * @throws UnsupportedEncodingException when redirect parameters cannot be URL
-	 *                                      encoded
-	 */
-	private String getServiceNowRedirect(HttpServletRequest request) throws UnsupportedEncodingException {
-		String prefix = "servicenow_";
-		String clientId = socialData.getProperty(prefix + "client_id");
-		String redirectUri = socialData.getProperty(prefix + "redirect_uri");
-		String instanceUrl = socialData.getProperty(prefix + "instance_url");
-
-		String redirectUrl = instanceUrl + "/oauth_auth.do?" + "client_id=" + clientId + "&response_type=code"
-				+ "&redirect_uri=" + redirectUri;
-
-		classLogger.debug("Sending redirect {}", Utility.cleanLogString(redirectUrl));
-		return redirectUrl;
+		// unified OAuth2 flow - see loginGeneric + ServiceNowTokenFiller
+		return loginGeneric("servicenow", request, response);
 	}
 
 	/**
@@ -2649,100 +1056,8 @@ public class UserResource {
 	@Path("/login/siteminder")
 	public Response loginSiteminder(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
-		if (socialData.getLoginsAllowed().get("siteminder") == null
-				|| !socialData.getLoginsAllowed().get("siteminder")) {
-			Map<String, Object> ret = new HashMap<>();
-			ret.put(Constants.ERROR_MESSAGE, "Siteminder login is not allowed");
-			return WebUtility.getResponse(ret, 400);
-		}
-
-		HttpSession session = initializeOAuthLoginSession(request);
-		User userObj = getSessionUser(session);
-		String queryString = getEncodedQueryString(request);
-		if (hasOAuthCode(queryString)) {
-			if (!hasAccessToken(userObj, AuthProvider.SITEMINDER)) {
-				String[] outputs = HttpHelperUtility.getCodes(queryString);
-
-				// oauth code should match [ -~]+ (1 or more ascii)
-				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
-				String code = URLDecoder.decode(outputs[0], StandardCharsets.UTF_8);
-				if (code.matches("[ -~]+")) {
-					String prefix = "siteminder_";
-					String clientId = socialData.getProperty(prefix + "client_id");
-					String clientSecret = socialData.getProperty(prefix + "secret_key");
-					String redirectUri = socialData.getProperty(prefix + "redirect_uri");
-					String tenant = socialData.getProperty(prefix + "tenant");
-					String scope = socialData.getProperty(prefix + "scope");
-					String token_url = socialData.getProperty(prefix + "token_url");
-					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
-
-					classLogger.debug(">> {}", Utility.cleanLogString(request.getQueryString()));
-
-					Map<String, String> params = new HashMap<>();
-					params.put("client_id", clientId);
-					params.put("scope", scope);
-					params.put("redirect_uri", redirectUri);
-					params.put("code", code);
-					params.put("grant_type", "authorization_code");
-					params.put("client_secret", clientSecret);
-
-					if (Strings.isNullOrEmpty(token_url)) {
-						token_url = "https://login.microsoftonline.com/" + tenant + "/oauth2/v2.0/token";
-					}
-					AccessToken accessToken = HttpHelperUtility.getAccessToken(token_url, params, true, true);
-					if (accessToken == null) {
-						// not authenticated
-						response.setStatus(302);
-						response.sendRedirect(getSiteminderRedirect(request));
-						return null;
-					}
-
-					accessToken.setProvider(AuthProvider.SITEMINDER);
-					addAccessToken(accessToken, request, autoAdd);
-					classLogger.debug("Access Token is.. {}", accessToken.getAccess_token());
-				}
-			}
-		}
-
-		userObj = refreshSessionUser(request, session);
-		if (!hasAccessToken(userObj, AuthProvider.SITEMINDER)) {
-			// not authenticated
-			response.setStatus(302);
-			response.sendRedirect(getSiteminderRedirect(request));
-			return null;
-		}
-
-		setMainPageRedirect(request, response);
-		return null;
-	}
-
-	/**
-	 * Builds the SiteMinder authorization redirect URL.
-	 *
-	 * @param request inbound HTTP request
-	 * @return SiteMinder authorize URL
-	 * @throws UnsupportedEncodingException when redirect parameters cannot be URL
-	 *                                      encoded
-	 */
-	private String getSiteminderRedirect(HttpServletRequest request) throws UnsupportedEncodingException {
-		String prefix = "siteminder_";
-		String clientId = socialData.getProperty(prefix + "client_id");
-		String redirectUri = socialData.getProperty(prefix + "redirect_uri");
-		String tenant = socialData.getProperty(prefix + "tenant");
-		String scope = socialData.getProperty(prefix + "scope"); // need to set this up and reuse
-		String auth_url = socialData.getProperty(prefix + "auth_url");
-		String state = UUID.randomUUID().toString();
-
-		if (Strings.isNullOrEmpty(auth_url)) {
-			auth_url = "https://login.microsoftonline.com/" + tenant + "/oauth2/v2.0/authorize";
-		}
-
-		String redirectUrl = auth_url + "?" + "client_id=" + clientId + "&response_type=code" + "&redirect_uri="
-				+ URLEncoder.encode(redirectUri, UTF8) + "&response_mode=query" + "&scope="
-				+ URLEncoder.encode(scope, UTF8) + "&state=" + state;
-
-		classLogger.debug("Sending redirect {}", Utility.cleanLogString(redirectUrl));
-		return redirectUrl;
+		// unified OAuth2 flow - see loginGeneric + SiteminderTokenFiller
+		return loginGeneric("siteminder", request, response);
 	}
 
 	/**
@@ -2753,87 +1068,8 @@ public class UserResource {
 	@Path("/login/surveymonkey")
 	public Response loginSurveyMonkey(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
-		if (socialData.getLoginsAllowed().get("surveymonkey") == null
-				|| !socialData.getLoginsAllowed().get("surveymonkey")) {
-			Map<String, Object> ret = new HashMap<>();
-			ret.put(Constants.ERROR_MESSAGE, "Surveymonkey login is not allowed");
-			return WebUtility.getResponse(ret, 400);
-		}
-
-		HttpSession session = initializeOAuthLoginSession(request);
-		User userObj = getSessionUser(session);
-		String queryString = getEncodedQueryString(request);
-		if (hasOAuthCode(queryString)) {
-			if (!hasAccessToken(userObj, AuthProvider.SURVEYMONKEY)) {
-				String[] outputs = HttpHelperUtility.getCodes(queryString);
-
-				// oauth code should match [ -~]+ (1 or more ascii)
-				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
-				String code = URLDecoder.decode(outputs[0], StandardCharsets.UTF_8);
-				if (code.matches("[ -~]+")) {
-					String prefix = "surveymonkey_";
-					String clientId = socialData.getProperty(prefix + "client_id");
-					String clientSecret = socialData.getProperty(prefix + "secret_key");
-					String redirectUri = socialData.getProperty(prefix + "redirect_uri");
-					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
-
-					classLogger.debug(">> {}", Utility.cleanLogString(request.getQueryString()));
-
-					Map<String, String> params = new HashMap<>();
-					params.put("client_id", clientId);
-					params.put("grant_type", "authorization_code");
-					params.put("redirect_uri", redirectUri);
-					params.put("code", code);
-					params.put("client_secret", clientSecret);
-
-					String url = "https://api.surveymonkey.com/oauth/token";
-
-					AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, true, true);
-					if (accessToken == null) {
-						// not authenticated
-						response.setStatus(302);
-						response.sendRedirect(getSurveyMonkeyRedirect(request));
-						return null;
-					}
-					accessToken.setProvider(AuthProvider.SURVEYMONKEY);
-					MonkeyProfile.fillAccessToken(accessToken, null);
-					addAccessToken(accessToken, request, autoAdd);
-
-					classLogger.debug("Access Token is.. {}", accessToken.getAccess_token());
-				}
-			}
-		}
-
-		userObj = refreshSessionUser(request, session);
-		if (!hasAccessToken(userObj, AuthProvider.SURVEYMONKEY)) {
-			// not authenticated
-			response.setStatus(302);
-			response.sendRedirect(getSurveyMonkeyRedirect(request));
-			return null;
-		}
-
-		setMainPageRedirect(request, response);
-		return null;
-	}
-
-	/**
-	 * Builds the SurveyMonkey authorization redirect URL.
-	 *
-	 * @param request inbound HTTP request
-	 * @return SurveyMonkey authorize URL
-	 * @throws UnsupportedEncodingException when redirect parameters cannot be URL
-	 *                                      encoded
-	 */
-	private String getSurveyMonkeyRedirect(HttpServletRequest request) throws UnsupportedEncodingException {
-		String prefix = "surveymonkey_";
-		String clientId = socialData.getProperty(prefix + "client_id");
-		String redirectUri = socialData.getProperty(prefix + "redirect_uri");
-
-		String redirectUrl = "https://api.surveymonkey.com/oauth/authorize?" + "client_id=" + clientId
-				+ "&response_type=code" + "&redirect_uri=" + redirectUri;
-
-		classLogger.debug("Sending redirect {}", Utility.cleanLogString(redirectUrl));
-		return redirectUrl;
+		// unified OAuth2 flow - see loginGeneric + SurveyMonkeyTokenFiller
+		return loginGeneric("surveymonkey", request, response);
 	}
 
 	/**
@@ -2849,112 +1085,8 @@ public class UserResource {
 	@Path("/login/twitter")
 	public Response loginTwitter(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
-		if (socialData.getLoginsAllowed().get("twitter") == null || !socialData.getLoginsAllowed().get("twitter")) {
-			Map<String, Object> ret = new HashMap<>();
-			ret.put(Constants.ERROR_MESSAGE, "Twitter login is not allowed");
-			return WebUtility.getResponse(ret, 400);
-		}
-		// getting the bearer token on twitter for app authentication is a lot simpler
-		// need to just combine the id and secret
-		// base 64 and send as authorization
-
-		// https://developer.github.com/apps/building-oauth-apps/authorization-options-for-oauth-apps/
-
-		HttpSession session = initializeOAuthLoginSession(request);
-		User userObj = getSessionUser(session);
-		String queryString = getEncodedQueryString(request);
-		if (hasOAuthCode(queryString)) {
-			if (!hasAccessToken(userObj, AuthProvider.GITHUB)) {
-
-				String[] outputs = HttpHelperUtility.getCodes(queryString);
-				// oauth code and state should match [ -~]+ (1 or more ascii)
-				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.5
-				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
-				String code = URLDecoder.decode(outputs[0], StandardCharsets.UTF_8);
-				String state = URLDecoder.decode(outputs[1], StandardCharsets.UTF_8);
-				if (code.matches("[ -~]+") && state.matches("[ -~]+")) {
-					String prefix = "twitter_";
-					String clientId = socialData.getProperty(prefix + "client_id");
-					String clientSecret = socialData.getProperty(prefix + "secret_key");
-					String redirectUri = socialData.getProperty(prefix + "redirect_uri");
-					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
-
-					classLogger.debug(">> {}", Utility.cleanLogString(request.getQueryString()));
-
-					Map<String, String> params = new HashMap<>();
-					params.put("client_id", clientId);
-					params.put("redirect_uri", redirectUri);
-					params.put("code", code);
-					params.put("state", state);
-					params.put("client_secret", clientSecret);
-
-					String url = "https://api.twitter.com/oauth/access_token";
-
-					AccessToken accessToken = HttpHelperUtility.getAccessToken(url, params, false, true);
-					if (accessToken == null) {
-						// not authenticated
-						response.setStatus(302);
-						response.sendRedirect(getTwitterRedirect(request));
-						return null;
-					}
-
-					accessToken.setProvider(AuthProvider.TWITTER);
-					addAccessToken(accessToken, request, autoAdd);
-
-					classLogger.debug("Access Token is.. {}", accessToken.getAccess_token());
-				}
-			}
-		}
-
-		userObj = refreshSessionUser(request, session);
-		if (!hasAccessToken(userObj, AuthProvider.TWITTER)) {
-			// not authenticated
-			response.setStatus(302);
-			response.sendRedirect(getTwitterRedirect(request));
-			return null;
-		}
-
-		setMainPageRedirect(request, response);
-		return null;
-	}
-
-	/**
-	 * Builds the Twitter authorization redirect URL.
-	 *
-	 * @param request inbound HTTP request
-	 * @return Twitter authorize URL
-	 * @throws UnsupportedEncodingException when redirect parameters cannot be URL
-	 *                                      encoded
-	 */
-	private String getTwitterRedirect(HttpServletRequest request) throws UnsupportedEncodingException {
-		String prefix = "twitter_";
-
-		String clientId = socialData.getProperty(prefix + "client_id");
-		// String clientSecret = socialData.getProperty(prefix + "secret_key");
-		String redirectUri = socialData.getProperty(prefix + "redirect_uri");
-		String scope = socialData.getProperty(prefix + "scope");
-		String nonce = UUID.randomUUID().toString();
-		String timestamp = System.currentTimeMillis() + "";
-
-		StringBuffer signatureString = new StringBuffer("GET").append("&");
-		signatureString.append(URLEncoder.encode("https://api.twitter.com/oauth/authorize", UTF8)).append("&");
-
-		StringBuffer parameterString = new StringBuffer("");
-		parameterString.append("oauth_callback=").append(URLEncoder.encode(redirectUri, UTF8)).append("&");
-		parameterString.append("oauth_consumer_key=").append(clientId).append("&");
-		parameterString.append("oauth_nonce=").append(nonce).append("&");
-		parameterString.append("oauth_timestamp=").append(timestamp);
-
-		// String finalString = signatureString.toString() + parameterString.toString();
-
-		// String signature =
-
-		String redirectUrl = "https://github.com/login/oauth/authorize?" + "oauth_consumer_key=" + clientId
-				+ "&oauth_callback=" + redirectUri + "&oauth_nonce=" + nonce + "&oauth_timestamp=" + timestamp
-				+ "&scope=" + URLEncoder.encode(scope, UTF8);
-
-		classLogger.debug("Sending redirect {}", Utility.cleanLogString(redirectUrl));
-		return redirectUrl;
+		// unified OAuth2 + PKCE flow - see loginGeneric + TwitterTokenFiller (X API v2)
+		return loginGeneric("twitter", request, response);
 	}
 
 	/**
@@ -2972,7 +1104,17 @@ public class UserResource {
 			return WebUtility.getResponse(ret, 400);
 		}
 
-		AuthProvider providerEnum = AuthProvider.getProviderFromString(provider.toUpperCase());
+		// resolve the provider (handles aliases such as microsoft/ms and producthunt),
+		// its canonical social.properties prefix, and the token filler strategy.
+		// Unknown
+		// providers fall back to GENERIC + the raw path prefix so a fully config-driven
+		// OAuth2 provider still works without any code change here.
+		AuthProvider providerEnum = AuthProvider.getSocialPropKeysToEnum().getOrDefault(provider.toLowerCase(),
+				AuthProvider.GENERIC);
+		String prefix = AuthProvider.getSocialPrefixForPath(provider) + "_";
+		IAccessTokenFiller filler = providerEnum.newTokenFiller();
+		// we dont need to ever set redirect_uri so we will set a correct default
+		filler.setDefaultRedirectUri(WebUtility.getCurrentCallbackUrl(request));
 
 		HttpSession session = initializeOAuthLoginSession(request);
 		User userObj = getSessionUser(session);
@@ -2985,60 +1127,28 @@ public class UserResource {
 				// https://www.rfc-editor.org/rfc/rfc6749#appendix-A.11
 				String code = URLDecoder.decode(outputs[0], StandardCharsets.UTF_8);
 				if (code.matches("[ -~]+")) {
-					String prefix = provider + "_";
-					String clientId = socialData.getProperty(prefix + "client_id");
-					String clientSecret = socialData.getProperty(prefix + "secret_key");
-					String redirectUri = socialData.getProperty(prefix + "redirect_uri");
 					boolean autoAdd = Boolean.parseBoolean(socialData.getProperty(prefix + "auto_add", "true"));
-					// String tenant = socialData.getProperty(prefix + "tenant");
-
-					// removing scope for now as it isn't needed in token call usually
-					// String scope = socialData.getProperty(prefix + "scope");
-					String token_url = socialData.getProperty(prefix + "token_url");
 
 					classLogger.debug(">> {}", Utility.cleanLogString(request.getQueryString()));
 
-					Map<String, String> params = new HashMap<>();
-					params.put("client_id", clientId);
-					// params.put("scope", scope);
-					params.put("redirect_uri", redirectUri);
-					params.put("code", code);
-					params.put("grant_type", "authorization_code");
-					params.put("client_secret", clientSecret);
+					// PKCE: replay the code_verifier stashed at authorize time (null otherwise)
+					String codeVerifier = filler.usesPKCE() ? (String) session.getAttribute(prefix + PKCE_VERIFIER_ATTR)
+							: null;
 
-					if (Strings.isNullOrEmpty(token_url)) {
-						throw new IllegalArgumentException("Token URL can not be null or empty");
-					}
-
-					AccessToken accessToken = HttpHelperUtility.getAccessToken(token_url, params, true, true);
+					AccessToken accessToken = filler.exchangeCodeForToken(prefix, code, codeVerifier);
 					if (accessToken == null) {
 						// not authenticated
 						response.setStatus(302);
-						response.sendRedirect(getGenericRedirect(provider, request));
+						response.sendRedirect(buildProviderAuthorizeRedirect(filler, prefix, session));
 						return null;
 					}
 
-					String userInfoURL = socialData.getProperty(prefix + "userinfo_url");
-					// "name","id","email"
-					String beanProps = socialData.getProperty(prefix + "beanProps");
-					String[] beanPropsArr = beanProps.split(",", -1);
-					String jsonPattern = socialData.getProperty(prefix + "jsonPattern");
-
 					accessToken.setProvider(providerEnum);
-
-					// this is a check for sanitizing a response back from an IAM provider - not
-					// common and should be false
-					// examples would be unescaped special chars in the response that then can't be
-					// parsed into a json.
-					// this is not very common.
-					boolean sanitizeResponse = Boolean
-							.parseBoolean(socialData.getProperty(prefix + "sanitizeUserResponse"));
-
-					GenericTokenFiller profiler = new GenericTokenFiller();
-					profiler.fillAccessToken(accessToken, userInfoURL, jsonPattern, beanPropsArr, null,
-							sanitizeResponse);
-
-					fillUserGroups(accessToken, prefix, providerEnum);
+					// fills the user profile (reads userinfo_url/jsonPattern/beanProps +
+					// provider defaults internally); no-op for providers that fetch lazily
+					filler.fillAccessToken(accessToken, prefix);
+					// fill user groups
+					filler.fillUserGroups(accessToken, prefix);
 
 					addAccessToken(accessToken, request, autoAdd);
 
@@ -3051,7 +1161,7 @@ public class UserResource {
 		if (!hasAccessToken(userObj, providerEnum)) {
 			// not authenticated
 			response.setStatus(302);
-			response.sendRedirect(getGenericRedirect(provider, request));
+			response.sendRedirect(buildProviderAuthorizeRedirect(filler, prefix, session));
 			return null;
 		}
 
@@ -3060,44 +1170,25 @@ public class UserResource {
 	}
 
 	/**
-	 * Builds the generic provider authorization redirect URL.
+	 * Builds a provider's authorize redirect URL, generating and stashing a PKCE
+	 * code verifier (and passing the derived challenge) when the provider uses
+	 * PKCE.
 	 *
-	 * @param provider provider key from social properties
-	 * @param request  inbound HTTP request
-	 * @return provider authorize URL
-	 * @throws UnsupportedEncodingException when redirect parameters cannot be URL
-	 *                                      encoded
+	 * @param filler  the provider's token filler strategy
+	 * @param prefix  social.properties prefix for the provider
+	 * @param session the login session used to carry the PKCE verifier to the
+	 *                callback
+	 * @return the authorize redirect URL
 	 */
-	private String getGenericRedirect(String provider, HttpServletRequest request) throws UnsupportedEncodingException {
-		provider = WebUtility.inputSanitizer(provider);
-		String prefix = provider + "_";
-		String clientId = socialData.getProperty(prefix + "client_id");
-		String redirectUri = socialData.getProperty(prefix + "redirect_uri");
-		// String tenant = socialData.getProperty(prefix + "tenant");
-		String scope = socialData.getProperty(prefix + "scope"); // need to set this up and reuse
-		String auth_url = socialData.getProperty(prefix + "auth_url");
-
+	private String buildProviderAuthorizeRedirect(IAccessTokenFiller filler, String prefix, HttpSession session) {
 		String state = UUID.randomUUID().toString();
-
-		if (Strings.isNullOrEmpty(auth_url)) {
-			throw new IllegalArgumentException("Authorize URL can not be null or empty");
+		String codeChallenge = null;
+		if (filler.usesPKCE()) {
+			String codeVerifier = PKCEUtil.generateCodeVerifier();
+			session.setAttribute(prefix + PKCE_VERIFIER_ATTR, codeVerifier);
+			codeChallenge = PKCEUtil.codeChallenge(codeVerifier);
 		}
-
-		String redirectUrl;
-
-		// are you already adding custom props? if so I will skip adding the ?
-		if (auth_url.contains("?")) {
-			redirectUrl = auth_url + "&client_id=" + clientId + "&response_type=code" + "&redirect_uri="
-					+ URLEncoder.encode(redirectUri, UTF8) + "&response_mode=query" + "&scope="
-					+ URLEncoder.encode(scope, UTF8) + "&state=" + state;
-		} else {
-			redirectUrl = auth_url + "?" + "client_id=" + clientId + "&response_type=code" + "&redirect_uri="
-					+ URLEncoder.encode(redirectUri, UTF8) + "&response_mode=query" + "&scope="
-					+ URLEncoder.encode(scope, UTF8) + "&state=" + state;
-		}
-
-		classLogger.debug("Sending redirect {}", Utility.cleanLogString(redirectUrl));
-		return redirectUrl;
+		return filler.buildAuthorizeRedirect(prefix, state, codeChallenge);
 	}
 
 	/////////////////////////////////////////////////////////////////
