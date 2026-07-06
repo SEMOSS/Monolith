@@ -504,6 +504,14 @@
 					<artifactId>jakarta.servlet-api</artifactId>
 				</exclusion>
 				<exclusion>
+					<groupId>org.openidentityplatform.openam.jakarta</groupId>
+					<artifactId>jaxrpc-impl</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.sun.xml.rpc</groupId>
+					<artifactId>jaxrpc-impl</artifactId>
+				</exclusion>
+				<exclusion>
 					<groupId>com.fasterxml.woodstox</groupId>
 					<artifactId>woodstox-core</artifactId>
 				</exclusion>
@@ -659,5 +667,10 @@
             <type>pom</type>
             <scope>import</scope>
         </dependency> -->
+		<dependency>
+			<groupId>com.sun.xml.rpc</groupId>
+			<artifactId>jaxrpc-impl</artifactId>
+			<version>1.1.6</version>
+		</dependency>
     </dependencies>
 </project>
