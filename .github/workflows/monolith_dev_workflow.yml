@@ -4,6 +4,7 @@ on:
     branches:
       - dev
       - main
+      - critical-fixes-7-6
   pull_request:
     branches:
       - dev
