@@ -47,10 +47,11 @@ import org.apache.logging.log4j.Logger;
 import com.google.gson.Gson;
 
 import prerna.auth.User;
-import prerna.remoteviewer.model.BrowserInputEvent;
-import prerna.remoteviewer.security.InputEventValidator;
-import prerna.remoteviewer.service.BrowserSession;
-import prerna.remoteviewer.service.BrowserSessionManager;
+import prerna.remoteviewer.model.RemoteBrowserInputEvent;
+import prerna.remoteviewer.security.RemoteBrowserInputEventValidator;
+import prerna.remoteviewer.service.RemoteBrowserRecordingService;
+import prerna.remoteviewer.service.RemoteBrowserSession;
+import prerna.remoteviewer.service.RemoteBrowserSessionManager;
 import prerna.util.Constants;
 
 /**
@@ -62,7 +63,7 @@ import prerna.util.Constants;
  * <p>
  * This endpoint is purely the transport for one browser session:
  * <ol>
- * <li>On open, it binds a {@code FrameSender} that writes JSON to this socket
+ * <li>On open, it binds a {@code RemoteBrowserFrameSender} that writes JSON to this socket
  * and flags the viewer as connected.</li>
  * <li>Incoming input events are validated and enqueued on the session's event
  * queue.</li>
@@ -71,14 +72,14 @@ import prerna.util.Constants;
  * <p>
  * The frame-producing loop (drain events, screenshot, push
  * {@code frame}/{@code navigated} messages) lives in
- * {@link BrowserSessionManager}, which starts it at session creation and only
+ * {@link RemoteBrowserSessionManager}, which starts it at session creation and only
  * streams once the {@code wsConnected} flag flips true. This endpoint does not
  * run its own loop.
  */
-@ServerEndpoint(value = "/browserSocket/{sessionId}", configurator = BrowserWSConfigurator.class)
-public class BrowserSessionWebSocket {
+@ServerEndpoint(value = "/browserSocket/{sessionId}", configurator = RemoteBrowserWSConfigurator.class)
+public class RemoteBrowserSessionWebSocket {
 
-	private static final Logger classLogger = LogManager.getLogger(BrowserSessionWebSocket.class);
+	private static final Logger classLogger = LogManager.getLogger(RemoteBrowserSessionWebSocket.class);
 	private static final Gson GSON = new Gson();
 
 	// ---- WebSocket lifecycle ----
@@ -91,23 +92,23 @@ public class BrowserSessionWebSocket {
 			return;
 		}
 
-		Optional<BrowserSession> opt = BrowserSessionManager.getInstance().getSession(sessionId);
+		Optional<RemoteBrowserSession> opt = RemoteBrowserSessionManager.getInstance().getSession(sessionId);
 		if (opt.isEmpty()) {
 			closeWithPolicy(wsSession, "Session not found: " + sessionId);
 			return;
 		}
 
-		BrowserSession session = opt.get();
+		RemoteBrowserSession session = opt.get();
 		if (!session.getUserId().equals(user.getPrimaryLoginToken().getId())) {
 			closeWithPolicy(wsSession, "Access denied");
 			return;
 		}
 
-		// Bind the FrameSender and flag the viewer as connected. The session's
-		// event loop (started by BrowserSessionManager at creation time) is already
+		// Bind the RemoteBrowserFrameSender and flag the viewer as connected. The session's
+		// event loop (started by RemoteBrowserSessionManager at creation time) is already
 		// running and reads these two volatile fields each tick — it will begin
 		// streaming frames as soon as they are set.
-		session.setFrameSender(json -> {
+		session.setRemoteBrowserFrameSender(json -> {
 			try {
 				wsSession.getBasicRemote().sendText(json);
 			} catch (IOException e) {
@@ -122,17 +123,17 @@ public class BrowserSessionWebSocket {
 
 	@OnMessage
 	public void onMessage(String message, Session wsSession, @PathParam("sessionId") String sessionId) {
-		Optional<BrowserSession> opt = BrowserSessionManager.getInstance().getSession(sessionId);
+		Optional<RemoteBrowserSession> opt = RemoteBrowserSessionManager.getInstance().getSession(sessionId);
 		if (opt.isEmpty()) {
 			return;
 		}
 
-		BrowserSession session = opt.get();
+		RemoteBrowserSession session = opt.get();
 		session.touchActivity();
 
-		BrowserInputEvent event;
+		RemoteBrowserInputEvent event;
 		try {
-			event = GSON.fromJson(message, BrowserInputEvent.class);
+			event = GSON.fromJson(message, RemoteBrowserInputEvent.class);
 		} catch (Exception e) {
 			classLogger.warn("Failed to parse WebSocket message: {}", e.getMessage());
 			sendErrorDirect(wsSession, "Invalid event format");
@@ -140,7 +141,7 @@ public class BrowserSessionWebSocket {
 		}
 
 		try {
-			InputEventValidator.validate(event, session.getViewportWidth(), session.getViewportHeight());
+			RemoteBrowserInputEventValidator.validate(event, session.getViewportWidth(), session.getViewportHeight());
 		} catch (IllegalArgumentException e) {
 			sendErrorDirect(wsSession, "Invalid event: " + e.getMessage());
 			return;
@@ -148,7 +149,7 @@ public class BrowserSessionWebSocket {
 
 		// Close-session event — handled directly
 		if ("close-session".equals(event.getType())) {
-			BrowserSessionManager.getInstance().closeSession(sessionId);
+			RemoteBrowserSessionManager.getInstance().closeSession(sessionId);
 			return;
 		}
 
@@ -162,9 +163,10 @@ public class BrowserSessionWebSocket {
 	@OnClose
 	public void onClose(Session wsSession, CloseReason reason, @PathParam("sessionId") String sessionId) {
 		classLogger.info("WebSocket closed for session {}: {}", sessionId, reason.getReasonPhrase());
-		BrowserSessionManager.getInstance().getSession(sessionId).ifPresent(s -> {
+		RemoteBrowserSessionManager.getInstance().getSession(sessionId).ifPresent(s -> {
+			RemoteBrowserRecordingService.discardRecording(s);
 			s.setWsConnected(false);
-			s.setFrameSender(null);
+			s.setRemoteBrowserFrameSender(null);
 		});
 	}
 
@@ -177,7 +179,7 @@ public class BrowserSessionWebSocket {
 
 	/**
 	 * Send an error directly over a raw WebSocket Session (used before
-	 * BrowserSession is bound).
+	 * RemoteBrowserSession is bound).
 	 */
 	private static void sendErrorDirect(Session ws, String message) {
 		try {

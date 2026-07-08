@@ -33,7 +33,7 @@ import java.util.Set;
 import javax.ws.rs.ApplicationPath;
 import javax.ws.rs.core.Application;
 
-import prerna.remoteviewer.api.BrowserSessionController;
+import prerna.remoteviewer.api.RemoteBrowserSessionController;
 import prerna.semoss.web.form.FormResource;
 import prerna.semoss.web.services.config.ServerConfigurationResource;
 import prerna.semoss.web.services.local.A2AResource;
@@ -127,7 +127,7 @@ public class MonolithApplication extends Application {
 		// A2A
 		singletons.add(new A2AResource());
 		// Remote Browser Viewer
-		singletons.add(new BrowserSessionController());
+		singletons.add(new RemoteBrowserSessionController());
 	}
 
 	@Override
