@@ -425,10 +425,21 @@
 			<version>${ci.version}</version>
 			<classifier>shaded-dependencies</classifier>
 		</dependency>
+		<!-- Source: https://mvnrepository.com/artifact/org.a2aproject.sdk/a2a-java-sdk-spec -->
 		<dependency>
-			<groupId>org.a2aproject.sdk</groupId>
-			<artifactId>a2a-java-sdk-spec</artifactId>
-			<version>1.0.0.CR1</version>
+		    <groupId>org.a2aproject.sdk</groupId>
+		    <artifactId>a2a-java-sdk-spec</artifactId>
+		    <version>1.1.0.Final</version>
+		    <exclusions>
+		    	<exclusion>
+		    		<groupId>org.slf4j</groupId>
+		    		<artifactId>*</artifactId>
+		    	</exclusion>
+		    	<exclusion>
+		    		<groupId>com.google.code.gson</groupId>
+		    		<artifactId>gson</artifactId>
+		    	</exclusion>
+		    </exclusions>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/org.apache.tomcat/tomcat-catalina -->
 		<!-- this is the primary tomcat specific jar -->
