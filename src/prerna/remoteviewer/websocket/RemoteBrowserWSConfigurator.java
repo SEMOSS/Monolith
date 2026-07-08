@@ -40,7 +40,7 @@ import prerna.util.Constants;
  * authenticated SEMOSS {@code User} from the HTTP session and injects it into
  * the WebSocket endpoint config properties.
  */
-public class BrowserWSConfigurator extends Configurator {
+public class RemoteBrowserWSConfigurator extends Configurator {
 
 	@Override
 	public void modifyHandshake(ServerEndpointConfig sec, HandshakeRequest request, HandshakeResponse resp) {
