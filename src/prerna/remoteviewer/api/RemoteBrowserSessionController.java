@@ -112,14 +112,22 @@ public class RemoteBrowserSessionController {
 			return buildError(Response.Status.BAD_REQUEST, "Invalid request body");
 		}
 
-		if (req == null || req.getUrl() == null || req.getUrl().isBlank()) {
+		if (req == null) {
+			return buildError(Response.Status.BAD_REQUEST, "Invalid request body");
+		}
+
+		String requestedUrl = req.getUrl() == null ? "" : req.getUrl().trim();
+		boolean preserveExisting = Boolean.TRUE.equals(req.getPreserveExisting());
+		if (requestedUrl.isBlank() && !preserveExisting) {
 			return buildError(Response.Status.BAD_REQUEST, "Field 'url' is required");
 		}
 
-		try {
-			RemoteBrowserUrlSafetyValidator.validate(req.getUrl());
-		} catch (IllegalArgumentException e) {
-			return buildError(Response.Status.BAD_REQUEST, e.getMessage());
+		if (!requestedUrl.isBlank()) {
+			try {
+				RemoteBrowserUrlSafetyValidator.validate(requestedUrl);
+			} catch (IllegalArgumentException e) {
+				return buildError(Response.Status.BAD_REQUEST, e.getMessage());
+			}
 		}
 
 		String userId = user.getPrimaryLoginToken().getId();
@@ -128,7 +136,7 @@ public class RemoteBrowserSessionController {
 
 		RemoteBrowserSession session;
 		try {
-			session = RemoteBrowserSessionManager.getInstance().createSession(user, req.getUrl(), vpWidth, vpHeight);
+			session = RemoteBrowserSessionManager.getInstance().createSession(user, requestedUrl, vpWidth, vpHeight);
 		} catch (IllegalStateException e) {
 			return buildError(Response.Status.TOO_MANY_REQUESTS, e.getMessage());
 		} catch (Exception e) {
@@ -138,7 +146,7 @@ public class RemoteBrowserSessionController {
 
 		String wsUrl = "/browserSocket/" + session.getSessionId();
 		RemoteBrowserSessionCreateResponse resp = new RemoteBrowserSessionCreateResponse(session.getSessionId(), wsUrl,
-				session.getViewportWidth(), session.getViewportHeight());
+				session.getViewportWidth(), session.getViewportHeight(), safeUrl(session));
 
 		classLogger.info("Browser session {} created for user {}", session.getSessionId(), userId);
 		return Response.ok(GSON.toJson(resp)).build();
