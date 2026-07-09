@@ -485,7 +485,7 @@
 		<dependency>
 			<groupId>org.openidentityplatform.openam</groupId>
 			<artifactId>openam-federation-library</artifactId>
-			<version>16.1.1</version>
+			<version>15.2.2</version>
 			<exclusions>
 				<exclusion>
 					<groupId>com.google.guava</groupId>
@@ -498,18 +498,6 @@
 				<exclusion>
 					<groupId>jakarta.activation</groupId>
 					<artifactId>jakarta.activation-api</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>jakarta.servlet</groupId>
-					<artifactId>jakarta.servlet-api</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.openidentityplatform.openam.jakarta</groupId>
-					<artifactId>jaxrpc-impl</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.fasterxml.woodstox</groupId>
-					<artifactId>woodstox-core</artifactId>
 				</exclusion>
 				<exclusion>
 					<artifactId>commons-logging</artifactId>
