@@ -221,6 +221,41 @@ public class RemoteBrowserSessionController {
 	}
 
 	/**
+	 * Returns the full replayable recording envelope for a session.
+	 *
+	 * <p>
+	 * GET /api/browser-sessions/{sessionId}/recording
+	 */
+	@GET
+	@Path("/{sessionId}/recording")
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response getRecordingEnvelope(@Context HttpServletRequest request, @PathParam("sessionId") String sessionId) {
+		User user;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			return buildError(Response.Status.UNAUTHORIZED, "User session is invalid");
+		}
+
+		Optional<RemoteBrowserSession> opt = RemoteBrowserSessionManager.getInstance().getSession(sessionId);
+		if (opt.isEmpty()) {
+			return buildError(Response.Status.NOT_FOUND, "Session not found");
+		}
+
+		RemoteBrowserSession session = opt.get();
+		if (!session.getUserId().equals(user.getPrimaryLoginToken().getId())) {
+			return buildError(Response.Status.FORBIDDEN, "Access denied");
+		}
+
+		try {
+			return Response.ok(JSON.writeValueAsString(session.getRecordingHistory())).build();
+		} catch (Exception e) {
+			classLogger.error("Failed to serialize remote browser recording session={}: {}", sessionId, e.getMessage(), e);
+			return buildError(Response.Status.INTERNAL_SERVER_ERROR, "Could not load recording");
+		}
+	}
+
+	/**
 	 * Saves the replayable Playwright recording for a remote browser session into
 	 * the selected project's recordings folder.
 	 *
