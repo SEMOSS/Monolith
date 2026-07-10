@@ -107,6 +107,7 @@ public class MonolithApplication extends Application {
 		singletons.add(new GroupInsightAuthorizationResource());
 		// group admin authorization
 		singletons.add(new AdminGroupAuthorizationResource());
+      // room token limits
 		// insight execution
 		singletons.add(new ExecuteInsightResource());
 		singletons.add(new ShareInsightResource());

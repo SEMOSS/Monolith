@@ -27,7 +27,10 @@
  *******************************************************************************/
 package prerna.semoss.web.services.local.auth;
 
+import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -47,6 +50,7 @@ import javax.ws.rs.core.Response;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.javatuples.Pair;
 
 import com.google.gson.Gson;
 
@@ -55,10 +59,13 @@ import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityAdminUtils;
+import prerna.auth.utils.SecurityEntityDefaultTokenUtils;
+import prerna.auth.utils.SecurityPrincipalTokenLimitUtils;
 import prerna.auth.utils.SecurityProjectUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
 import prerna.cluster.util.ClusterUtil;
+import prerna.engine.impl.model.inferencetracking.ModelInferenceLogsUtils;
 import prerna.graph.utility.MsGraphUtility;
 import prerna.om.Insight;
 import prerna.project.api.IProject;
@@ -472,7 +479,6 @@ public class ProjectAuthorizationResource {
 				return WebUtility.getResponse(ret, 400);
 			}
 		}
-
 		// Determine if admin right are required to add users and, if so, if requester
 		// has those rights.
 		if (AbstractSecurityUtils.adminOnlyProjectAddAccess() && !SecurityAdminUtils.userIsAdmin(requester)) {
@@ -1193,18 +1199,18 @@ public class ProjectAuthorizationResource {
 			// then the users might not already exist in the security db
 			if (graphApi) {
 				// filter out users that already exist
-				List<Map<String, String>> filteredUsers = permission.stream()
-						.filter(map -> !SecurityQueryUtils.checkUserExist(map.get(Constants.MAP_USERID)))
-						.collect(Collectors.toList());
+					List<Map<String, String>> filteredUsers = permission.stream()
+							.filter(map -> !SecurityQueryUtils.checkUserExist((String) map.get(Constants.MAP_USERID)))
+							.collect(Collectors.toList());
 				if (filteredUsers != null && !filteredUsers.isEmpty()) {
 					AccessToken token = null;
 					// Add new users to OAuth if they don't exist
-					for (Map<String, String> map : filteredUsers) {
-						token = new AccessToken();
-						token.setId(map.get(Constants.MAP_USERID));
-						token.setEmail(map.get(Constants.MAP_EMAIL));
-						token.setName(map.get(Constants.MAP_NAME));
-						token.setUsername(map.get(Constants.MAP_USERNAME));
+						for (Map<String, String> map : filteredUsers) {
+							token = new AccessToken();
+							token.setId(map.get(Constants.MAP_USERID));
+							token.setEmail(map.get(Constants.MAP_EMAIL));
+							token.setName(map.get(Constants.MAP_NAME));
+							token.setUsername(map.get(Constants.MAP_USERNAME));
 						token.setProvider(AuthProvider.MICROSOFT);
 						SecurityUpdateUtils.addOAuthUser(token);
 					}
@@ -1353,6 +1359,580 @@ public class ProjectAuthorizationResource {
 		classLogger.info("User is trying to {} for project {}", logPortal, projectId);
 
 		return WebUtility.getResponse(true, 200);
+	}
+
+	/**
+	 * Reset token usage for a user on a specific project.
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("resetProjectUserTokenUsage")
+	public Response resetProjectUserTokenUsage(@Context HttpServletRequest request,
+			MultivaluedMap<String, String> form) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			classLogger.error("Invalid user session trying to access authorization resources", e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String targetUserId = WebUtility.inputSQLSanitizer(form.getFirst("userId"));
+
+		// Only editors/owners or admins can reset
+		if (!SecurityProjectUtils.userCanEditProject(user, projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Insufficient privileges to reset token usage.");
+			return WebUtility.getResponse(errorMap, 403);
+		}
+
+		try {
+			ModelInferenceLogsUtils.resetUserTokenUsageForProject(targetUserId, projectId);
+		} catch (Exception e) {
+			classLogger.error("Failed to reset token usage for user " + targetUserId + " on project " + projectId, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		classLogger.info("User reset token usage for user {} on project {}", targetUserId, projectId);
+
+		Map<String, Object> ret = new HashMap<String, Object>();
+		ret.put("success", true);
+		return WebUtility.getResponse(ret, 200);
+	}
+
+	@GET
+	@Produces("application/json")
+	@Path("getProjectDefaultTokenLimit")
+	public Response getProjectDefaultTokenLimit(@Context HttpServletRequest request,
+			@QueryParam("projectId") String projectId) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			classLogger.error("Invalid user session trying to access authorization resources", e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		projectId = WebUtility.inputSanitizer(projectId);
+		if (projectId == null || projectId.trim().isEmpty()) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Must provide a projectId");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		if (!SecurityProjectUtils.userCanViewProject(user, projectId)) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Project does not exist or user does not have access");
+			return WebUtility.getResponse(errorMap, 403);
+		}
+
+		try {
+			return WebUtility.getResponse(SecurityEntityDefaultTokenUtils.getProjectDefaultTokenLimits(projectId), 200);
+		} catch (Exception e) {
+			classLogger.error("Failed to get project default token limit for project {}", projectId, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 500);
+		}
+	}
+
+	@POST
+	@Produces("application/json")
+	@Path("setProjectDefaultTokenLimit")
+	public Response setProjectDefaultTokenLimit(@Context HttpServletRequest request,
+			MultivaluedMap<String, String> form) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			classLogger.error("Invalid user session trying to access authorization resources", e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String usageFrequency = WebUtility.inputSanitizer(form.getFirst("usageFrequency"));
+		String existingUsageFrequency = WebUtility.inputSanitizer(form.getFirst("existingUsageFrequency"));
+		if (projectId == null || projectId.trim().isEmpty()) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Must provide a projectId");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		if (!SecurityProjectUtils.userCanEditProject(user, projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Insufficient privileges to set project default token limit.");
+			return WebUtility.getResponse(errorMap, 403);
+		}
+
+		long maxTokens = parseLong(form.getFirst("maxTokens"), -1);
+		long maxInputTokens = parseLong(form.getFirst("maxInputTokens"), -1);
+		long maxOutputTokens = parseLong(form.getFirst("maxOutputTokens"), -1);
+		double maxResponseTime = parseDouble(form.getFirst("maxResponseTime"), -1);
+		boolean isActive = parseBoolean(form.getFirst("isActive"), true);
+		boolean restrictPerModel = parseBoolean(form.getFirst("restrictPerModel"), false);
+		Pair<String, String> userDetails = User.getPrimaryUserIdAndTypePair(user);
+
+		try {
+			SecurityEntityDefaultTokenUtils.setProjectDefaultTokenLimit(projectId, usageFrequency, maxTokens,
+					maxInputTokens, maxOutputTokens, maxResponseTime, isActive, userDetails.getValue0(), userDetails.getValue1(),
+					restrictPerModel, existingUsageFrequency);
+			Map<String, Object> ret = new HashMap<String, Object>();
+			ret.put("success", true);
+			ret.put("projectId", projectId);
+			return WebUtility.getResponse(ret, 200);
+		} catch (Exception e) {
+			classLogger.error("Failed to set project default token limit for project {}", projectId, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 500);
+		}
+	}
+
+	@POST
+	@Produces("application/json")
+	@Path("removeProjectDefaultTokenLimit")
+	public Response removeProjectDefaultTokenLimit(@Context HttpServletRequest request,
+			MultivaluedMap<String, String> form) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			classLogger.error("Invalid user session trying to access authorization resources", e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String usageFrequency = WebUtility.inputSanitizer(form.getFirst("usageFrequency"));
+		if (projectId == null || projectId.trim().isEmpty()) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Must provide a projectId");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		if (!SecurityProjectUtils.userCanEditProject(user, projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Insufficient privileges to remove project default token limit.");
+			return WebUtility.getResponse(errorMap, 403);
+		}
+
+		try {
+			SecurityEntityDefaultTokenUtils.removeProjectDefaultTokenLimit(projectId, usageFrequency);
+			Map<String, Object> ret = new HashMap<String, Object>();
+			ret.put("success", true);
+			ret.put("projectId", projectId);
+			return WebUtility.getResponse(ret, 200);
+		} catch (Exception e) {
+			classLogger.error("Failed to remove project default token limit for project {}", projectId, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 500);
+		}
+	}
+
+	@GET
+	@Produces("application/json")
+	@Path("getProjectDefaultTeamTokenLimit")
+	public Response getProjectDefaultTeamTokenLimit(@Context HttpServletRequest request,
+			@QueryParam("projectId") String projectId) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			classLogger.error("Invalid user session trying to access authorization resources", e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		projectId = WebUtility.inputSanitizer(projectId);
+		if (projectId == null || projectId.trim().isEmpty()) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Must provide a projectId");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		if (!SecurityProjectUtils.userCanViewProject(user, projectId)) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Project does not exist or user does not have access");
+			return WebUtility.getResponse(errorMap, 403);
+		}
+
+		try {
+			return WebUtility.getResponse(SecurityEntityDefaultTokenUtils.getProjectDefaultTeamTokenLimits(projectId), 200);
+		} catch (Exception e) {
+			classLogger.error("Failed to get project default team token limit for project {}", projectId, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 500);
+		}
+	}
+
+	@POST
+	@Produces("application/json")
+	@Path("setProjectDefaultTeamTokenLimit")
+	public Response setProjectDefaultTeamTokenLimit(@Context HttpServletRequest request,
+			MultivaluedMap<String, String> form) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			classLogger.error("Invalid user session trying to access authorization resources", e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String usageFrequency = WebUtility.inputSanitizer(form.getFirst("usageFrequency"));
+		String existingUsageFrequency = WebUtility.inputSanitizer(form.getFirst("existingUsageFrequency"));
+		if (projectId == null || projectId.trim().isEmpty()) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Must provide a projectId");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		if (!SecurityProjectUtils.userCanEditProject(user, projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Insufficient privileges to set project default team token limit.");
+			return WebUtility.getResponse(errorMap, 403);
+		}
+
+		long maxTokens = parseLong(form.getFirst("maxTokens"), -1);
+		long maxInputTokens = parseLong(form.getFirst("maxInputTokens"), -1);
+		long maxOutputTokens = parseLong(form.getFirst("maxOutputTokens"), -1);
+		double maxResponseTime = parseDouble(form.getFirst("maxResponseTime"), -1);
+		boolean isActive = parseBoolean(form.getFirst("isActive"), true);
+		Pair<String, String> userDetails = User.getPrimaryUserIdAndTypePair(user);
+
+		try {
+			SecurityEntityDefaultTokenUtils.setProjectDefaultTeamTokenLimit(projectId, usageFrequency, maxTokens,
+					maxInputTokens, maxOutputTokens, maxResponseTime, isActive, userDetails.getValue0(), userDetails.getValue1(),
+					existingUsageFrequency);
+			Map<String, Object> ret = new HashMap<String, Object>();
+			ret.put("success", true);
+			ret.put("projectId", projectId);
+			return WebUtility.getResponse(ret, 200);
+		} catch (Exception e) {
+			classLogger.error("Failed to set project default team token limit for project {}", projectId, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 500);
+		}
+	}
+
+	@POST
+	@Produces("application/json")
+	@Path("removeProjectDefaultTeamTokenLimit")
+	public Response removeProjectDefaultTeamTokenLimit(@Context HttpServletRequest request,
+			MultivaluedMap<String, String> form) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			classLogger.error("Invalid user session trying to access authorization resources", e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String usageFrequency = WebUtility.inputSanitizer(form.getFirst("usageFrequency"));
+		if (projectId == null || projectId.trim().isEmpty()) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Must provide a projectId");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		if (!SecurityProjectUtils.userCanEditProject(user, projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Insufficient privileges to remove project default team token limit.");
+			return WebUtility.getResponse(errorMap, 403);
+		}
+
+		try {
+			SecurityEntityDefaultTokenUtils.removeProjectDefaultTeamTokenLimit(projectId, usageFrequency);
+			Map<String, Object> ret = new HashMap<String, Object>();
+			ret.put("success", true);
+			ret.put("projectId", projectId);
+			return WebUtility.getResponse(ret, 200);
+		} catch (Exception e) {
+			classLogger.error("Failed to remove project default team token limit for project {}", projectId, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 500);
+		}
+	}
+
+	@GET
+	@Produces("application/json")
+	@Path("getProjectTokenUsage")
+	public Response getProjectTokenUsage(@Context HttpServletRequest request,
+			@QueryParam("projectId") String projectId) {
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			classLogger.error("Invalid user session trying to access authorization resources", e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		projectId = WebUtility.inputSanitizer(projectId);
+		if (projectId == null || projectId.trim().isEmpty()) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Must provide a projectId");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		// Verify user has access to the project
+		if (!SecurityProjectUtils.userCanViewProject(user, projectId)) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Project does not exist or user does not have access");
+			return WebUtility.getResponse(errorMap, 403);
+		}
+
+		Map<String, Object> ret = new HashMap<String, Object>();
+		try {
+			List<Map<String, Object>> limits = buildProjectUsageLimits(user, projectId);
+			ret.put("projectId", projectId);
+			ret.put("configured", !limits.isEmpty());
+			ret.put("limits", limits);
+			if (limits.size() == 1) {
+				ret.putAll(buildLegacyUsagePayload(limits.get(0)));
+			}
+		} catch (Exception e) {
+			classLogger.error("Failed to get project token usage for project " + projectId, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 500);
+		}
+
+		return WebUtility.getResponse(ret, 200);
+	}
+
+	private List<Map<String, Object>> buildProjectUsageLimits(User user, String projectId) {
+		List<Map<String, Object>> limits = new ArrayList<>();
+		ZonedDateTime currentDateTime = Utility.getCurrentZonedDateTimeUTC();
+
+		for (Map<String, Object> limit : getApplicableProjectUserTokenLimitsForAnyEngine(user, projectId)) {
+			addProjectUsageLimit(limits, "user_limit_table", "user", projectId, limit.get("engineId"),
+					limit.get("userId"), null, limit, "usageRestriction", "usageFrequency", "maxTokens",
+					"maxInputTokens", "maxOutputTokens", "maxResponseTime", "restrictPerModel", user,
+					currentDateTime);
+		}
+			for (Map<String, Object> limit : SecurityEntityDefaultTokenUtils.getProjectDefaultTokenLimits(projectId)) {
+			addProjectUsageLimit(limits, "default_user", "default_user", projectId, limit.get("engineId"), null, null,
+					limit, "usageRestriction", "usageFrequency", "maxTokens", "maxInputTokens", "maxOutputTokens",
+					"maxResponseTime", "restrictPerModel", user, currentDateTime);
+		}
+		for (Map<String, Object> limit : getApplicableProjectTeamTokenLimitsForAnyEngine(user, projectId)) {
+			String groupRef = stringify(limit.get("groupType"));
+			if (groupRef != null && limit.get("groupId") != null) {
+				groupRef = groupRef + ":" + stringify(limit.get("groupId"));
+			}
+			addProjectUsageLimit(limits, "team_limit_table", "team", projectId, limit.get("engineId"), null, groupRef,
+					limit, "usageRestriction", "usageFrequency", "maxTokens", "maxInputTokens", "maxOutputTokens",
+					"maxResponseTime", "restrictPerModel", user, currentDateTime);
+		}
+			for (Map<String, Object> limit : SecurityEntityDefaultTokenUtils.getProjectDefaultTeamTokenLimits(projectId)) {
+			addProjectUsageLimit(limits, "default_team", "default_team", projectId, limit.get("engineId"), null, null,
+					limit, "usageRestriction", "usageFrequency", "maxTokens", "maxInputTokens", "maxOutputTokens",
+					"maxResponseTime", "restrictPerModel", user, currentDateTime);
+		}
+
+		return limits;
+	}
+
+	private List<Map<String, Object>> getApplicableProjectUserTokenLimitsForAnyEngine(User user, String projectId) {
+		List<Map<String, Object>> limits = new ArrayList<>();
+		if (user == null) {
+			return limits;
+		}
+		for (AuthProvider login : user.getLogins()) {
+			AccessToken token = user.getAccessToken(login);
+			if (token != null && token.getId() != null && !token.getId().trim().isEmpty()) {
+				limits.addAll(SecurityPrincipalTokenLimitUtils.getProjectUserTokenLimitsForAnyEngine(projectId,
+						token.getId()));
+			}
+		}
+		return limits;
+	}
+
+	private List<Map<String, Object>> getApplicableProjectTeamTokenLimitsForAnyEngine(User user, String projectId) {
+		List<Map<String, Object>> limits = new ArrayList<>();
+		if (user == null) {
+			return limits;
+		}
+		for (AuthProvider login : user.getLogins()) {
+			AccessToken token = user.getAccessToken(login);
+			if (token == null || token.getUserGroupType() == null || token.getUserGroupType().trim().isEmpty()
+					|| token.getUserGroups() == null) {
+				continue;
+			}
+			for (String groupId : token.getUserGroups()) {
+				if (groupId != null && !groupId.trim().isEmpty()) {
+					limits.addAll(SecurityPrincipalTokenLimitUtils.getProjectTeamTokenLimitsForAnyEngine(projectId,
+							groupId, token.getUserGroupType()));
+				}
+			}
+		}
+		return limits;
+	}
+
+	private void addProjectUsageLimit(List<Map<String, Object>> limits, String source, String scope, String projectId,
+			Object rawEngineId, Object userId, Object groupId, Map<String, Object> rawLimit, String restrictionKey,
+			String frequencyKey, String maxTokensKey, String maxInputTokensKey, String maxOutputTokensKey,
+			String maxResponseTimeKey, String restrictPerModelKey, User user, ZonedDateTime currentDateTime) {
+		if (!isActive(rawLimit.get("isActive"))) {
+			return;
+		}
+		String restrictionType = stringify(rawLimit.get(restrictionKey));
+		String frequency = stringify(rawLimit.get(frequencyKey));
+		Number maxTokens = numberValue(rawLimit.get(maxTokensKey));
+		Number maxInputTokens = numberValue(rawLimit.get(maxInputTokensKey));
+		Number maxOutputTokens = numberValue(rawLimit.get(maxOutputTokensKey));
+		Number maxResponseTime = numberValue(rawLimit.get(maxResponseTimeKey));
+		if (!hasConfiguredLimit(restrictionType, maxTokens, maxInputTokens, maxOutputTokens, maxResponseTime)) {
+			return;
+		}
+
+		String storedEngineId = stringify(rawEngineId);
+		boolean restrictPerModel = Boolean.TRUE.equals(rawLimit.get(restrictPerModelKey))
+				|| (storedEngineId != null
+						&& !SecurityPrincipalTokenLimitUtils.ALL_ENGINES_SENTINEL.equals(storedEngineId));
+		String scopedEngineId = restrictPerModel ? storedEngineId : null;
+
+		Map<String, Object> row = new LinkedHashMap<>();
+		row.put("source", source);
+		row.put("scope", scope);
+		row.put("projectId", projectId);
+		row.put("engineId", storedEngineId);
+		row.put("restrictPerModel", restrictPerModel);
+		row.put("userId", userId);
+		row.put("groupId", groupId);
+		row.put("restrictionType", restrictionType);
+		row.put("frequency", frequency);
+		row.put("usageFrequency", frequency);
+		row.put("tokenLimit", maxTokens);
+		row.put("inputTokenLimit", maxInputTokens);
+		row.put("outputTokenLimit", maxOutputTokens);
+		row.put("computeTimeLimit", maxResponseTime);
+		row.put("configured", true);
+		row.put("isActive", true);
+		row.put("tokensUsed", getProjectUsageMetric(Constants.MODEL_TOKEN_RESTRICTION_VALUE, user, projectId,
+				scopedEngineId, currentDateTime, frequency, null, maxTokens));
+		row.put("inputTokensUsed", getProjectUsageMetric(Constants.MODEL_TOKEN_RESTRICTION_VALUE, user, projectId,
+				scopedEngineId, currentDateTime, frequency, "INPUT", maxInputTokens));
+		row.put("outputTokensUsed", getProjectUsageMetric(Constants.MODEL_TOKEN_RESTRICTION_VALUE, user, projectId,
+				scopedEngineId, currentDateTime, frequency, "RESPONSE", maxOutputTokens));
+		row.put("computeTimeUsed", getProjectUsageMetric(Constants.MODEL_COMPUTE_TIME_RESTRICTION_VALUE, user,
+				projectId, scopedEngineId, currentDateTime, frequency, null, maxResponseTime));
+		limits.add(row);
+	}
+
+	private Number getProjectUsageMetric(String restrictionType, User user, String projectId, String scopedEngineId,
+			ZonedDateTime currentDateTime, String frequency, String messageType, Number configuredLimit) {
+		if (configuredLimit == null) {
+			return Constants.MODEL_COMPUTE_TIME_RESTRICTION_VALUE.equalsIgnoreCase(restrictionType) ? 0.0 : 0;
+		}
+		Number usage = ModelInferenceLogsUtils.getTotalTokensForProject(restrictionType, user, projectId,
+				normalizeProjectScopedEngineId(scopedEngineId), currentDateTime, frequency, messageType);
+		if (usage != null) {
+			return usage;
+		}
+		return Constants.MODEL_COMPUTE_TIME_RESTRICTION_VALUE.equalsIgnoreCase(restrictionType) ? 0.0 : 0;
+	}
+
+	private String normalizeProjectScopedEngineId(String scopedEngineId) {
+		if (scopedEngineId == null || scopedEngineId.trim().isEmpty()
+				|| SecurityPrincipalTokenLimitUtils.ALL_ENGINES_SENTINEL.equals(scopedEngineId)) {
+			return null;
+		}
+		return scopedEngineId;
+	}
+
+	private Map<String, Object> buildLegacyUsagePayload(Map<String, Object> limit) {
+		Map<String, Object> legacy = new HashMap<>();
+		legacy.put("restrictionType", limit.get("restrictionType"));
+		legacy.put("frequency", limit.get("frequency"));
+		legacy.put("tokensUsed", limit.get("tokensUsed"));
+		legacy.put("tokenLimit", limit.get("tokenLimit"));
+		legacy.put("inputTokensUsed", limit.get("inputTokensUsed"));
+		legacy.put("inputTokenLimit", limit.get("inputTokenLimit"));
+		legacy.put("outputTokensUsed", limit.get("outputTokensUsed"));
+		legacy.put("outputTokenLimit", limit.get("outputTokenLimit"));
+		legacy.put("computeTimeUsed", limit.get("computeTimeUsed"));
+		legacy.put("computeTimeLimit", limit.get("computeTimeLimit"));
+		return legacy;
+	}
+
+	private boolean hasConfiguredLimit(String restrictionType, Number maxTokens, Number maxInputTokens,
+			Number maxOutputTokens, Number maxResponseTime) {
+		if (restrictionType == null || restrictionType.trim().isEmpty()) {
+			return false;
+		}
+		return maxTokens != null || maxInputTokens != null || maxOutputTokens != null || maxResponseTime != null;
+	}
+
+	private boolean isActive(Object isActiveValue) {
+		return isActiveValue == null || Boolean.TRUE.equals(isActiveValue);
+	}
+
+	private Number numberValue(Object value) {
+		return value instanceof Number ? (Number) value : null;
+	}
+
+	private String stringify(Object value) {
+		return value == null ? null : value.toString();
+	}
+
+	private String getCurrentUserId(User user) {
+		if (user == null || user.getLogins() == null || user.getLogins().isEmpty()) {
+			return null;
+		}
+		AccessToken token = user.getAccessToken(user.getLogins().get(0));
+		return token == null ? null : token.getId();
+	}
+
+	private long parseLong(String val, long defaultVal) {
+		if (val == null || val.trim().isEmpty()) {
+			return defaultVal;
+		}
+		try {
+			return Long.parseLong(val.trim());
+		} catch (NumberFormatException e) {
+			return defaultVal;
+		}
+	}
+
+	private double parseDouble(String val, double defaultVal) {
+		if (val == null || val.trim().isEmpty()) {
+			return defaultVal;
+		}
+		try {
+			return Double.parseDouble(val.trim());
+		} catch (NumberFormatException e) {
+			return defaultVal;
+		}
+	}
+
+	private boolean parseBoolean(String val, boolean defaultVal) {
+		if (val == null || val.trim().isEmpty()) {
+			return defaultVal;
+		}
+		return Boolean.parseBoolean(val.trim());
 	}
 
 }
