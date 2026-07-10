@@ -33,7 +33,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-import javax.websocket.Session;
+import jakarta.websocket.Session;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
