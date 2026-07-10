@@ -33,7 +33,7 @@ import java.util.Map;
 import java.util.TreeMap;
 
 import jakarta.annotation.security.PermitAll;
-import jakarta.naming.InvalidNameException;
+import javax.naming.InvalidNameException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.ws.rs.POST;
