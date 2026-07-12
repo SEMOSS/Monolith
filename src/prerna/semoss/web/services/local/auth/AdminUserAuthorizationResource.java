@@ -378,34 +378,6 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 	}
 
 	@GET
-	@Path("/getAllDbUsers")
-	@Produces("application/json")
-	@Deprecated
-	/**
-	 * PLEASE USE
-	 * {@link AdminUserAuthorizationResource#getAllUsers(HttpServletRequest)}
-	 * 
-	 * @param request
-	 * @return
-	 */
-	public Response getAllDbUsers(@Context HttpServletRequest request) {
-		SecurityAdminUtils adminUtils = null;
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-			adminUtils = performAdminCheck(request, user);
-		} catch (IllegalAccessException e) {
-			classLogger.error("Failed to retrieve all db users.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		List<Map<String, Object>> ret = adminUtils.getAllUsers(null, -1, -1);
-		return WebUtility.getResponse(ret, 200);
-	}
-
-	@GET
 	@Path("/getAllUsers")
 	@Produces("application/json")
 	public Response getAllUsers(@Context HttpServletRequest request, @QueryParam("filterWord") String searchTerm,
