@@ -247,13 +247,17 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		return WebUtility.getResponse(outputNoun.getValue(), 200);
 	}
 
-	@POST
+	@GET
 	@Path("/getAllUserProjects")
 	@Produces("application/json")
-	public Response getAllUserProjects(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	public Response getAllUserProjects(@Context HttpServletRequest request, @QueryParam("userId") String userId,
+			@QueryParam("projectTypes") List<String> projectTypes, @QueryParam("searchTerm") String searchTerm,
+			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+		userId = WebUtility.inputSQLSanitizer(userId);
+		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
+		projectTypes = WebUtility.inputSanitizer(projectTypes);
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String userId = WebUtility.inputSQLSanitizer(form.getFirst("userId"));
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
@@ -266,40 +270,35 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		return WebUtility.getResponse(adminUtils.getAllUserProjects(userId), 200);
+		return WebUtility.getResponse(adminUtils.getAllUserProjects(userId, projectTypes, searchTerm, limit, offset),
+				200);
 	}
 
-	@POST
+	@GET
 	@Path("/getUserProjectsNoCredentials")
 	@Produces("application/json")
 	public Response getUserProjectsNoCredentials(@Context HttpServletRequest request,
-			MultivaluedMap<String, String> form) {
+			@QueryParam("userId") String userId, @QueryParam("projectTypes") List<String> projectTypes,
+			@QueryParam("searchTerm") String searchTerm, @QueryParam("limit") long limit,
+			@QueryParam("offset") long offset) {
+		userId = WebUtility.inputSQLSanitizer(userId);
+		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
+		projectTypes = WebUtility.inputSanitizer(projectTypes);
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String userId = WebUtility.inputSQLSanitizer(form.getFirst("userId"));
-		String searchTerm = WebUtility.inputSQLSanitizer(form.getFirst("searchTerm"));
-		long limit = 0;
-		long offset = 0;
-		if (form.getFirst("limit") != null) {
-			limit = Long.parseLong(form.getFirst("limit"));
-		}
-		if (form.getFirst("offset") != null) {
-			offset = Long.parseLong(form.getFirst("offset"));
-		}
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(
-					"User is trying to pull the projects that user {} does not have access to when not an admin",
-					userId);
+			classLogger.warn("Non-admin user tried to list the projects that user {} does not have access to", userId);
 			classLogger.error("Failed to list the projects that user {} does not have access to", userId, e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		return WebUtility.getResponse(adminUtils.getUserProjectsNoCredentials(userId, searchTerm, limit, offset), 200);
+		return WebUtility.getResponse(
+				adminUtils.getUserProjectsNoCredentials(userId, projectTypes, searchTerm, limit, offset), 200);
 	}
 
 	@POST
