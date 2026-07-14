@@ -325,26 +325,27 @@ public class UserSessionLoader implements HttpSessionListener {
 	}
 
 	private void cleanupPlaywrightSessions(User thisUser) {
-		Set<String> playwrightSessionIds = thisUser.getPlaywrightSessionIds();
-		for (String sessionId : playwrightSessionIds) {
-			try {
-				PlaywrightSession thisSession = thisUser.getPlaywrightSession(sessionId);
-				if (thisSession != null) {
-					thisSession.close();
+		if (thisUser != null) {
+			Set<String> playwrightSessionIds = thisUser.getPlaywrightSessionIds();
+			for (String sessionId : playwrightSessionIds) {
+				try {
+					PlaywrightSession thisSession = thisUser.getPlaywrightSession(sessionId);
+					if (thisSession != null) {
+						thisSession.close();
+					}
+				} catch (Exception e) {
+					classLogger.error("Error occurred closing the playwright session {}", sessionId, e);
 				}
-			} catch (Exception e) {
-				classLogger.error("Error occurred closing the playwright session {}", sessionId, e);
+			}
+			BrowserContext sharedContext = thisUser.getSharedPlaywrightContext();
+			if (sharedContext != null) {
+				try {
+					sharedContext.close();
+				} catch (Exception e) {
+					classLogger.error("Error occurred closing the playwright shared context", e);
+				}
 			}
 		}
-		BrowserContext sharedContext = thisUser.getSharedPlaywrightContext();
-		if (sharedContext != null) {
-			try {
-				sharedContext.close();
-			} catch (Exception e) {
-				classLogger.error("Error occurred closing the playwright shared context", e);
-			}
-		}
-
 	}
 
 }
