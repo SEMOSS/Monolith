@@ -42,6 +42,8 @@ import javax.servlet.http.HttpSessionListener;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.microsoft.playwright.BrowserContext;
+
 import prerna.auth.SyncUserAssetsThread;
 import prerna.auth.User;
 import prerna.cluster.util.ClusterUtil;
@@ -52,6 +54,7 @@ import prerna.om.ClientProcessWrapper;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.LocalUserStore;
+import prerna.reactor.playwright.PlaywrightSession;
 import prerna.semoss.web.services.local.MCPResource;
 import prerna.usertracking.UserTrackingUtils;
 import prerna.util.Constants;
@@ -205,6 +208,8 @@ public class UserSessionLoader implements HttpSessionListener {
 			cleanupUserRooms(subAgent, "agent user");
 		}
 
+		cleanupPlaywrightSessions(thisUser);
+
 		// register the successful logout
 		UserTrackingUtils.registerLogout(sessionId);
 		classLogger.info("Finished logout");
@@ -317,6 +322,29 @@ public class UserSessionLoader implements HttpSessionListener {
 			classLogger.error("Failed to clear temporal access key during session user cleanup", e);
 			return null;
 		}
+	}
+
+	private void cleanupPlaywrightSessions(User thisUser) {
+		Set<String> playwrightSessionIds = thisUser.getPlaywrightSessionIds();
+		for (String sessionId : playwrightSessionIds) {
+			try {
+				PlaywrightSession thisSession = thisUser.getPlaywrightSession(sessionId);
+				if (thisSession != null) {
+					thisSession.close();
+				}
+			} catch (Exception e) {
+				classLogger.error("Error occurred closing the playwright session {}", sessionId, e);
+			}
+		}
+		BrowserContext sharedContext = thisUser.getSharedPlaywrightContext();
+		if (sharedContext != null) {
+			try {
+				sharedContext.close();
+			} catch (Exception e) {
+				classLogger.error("Error occurred closing the playwright shared context", e);
+			}
+		}
+
 	}
 
 }
