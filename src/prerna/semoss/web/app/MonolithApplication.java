@@ -51,6 +51,7 @@ import prerna.semoss.web.services.local.OpenAIEndpoints;
 import prerna.semoss.web.services.local.ProjectResource;
 import prerna.semoss.web.services.local.SchedulerResource;
 import prerna.semoss.web.services.local.SessionResource;
+import prerna.semoss.web.services.local.WorkflowWebhookResource;
 import prerna.semoss.web.services.local.ShareInsightResource;
 import prerna.semoss.web.services.local.StorageEngineResource;
 import prerna.semoss.web.services.local.UserResource;
@@ -125,6 +126,8 @@ public class MonolithApplication extends Application {
 		singletons.add(new MCPResource());
 		// A2A
 		singletons.add(new A2AResource());
+		// Workflow webhook trigger endpoint
+		singletons.add(new WorkflowWebhookResource());
 	}
 
 	@Override
