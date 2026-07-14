@@ -33,9 +33,10 @@ import java.util.Set;
 import javax.ws.rs.ApplicationPath;
 import javax.ws.rs.core.Application;
 
-import prerna.cluster.RawSelectWrapperService;
+import prerna.remoteviewer.api.RemoteBrowserSessionController;
 import prerna.semoss.web.form.FormResource;
 import prerna.semoss.web.services.config.ServerConfigurationResource;
+import prerna.semoss.web.services.local.A2AResource;
 import prerna.semoss.web.services.local.AdminThemeResource;
 import prerna.semoss.web.services.local.AnthropicEndpoints;
 import prerna.semoss.web.services.local.AuthorizationResource;
@@ -43,7 +44,6 @@ import prerna.semoss.web.services.local.DatabaseEngineResource;
 import prerna.semoss.web.services.local.EngineRouteResource;
 import prerna.semoss.web.services.local.ExecuteInsightResource;
 import prerna.semoss.web.services.local.FunctionEngineResource;
-import prerna.semoss.web.services.local.LegacyAppResource;
 import prerna.semoss.web.services.local.MCPResource;
 import prerna.semoss.web.services.local.ModelEngineResource;
 import prerna.semoss.web.services.local.NameServer;
@@ -56,15 +56,11 @@ import prerna.semoss.web.services.local.ShareInsightResource;
 import prerna.semoss.web.services.local.StorageEngineResource;
 import prerna.semoss.web.services.local.UserResource;
 import prerna.semoss.web.services.local.VectorEngineResource;
-import prerna.semoss.web.services.local.auth.AdminDatabaseAuthorizationResource;
-import prerna.semoss.web.services.local.auth.AdminDatabaseAuthorizationResource2;
 import prerna.semoss.web.services.local.auth.AdminEngineAuthorizationResource;
 import prerna.semoss.web.services.local.auth.AdminGroupAuthorizationResource;
 import prerna.semoss.web.services.local.auth.AdminInsightAuthorizationResource;
 import prerna.semoss.web.services.local.auth.AdminProjectAuthorizationResource;
 import prerna.semoss.web.services.local.auth.AdminUserAuthorizationResource;
-import prerna.semoss.web.services.local.auth.DatabaseAuthorizationResource;
-import prerna.semoss.web.services.local.auth.DatabaseAuthorizationResource2;
 import prerna.semoss.web.services.local.auth.EngineAuthorizationResource;
 import prerna.semoss.web.services.local.auth.GroupEngineAuthorizationResource;
 import prerna.semoss.web.services.local.auth.GroupInsightAuthorizationResource;
@@ -84,7 +80,6 @@ public class MonolithApplication extends Application {
 		// core
 		singletons.add(new UserResource());
 		singletons.add(new NameServer());
-		singletons.add(new LegacyAppResource());
 		singletons.add(new FileUploader());
 		singletons.add(new ImageUploader());
 		singletons.add(new SessionResource());
@@ -98,15 +93,11 @@ public class MonolithApplication extends Application {
 		singletons.add(new ProjectResource());
 		// authorization resources
 		singletons.add(new AuthorizationResource());
-		singletons.add(new DatabaseAuthorizationResource());
-		singletons.add(new DatabaseAuthorizationResource2());
 		singletons.add(new EngineAuthorizationResource());
 		singletons.add(new ProjectAuthorizationResource());
 		singletons.add(new InsightAuthorizationResource());
 		singletons.add(new UserAuthorizationResource());
 		// admin authorization
-		singletons.add(new AdminDatabaseAuthorizationResource());
-		singletons.add(new AdminDatabaseAuthorizationResource2());
 		singletons.add(new AdminEngineAuthorizationResource());
 		singletons.add(new AdminProjectAuthorizationResource());
 		singletons.add(new AdminInsightAuthorizationResource());
@@ -124,7 +115,6 @@ public class MonolithApplication extends Application {
 		// other
 		singletons.add(new AdminThemeResource());
 		singletons.add(new ServerConfigurationResource());
-		singletons.add(new RawSelectWrapperService());
 		// legacy forms - still used in production - RDF specific
 		singletons.add(new FormResource());
 
@@ -134,6 +124,10 @@ public class MonolithApplication extends Application {
 		singletons.add(new OllamaEndpoints());
 		// MCP
 		singletons.add(new MCPResource());
+		// A2A
+		singletons.add(new A2AResource());
+		// Remote Browser Viewer
+		singletons.add(new RemoteBrowserSessionController());
 	}
 
 	@Override

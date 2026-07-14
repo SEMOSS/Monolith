@@ -31,8 +31,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class SocketSessionHandlerFactory {
 
-    private static ConcurrentHashMap<String, SocketSessionHandler> sessionHandlers = new ConcurrentHashMap<>();
-	
+	private static ConcurrentHashMap<String, SocketSessionHandler> sessionHandlers = new ConcurrentHashMap<>();
+
 	public static SocketSessionHandler getHandler(String insightId) {
 		return sessionHandlers.computeIfAbsent(insightId, k -> new SocketSessionHandler());
 	}

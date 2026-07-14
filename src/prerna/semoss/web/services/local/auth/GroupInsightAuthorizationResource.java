@@ -172,8 +172,8 @@ public class GroupInsightAuthorizationResource {
 			SecurityGroupInsightsUtils.addInsightGroupPermission(user, groupId, type, projectId, insightId, permission,
 					endDate);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to add groups to insight " + insightId + " under project " + projectId
-					+ " without having proper access");
+			classLogger.warn("User is trying to add groups to insight {} under project {} without having proper access",
+					insightId, projectId);
 			classLogger.error("Failed to add group insight permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -241,9 +241,9 @@ public class GroupInsightAuthorizationResource {
 			SecurityGroupInsightsUtils.editInsightGroupPermission(user, groupId, type, projectId, insightId,
 					newPermission, endDate);
 		} catch (IllegalAccessException e) {
-			classLogger
-					.warn("User is trying to edit group " + groupId + " and type " + type + " permissions to insight "
-							+ insightId + " under project " + projectId + " without having proper access");
+			classLogger.warn(
+					"User is trying to edit group {} and type {} permissions to insight {} under project {} without having proper access",
+					groupId, type, insightId, projectId);
 			classLogger.error("Failed to update group insight permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -306,9 +306,9 @@ public class GroupInsightAuthorizationResource {
 
 			SecurityGroupInsightsUtils.removeInsightGroupPermission(user, groupId, type, projectId, insightId);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to remove group " + groupId + " and type " + type
-					+ " from having access to insight " + insightId + " under project " + projectId
-					+ " without having proper access");
+			classLogger.warn(
+					"User is trying to remove group {} and type {} from having access to insight {} under project {} without having proper access",
+					groupId, type, insightId, projectId);
 			classLogger.error("Failed to remove group insight permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());

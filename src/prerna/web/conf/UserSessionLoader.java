@@ -42,6 +42,8 @@ import javax.servlet.http.HttpSessionListener;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.microsoft.playwright.BrowserContext;
+
 import prerna.auth.SyncUserAssetsThread;
 import prerna.auth.User;
 import prerna.cluster.util.ClusterUtil;
@@ -52,6 +54,7 @@ import prerna.om.ClientProcessWrapper;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.LocalUserStore;
+import prerna.reactor.playwright.PlaywrightSession;
 import prerna.semoss.web.services.local.MCPResource;
 import prerna.usertracking.UserTrackingUtils;
 import prerna.util.Constants;
@@ -171,8 +174,7 @@ public class UserSessionLoader implements HttpSessionListener {
 				IRUserConnection rserve = thisUser.getRcon();
 				if (rserve != null && !rserve.isStopped()) {
 					classLogger.info("Dropping user r serve");
-					ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
-					try {
+					try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
 						executor.submit(new Callable<Void>() {
 							@Override
 							public Void call() throws Exception {
@@ -185,8 +187,6 @@ public class UserSessionLoader implements HttpSessionListener {
 								return null;
 							}
 						});
-					} finally {
-						executor.shutdown();
 					}
 				}
 			}
@@ -207,6 +207,8 @@ public class UserSessionLoader implements HttpSessionListener {
 		if (subAgent != thisUser) {
 			cleanupUserRooms(subAgent, "agent user");
 		}
+
+		cleanupPlaywrightSessions(thisUser);
 
 		// register the successful logout
 		UserTrackingUtils.registerLogout(sessionId);
@@ -259,16 +261,14 @@ public class UserSessionLoader implements HttpSessionListener {
 			return;
 		}
 
-		Map<String, Object> roomHash = user.getRoomHash();
-		for (Map.Entry<String, Object> entry : roomHash.entrySet()) {
+		Map<String, Room> roomHash = user.getRoomHash();
+		for (Map.Entry<String, Room> entry : roomHash.entrySet()) {
 			String roomId = entry.getKey();
-			Object roomObj = entry.getValue();
+			Room room = entry.getValue();
 			try {
 				String roomFolderPath = null;
-				Room room = null;
-				if (roomObj != null) {
+				if (room != null) {
 					try {
-						room = (Room) roomObj;
 						roomFolderPath = room.getRoomFolderPath();
 					} catch (Exception e) {
 						classLogger.warn("Could not get room folder path for room {} during {} cleanup", roomId,
@@ -321,6 +321,30 @@ public class UserSessionLoader implements HttpSessionListener {
 		} catch (Exception e) {
 			classLogger.error("Failed to clear temporal access key during session user cleanup", e);
 			return null;
+		}
+	}
+
+	private void cleanupPlaywrightSessions(User thisUser) {
+		if (thisUser != null) {
+			Set<String> playwrightSessionIds = thisUser.getPlaywrightSessionIds();
+			for (String sessionId : playwrightSessionIds) {
+				try {
+					PlaywrightSession thisSession = thisUser.getPlaywrightSession(sessionId);
+					if (thisSession != null) {
+						thisSession.close();
+					}
+				} catch (Exception e) {
+					classLogger.error("Error occurred closing the playwright session {}", sessionId, e);
+				}
+			}
+			BrowserContext sharedContext = thisUser.getSharedPlaywrightContext();
+			if (sharedContext != null) {
+				try {
+					sharedContext.close();
+				} catch (Exception e) {
+					classLogger.error("Error occurred closing the playwright shared context", e);
+				}
+			}
 		}
 	}
 

@@ -46,9 +46,9 @@ import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityUserAccessKeyUtils;
+import prerna.semoss.web.services.local.UserResource;
 import prerna.util.Constants;
 import prerna.util.SocialPropertiesUtil;
-import prerna.web.services.util.WebUtility;
 
 public class OpenAIFilter implements Filter {
 
@@ -92,19 +92,16 @@ public class OpenAIFilter implements Filter {
 					String accessKey = split[0];
 					String secretKey = split[1];
 
-					try {
-						user = SecurityUserAccessKeyUtils.validateKeysAndReturnUser(accessKey, secretKey);
-					} catch (IllegalAccessException e) {
-						classLogger.error(Constants.STACKTRACE, e);
-					}
-					if (user == null) {
-						classLogger.error("User could not login using user access key '" + accessKey
-								+ "' with invalid secret key");
-					}
-
 					AccessToken token = null;
-					if (user != null) {
-						token = user.getPrimaryLoginToken();
+					try {
+						token = SecurityUserAccessKeyUtils.validateKeysAndReturnToken(accessKey, secretKey);
+					} catch (IllegalAccessException e) {
+						classLogger.error("Error validating user access key '{}' against secret key", accessKey, e);
+					}
+					if (token == null) {
+						classLogger.error("User could not login using user access key '{}' with invalid secret key",
+								accessKey);
+					} else {
 						// let us make sure this login type is still allowed to login via access/secret
 						// key
 						{
@@ -112,23 +109,19 @@ public class OpenAIFilter implements Filter {
 							boolean accessKeysAllowed = SocialPropertiesUtil.getInstance().accessKeysAllowed(provider);
 							if (!accessKeysAllowed) {
 								classLogger.error(
-										"User is trying to login using access/secret key but administrator has disabeled for provider "
-												+ provider.name());
+										"User is trying to login using access/secret key but administrator has disabeled for provider {}",
+										provider.name());
 								user = null;
 								token = null;
 							}
 						}
 					}
 
-					if (user != null && token != null) {
+					if (token != null) {
 						SecurityUserAccessKeyUtils.updateAccessTokenLastUsed(accessKey);
-						session = request.getSession(true);
-						session.setAttribute(Constants.SESSION_USER, user);
-						session.setAttribute(Constants.SESSION_USER_ID_LOG, token.getId());
-						WebUtility.loggingContextLoginEvent(session);
-
-						classLogger.info(
-								"User is logging in with provider " + token.getProvider() + " with user access key");
+						UserResource.addAccessToken(token, request, false);
+						classLogger.info("User is logging in with provider {} with user access key",
+								token.getProvider());
 					}
 				}
 			}

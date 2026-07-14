@@ -30,7 +30,6 @@ package prerna.semoss.web.services.local.auth;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.stream.Collectors;
 
 import javax.annotation.security.PermitAll;
@@ -54,23 +53,18 @@ import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityAdminUtils;
-import prerna.auth.utils.SecurityProjectUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
 import prerna.auth.utils.reactors.admin.AdminMyProjectsReactor;
-import prerna.cluster.util.ClusterUtil;
 import prerna.graph.utility.MsGraphUtility;
 import prerna.om.Insight;
-import prerna.project.api.IProject;
 import prerna.sablecc2.om.GenRowStruct;
 import prerna.sablecc2.om.PixelDataType;
 import prerna.sablecc2.om.ReactorKeysEnum;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
-import prerna.util.Settings;
 import prerna.util.SocialPropertiesUtil;
-import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 @Path("/auth/admin/project")
@@ -253,26 +247,58 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		return WebUtility.getResponse(outputNoun.getValue(), 200);
 	}
 
-	@POST
+	@GET
 	@Path("/getAllUserProjects")
 	@Produces("application/json")
-	public Response getAllUserProjects(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	public Response getAllUserProjects(@Context HttpServletRequest request, @QueryParam("userId") String userId,
+			@QueryParam("projectTypes") List<String> projectTypes, @QueryParam("searchTerm") String searchTerm,
+			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+		userId = WebUtility.inputSQLSanitizer(userId);
+		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
+		projectTypes = WebUtility.inputSanitizer(projectTypes);
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String userId = WebUtility.inputSQLSanitizer(form.getFirst("userId"));
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(
-					"User is trying to pull the projects that user " + userId + " has access to when not an admin");
+			classLogger.warn("User is trying to pull the projects that user {} has access to when not an admin",
+					userId);
 			classLogger.error("Failed to retrieve all user projects.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		return WebUtility.getResponse(adminUtils.getAllUserProjects(userId), 200);
+		return WebUtility.getResponse(adminUtils.getAllUserProjects(userId, projectTypes, searchTerm, limit, offset),
+				200);
+	}
+
+	@GET
+	@Path("/getUserProjectsNoCredentials")
+	@Produces("application/json")
+	public Response getUserProjectsNoCredentials(@Context HttpServletRequest request,
+			@QueryParam("userId") String userId, @QueryParam("projectTypes") List<String> projectTypes,
+			@QueryParam("searchTerm") String searchTerm, @QueryParam("limit") long limit,
+			@QueryParam("offset") long offset) {
+		userId = WebUtility.inputSQLSanitizer(userId);
+		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
+		projectTypes = WebUtility.inputSanitizer(projectTypes);
+		SecurityAdminUtils adminUtils = null;
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+			adminUtils = performAdminCheck(request, user);
+		} catch (IllegalAccessException e) {
+			classLogger.warn("Non-admin user tried to list the projects that user {} does not have access to", userId);
+			classLogger.error("Failed to list the projects that user {} does not have access to", userId, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		return WebUtility.getResponse(
+				adminUtils.getUserProjectsNoCredentials(userId, projectTypes, searchTerm, limit, offset), 200);
 	}
 
 	@POST
@@ -290,7 +316,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to grant all the projects to user " + userId + " when not an admin");
+			classLogger.warn("User is trying to grant all the projects to user {} when not an admin", userId);
 			classLogger.error("Failed to grant all projects.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -378,8 +404,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger
-					.warn("User is trying to pull all the users who use project " + projectId + " when not an admin");
+			classLogger.warn("User is trying to pull all the users who use project {} when not an admin", projectId);
 			classLogger.error("Failed to retrieve project users.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -416,8 +441,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(
-					"User is trying to add user " + newUserId + " to project " + projectId + " when not an admin");
+			classLogger.warn("User is trying to add user {} to project {} when not an admin", newUserId, projectId);
 			classLogger.error("Failed to add project user permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -462,7 +486,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to add all users to project " + projectId + " when not an admin");
+			classLogger.warn("User is trying to add all users to project {} when not an admin", projectId);
 			classLogger.error("Failed to add all users.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -511,8 +535,8 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			classLogger.error("Failed to update project user permission.", e);
-			classLogger.warn("User is trying to edit user " + existingUserId + " permissions for project " + projectId
-					+ " when not an admin");
+			classLogger.warn("User is trying to edit user {} permissions for project {} when not an admin",
+					existingUserId, projectId);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -557,8 +581,8 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			classLogger.error("Failed to update project user permissions.", e);
-			classLogger.warn(
-					"User is trying to edit user access permissions for project " + projectId + " when not an admin");
+			classLogger.warn("User is trying to edit user access permissions for project {} when not an admin",
+					projectId);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -604,7 +628,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			classLogger.error("Failed to update project user permissions.", e);
-			classLogger.warn("User is trying to edit user permissions for project " + projectId + " when not an admin");
+			classLogger.warn("User is trying to edit user permissions for project {} when not an admin", projectId);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -649,8 +673,8 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to remove user " + existingUserId + " from having access to project "
-					+ projectId + " when not an admin");
+			classLogger.warn("User is trying to remove user {} from having access to project {} when not an admin",
+					existingUserId, projectId);
 			classLogger.error("Failed to remove project user permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -689,7 +713,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to set the project " + projectId + logPublic + " when not an admin");
+			classLogger.warn("User is trying to set the project {}{} when not an admin", projectId, logPublic);
 			classLogger.error("Failed to update project global.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -735,7 +759,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to set the project " + projectId + logDiscoverable + " when not an admin");
+			classLogger.warn("User is trying to set the project {}{} when not an admin", projectId, logDiscoverable);
 			classLogger.error("Failed to update project discoverable.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -803,7 +827,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 
 		try {
 			List<Map<String, Object>> filteredUsers = MsGraphUtility.getProjectUsers(request, user, projectId,
-					searchTerm, graphApiGroupId, limit, offset);
+					searchTerm, graphApiGroupId, limit, offset, true);
 			return WebUtility.getResponse(filteredUsers, 200);
 		} catch (Exception e) {
 			classLogger.error("Failed to retrieve project users no credentials.", e);
@@ -834,8 +858,8 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to approve user request for permission to project " + projectId
-					+ " when not an admin");
+			classLogger.warn("User is trying to approve user request for permission to project {} when not an admin",
+					projectId);
 			classLogger.error("Failed to approve project user access request.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -884,8 +908,8 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to deny user request for permission to project " + projectId
-					+ " when not an admin");
+			classLogger.warn("User is trying to deny user request for permission to project {} when not an admin",
+					projectId);
 			classLogger.error("Failed to deny project user access request.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -933,7 +957,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to add user permission to project " + projectId + " when not an admin");
+			classLogger.warn("User is trying to add user permission to project {} when not an admin", projectId);
 			classLogger.error("Failed to add project user permissions.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -1002,8 +1026,8 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(
-					"User is trying to remove usersfrom having access to project " + projectId + " when not an admin");
+			classLogger.warn("User is trying to remove users from having access to project {} when not an admin",
+					projectId);
 			classLogger.error("Failed to remove project user permissions.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -1027,86 +1051,6 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
-	}
-
-	@POST
-	@Produces("application/json")
-	@Path("setProjectPortal")
-	public Response setProjectPortal(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		SecurityAdminUtils adminUtils = null;
-		User user = null;
-
-		String projectId = WebUtility.inputSQLSanitizer(form.getFirst("projectId"));
-		boolean hasPortal = Boolean.parseBoolean(form.getFirst("hasPortal"));
-		String portalName = WebUtility.inputSQLSanitizer(form.getFirst("portalName"));
-		String logPortal = hasPortal ? " enable portal " : " disable portal";
-
-		try {
-			user = ResourceUtility.getUser(request);
-			adminUtils = performAdminCheck(request, user);
-		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to " + logPortal + " for project " + projectId);
-			classLogger.error("Failed to update project portal.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		try {
-			adminUtils.setProjectPortal(user, projectId, hasPortal, portalName);
-		} catch (Exception e) {
-			classLogger.error("Failed to update project portal.", e);
-			Map<String, String> errorRet = new HashMap<String, String>();
-			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
-			return WebUtility.getResponse(errorRet, 500);
-		}
-
-		IProject project = Utility.getProject(projectId);
-		try {
-			SecurityProjectUtils.setProjectPortal(user, projectId, hasPortal, portalName);
-			project.setHasPortal(hasPortal);
-		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to " + logPortal + " for project " + projectId);
-			classLogger.error("Failed to update project portal.", e);
-			Map<String, String> errorRet = new HashMap<String, String>();
-			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorRet, 400);
-		} catch (Exception e) {
-			classLogger.error("Failed to update project portal.", e);
-			Map<String, String> errorRet = new HashMap<String, String>();
-			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
-			return WebUtility.getResponse(errorRet, 500);
-		}
-
-		try {
-			String projectSmss = project.getSmssFilePath();
-			Map<String, String> mods = new HashMap<>();
-			mods.put(Settings.PUBLIC_HOME_ENABLE, hasPortal + "");
-			Properties props = Utility.loadProperties(projectSmss);
-			if (props.get(Settings.PUBLIC_HOME_ENABLE) == null) {
-				classLogger.info(Utility.cleanLogString("Updating project smss to include public home property to "
-						+ logPortal + " for project " + projectId));
-				Utility.addKeysAtLocationIntoPropertiesFile(projectSmss, Constants.CONNECTION_URL, mods);
-			} else {
-				classLogger.info(
-						Utility.cleanLogString("Modifying project smss to " + logPortal + " for project " + projectId));
-				Utility.changePropertiesFileValue(projectSmss, Settings.PUBLIC_HOME_ENABLE, hasPortal + "");
-			}
-
-			// reload and set the prop again
-			Properties newSmssProp = Utility.loadProperties(projectSmss);
-			project.setSmssProp(newSmssProp);
-
-			// push to cloud
-			ClusterUtil.pushProjectSmss(projectId);
-		} catch (Exception e) {
-			// ignore
-		}
-
-		// log the operation
-		classLogger.info("User is trying to {} for project {}", logPortal, projectId);
-
-		return WebUtility.getResponse(true, 200);
 	}
 
 }

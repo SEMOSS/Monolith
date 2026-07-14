@@ -51,7 +51,7 @@ import prerna.web.services.util.WebUtility;
 
 public class SessionCounterExceededFilter implements Filter {
 
-	private static final Logger logger = LogManager.getLogger(SessionCounterExceededFilter.class); 
+	private static final Logger classLogger = LogManager.getLogger(SessionCounterExceededFilter.class);
 
 	private static final String FAIL_HTML = "/sessionCounterFail/";
 
@@ -61,37 +61,39 @@ public class SessionCounterExceededFilter implements Filter {
 	private static FilterConfig filterConfig;
 
 	@Override
-	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2) throws IOException, ServletException {
+	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2)
+			throws IOException, ServletException {
 		setInitParams(arg0);
 
-		HttpSession session = ((HttpServletRequest)arg0).getSession(false);
+		HttpSession session = ((HttpServletRequest) arg0).getSession(false);
 		User user = null;
-		if(session != null) {
+		if (session != null) {
 			user = (User) session.getAttribute(Constants.SESSION_USER);
 		}
-		
-		if(user == null && sessionLimit != null && sessionLimit > 0) {
+
+		if (user == null && sessionLimit != null && sessionLimit > 0) {
 			int valid = performCheck(session, arg0, arg1);
-			if(valid != 0) {
+			if (valid != 0) {
 				return;
 			}
 		}
 
 		arg2.doFilter(arg0, arg1);
 	}
-	
-	private static synchronized int performCheck(HttpSession session, ServletRequest arg0, ServletResponse arg1) throws IOException {
+
+	private static synchronized int performCheck(HttpSession session, ServletRequest arg0, ServletResponse arg1)
+			throws IOException {
 		ServletContext context = arg0.getServletContext();
-		if(session == null) {
-			session = ((HttpServletRequest)arg0).getSession();
+		if (session == null) {
+			session = ((HttpServletRequest) arg0).getSession();
 		}
-		
+
 		StandardManager manager = SessionResource.getManager(session);
-		if(manager != null) {
+		if (manager != null) {
 			// note this includes the new session that was just created here
 			int currentSessions = manager.getActiveSessions();
-			if(currentSessions > sessionLimit) {
-				logger.info("New user exceeds the # of allowed sessions = " + sessionLimit);
+			if (currentSessions > sessionLimit) {
+				classLogger.info("New user exceeds the # of allowed sessions = {}", sessionLimit);
 
 				// invalidate the session that was created for the manager
 				session.invalidate();
@@ -103,18 +105,19 @@ public class SessionCounterExceededFilter implements Filter {
 				// like http://localhost:8080/Monolith_Dev/api/engine/runPixel
 				String fullUrl = WebUtility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
 
-				if(!fullUrl.endsWith(FAIL_HTML)) {
+				if (!fullUrl.endsWith(FAIL_HTML)) {
 					// we redirect to the index.html page where we have pushed the admin page
-					String redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length()) + FAIL_HTML;
+					String redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length())
+							+ FAIL_HTML;
 					((HttpServletResponse) arg1).setHeader("redirect", redirectUrl);
 					((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + redirectUrl);
 					return -1;
 				}
 			} else {
-				logger.info("New user login makes session #" + currentSessions);
+				classLogger.info("New user login makes session #{}", currentSessions);
 			}
 		}
-		
+
 		return 0;
 	}
 
@@ -130,16 +133,17 @@ public class SessionCounterExceededFilter implements Filter {
 	}
 
 	private void setInitParams(ServletRequest arg0) {
-		if(SessionCounterExceededFilter.sessionLimit == null) {
+		if (SessionCounterExceededFilter.sessionLimit == null) {
 			String sessionLimitString = SessionCounterExceededFilter.filterConfig.getInitParameter(SESSION_LIMIT);
-			if(sessionLimitString != null) {
+			if (sessionLimitString != null) {
 				try {
 					SessionCounterExceededFilter.sessionLimit = (int) Double.parseDouble(sessionLimitString);
-				} catch(Exception e) {
-					logger.error(Constants.STACKTRACE, e);
+				} catch (Exception e) {
+					classLogger.error("Failed to parse the {} configuration value '{}'", SESSION_LIMIT,
+							sessionLimitString, e);
 				}
 			}
 		}
 	}
-	
+
 }

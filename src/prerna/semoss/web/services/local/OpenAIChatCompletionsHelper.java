@@ -50,7 +50,7 @@ public final class OpenAIChatCompletionsHelper {
 	private static final Gson GSON = new GsonBuilder().setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE)
 			.disableHtmlEscaping().create();
 
-	private static ObjectMapper mapper = new ObjectMapper();
+	private static final ObjectMapper MAPPER = new ObjectMapper();
 
 	/**
 	 * 
@@ -69,9 +69,9 @@ public final class OpenAIChatCompletionsHelper {
 
 	/**
 	 * Writes the finish chunk, an optional usage-only chunk (matching OpenAI's
-	 * {@code stream_options: {"include_usage": true}} behavior), and the
-	 * terminal {@code [DONE]} marker. Any null token field is omitted from the
-	 * usage object; if all four are null no usage chunk is emitted at all.
+	 * {@code stream_options: {"include_usage": true}} behavior), and the terminal
+	 * {@code [DONE]} marker. Any null token field is omitted from the usage object;
+	 * if all four are null no usage chunk is emitted at all.
 	 */
 	public static void writeFinishReason(String engineId, String messageId, long creationTimestamp, String finishReason,
 			Integer promptTokens, Integer completionTokens, Integer cachedTokens, Integer reasoningTokens,
@@ -95,7 +95,7 @@ public final class OpenAIChatCompletionsHelper {
 		finalChunk.put("model", engineId);
 		finalChunk.put("choices", choices);
 
-		writer.write("data: " + mapper.writeValueAsString(finalChunk) + "\n\n");
+		writer.write("data: " + MAPPER.writeValueAsString(finalChunk) + "\n\n");
 
 		boolean hasAnyUsage = promptTokens != null || completionTokens != null || cachedTokens != null
 				|| reasoningTokens != null;
@@ -129,7 +129,7 @@ public final class OpenAIChatCompletionsHelper {
 			usageChunk.put("choices", new ArrayList<>());
 			usageChunk.put("usage", usage);
 
-			writer.write("data: " + mapper.writeValueAsString(usageChunk) + "\n\n");
+			writer.write("data: " + MAPPER.writeValueAsString(usageChunk) + "\n\n");
 		}
 
 		writer.write("data: [DONE]\n\n");
@@ -175,7 +175,7 @@ public final class OpenAIChatCompletionsHelper {
 		chunk.put("choices", choices);
 
 		// sending chunk as SSE event
-		writer.write("data: " + mapper.writeValueAsString(chunk) + "\n\n");
+		writer.write("data: " + MAPPER.writeValueAsString(chunk) + "\n\n");
 		writer.flush();
 	}
 
@@ -195,7 +195,7 @@ public final class OpenAIChatCompletionsHelper {
 			throws JsonProcessingException, IOException {
 		Number indexNum = (Number) dataMap.get("index");
 		Long curToolIndex = indexNum != null ? indexNum.longValue() : 0L;
-		// Thinking is not part of the chat completions wire format — drop it.
+		// Thinking is not part of the chat completions wire format - drop it.
 		if (dataMap.containsKey("thinking")) {
 			return;
 		}
@@ -254,7 +254,7 @@ public final class OpenAIChatCompletionsHelper {
 		chunk.put("choices", choices);
 
 		// sending chunk as SSE event
-		writer.write("data: " + mapper.writeValueAsString(chunk) + "\n\n");
+		writer.write("data: " + MAPPER.writeValueAsString(chunk) + "\n\n");
 		writer.flush();
 	}
 

@@ -78,25 +78,27 @@ import prerna.web.services.util.WebUtility;
 @Deprecated
 public class OldEngineResource {
 
-	private static final Logger logger = LogManager.getLogger(OldEngineResource.class);
+	private static final Logger classLogger = LogManager.getLogger(OldEngineResource.class);
 
 	@Deprecated
 	private static final String APP_KEY = "app";
-	
+
 	// gets everything specific to an engine
 	// essentially this is a wrapper over the engine
 	private IDatabaseEngine coreEngine = null;
 
-	public void setEngine(IDatabaseEngine coreEngine)
-	{
-		logger.info("Setting core engine to " + coreEngine);
+	@Deprecated
+	public void setEngine(IDatabaseEngine coreEngine) {
+		classLogger.info("Setting core engine to {}", coreEngine);
 		this.coreEngine = coreEngine;
 	}
 
 	/**
 	 * Gets a list of perspectives for the given engine
+	 * 
 	 * @param request
-	 * @return a hashtable with "perspectives" pointing to to array of perspectives (e.g. ["Generic-Perspective","Movie-Perspective"])
+	 * @return a hashtable with "perspectives" pointing to to array of perspectives
+	 *         (e.g. ["Generic-Perspective","Movie-Perspective"])
 	 */
 //	@GET
 //	@Path("perspectives")
@@ -111,77 +113,86 @@ public class OldEngineResource {
 //		return WebUtility.getResponse(hashtable, 200);
 //	}
 
+	@Deprecated
 	// gets a particular insight
-	// not sure if I should keep it as it is or turn this into a post because of the query
+	// not sure if I should keep it as it is or turn this into a post because of the
+	// query
 	@POST
 	@Path("querys")
 	@Produces("application/json")
-	public Response queryDataSelect(MultivaluedMap<String, String> form)
-	{
+	public Response queryDataSelect(MultivaluedMap<String, String> form) {
 		// returns the insight
 		// based on the current ID get the data
 		// typically is a JSON of the insight
 		// this will also cache it
 		Gson gson = new Gson();
 		String query = form.getFirst("query");
-		String[] paramBind = gson.fromJson(form.getFirst("paramBind"), new TypeToken<String[]>() {}.getType());
-		String[] paramValue = gson.fromJson(form.getFirst("paramValue"), new TypeToken<String[]>() {}.getType());
-		//do the query binding server side isntead of on the front end.
-		if(paramBind.length > 0 && paramValue.length > 0 && (paramBind.length == paramValue.length)){
-			for(int i = 0; i < paramBind.length && query.contains(paramBind[i]); i++){
+		String[] paramBind = gson.fromJson(form.getFirst("paramBind"), new TypeToken<String[]>() {
+		}.getType());
+		String[] paramValue = gson.fromJson(form.getFirst("paramValue"), new TypeToken<String[]>() {
+		}.getType());
+		// do the query binding server side isntead of on the front end.
+		if (paramBind.length > 0 && paramValue.length > 0 && (paramBind.length == paramValue.length)) {
+			for (int i = 0; i < paramBind.length && query.contains(paramBind[i]); i++) {
 //				String paramValueStr = coreEngine.getTransformedNodeName(paramValue[i], false);
 				String paramValueStr = paramValue[i];
-				if(coreEngine.getDatabaseType() == DATABASE_TYPE.RDBMS){
+				if (coreEngine.getDatabaseType() == DATABASE_TYPE.RDBMS) {
 					String paramValueTable = Utility.getInstanceName(paramValueStr);
 					String paramValueCol = Utility.getClassName(paramValueStr);
 
-					//very risky business going on right now.... will not work on other bindings
-					if(paramValueCol != null) query = query.replaceFirst(paramBind[i], paramValueCol);
-					if(paramValueTable != null) query = query.replaceFirst(paramBind[i], paramValueTable);
+					// very risky business going on right now.... will not work on other bindings
+					if (paramValueCol != null) {
+						query = query.replaceFirst(paramBind[i], paramValueCol);
+					}
+					if (paramValueTable != null) {
+						query = query.replaceFirst(paramBind[i], paramValueTable);
+					}
 
 				} else {
 					query = query.replaceFirst(paramBind[i], paramValueStr);
 				}
 			}
 		}
-		logger.info(Utility.cleanLogString(query));
-		
+		classLogger.info(Utility.cleanLogString(query));
+
 		// flush data out
 		List<Object[]> data = new Vector<Object[]>();
 		IRawSelectWrapper wrapper = null;
 		try {
 			wrapper = WrapperManager.getInstance().getRawWrapper(coreEngine, query);
-			while(wrapper.hasNext()) {
+			while (wrapper.hasNext()) {
 				data.add(wrapper.next().getRawValues());
 			}
 		} catch (Exception e) {
-			logger.error(Constants.STACKTRACE,e);
+			classLogger.error("Failed to execute the data select query and iterate the result wrapper", e);
 		} finally {
-			if(wrapper != null) {
+			if (wrapper != null) {
 				try {
 					wrapper.close();
 				} catch (IOException e) {
-					logger.error(Constants.STACKTRACE, e);
+					classLogger.error("Failed to close the result wrapper after executing the data select query", e);
 				}
 			}
 		}
-		
+
 //		return Response.status(200).entity(WebUtility.getSO(data)).build();
 		return WebUtility.getResponse(data, 200);
-	}	
+	}
 
 	/**
-	 * Uses the title of an insight to get the Insight object as well as the options and params
-	 * Insight object has label (e.g. What is the list of Directors?) and propHash which contains order, output, engine, sparql, uri, id
+	 * Uses the title of an insight to get the Insight object as well as the options
+	 * and params Insight object has label (e.g. What is the list of Directors?) and
+	 * propHash which contains order, output, engine, sparql, uri, id
+	 * 
 	 * @param insight
 	 * @return
 	 */
+	@Deprecated
 	@GET
 	@Path("insight")
 	@Produces("application/json")
-	public Response getInsightParams(@QueryParam("insight") String insightId)
-	{
-		insightId=WebUtility.inputSanitizer(insightId);
+	public Response getInsightParams(@QueryParam("insight") String insightId) {
+		insightId = WebUtility.inputSanitizer(insightId);
 
 		// mocking inputs until FE makes full pixel call
 		GetPlaysheetParamsReactor paramR = new GetPlaysheetParamsReactor();
@@ -193,40 +204,42 @@ public class OldEngineResource {
 		GenRowStruct grs2 = new GenRowStruct();
 		grs2.add(new NounMetadata(insightId, PixelDataType.CONST_STRING));
 		paramR.getNounStore().addNoun(ReactorKeysEnum.ID.getKey(), grs2);
-		
+
 		NounMetadata retNoun = paramR.execute();
 		return WebUtility.getResponse(retNoun.getValue(), 200);
 	}
 
 	/**
-	 * Executes a particular insight or runs a custom query on the specified playsheet
-	 * To run custom query: must pass playsheet and sparql
-	 * To run stored insight: must pass insight (the actual question), and a string of params
+	 * Executes a particular insight or runs a custom query on the specified
+	 * playsheet To run custom query: must pass playsheet and sparql To run stored
+	 * insight: must pass insight (the actual question), and a string of params
+	 * 
 	 * @param form
 	 * @param request
 	 * @param response
 	 * @return playsheet.getData()--it depends on the playsheet
 	 */
+	@Deprecated
 	@POST
 	@Path("output")
 	@Produces("application/json")
-	public Response createOutput(MultivaluedMap<String, String> form, @Context HttpServletRequest request)
-	{
+	public Response createOutput(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		HttpSession session = request.getSession(true);
 		User user = ((User) session.getAttribute(Constants.SESSION_USER));
-		
+
 		Gson gson = new Gson();
 		String insightId = form.getFirst("insight");
 		Map<String, List<Object>> params = null;
-		if(form.getFirst("params") != null && !form.getFirst("params").isEmpty()) {
-			params = gson.fromJson(form.getFirst("params"), new TypeToken<Map<String, List<Object>>>() {}.getType());
+		if (form.getFirst("params") != null && !form.getFirst("params").isEmpty()) {
+			params = gson.fromJson(form.getFirst("params"), new TypeToken<Map<String, List<Object>>>() {
+			}.getType());
 		}
-		
+
 		// mocking inputs until FE makes full pixel call
 		RunPlaysheetReactor playsheetRunReactor = new RunPlaysheetReactor();
 		playsheetRunReactor.In();
 		// make an insight to set
-		// so we can pass the user 
+		// so we can pass the user
 		Insight dummyIn = new Insight();
 		InsightStore.getInstance().put(dummyIn);
 		InsightStore.getInstance().addToSessionHash(session.getId(), dummyIn.getInsightId());
@@ -242,43 +255,43 @@ public class OldEngineResource {
 		GenRowStruct grs2 = new GenRowStruct();
 		grs2.add(new NounMetadata(insightId, PixelDataType.CONST_STRING));
 		playsheetRunReactor.getNounStore().addNoun(ReactorKeysEnum.ID.getKey(), grs2);
-		if(params != null) {
+		if (params != null) {
 			GenRowStruct grs3 = new GenRowStruct();
 			grs3.add(new NounMetadata(params, PixelDataType.MAP));
 			playsheetRunReactor.getNounStore().addNoun(ReactorKeysEnum.PARAM_KEY.getKey(), grs3);
 		}
-		
+
 		// set in thread
 		ThreadStore.setInsightId(dummyIn.getInsightId());
 		ThreadStore.setSessionId(session.getId());
 		ThreadStore.setJobId(dummyIn.getInsightId());
 		ThreadStore.setUser(user);
-		
+
 		NounMetadata retNoun = playsheetRunReactor.execute();
 		return WebUtility.getResponse(retNoun.getValue(), 200);
 	}
 
+	@Deprecated
 	@POST
 	@Path("/commitFormData")
 	@Produces("application/json")
-	public Response commitFormData(@Context HttpServletRequest request, MultivaluedMap<String, String> form) 
-	{
+	public Response commitFormData(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		String userId = null;
 		try {
-			HttpSession session = ((HttpServletRequest)request).getSession(false);
+			HttpSession session = request.getSession(false);
 			User user = (User) session.getAttribute(Constants.SESSION_USER);
-			if(user.getAccessToken(AuthProvider.CAC) != null) {
+			if (user.getAccessToken(AuthProvider.CAC) != null) {
 				userId = user.getAccessToken(AuthProvider.CAC).getId();
-			} else if(user.getAccessToken(AuthProvider.SAML) != null) {
+			} else if (user.getAccessToken(AuthProvider.SAML) != null) {
 				// if not CAC - we are using SMAL
 				userId = user.getAccessToken(AuthProvider.SAML).getId();
 			}
-		} catch(Exception e) {
+		} catch (Exception e) {
 			Map<String, String> err = new HashMap<String, String>();
 			err.put(Constants.ERROR_MESSAGE, "Could not identify user");
 			return WebUtility.getResponse(err, 400);
 		}
-		if(userId == null) {
+		if (userId == null) {
 			Map<String, String> err = new HashMap<String, String>();
 			err.put(Constants.ERROR_MESSAGE, "Could not identify user");
 			return WebUtility.getResponse(err, 400);
@@ -286,42 +299,43 @@ public class OldEngineResource {
 		Gson gson = new Gson();
 		try {
 			String formData = form.getFirst("formData");
-			Map<String, Object> engineHash = gson.fromJson(formData, new TypeToken<Map<String, Object>>() {}.getType());
+			Map<String, Object> engineHash = gson.fromJson(formData, new TypeToken<Map<String, Object>>() {
+			}.getType());
 			// new way is having specific form builder class for each type of engine
 			AbstractFormBuilder formbuilder = FormFactory.getFormBuilder(this.coreEngine);
-			if(formbuilder != null) {
-				//TODO: need to build this out for RDBMS engines!!!
+			if (formbuilder != null) {
+				// TODO: need to build this out for RDBMS engines!!!
 				formbuilder.commitFormData(engineHash, userId);
 			} else {
 				// old way is super messy since it has both implementations of inserting
 				// into both rdbms and rdf.. super annoying to go through
 				FormBuilder.commitFormData(this.coreEngine, engineHash, userId);
 			}
-		} catch(Exception e) {
-			logger.error(Constants.STACKTRACE,e);
+		} catch (Exception e) {
+			classLogger.error("Failed to commit form data to the engine", e);
 			return WebUtility.getResponse(gson.toJson(e.getMessage()), 400);
 		}
 
 		return WebUtility.getResponse("success", 200);
 	}
 
+	@Deprecated
 	@POST
 	@Path("/getAuditLogForEngine")
 	@Produces("application/json")
-	public Response getAuditLogForEngine(MultivaluedMap<String, String> form, @Context HttpServletRequest request) 
-	{
+	public Response getAuditLogForEngine(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		Gson gson = new Gson();
 		Map<String, Object> auditInfo = null;
 		try {
 			auditInfo = FormBuilder.getAuditDataForEngine(this.coreEngine.getEngineId());
-		} catch(Exception e) {
-			logger.error(Constants.STACKTRACE,e);
+		} catch (Exception e) {
+			classLogger.error("Failed to retrieve the audit log for engine {}", this.coreEngine.getEngineId(), e);
 			return WebUtility.getResponse(gson.toJson(e.getMessage()), 400);
 		}
 
 		return WebUtility.getResponse(gson.toJson(auditInfo), 200);
 	}
-	
+
 //	@GET
 //	@Path("/exportDatabase")
 //	@Produces("application/zip")
@@ -342,7 +356,7 @@ public class OldEngineResource {
 //		DIHelper.getInstance().removeLocalProperty(engineId);
 //		coreEngine.close();
 //		
-//		LOGGER.info("Attending to export engine = " + engineId);
+//		classLogger.info("Attending to export engine = " + engineId);
 //		File zip = ZipDatabase.zipEngine(engineId, engineName);
 //		
 //		Response resp = Response.ok(zip)

@@ -263,31 +263,57 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		return WebUtility.getResponse(outputNoun.getValue(), 200);
 	}
 
-	@POST
+	@GET
 	@Path("/getAllUserEngines")
 	@Produces("application/json")
-	public Response getAllUserEngines(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	public Response getAllUserEngines(@Context HttpServletRequest request, @QueryParam("userId") String userId,
+			@QueryParam("engineTypes") List<String> engineTypes, @QueryParam("searchTerm") String searchTerm,
+			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+		userId = WebUtility.inputSQLSanitizer(userId);
+		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
+		engineTypes = WebUtility.inputSanitizer(engineTypes);
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String userId = WebUtility.inputSQLSanitizer(form.getFirst("userId"));
-		List<String> engineTypes = null;
-		if (WebUtility.inputSQLSanitizer(form.getFirst("engineTypes")) != null) {
-			engineTypes = new Gson().fromJson(form.getFirst("engineTypes"), List.class);
-			engineTypes = WebUtility.inputSanitizer(engineTypes);
-		}
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(
-					"User is trying to pull the engines that user " + userId + " has access to when not an admin");
+			classLogger.warn("User is trying to pull the engines that user {} has access to when not an admin", userId);
 			classLogger.error("Failed to retrieve all user engines.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		return WebUtility.getResponse(adminUtils.getAllUserEngines(userId, engineTypes), 200);
+		return WebUtility.getResponse(adminUtils.getAllUserEngines(userId, engineTypes, searchTerm, limit, offset),
+				200);
+	}
+
+	@GET
+	@Path("/getUserEnginesNoCredentials")
+	@Produces("application/json")
+	public Response getUserEnginesNoCredentials(@Context HttpServletRequest request,
+			@QueryParam("userId") String userId, @QueryParam("engineTypes") List<String> engineTypes,
+			@QueryParam("searchTerm") String searchTerm, @QueryParam("limit") long limit,
+			@QueryParam("offset") long offset) {
+		userId = WebUtility.inputSQLSanitizer(userId);
+		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
+		engineTypes = WebUtility.inputSanitizer(engineTypes);
+		SecurityAdminUtils adminUtils = null;
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+			adminUtils = performAdminCheck(request, user);
+		} catch (IllegalAccessException e) {
+			classLogger.warn("Non-admin user tried to list the engines that user {} does not have access to", userId);
+			classLogger.error("Failed to list the engines that user {} does not have access to", userId, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		return WebUtility.getResponse(
+				adminUtils.getUserEnginesNoCredentials(userId, engineTypes, searchTerm, limit, offset), 200);
 	}
 
 	@POST
@@ -312,8 +338,8 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to grant all the engines of type " + logETypes + " to user " + userId
-					+ " when not an admin");
+			classLogger.warn("User is trying to grant all the engines of type {} to user {} when not an admin",
+					logETypes, userId);
 			classLogger.error("Failed to grant all engines.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -405,7 +431,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to pull all the users who use engine " + engineId + " when not an admin");
+			classLogger.warn("User is trying to pull all the users who use engine {} when not an admin", engineId);
 			classLogger.error("Failed to retrieve engine users.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -442,8 +468,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger
-					.warn("User is trying to add user " + newUserId + " to engine " + engineId + " when not an admin");
+			classLogger.warn("User is trying to add user {} to engine {} when not an admin", newUserId, engineId);
 			classLogger.error("Failed to add engine user permission.", e);
 			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(ret, 401);
@@ -493,8 +518,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 
 		// log the operation
-		classLogger
-				.info("User has added user " + newUserId + " to engine " + engineId + " with permission " + permission);
+		classLogger.info("User has added user {} to engine {} with permission {}", newUserId, engineId, permission);
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
 	}
@@ -517,7 +541,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to add user permission to engine " + engineId + " when not an admin");
+			classLogger.warn("User is trying to add user permission to engine {} when not an admin", engineId);
 			classLogger.error("Failed to add engine user permissions.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -589,7 +613,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to add all users to engine " + engineId + " when not an admin");
+			classLogger.warn("User is trying to add all users to engine {} when not an admin", engineId);
 			classLogger.error("Failed to add all users.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -635,8 +659,8 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			classLogger.error("Failed to update engine user permission.", e);
-			classLogger.warn("User is trying to edit user " + existingUserId + " permissions for engine " + engineId
-					+ " when not an admin");
+			classLogger.warn("User is trying to edit user {} permissions for engine {} when not an admin",
+					existingUserId, engineId);
 			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(ret, 401);
 		}
@@ -711,8 +735,8 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			classLogger.error("Failed to update engine user permissions.", e);
-			classLogger.warn(
-					"User is trying to edit user access permissions for engine " + engineId + " when not an admin");
+			classLogger.warn("User is trying to edit user access permissions for engine {} when not an admin",
+					engineId);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -758,7 +782,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
 			classLogger.error("Failed to update engine user permissions.", e);
-			classLogger.warn("User is trying to edit user permissions for engine " + engineId + " when not an admin");
+			classLogger.warn("User is trying to edit user permissions for engine {} when not an admin", engineId);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 401);
@@ -803,8 +827,8 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to remove user " + existingUserId + " from having access to engine "
-					+ engineId + " when not an admin");
+			classLogger.warn("User is trying to remove user {} from having access to engine {} when not an admin",
+					existingUserId, engineId);
 			classLogger.error("Failed to remove engine user permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -847,8 +871,8 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(
-					"User is trying to remove usersfrom having access to engine " + engineId + " when not an admin");
+			classLogger.warn("User is trying to remove usersfrom having access to engine {} when not an admin",
+					engineId);
 			classLogger.error("Failed to remove engine user permissions.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -889,7 +913,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to set the engine " + engineId + logPublic + " when not an admin");
+			classLogger.warn("User is trying to set the engine {}{} when not an admin", engineId, logPublic);
 			classLogger.error("Failed to update engine global.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -935,7 +959,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to set the engine " + engineId + logDiscoverable + " when not an admin");
+			classLogger.warn("User is trying to set the engine {}{} when not an admin", engineId, logDiscoverable);
 			classLogger.error("Failed to update engine discoverable.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -1033,8 +1057,8 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to approve user request for permission to engine " + engineId
-					+ " when not an admin");
+			classLogger.warn("User is trying to approve user request for permission to engine {} when not an admin",
+					engineId);
 			classLogger.error("Failed to approve engine user access request.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -1083,8 +1107,8 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
 		} catch (IllegalAccessException e) {
-			classLogger.warn(
-					"User is trying to deny user request for permission to engine " + engineId + " when not an admin");
+			classLogger.warn("User is trying to deny user request for permission to engine {} when not an admin",
+					engineId);
 			classLogger.error("Failed to deny engine user access request.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());

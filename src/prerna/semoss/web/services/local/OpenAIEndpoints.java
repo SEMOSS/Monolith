@@ -36,7 +36,6 @@ import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -74,13 +73,10 @@ import prerna.engine.api.IModelEngine;
 import prerna.engine.impl.model.AbstractModelEngine;
 import prerna.engine.impl.model.Room;
 import prerna.engine.impl.model.RoomUtils;
-import prerna.engine.impl.model.message.InputMessage;
-import prerna.engine.impl.model.message.ResponseMessage;
 import prerna.engine.impl.model.responses.AskModelEngineResponse;
 import prerna.engine.impl.model.responses.EmbeddingsModelEngineResponse;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
-import prerna.om.ThreadStore;
 import prerna.reactor.security.MyEnginesReactor;
 import prerna.sablecc2.PixelRunner;
 import prerna.sablecc2.comm.PixelJobManager;
@@ -92,6 +88,7 @@ import prerna.sablecc2.om.ReactorKeysEnum;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.util.Constants;
 import prerna.util.Utility;
+import prerna.web.services.util.ModelPixelExecutor;
 import prerna.web.services.util.WebUtility;
 
 @Path("/model/openai")
@@ -118,45 +115,18 @@ public class OpenAIEndpoints {
 	@Consumes({ "application/json" })
 	@Produces({ "application/json;charset=utf-8", "text/event-stream" })
 	public Response runModelChatCompletion(@Context HttpServletRequest request) {
-
 		HttpSession session = request.getSession(false);
-		User user = null;
-
-		if (session != null) {
-			user = ((User) session.getAttribute(Constants.SESSION_USER));
-		}
-		// how did you even get past the no user in session filter?
+		User user = ModelPixelExecutor.getSessionUser(session);
 		if (user == null) {
-			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
-				session.invalidate();
-			}
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
+			return ModelPixelExecutor.invalidSessionResponse(request, session);
 		}
+		// set the user timezone
+		ModelPixelExecutor.applyUserTimezone(user, request);
 
 		final String SESSION_ID = session.getId();
 		final String JOB_ID = GUID.v7().toUUID().toString();
 		Insight insight = null;
 		Room room = null;
-
-		// set the user timezone
-		ZoneId zoneId = null;
-		String strTz = WebUtility.inputSanitizer(request.getParameter("tz"));
-		if (strTz == null || (strTz = strTz.trim()).isEmpty()) {
-			zoneId = ZoneId.of(Utility.getApplicationZoneId());
-		} else {
-			try {
-				zoneId = ZoneId.of(strTz);
-			} catch (Exception e) {
-				classLogger.warn("Invalid timezone value '{}', falling back to application default", strTz, e);
-				zoneId = ZoneId.of(Utility.getApplicationZoneId());
-			}
-		}
-		// need null check if security is off
-		if (user != null) {
-			user.setZoneId(zoneId);
-		}
 
 		// Retrieve raw data from the request
 		StringBuilder requestData = new StringBuilder();
@@ -169,9 +139,7 @@ public class OpenAIEndpoints {
 		} catch (IOException e) {
 			classLogger.error("Failed to read chat completions request body for path '{}': {}", request.getRequestURI(),
 					e.getMessage(), e);
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Bad Request: The 'data' parameter is missing.");
-			return WebUtility.getResponse(errorMap, 400);
+			return ModelPixelExecutor.errorResponse(400, "Bad Request: The 'data' parameter is missing.");
 		}
 
 		classLogger.info("Chat completion request data: {}", requestData);
@@ -179,13 +147,13 @@ public class OpenAIEndpoints {
 		// Convert the JSON string to a Map
 		Map<String, Object> dataMap;
 		try {
-			dataMap = GSON.fromJson(WebUtility.jsonSanitizer(requestData.toString()), new TypeToken<Map<String, Object>>(){}.getType());
+			dataMap = GSON.fromJson(WebUtility.jsonSanitizer(requestData.toString()),
+					new TypeToken<Map<String, Object>>() {
+					}.getType());
 		} catch (Exception e) {
 			classLogger.error("Failed to parse chat completions request JSON for path '{}': {}",
 					request.getRequestURI(), e.getMessage(), e);
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Error processing JSON data: " + e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
+			return ModelPixelExecutor.errorResponse(400, "Error processing JSON data: " + e.getMessage());
 		}
 
 		boolean isStreamingRequest = false;
@@ -195,25 +163,19 @@ public class OpenAIEndpoints {
 
 		String engineId = WebUtility.inputSanitizer((String) dataMap.remove("model"));
 		if (engineId == null || engineId.isEmpty()) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE,
+			return ModelPixelExecutor.errorResponse(400,
 					"Bad Request: The 'data' parameter is missing the required 'model' field.");
-			return WebUtility.getResponse(errorMap, 400);
 		}
 		IModelEngine engine = Utility.getModel(engineId);
 
 		Object fullPrompt = dataMap.remove("messages");
 		if (fullPrompt == null) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Please provide 'messages'.");
-			return WebUtility.getResponse(errorMap, 400);
+			return ModelPixelExecutor.errorResponse(400, "Please provide 'messages'.");
 		}
 
 		if (!SecurityEngineUtils.userCanViewEngine(user, engineId)) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE,
+			return ModelPixelExecutor.errorResponse(403,
 					"Model " + engineId + " does not exist or user does not have access to this model");
-			return WebUtility.getResponse(errorMap, 403);
 		}
 
 		String insightId = WebUtility.inputSanitizer((String) dataMap.remove("insight_id"));
@@ -257,13 +219,10 @@ public class OpenAIEndpoints {
 		boolean appendFullPrompt = Boolean
 				.parseBoolean(WebUtility.inputSanitizer((String) dataMap.remove("append_full_prompt")) + "");
 
-		ThreadStore.setInsightId(insight.getInsightId());
-		ThreadStore.setSessionId(SESSION_ID);
-		ThreadStore.setJobId(JOB_ID);
-		ThreadStore.setUser(insight.getUser());
+		ModelPixelExecutor.initializeThreadStore(insight, SESSION_ID, JOB_ID);
 
-		final Insight finalInsight = insight;
-		final Room finalRoom = room;
+		final Insight FINAL_INSIGHT = insight;
+		final Room FINAL_ROOM = room;
 
 		dataMap.put(AbstractModelEngine.FULL_PROMPT, fullPrompt);
 		dataMap.put(AbstractModelEngine.APPEND_FULL_PROMPT, appendFullPrompt);
@@ -271,15 +230,10 @@ public class OpenAIEndpoints {
 		if (!isStreamingRequest) {
 			AskModelEngineResponse llmResponse;
 			try {
-				InputMessage msg = InputMessage.builder(room).withModelType(engine.getModelType()).withParamMap(dataMap)
-						.build();
-				ResponseMessage response = room.ask(msg, engine);
-				llmResponse = response.getModelEngineResponse();
+				llmResponse = ModelPixelExecutor.askModelSync(engine, FINAL_INSIGHT, FINAL_ROOM, dataMap);
 			} catch (Exception e) {
 				classLogger.error("Chat completions synchronous model call failed for engine '{}'", engineId, e);
-				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-				return WebUtility.getResponse(errorMap, 400);
+				return ModelPixelExecutor.errorResponse(400, e.getMessage());
 			}
 
 			Map<String, Object> processedResposne = OpenAIChatCompletionsHelper.processAskModelEngineResponse(engineId,
@@ -298,7 +252,8 @@ public class OpenAIEndpoints {
 							try (Writer writer = new BufferedWriter(
 									new OutputStreamWriter(output, StandardCharsets.UTF_8))) {
 								// Execute model request but get job ID so can poll for partial responses
-								jobId = startAsyncModelRequest(engine, finalInsight, finalRoom, dataMap, SESSION_ID);
+								jobId = ModelPixelExecutor.startAsyncModelRequest(engine, FINAL_INSIGHT, FINAL_ROOM,
+										dataMap, SESSION_ID);
 
 								boolean started = false;
 
@@ -359,7 +314,9 @@ public class OpenAIEndpoints {
 													String finishReason = (String) dataMap.get("finish_reason");
 													// this is a map only on finish reason
 													OpenAIChatCompletionsHelper.writeFinishReason(engineId, messageId,
-															creationTimestamp, finishReason, capturedPromptTokens, capturedCompletionTokens, capturedCachedTokens, capturedReasoningTokens, writer);
+															creationTimestamp, finishReason, capturedPromptTokens,
+															capturedCompletionTokens, capturedCachedTokens,
+															capturedReasoningTokens, writer);
 													break STREAM_COMPLETE_LOOP;
 												} else {
 													String newContent = (String) dataMap.get("content");
@@ -388,7 +345,9 @@ public class OpenAIEndpoints {
 													// send the finish chunk
 													String finishReason = (String) dataMap.get("finish_reason");
 													OpenAIChatCompletionsHelper.writeFinishReason(engineId, messageId,
-															creationTimestamp, finishReason, capturedPromptTokens, capturedCompletionTokens, capturedCachedTokens, capturedReasoningTokens, writer);
+															creationTimestamp, finishReason, capturedPromptTokens,
+															capturedCompletionTokens, capturedCachedTokens,
+															capturedReasoningTokens, writer);
 													break STREAM_COMPLETE_LOOP;
 												} else {
 													OpenAIChatCompletionsHelper.writeToolChunk(engineId, messageId,
@@ -404,7 +363,9 @@ public class OpenAIEndpoints {
 									if (jobStatus == PixelJobStatus.PROGRESS_COMPLETE && started) {
 										// send final chunk with empty delta && finish_reason="stop"
 										OpenAIChatCompletionsHelper.writeFinishReason(engineId, messageId,
-												creationTimestamp, "stop", capturedPromptTokens, capturedCompletionTokens, capturedCachedTokens, capturedReasoningTokens, writer);
+												creationTimestamp, "stop", capturedPromptTokens,
+												capturedCompletionTokens, capturedCachedTokens, capturedReasoningTokens,
+												writer);
 										break STREAM_COMPLETE_LOOP;
 									} else if (jobStatus == PixelJobStatus.PROGRESS_COMPLETE && !started) {
 										// we didn't start
@@ -432,7 +393,9 @@ public class OpenAIEndpoints {
 														messageId, creationTimestamp, response, writer);
 											}
 											OpenAIChatCompletionsHelper.writeFinishReason(engineId, messageId,
-													creationTimestamp, "tool_calls", capturedPromptTokens, capturedCompletionTokens, capturedCachedTokens, capturedReasoningTokens, writer);
+													creationTimestamp, "tool_calls", capturedPromptTokens,
+													capturedCompletionTokens, capturedCachedTokens,
+													capturedReasoningTokens, writer);
 										} else {
 											// Handle regular text response
 											String content = null;
@@ -446,7 +409,9 @@ public class OpenAIEndpoints {
 
 											// send final chunk with empty delta && finish_reason="stop"
 											OpenAIChatCompletionsHelper.writeFinishReason(engineId, messageId,
-													creationTimestamp, "stop", capturedPromptTokens, capturedCompletionTokens, capturedCachedTokens, capturedReasoningTokens, writer);
+													creationTimestamp, "stop", capturedPromptTokens,
+													capturedCompletionTokens, capturedCachedTokens,
+													capturedReasoningTokens, writer);
 										}
 
 										// job is marked complete, always break
@@ -500,43 +465,17 @@ public class OpenAIEndpoints {
 	@Produces({ "application/json;charset=utf-8", "text/event-stream" })
 	public Response runResponses(@Context HttpServletRequest request) {
 		HttpSession session = request.getSession(false);
-		User user = null;
-
-		if (session != null) {
-			user = ((User) session.getAttribute(Constants.SESSION_USER));
-		}
-
+		User user = ModelPixelExecutor.getSessionUser(session);
 		if (user == null) {
-			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
-				session.invalidate();
-			}
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
+			return ModelPixelExecutor.invalidSessionResponse(request, session);
 		}
+		// set the user timezone
+		ModelPixelExecutor.applyUserTimezone(user, request);
 
 		final String SESSION_ID = session.getId();
 		final String JOB_ID = GUID.v7().toUUID().toString();
 		Insight insight = null;
 		Room room = null;
-
-		ZoneId zoneId = null;
-		String strTz = WebUtility.inputSanitizer(request.getParameter("tz"));
-		if (strTz == null || (strTz = strTz.trim()).isEmpty()) {
-			zoneId = ZoneId.of(Utility.getApplicationZoneId());
-		} else {
-			try {
-				zoneId = ZoneId.of(strTz);
-			} catch (Exception e) {
-				classLogger.error(
-						"Invalid timezone value '{}' for /responses request; falling back to application default '{}': {}",
-						strTz, Utility.getApplicationZoneId(), e.getMessage(), e);
-				zoneId = ZoneId.of(Utility.getApplicationZoneId());
-			}
-		}
-		if (user != null) {
-			user.setZoneId(zoneId);
-		}
 
 		StringBuilder requestData = new StringBuilder();
 		try (BufferedReader reader = new BufferedReader(new InputStreamReader(request.getInputStream()))) {
@@ -547,33 +486,27 @@ public class OpenAIEndpoints {
 		} catch (IOException e) {
 			classLogger.error("Failed to read responses request body for path '{}': {}", request.getRequestURI(),
 					e.getMessage(), e);
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Bad Request: Data parameter missing.");
-			return WebUtility.getResponse(errorMap, 400);
+			return ModelPixelExecutor.errorResponse(400, "Bad Request: Data parameter missing.");
 		}
 
 		Map<String, Object> dataMap;
 		try {
-			dataMap = GSON.fromJson(WebUtility.jsonSanitizer(requestData.toString()), new TypeToken<Map<String, Object>>(){}.getType());
+			dataMap = GSON.fromJson(WebUtility.jsonSanitizer(requestData.toString()),
+					new TypeToken<Map<String, Object>>() {
+					}.getType());
 		} catch (Exception e) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Error processing JSON: " + e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
+			return ModelPixelExecutor.errorResponse(400, "Error processing JSON: " + e.getMessage());
 		}
 
 		boolean isStreamingRequest = Boolean.parseBoolean(dataMap.getOrDefault("stream", false).toString());
 		String engineId = WebUtility.inputSanitizer((String) dataMap.remove("model"));
 
 		if (engineId == null || engineId.isEmpty()) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Missing 'model' field.");
-			return WebUtility.getResponse(errorMap, 400);
+			return ModelPixelExecutor.errorResponse(400, "Missing 'model' field.");
 		}
 
 		if (!SecurityEngineUtils.userCanViewEngine(user, engineId)) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Model " + engineId + " inaccessible.");
-			return WebUtility.getResponse(errorMap, 403);
+			return ModelPixelExecutor.errorResponse(403, "Model " + engineId + " inaccessible.");
 		}
 
 		IModelEngine engine = Utility.getModel(engineId);
@@ -598,9 +531,7 @@ public class OpenAIEndpoints {
 		}
 
 		if (insight == null) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Insight not found: " + insightId);
-			return WebUtility.getResponse(errorMap, 400);
+			return ModelPixelExecutor.errorResponse(400, "Insight not found: " + insightId);
 		}
 		insight.setUser(user);
 
@@ -615,28 +546,20 @@ public class OpenAIEndpoints {
 		}
 		room = RoomUtils.createRoomIfNotExists(roomId, insight, engine, null);
 
-		ThreadStore.setInsightId(insight.getInsightId());
-		ThreadStore.setSessionId(SESSION_ID);
-		ThreadStore.setJobId(JOB_ID);
-		ThreadStore.setUser(insight.getUser());
+		ModelPixelExecutor.initializeThreadStore(insight, SESSION_ID, JOB_ID);
 
 		dataMap.put(AbstractModelEngine.FULL_PROMPT, messages);
 
 		if (!isStreamingRequest) {
 			try {
-				InputMessage msg = InputMessage.builder(room).withModelType(engine.getModelType()).withParamMap(dataMap)
-						.build();
-				ResponseMessage response = room.ask(msg, engine);
-				AskModelEngineResponse llmResponse = response.getModelEngineResponse();
+				AskModelEngineResponse llmResponse = ModelPixelExecutor.askModelSync(engine, insight, room, dataMap);
 
 				Map<String, Object> processedResponse = OpenAIResponsesHelper.processAskModelEngineResponse(engineId,
 						llmResponse);
 				return WebUtility.getResponse(processedResponse, 200);
 			} catch (Exception e) {
 				classLogger.error("Responses synchronous model call failed for engine '{}'", engineId, e);
-				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-				return WebUtility.getResponse(errorMap, 400);
+				return ModelPixelExecutor.errorResponse(400, e.getMessage());
 			}
 		} else {
 			return handleStreamingResponse(engine, insight, room, dataMap, SESSION_ID, JOB_ID, engineId);
@@ -663,16 +586,17 @@ public class OpenAIEndpoints {
 		return WebUtility.inputSanitizer(request.getHeader(headerName));
 	}
 
-	private Response handleStreamingResponse(IModelEngine engine, Insight finalInsight, Room finalRoom,
-			Map<String, Object> dataMap, String SESSION_ID, String JOB_ID, String engineId) {
-		classLogger.info("Starting responses streaming for engine: {}", engineId);
+	private Response handleStreamingResponse(IModelEngine engine, final Insight FINAL_INSIGHT, final Room FINAL_ROOM,
+			final Map<String, Object> FINAL_DATA_MAP, final String FINAL_SESSION_ID, final String FINAL_JOB_ID,
+			final String FINAL_ENGINE_ID) {
+		classLogger.info("Starting responses streaming for engine: {}", FINAL_ENGINE_ID);
 
 		return Response.ok().header("Content-Type", "text/event-stream").header("Cache-Control", "no-cache")
 				.header("Connection", "keep-alive").header("X-Content-Type-Options", "nosniff")
 				.entity(new StreamingOutput() {
 					@Override
 					public void write(OutputStream output) throws IOException, WebApplicationException {
-						String responseId = "resp_" + JOB_ID;
+						String responseId = "resp_" + FINAL_JOB_ID;
 						long creationTimestamp = Instant.now().getEpochSecond();
 						String jobId = null;
 						int seq = 0;
@@ -705,11 +629,13 @@ public class OpenAIEndpoints {
 
 							// 1. Initial Handshake Events
 							OpenAIResponsesHelper.writeSSEEvent(OpenAIResponsesHelper.createBaseEvent(
-									"response.created", seq++, responseId, engineId, creationTimestamp), writer);
-							OpenAIResponsesHelper.writeSSEEvent(OpenAIResponsesHelper.createBaseEvent(
-									"response.in_progress", seq++, responseId, engineId, creationTimestamp), writer);
+									"response.created", seq++, responseId, FINAL_ENGINE_ID, creationTimestamp), writer);
+							OpenAIResponsesHelper
+									.writeSSEEvent(OpenAIResponsesHelper.createBaseEvent("response.in_progress", seq++,
+											responseId, FINAL_ENGINE_ID, creationTimestamp), writer);
 
-							jobId = startAsyncModelRequest(engine, finalInsight, finalRoom, dataMap, SESSION_ID);
+							jobId = ModelPixelExecutor.startAsyncModelRequest(engine, FINAL_INSIGHT, FINAL_ROOM,
+									FINAL_DATA_MAP, FINAL_SESSION_ID);
 
 							// 2. MAIN POLLING LOOP
 							STREAM_LOOP: while (true) {
@@ -728,15 +654,15 @@ public class OpenAIEndpoints {
 										Map<String, Object> streamData = (Map<String, Object>) streamObj.get("data");
 
 										// Media (image) chunks. The Responses API protocol expects:
-										//   output_item.added (status=in_progress) — once
-										//   image_generation_call.partial_image — zero or more, all under
-										//     the same item_id, each carrying partial_image_b64 and an
-										//     incrementing partial_image_index
-										//   image_generation_call.completed — once (bare lifecycle event)
-										//   output_item.done (status=completed, item.result=<base64>) — once
+										// output_item.added (status=in_progress) - once
+										// image_generation_call.partial_image - zero or more, all under
+										// the same item_id, each carrying partial_image_b64 and an
+										// incrementing partial_image_index
+										// image_generation_call.completed - once (bare lifecycle event)
+										// output_item.done (status=completed, item.result=<base64>) - once
 										// We open the item lazily on the first media chunk and close it on
 										// the final (partial_image_index == null), so the openai SDK sees
-										// one image item from added → done.
+										// one image item from added -> done.
 										if ("media".equalsIgnoreCase(streamType)) {
 											if (currentItemId != null) {
 												if ("message".equals(currentItemType) && isContentPartOpen) {
@@ -969,7 +895,7 @@ public class OpenAIEndpoints {
 							}
 
 							Map<String, Object> completedEvent = OpenAIResponsesHelper.createBaseEvent(
-									"response.completed", seq++, responseId, engineId, creationTimestamp);
+									"response.completed", seq++, responseId, FINAL_ENGINE_ID, creationTimestamp);
 							completedEvent.put("status", "completed");
 							OpenAIResponsesHelper.attachUsage(completedEvent, capturedInputTokens, capturedOutputTokens,
 									capturedCachedTokens, capturedReasoningTokens);
@@ -977,13 +903,14 @@ public class OpenAIEndpoints {
 
 						} catch (IOException ioe) {
 							final String capturedJobId = jobId;
-							if (!WebUtility.handleStreamingException(ioe, classLogger, engineId, capturedJobId,
+							if (!WebUtility.handleStreamingException(ioe, classLogger, FINAL_ENGINE_ID, capturedJobId,
 									() -> PixelJobManager.getManager().interruptThread(capturedJobId))) {
 								classLogger.error("I/O error processing responses streaming for engine '{}'",
-										engineId, ioe);
+										FINAL_ENGINE_ID, ioe);
 							}
 						} catch (Exception e) {
-							classLogger.error("Error processing responses streaming for engine '{}'", engineId, e);
+							classLogger.error("Error processing responses streaming for engine '{}'", FINAL_ENGINE_ID,
+									e);
 						} finally {
 							if (jobId != null) {
 								PixelJobManager.getManager().clearJob(jobId);
@@ -1012,39 +939,17 @@ public class OpenAIEndpoints {
 
 	private Response runImagesGenerations(@Context HttpServletRequest request) {
 		HttpSession session = request.getSession(false);
-		User user = null;
-		if (session != null) {
-			user = ((User) session.getAttribute(Constants.SESSION_USER));
-		}
+		User user = ModelPixelExecutor.getSessionUser(session);
 		if (user == null) {
-			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
-				session.invalidate();
-			}
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
+			return ModelPixelExecutor.invalidSessionResponse(request, session);
 		}
+		// set the user timezone
+		ModelPixelExecutor.applyUserTimezone(user, request);
 
 		final String SESSION_ID = session.getId();
 		final String JOB_ID = GUID.v7().toUUID().toString();
 		Insight insight = null;
 		Room room = null;
-
-		ZoneId zoneId = null;
-		String strTz = WebUtility.inputSanitizer(request.getParameter("tz"));
-		if (strTz == null || (strTz = strTz.trim()).isEmpty()) {
-			zoneId = ZoneId.of(Utility.getApplicationZoneId());
-		} else {
-			try {
-				zoneId = ZoneId.of(strTz);
-			} catch (Exception e) {
-				classLogger.warn("Invalid timezone value '{}' for /images/generations; falling back to default", strTz, e);
-				zoneId = ZoneId.of(Utility.getApplicationZoneId());
-			}
-		}
-		if (user != null) {
-			user.setZoneId(zoneId);
-		}
 
 		StringBuilder requestData = new StringBuilder();
 		try (BufferedReader reader = new BufferedReader(new InputStreamReader(request.getInputStream()))) {
@@ -1054,39 +959,32 @@ public class OpenAIEndpoints {
 			}
 		} catch (IOException e) {
 			classLogger.error("Failed to read images/generations request body: {}", e.getMessage(), e);
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Bad Request: failed to read request body.");
-			return WebUtility.getResponse(errorMap, 400);
+			return ModelPixelExecutor.errorResponse(400, "Bad Request: failed to read request body.");
 		}
 
 		Map<String, Object> dataMap;
 		try {
-			dataMap = GSON.fromJson(WebUtility.jsonSanitizer(requestData.toString()), new TypeToken<Map<String, Object>>(){}.getType());
+			dataMap = GSON.fromJson(WebUtility.jsonSanitizer(requestData.toString()),
+					new TypeToken<Map<String, Object>>() {
+					}.getType());
 		} catch (Exception e) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Error processing JSON: " + e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
+			return ModelPixelExecutor.errorResponse(400, "Error processing JSON: " + e.getMessage());
 		}
 
 		boolean isStreamingRequest = Boolean.parseBoolean(dataMap.getOrDefault("stream", false).toString());
 		String engineId = WebUtility.inputSanitizer((String) dataMap.remove("model"));
 		if (engineId == null || engineId.isEmpty()) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Missing required field 'model'.");
-			return WebUtility.getResponse(errorMap, 400);
+			return ModelPixelExecutor.errorResponse(400, "Missing required field 'model'.");
 		}
 
 		String prompt = WebUtility.inputSanitizer((String) dataMap.remove("prompt"));
 		if (prompt == null || prompt.isEmpty()) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Missing required field 'prompt'.");
-			return WebUtility.getResponse(errorMap, 400);
+			return ModelPixelExecutor.errorResponse(400, "Missing required field 'prompt'.");
 		}
 
 		if (!SecurityEngineUtils.userCanViewEngine(user, engineId)) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Model " + engineId + " does not exist or user does not have access.");
-			return WebUtility.getResponse(errorMap, 403);
+			return ModelPixelExecutor.errorResponse(403,
+					"Model " + engineId + " does not exist or user does not have access.");
 		}
 
 		IModelEngine engine = Utility.getModel(engineId);
@@ -1122,10 +1020,7 @@ public class OpenAIEndpoints {
 		}
 		room = RoomUtils.createRoomIfNotExists(roomId, insight, engine, null);
 
-		ThreadStore.setInsightId(insight.getInsightId());
-		ThreadStore.setSessionId(SESSION_ID);
-		ThreadStore.setJobId(JOB_ID);
-		ThreadStore.setUser(insight.getUser());
+		ModelPixelExecutor.initializeThreadStore(insight, SESSION_ID, JOB_ID);
 
 		List<Map<String, Object>> messages = new ArrayList<>();
 		Map<String, Object> userMsg = new HashMap<>();
@@ -1134,36 +1029,31 @@ public class OpenAIEndpoints {
 		messages.add(userMsg);
 		dataMap.put(AbstractModelEngine.FULL_PROMPT, messages);
 
-		final String finalEngineId = engineId;
-		final String outputFormat = (String) dataMap.get("output_format");
-		final String quality = (String) dataMap.get("quality");
-		final String size = (String) dataMap.get("size");
+		final String OUTPUT_FORMAT = (String) dataMap.get("output_format");
+		final String QUALITY = (String) dataMap.get("quality");
+		final String SIZE = (String) dataMap.get("size");
 
 		if (!isStreamingRequest) {
 			try {
-				InputMessage msg = InputMessage.builder(room).withModelType(engine.getModelType()).withParamMap(dataMap)
-						.build();
-				ResponseMessage response = room.ask(msg, engine);
-				AskModelEngineResponse<?> llmResponse = response.getModelEngineResponse();
+				AskModelEngineResponse<?> llmResponse = ModelPixelExecutor.askModelSync(engine, insight, room, dataMap);
 				long createdAt = Instant.now().getEpochSecond();
 				Map<String, Object> responseMap = OpenAIImagesHelper.buildNonStreamingResponse(createdAt, llmResponse);
 				return WebUtility.getResponse(responseMap, 200);
 			} catch (Exception e) {
 				classLogger.error("Images synchronous model call failed for engine '{}'", engineId, e);
-				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-				return WebUtility.getResponse(errorMap, 400);
+				return ModelPixelExecutor.errorResponse(400, e.getMessage());
 			}
 		} else {
-			return handleImagesStreamingResponse(engine, insight, room, dataMap, SESSION_ID, JOB_ID,
-					finalEngineId, outputFormat, quality, size);
+			return handleImagesStreamingResponse(engine, insight, room, dataMap, SESSION_ID, JOB_ID, engineId,
+					OUTPUT_FORMAT, QUALITY, SIZE);
 		}
 	}
 
-	private Response handleImagesStreamingResponse(IModelEngine engine, Insight finalInsight, Room finalRoom,
-			Map<String, Object> dataMap, String SESSION_ID, String JOB_ID,
-			String engineId, String outputFormat, String quality, String size) {
-		classLogger.info("Starting images/generations streaming for engine: {}", engineId);
+	private Response handleImagesStreamingResponse(IModelEngine engine, final Insight FINAL_INSIGHT,
+			final Room FINAL_ROOM, final Map<String, Object> FINAL_DATA_MAP, final String FINAL_SESSION_ID,
+			final String FINAL_JOB_ID, final String FINAL_ENGINE_ID, final String FINAL_OUTPUT_FORMAT,
+			final String FINAL_QUALITY, final String FINAL_SIZE) {
+		classLogger.info("Starting images/generations streaming for engine: {}", FINAL_ENGINE_ID);
 
 		return Response.ok().header("Content-Type", "text/event-stream").header("Cache-Control", "no-cache")
 				.header("Connection", "keep-alive").header("X-Content-Type-Options", "nosniff")
@@ -1176,7 +1066,8 @@ public class OpenAIEndpoints {
 						try (Writer writer = new BufferedWriter(
 								new OutputStreamWriter(output, StandardCharsets.UTF_8))) {
 
-							jobId = startAsyncModelRequest(engine, finalInsight, finalRoom, dataMap, SESSION_ID);
+							jobId = ModelPixelExecutor.startAsyncModelRequest(engine, FINAL_INSIGHT, FINAL_ROOM,
+									FINAL_DATA_MAP, FINAL_SESSION_ID);
 
 							STREAM_LOOP: while (true) {
 								PixelJobRunner jt = PixelJobManager.getManager().getJob(jobId);
@@ -1216,10 +1107,12 @@ public class OpenAIEndpoints {
 											if (partialIdxObj != null) {
 												int partialIdx = ((Number) partialIdxObj).intValue();
 												OpenAIImagesHelper.writePartialImageEvent(writer, b64, partialIdx,
-														engineId, creationTimestamp, outputFormat, quality, size);
+														FINAL_ENGINE_ID, creationTimestamp, FINAL_OUTPUT_FORMAT,
+														FINAL_QUALITY, FINAL_SIZE);
 											} else {
-												OpenAIImagesHelper.writeCompletedEvent(writer, b64, engineId,
-														creationTimestamp, outputFormat, quality, size, null, null);
+												OpenAIImagesHelper.writeCompletedEvent(writer, b64, FINAL_ENGINE_ID,
+														creationTimestamp, FINAL_OUTPUT_FORMAT, FINAL_QUALITY,
+														FINAL_SIZE, null, null);
 												writer.write("data: [DONE]\n\n");
 												writer.flush();
 												break STREAM_LOOP;
@@ -1242,14 +1135,14 @@ public class OpenAIEndpoints {
 
 						} catch (IOException ioe) {
 							final String capturedJobId = jobId;
-							if (!WebUtility.handleStreamingException(ioe, classLogger, engineId, capturedJobId,
+							if (!WebUtility.handleStreamingException(ioe, classLogger, FINAL_ENGINE_ID, capturedJobId,
 									() -> PixelJobManager.getManager().interruptThread(capturedJobId))) {
 								classLogger.error("I/O error processing images/generations streaming for engine '{}'",
-										engineId, ioe);
+										FINAL_ENGINE_ID, ioe);
 							}
 						} catch (Exception e) {
-							classLogger.error("Error processing images/generations streaming for engine '{}'", engineId,
-									e);
+							classLogger.error("Error processing images/generations streaming for engine '{}'",
+									FINAL_ENGINE_ID, e);
 						} finally {
 							if (jobId != null) {
 								PixelJobManager.getManager().clearJob(jobId);
@@ -1260,37 +1153,6 @@ public class OpenAIEndpoints {
 				}).build();
 	}
 
-	/**
-	 * Start an asynchronous model request and return the job ID
-	 *
-	 * @param engine
-	 * @param insight
-	 * @param dataMap
-	 * @return
-	 */
-	private String startAsyncModelRequest(IModelEngine engine, Insight insight, Room room, Map<String, Object> dataMap,
-			String sessionId) {
-		try {
-			// start async job
-			PixelJobManager manager = PixelJobManager.getManager();
-			PixelJobRunner jobRunner = manager.makeJob(insight, sessionId, null);
-			String jobId = jobRunner.getJobId();
-
-			String modelPixel = "LLM(engine='" + engine.getEngineId() + "',roomId='" + room.getId()
-					+ "',command='<encode>ignore</encode>'"
-					// this should have the full_prompt
-					+ ",paramValues=[" + GSON.toJson(dataMap) + "]);";
-			classLogger.info("Dispatching async model pixel: {}", modelPixel);
-			jobRunner.addPixel(modelPixel);
-			Thread.ofVirtual().start(jobRunner);
-			return jobId;
-		} catch (Exception e) {
-			classLogger.error("Failed to start async model request for engine '{}': {}",
-					engine == null ? "unknown" : engine.getEngineId(), e.getMessage(), e);
-			throw new IllegalArgumentException(e.getMessage());
-		}
-	}
-
 	// TODO: move paylaod generation logic into a new OpenAICompletionsHelper
 
 	@POST
@@ -1299,43 +1161,17 @@ public class OpenAIEndpoints {
 	@Produces({ "application/json;charset=utf-8", "text/event-stream" })
 	public Response runModelCompletion(@Context HttpServletRequest request) {
 		HttpSession session = request.getSession(false);
-		User user = null;
-
-		if (session != null) {
-			user = ((User) session.getAttribute(Constants.SESSION_USER));
-		}
-		// how did you even get past the no user in session filter?
+		User user = ModelPixelExecutor.getSessionUser(session);
 		if (user == null) {
-			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
-				session.invalidate();
-			}
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
+			return ModelPixelExecutor.invalidSessionResponse(request, session);
 		}
+		// set the user timezone
+		ModelPixelExecutor.applyUserTimezone(user, request);
 
 		final String SESSION_ID = session.getId();
 		final String JOB_ID = GUID.v7().toUUID().toString();
 		Insight insight = null;
 		Room room = null;
-
-		// set the user timezone
-		ZoneId zoneId = null;
-		String strTz = request.getParameter("tz");
-		if (strTz == null || (strTz = strTz.trim()).isEmpty()) {
-			zoneId = ZoneId.of(Utility.getApplicationZoneId());
-		} else {
-			try {
-				zoneId = ZoneId.of(strTz);
-			} catch (Exception e) {
-				classLogger.warn("Invalid timezone value '{}', falling back to application default", strTz, e);
-				zoneId = ZoneId.of(Utility.getApplicationZoneId());
-			}
-		}
-		// need null check if security is off
-		if (user != null) {
-			user.setZoneId(zoneId);
-		}
 
 		// Retrieve raw data from the request
 		StringBuilder requestData = new StringBuilder();
@@ -1348,37 +1184,31 @@ public class OpenAIEndpoints {
 		} catch (IOException e) {
 			classLogger.error("Failed to read completions request body for path '{}': {}", request.getRequestURI(),
 					e.getMessage(), e);
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Bad Request: The 'data' parameter is missing.");
-			return WebUtility.getResponse(errorMap, 400);
+			return ModelPixelExecutor.errorResponse(400, "Bad Request: The 'data' parameter is missing.");
 		}
 
 		// Convert the JSON string to a Map
 		Map<String, Object> dataMap;
 		try {
-			dataMap = GSON.fromJson(WebUtility.jsonSanitizer(requestData.toString()), new TypeToken<Map<String, Object>>(){}.getType());
+			dataMap = GSON.fromJson(WebUtility.jsonSanitizer(requestData.toString()),
+					new TypeToken<Map<String, Object>>() {
+					}.getType());
 		} catch (Exception e) {
 			classLogger.error("Failed to parse completions request JSON for path '{}': {}", request.getRequestURI(),
 					e.getMessage(), e);
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Error processing JSON data: " + e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
+			return ModelPixelExecutor.errorResponse(400, "Error processing JSON data: " + e.getMessage());
 		}
 
 		String engineId = WebUtility.inputSanitizer((String) dataMap.remove("model"));
 		if (engineId == null || engineId.isEmpty()) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE,
+			return ModelPixelExecutor.errorResponse(400,
 					"Bad Request: The 'data' parameter is missing the required 'model' field.");
-			return WebUtility.getResponse(errorMap, 400);
 		}
 		IModelEngine engine = Utility.getModel(engineId);
 
 		String question = (String) dataMap.remove("prompt");
 		if (question == null) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Please provide 'prompt'.");
-			return WebUtility.getResponse(errorMap, 400);
+			return ModelPixelExecutor.errorResponse(400, "Please provide 'prompt'.");
 		}
 
 		boolean isStreamingRequest = false;
@@ -1387,10 +1217,8 @@ public class OpenAIEndpoints {
 		}
 
 		if (!SecurityEngineUtils.userCanViewEngine(user, engineId)) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE,
+			return ModelPixelExecutor.errorResponse(403,
 					"Model " + engineId + " does not exist or user does not have access to this model");
-			return WebUtility.getResponse(errorMap, 403);
 		}
 
 		String insightId = WebUtility.inputSanitizer((String) dataMap.remove("insight_id"));
@@ -1426,23 +1254,23 @@ public class OpenAIEndpoints {
 		// room name gets updated during parsing of full prompt
 		room = RoomUtils.createRoomIfNotExists(roomId, insight, engine, null);
 
-		ThreadStore.setInsightId(insight.getInsightId());
-		ThreadStore.setSessionId(SESSION_ID);
-		ThreadStore.setJobId(JOB_ID);
-		ThreadStore.setUser(insight.getUser());
+		ModelPixelExecutor.initializeThreadStore(insight, SESSION_ID, JOB_ID);
+
+		// route through the LLM pixel by carrying the prompt as a full_prompt message
+		List<Map<String, Object>> completionMessages = new ArrayList<>();
+		Map<String, Object> completionUserMessage = new HashMap<>();
+		completionUserMessage.put("role", "user");
+		completionUserMessage.put("content", question);
+		completionMessages.add(completionUserMessage);
+		dataMap.put(AbstractModelEngine.FULL_PROMPT, completionMessages);
 
 		if (!isStreamingRequest) {
 			AskModelEngineResponse llmResponse;
 			try {
-				InputMessage msg = InputMessage.builder(room).withModelType(engine.getModelType())
-						.withText(question, question).withParamMap(dataMap).build();
-				ResponseMessage response = room.ask(msg, engine);
-				llmResponse = response.getModelEngineResponse();
+				llmResponse = ModelPixelExecutor.askModelSync(engine, insight, room, dataMap);
 			} catch (Exception e) {
 				classLogger.error("Model completion synchronous call failed for engine '{}'", engineId, e);
-				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-				return WebUtility.getResponse(errorMap, 400);
+				return ModelPixelExecutor.errorResponse(400, e.getMessage());
 			}
 
 			String response = llmResponse.getStringResponse();
@@ -1512,13 +1340,12 @@ public class OpenAIEndpoints {
 			final Room FINAL_ROOM = room;
 			return Response.ok().header("Content-Type", "text/event-stream").header("Cache-Control", "no-cache")
 					.header("Connection", "keep-alive").entity((StreamingOutput) output -> {
-	
+
 						try (Writer writer = new BufferedWriter(
 								new OutputStreamWriter(output, StandardCharsets.UTF_8))) {
-							// Get full completion from your model in one go
-							InputMessage msg = InputMessage.builder(FINAL_ROOM).withModelType(engine.getModelType())
-									.withText(question, question).withParamMap(dataMap).build();
-							AskModelEngineResponse llmResponse = engine.askRoom(question, FINAL_ROOM, msg, dataMap);
+							// Get full completion from the model in one go through the LLM pixel
+							AskModelEngineResponse llmResponse = ModelPixelExecutor.askModelSync(engine, FINAL_INSIGHT,
+									FINAL_ROOM, dataMap);
 							String completionText = llmResponse.getStringResponse();
 							Integer streamPromptTokens = llmResponse.getNumberOfTokensInPrompt();
 							Integer streamResponseTokens = llmResponse.getNumberOfTokensInResponse();
@@ -1590,42 +1417,16 @@ public class OpenAIEndpoints {
 	@Produces("application/json;charset=utf-8")
 	public Response runModelEmbeddings(@Context HttpServletRequest request) {
 		HttpSession session = request.getSession(false);
-		User user = null;
-
-		if (session != null) {
-			user = ((User) session.getAttribute(Constants.SESSION_USER));
-		}
-		// how did you even get past the no user in session filter?
+		User user = ModelPixelExecutor.getSessionUser(session);
 		if (user == null) {
-			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
-				session.invalidate();
-			}
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
+			return ModelPixelExecutor.invalidSessionResponse(request, session);
 		}
+		// set the user timezone
+		ModelPixelExecutor.applyUserTimezone(user, request);
 
 		final String SESSION_ID = session.getId();
 		final String JOB_ID = GUID.v7().toUUID().toString();
 		Insight insight = null;
-
-		// set the user timezone
-		ZoneId zoneId = null;
-		String strTz = request.getParameter("tz");
-		if (strTz == null || (strTz = strTz.trim()).isEmpty()) {
-			zoneId = ZoneId.of(Utility.getApplicationZoneId());
-		} else {
-			try {
-				zoneId = ZoneId.of(strTz);
-			} catch (Exception e) {
-				classLogger.warn("Invalid timezone value '{}', falling back to application default", strTz, e);
-				zoneId = ZoneId.of(Utility.getApplicationZoneId());
-			}
-		}
-		// need null check if security is off
-		if (user != null) {
-			user.setZoneId(zoneId);
-		}
 
 		// Retrieve raw data from the request
 		StringBuilder requestData = new StringBuilder();
@@ -1637,45 +1438,37 @@ public class OpenAIEndpoints {
 		} catch (IOException e) {
 			classLogger.error("Failed to read embeddings request body for path '{}': {}", request.getRequestURI(),
 					e.getMessage(), e);
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Bad Request: The 'data' parameter is missing.");
-			return WebUtility.getResponse(errorMap, 400);
+			return ModelPixelExecutor.errorResponse(400, "Bad Request: The 'data' parameter is missing.");
 		}
 
 		// Convert the JSON string to a Map
 		Map<String, Object> dataMap;
 		try {
-			dataMap = GSON.fromJson(WebUtility.jsonSanitizer(requestData.toString()), new TypeToken<Map<String, Object>>(){}.getType());
+			dataMap = GSON.fromJson(WebUtility.jsonSanitizer(requestData.toString()),
+					new TypeToken<Map<String, Object>>() {
+					}.getType());
 		} catch (Exception e) {
 			classLogger.error("Failed to parse embeddings request JSON for path '{}': {}", request.getRequestURI(),
 					e.getMessage(), e);
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Error processing JSON data: " + e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
+			return ModelPixelExecutor.errorResponse(400, "Error processing JSON data: " + e.getMessage());
 		}
 
 		String engineId = WebUtility.inputSanitizer((String) dataMap.remove("model"));
 		if (engineId == null || engineId.isEmpty()) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE,
+			return ModelPixelExecutor.errorResponse(400,
 					"Bad Request: The 'data' parameter is missing the required 'model' field.");
-			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		List<String> stringsToEncode = (List<String>) dataMap.remove("input");
 		if (stringsToEncode == null || stringsToEncode.isEmpty()) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE,
+			return ModelPixelExecutor.errorResponse(400,
 					"Bad Request: The 'data' parameter is missing the required 'input' field.");
-			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// make sure the user can view the engine
 		if (!SecurityEngineUtils.userCanViewEngine(user, engineId)) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE,
+			return ModelPixelExecutor.errorResponse(403,
 					"Model " + engineId + " does not exist or user does not have access to this model");
-			return WebUtility.getResponse(errorMap, 403);
 		}
 
 		String insightId = WebUtility.inputSanitizer((String) dataMap.remove("insight_id"));
@@ -1705,10 +1498,7 @@ public class OpenAIEndpoints {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
-		ThreadStore.setInsightId(insight.getInsightId());
-		ThreadStore.setSessionId(SESSION_ID);
-		ThreadStore.setJobId(JOB_ID);
-		ThreadStore.setUser(insight.getUser());
+		ModelPixelExecutor.initializeThreadStore(insight, SESSION_ID, JOB_ID);
 
 		// set the user
 		insight.setUser(user);
@@ -1719,9 +1509,7 @@ public class OpenAIEndpoints {
 			embeddingsResponse = engine.embeddings(stringsToEncode, insight, dataMap);
 		} catch (Exception e) {
 			classLogger.error("Embeddings call failed for engine '{}'", engineId, e);
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
+			return ModelPixelExecutor.errorResponse(400, e.getMessage());
 		}
 
 		List<List<Double>> embeddings = embeddingsResponse.getResponse();
@@ -1783,18 +1571,9 @@ public class OpenAIEndpoints {
 	public Response listModels(@Context HttpServletRequest request) {
 		// https://platform.openai.com/docs/api-reference/models/list
 		HttpSession session = request.getSession(false);
-		User user = null;
-		if (session != null) {
-			user = ((User) session.getAttribute(Constants.SESSION_USER));
-		}
-		// how did you even get past the no user in session filter?
+		User user = ModelPixelExecutor.getSessionUser(session);
 		if (user == null) {
-			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
-				session.invalidate();
-			}
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
+			return ModelPixelExecutor.invalidSessionResponse(request, session);
 		}
 
 		MyEnginesReactor reactor = new MyEnginesReactor();
@@ -1841,18 +1620,9 @@ public class OpenAIEndpoints {
 	public Response retrieveModel(@Context HttpServletRequest request, @PathParam("modelId") String modelId) {
 		// https://platform.openai.com/docs/api-reference/models/retrieve
 		HttpSession session = request.getSession(false);
-		User user = null;
-		if (session != null) {
-			user = ((User) session.getAttribute(Constants.SESSION_USER));
-		}
-		// how did you even get past the no user in session filter?
+		User user = ModelPixelExecutor.getSessionUser(session);
 		if (user == null) {
-			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
-				session.invalidate();
-			}
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
+			return ModelPixelExecutor.invalidSessionResponse(request, session);
 		}
 
 		MyEnginesReactor reactor = new MyEnginesReactor();
@@ -1884,9 +1654,7 @@ public class OpenAIEndpoints {
 		NounMetadata outputNoun = reactor.execute();
 		List<Map<String, Object>> openAiResponse = processModelList(outputNoun);
 		if (openAiResponse == null || openAiResponse.isEmpty()) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Could not find model = '" + modelId + "'");
-			return WebUtility.getResponse(errorMap, 400);
+			return ModelPixelExecutor.errorResponse(400, "Could not find model = '" + modelId + "'");
 		}
 		return WebUtility.getResponse(openAiResponse.get(0), 200);
 	}
