@@ -43,6 +43,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -98,8 +99,6 @@ import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.ThreadStore;
 import prerna.reactor.agent.AgentRunContext;
-import prerna.reactor.agent.run.AgentRunEventBus;
-import prerna.reactor.agent.run.AgentRunEventBus.AgentRunEvent;
 import prerna.reactor.agent.run.AgentRuntimeManager;
 import prerna.reactor.agent.run.RunAgentRequest;
 import prerna.reactor.agent.run.RunAgentResult;
@@ -310,37 +309,26 @@ public class A2AResource {
 
 	private void streamRun(String runId, SseEventSink eventSink, Sse sse, A2ARequestContext requestContext,
 			Object responseId) throws Exception {
-		LinkedBlockingQueue<AgentRunEvent> queue = new LinkedBlockingQueue<>();
-		AutoCloseable subscription = AgentRunEventBus.get().subscribe(runId, queue::offer);
-		try {
-			for (AgentRunEvent event : AgentRunEventBus.get().replay(runId)) {
-				sendRunEvent(eventSink, sse, requestContext, event, responseId);
-				if (event.isTerminal()) {
-					return;
-				}
-			}
-			while (eventSink != null && !eventSink.isClosed()) {
-				AgentRunEvent event = queue.poll(30, TimeUnit.SECONDS);
-				if (event == null) {
-					continue;
-				}
-				sendRunEvent(eventSink, sse, requestContext, event, responseId);
-				if (event.isTerminal()) {
-					return;
-				}
-			}
-		} finally {
-			subscription.close();
-		}
-	}
-
-	private void sendRunEvent(SseEventSink eventSink, Sse sse, A2ARequestContext requestContext, AgentRunEvent event,
-			Object responseId) {
+		// Poll durable AGENT_RUN state and emit an SSE status update whenever the task
+		// state changes, until the run reaches a terminal state or the client disconnects.
+		// Replaces the removed in-memory AgentRunEventBus subscribe/replay path.
 		seedThreadStore(requestContext);
 		Insight insight = requestContext.insight;
-		Task task = taskFromRun(AgentRuntimeManager.get().getRun(event.getRunId(), insight));
-		Map<String, Object> payload = statusUpdateFromTask(task, event.toMap());
-		sendSse(eventSink, sse, event.getEvent(), jsonRpcResult(responseId, streamStatusUpdate(payload)));
+		String lastState = null;
+		while (eventSink != null && !eventSink.isClosed()) {
+			Task task = taskFromRun(AgentRuntimeManager.get().getRun(runId, insight));
+			String state = task != null && task.status() != null && task.status().state() != null
+					? task.status().state().name() : null;
+			if (!Objects.equals(state, lastState)) {
+				lastState = state;
+				Map<String, Object> payload = statusUpdateFromTask(task, null);
+				sendSse(eventSink, sse, "status", jsonRpcResult(responseId, streamStatusUpdate(payload)));
+			}
+			if (isTerminalTask(task)) {
+				return;
+			}
+			Thread.sleep(1000L);
+		}
 	}
 
 	private static void sendSse(SseEventSink eventSink, Sse sse, String event, Object data) {
