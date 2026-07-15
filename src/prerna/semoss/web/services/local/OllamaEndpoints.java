@@ -56,10 +56,12 @@ import jakarta.ws.rs.core.StreamingOutput;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.f4b6a3.uuid.alt.GUID;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonSyntaxException;
+import com.google.gson.ToNumberPolicy;
+import com.google.gson.reflect.TypeToken;
 
 import prerna.auth.User;
 import prerna.auth.utils.SecurityEngineUtils;
@@ -90,7 +92,8 @@ public class OllamaEndpoints {
 	private static final String ERROR_TYPE = "errorType";
 	private static final String INSIGHT_NOT_FOUND = "INSIGHT_NOT_FOUND";
 
-	private static final ObjectMapper MAPPER = new ObjectMapper();
+	private static final Gson GSON = new GsonBuilder().setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE)
+			.disableHtmlEscaping().create();
 
 	@POST
 	@Path("/api/chat")
@@ -116,8 +119,8 @@ public class OllamaEndpoints {
 		Map<String, Object> dataMap;
 		try {
 			dataMap = readRequestData(request);
-		} catch (JsonProcessingException e) {
-			classLogger.error("Failed to parse JSON payload for Ollama /chat request: {}", e.getOriginalMessage(), e);
+		} catch (JsonSyntaxException e) {
+			classLogger.error("Failed to parse JSON payload for Ollama /chat request: {}", e.getMessage(), e);
 			return ModelPixelExecutor.errorResponse(400, "Error processing JSON data: " + e.getMessage());
 		} catch (IOException e) {
 			classLogger.error("Failed to read request body for Ollama /chat endpoint: {}", e.getMessage(), e);
@@ -400,9 +403,8 @@ public class OllamaEndpoints {
 		Map<String, Object> dataMap;
 		try {
 			dataMap = readRequestData(request);
-		} catch (JsonProcessingException e) {
-			classLogger.error("Failed to parse JSON payload for Ollama /generate request: {}", e.getOriginalMessage(),
-					e);
+		} catch (JsonSyntaxException e) {
+			classLogger.error("Failed to parse JSON payload for Ollama /generate request: {}", e.getMessage(), e);
 			return ModelPixelExecutor.errorResponse(400, "Error processing JSON data: " + e.getMessage());
 		} catch (IOException e) {
 			classLogger.error("Failed to read request body for Ollama /generate endpoint: {}", e.getMessage(), e);
@@ -633,9 +635,8 @@ public class OllamaEndpoints {
 		Map<String, Object> dataMap;
 		try {
 			dataMap = readRequestData(request);
-		} catch (JsonProcessingException e) {
-			classLogger.error("Failed to parse JSON payload for Ollama /embeddings request: {}", e.getOriginalMessage(),
-					e);
+		} catch (JsonSyntaxException e) {
+			classLogger.error("Failed to parse JSON payload for Ollama /embeddings request: {}", e.getMessage(), e);
 			return ModelPixelExecutor.errorResponse(400, "Error processing JSON data: " + e.getMessage());
 		} catch (IOException e) {
 			classLogger.error("Failed to read request body for Ollama /embeddings endpoint: {}", e.getMessage(), e);
@@ -689,8 +690,7 @@ public class OllamaEndpoints {
 		}
 	}
 
-	private Map<String, Object> readRequestData(HttpServletRequest request)
-			throws IOException, JsonProcessingException {
+	private Map<String, Object> readRequestData(HttpServletRequest request) throws IOException {
 		StringBuilder requestData = new StringBuilder();
 		try (BufferedReader reader = new BufferedReader(new InputStreamReader(request.getInputStream()))) {
 			String line;
@@ -699,9 +699,8 @@ public class OllamaEndpoints {
 			}
 		}
 
-		TypeReference<Map<String, Object>> mapType = new TypeReference<Map<String, Object>>() {
-		};
-		return MAPPER.readValue(WebUtility.jsonSanitizer(requestData.toString()), mapType);
+		return GSON.fromJson(WebUtility.jsonSanitizer(requestData.toString()), new TypeToken<Map<String, Object>>() {
+		}.getType());
 	}
 
 	private Insight resolveInsight(String sessionId, String insightId) {
