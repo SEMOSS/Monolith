@@ -238,7 +238,13 @@ public class PublicHomeCheckFilter implements Filter {
 		} else {
 			// Default file based on project type
 			if (project.getProjectType() == IProject.PROJECT_TYPE.BLOCKS) {
-				fileToPull += IProject.BLOCK_FILE_NAME;
+				// Try blocks.ipynb first (notebook apps), then fall back to blocks.json
+				String ipynbPath = fileToPull + IProject.NOTEBOOK_IPYNB_FILE_NAME;
+				if (new File(ipynbPath).exists()) {
+					fileToPull = ipynbPath;
+				} else {
+					fileToPull += IProject.BLOCK_FILE_NAME;
+				}
 			} else {
 				fileToPull += "index.html";
 			}
