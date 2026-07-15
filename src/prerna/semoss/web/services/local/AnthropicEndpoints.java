@@ -54,12 +54,12 @@ import javax.ws.rs.core.StreamingOutput;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.f4b6a3.uuid.alt.GUID;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonSyntaxException;
+import com.google.gson.ToNumberPolicy;
+import com.google.gson.reflect.TypeToken;
 
 import prerna.auth.User;
 import prerna.auth.utils.SecurityEngineUtils;
@@ -95,9 +95,8 @@ public class AnthropicEndpoints {
 
 	private static final Logger classLogger = LogManager.getLogger(AnthropicEndpoints.class);
 
-	private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
-
-	private static final ObjectMapper MAPPER = new ObjectMapper();
+	private static final Gson GSON = new GsonBuilder().setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE)
+			.disableHtmlEscaping().create();
 
 	/**
 	 * Safety ceiling (in tokens) for the extended-thinking budget. The client's
@@ -152,12 +151,11 @@ public class AnthropicEndpoints {
 
 		classLogger.debug("Anthropic-Messages-API-request::{}::{}", JOB_ID, requestData.toString());
 
-		TypeReference<Map<String, Object>> mapType = new TypeReference<Map<String, Object>>() {
-		};
 		Map<String, Object> dataMap;
 		try {
-			dataMap = MAPPER.readValue(requestData.toString(), mapType);
-		} catch (JsonProcessingException e) {
+			dataMap = GSON.fromJson(requestData.toString(), new TypeToken<Map<String, Object>>() {
+			}.getType());
+		} catch (JsonSyntaxException e) {
 			classLogger.error("Error parsing request JSON", e);
 			Map<String, Object> errorMap = AnthropicMessagesHelper.createErrorResponse("invalid_request_error",
 					"Invalid JSON in request body");
@@ -436,8 +434,9 @@ public class AnthropicEndpoints {
 											// Thinking must lead the message at index 0. If a text or tool
 											// block already opened we cannot insert it before them, so drop
 											// the chunk rather than corrupt content-block ordering.
-											if (thinkingChunk != null && !thinkingChunk.isEmpty() && !thinkingBlockClosed
-													&& !textBlockStarted && toolBlockStarted.isEmpty()) {
+											if (thinkingChunk != null && !thinkingChunk.isEmpty()
+													&& !thinkingBlockClosed && !textBlockStarted
+													&& toolBlockStarted.isEmpty()) {
 												if (!thinkingBlockStarted) {
 													AnthropicMessagesHelper.writeThinkingContentBlockStart(0, writer);
 													thinkingBlockStarted = true;
@@ -677,10 +676,12 @@ public class AnthropicEndpoints {
 													argsJson = "{}";
 												}
 
-												AnthropicMessagesHelper.writeToolUseContentBlockStart(i + thinkingOffset, toolId,
-														toolName, writer);
-												AnthropicMessagesHelper.writeInputJsonDelta(i + thinkingOffset, argsJson, writer);
-												AnthropicMessagesHelper.writeContentBlockStop(i + thinkingOffset, writer);
+												AnthropicMessagesHelper.writeToolUseContentBlockStart(
+														i + thinkingOffset, toolId, toolName, writer);
+												AnthropicMessagesHelper.writeInputJsonDelta(i + thinkingOffset,
+														argsJson, writer);
+												AnthropicMessagesHelper.writeContentBlockStop(i + thinkingOffset,
+														writer);
 
 												Object sig = toolResp.get("thought_signature");
 												if (sig instanceof String && !((String) sig).isEmpty()) {
