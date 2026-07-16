@@ -158,6 +158,8 @@ public class OpenAIEndpoints {
 			return ModelPixelExecutor.errorResponse(400, "Error processing JSON data: " + e.getMessage());
 		}
 
+		dataMap.remove("client_metadata");
+
 		boolean isStreamingRequest = false;
 		if (dataMap.containsKey("stream")) {
 			isStreamingRequest = Boolean.parseBoolean(dataMap.get("stream").toString());
@@ -519,6 +521,8 @@ public class OpenAIEndpoints {
 		} catch (Exception e) {
 			return ModelPixelExecutor.errorResponse(400, "Error processing JSON: " + e.getMessage());
 		}
+
+		dataMap.remove("client_metadata");
 
 		boolean isStreamingRequest = Boolean.parseBoolean(dataMap.getOrDefault("stream", false).toString());
 		String engineId = WebUtility.inputSanitizer((String) dataMap.remove("model"));
