@@ -424,6 +424,21 @@
 			<artifactId>semoss</artifactId>
 			<version>${ci.version}</version>
 			<classifier>shaded-dependencies</classifier>
+			<exclusions>
+		        <exclusion>
+		            <groupId>com.github.waffle</groupId>
+		            <artifactId>waffle-jna</artifactId>
+		        </exclusion>
+		        <exclusion>
+		            <groupId>javax.servlet</groupId>
+		            <artifactId>javax.servlet-api</artifactId>
+		        </exclusion>
+		    </exclusions>
+		</dependency>
+		<dependency>
+		    <groupId>com.github.waffle</groupId>
+		    <artifactId>waffle-jna-jakarta</artifactId>
+		    <version>3.5.0</version>
 		</dependency>
 		<!-- Source: https://mvnrepository.com/artifact/org.a2aproject.sdk/a2a-java-sdk-spec -->
 		<dependency>
@@ -622,12 +637,12 @@
 			<groupId>jakarta.xml.rpc</groupId>
 			<artifactId>jakarta.xml.rpc-api</artifactId>
 			<version>1.1.4</version>
-			<exclusions>
+			<!--<exclusions>
 				<exclusion>
 					<groupId>jakarta.servlet</groupId>
 					<artifactId>jakarta.servlet-api</artifactId>
 				</exclusion>
-			</exclusions>
+			</exclusions>-->
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/org.bouncycastle/bcpkix-jdk18on -->
 		<dependency>
@@ -662,7 +677,7 @@
 		<dependency>
 			<groupId>jakarta.servlet</groupId>
 			<artifactId>jakarta.servlet-api</artifactId>
-			<version>6.0.0</version>
+			<version>6.1.0</version>
 			<scope>provided</scope>
 		</dependency>
 		<dependency>

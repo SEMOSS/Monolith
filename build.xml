@@ -21,7 +21,7 @@
 	<property name="catalina-home" value="C:/Development/apache-tomcat-11.0.24" />
 	
 	<target name="clean">
-        <delete dir="build"/>
+		<delete dir="build"/>
     </target>
 	
 	<target name="compile">
@@ -425,7 +425,7 @@
 	  <pathelement location="${maven.repo.local}/org/apache/kafka/kafka-clients/0.10.1.0/kafka-clients-0.10.1.0.jar"/>
 	  <pathelement location="${maven.repo.local}/jakarta/servlet/jakarta.servlet-api/6.0.0/jakarta.servlet-api-6.0.0.jar"/>
 	  <pathelement location="${maven.repo.local}/jakarta/ws/rs/jakarta.ws.rs-api/4.0.0/jakarta.ws.rs-api-4.0.0.jar"/>
-	  <pathelement location="${maven.repo.local}/jakarta/websocket/jakarta.websocket-api/2.2.0/jakarta.websocket-api-2.2.0.jar"/>
+	  <pathelement location="${maven.repo.local}/jakarta/websocket/jakarta.websocket-api/2.1.1/jakarta.websocket-api-2.1.1.jar"/>
 	  <pathelement location="${maven.repo.local}/jakarta/activation/jakarta.activation-api/2.1.3/jakarta.activation-api-2.1.3.jar"/>
 	  <pathelement location="${maven.repo.local}/org/jboss/resteasy/resteasy-core/7.0.0.Final/resteasy-core-7.0.0.Final.jar"/>
 	  <pathelement location="${maven.repo.local}/org/jboss/resteasy/resteasy-jaxb-provider/7.0.0.Final/resteasy-jaxb-provider-7.0.0.Final.jar"/>
