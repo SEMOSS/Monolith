@@ -165,7 +165,7 @@ public final class OpenAIResponsesHelper {
 		if ("message".equals(type)) {
 			item.put("role", "assistant");
 			Map<String, Object> textPart = new HashMap<>();
-			textPart.put("type", "text");
+			textPart.put("type", "output_text");
 			textPart.put("text", finalContent);
 			ArrayList<Object> contentList = new ArrayList<>();
 			contentList.add(textPart);
@@ -457,9 +457,12 @@ public final class OpenAIResponsesHelper {
 			for (ToolResponse t : tools) {
 				Map<String, Object> functionCall = new HashMap<>();
 				functionCall.put("type", "function_call");
+				// id is the output item id; call_id is the tool call correlation id
+				functionCall.put("id", t.getId());
 				functionCall.put("call_id", t.getId());
 				functionCall.put("name", t.getName());
 				functionCall.put("arguments", GSON.toJson(t.getArguments()));
+				functionCall.put("status", "completed");
 				output.add(functionCall);
 			}
 
@@ -494,10 +497,20 @@ public final class OpenAIResponsesHelper {
 			} else {
 				String response = llmResponse.getStringResponse();
 
-				Map<String, Object> textOutput = new HashMap<>();
-				textOutput.put("type", "text");
-				textOutput.put("text", response);
-				output.add(textOutput);
+				Map<String, Object> textPart = new HashMap<>();
+				textPart.put("type", "output_text");
+				textPart.put("text", response);
+
+				List<Map<String, Object>> content = new ArrayList<>();
+				content.add(textPart);
+
+				Map<String, Object> messageItem = new HashMap<>();
+				messageItem.put("type", "message");
+				messageItem.put("id", "msg_" + UUID.randomUUID().toString());
+				messageItem.put("status", "completed");
+				messageItem.put("role", "assistant");
+				messageItem.put("content", content);
+				output.add(messageItem);
 			}
 
 			responsesMap.put("status", "completed");
@@ -508,8 +521,10 @@ public final class OpenAIResponsesHelper {
 		if (llmResponse.getThinking() != null && !llmResponse.getThinking().isEmpty()) {
 			Map<String, Object> reasoning = new HashMap<>();
 			reasoning.put("type", "reasoning");
+			reasoning.put("id", "rs_" + UUID.randomUUID().toString());
 			List<Map<String, Object>> summaries = new ArrayList<>();
 			Map<String, Object> summary = new HashMap<>();
+			summary.put("type", "summary_text");
 			summary.put("text", llmResponse.getThinking());
 			summaries.add(summary);
 			reasoning.put("summary", summaries);
