@@ -96,7 +96,6 @@ import prerna.sablecc2.comm.PixelJobRunner;
 import prerna.sablecc2.comm.PixelJobStatus;
 import prerna.sablecc2.om.execptions.SemossMCPException;
 import prerna.semoss.web.services.remote.CentralNameServer;
-import prerna.semoss.web.services.remote.EngineRemoteResource;
 import prerna.util.ChromeDriverUtility;
 import prerna.util.Constants;
 import prerna.util.PlaySheetRDFMapBasedEnum;
@@ -1382,20 +1381,6 @@ public class NameServer {
 
 		IDatabaseEngine engine = Utility.getDatabase(engineId);
 		OldEngineResource res = new OldEngineResource();
-		res.setEngine(engine);
-		return res;
-	}
-
-	@Path("s-{engine}")
-	public Object getEngineProxy(@PathParam("engine") String db, @Context HttpServletRequest request) {
-		// this is the name server
-		// this needs to return stuff
-		db = WebUtility.inputSQLSanitizer(db);
-
-		classLogger.debug("Getting database: {}", db);
-		HttpSession session = request.getSession();
-		IDatabaseEngine engine = (IDatabaseEngine) session.getAttribute(db);
-		EngineRemoteResource res = new EngineRemoteResource();
 		res.setEngine(engine);
 		return res;
 	}
