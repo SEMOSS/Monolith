@@ -625,6 +625,23 @@
       <servlet-name>TrustedTokenApplication</servlet-name>
       <url-pattern>/token/*</url-pattern>
    </servlet-mapping>
+   <!-- Servlet For Health / Liveness Checks -->
+   <servlet>
+      <servlet-name>HealthApplication</servlet-name>
+      <servlet-class>org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher</servlet-class>
+      <init-param>
+         <param-name>javax.ws.rs.Application</param-name>
+         <param-value>prerna.semoss.web.app.HealthApplication</param-value>
+      </init-param>
+      <init-param>
+         <param-name>resteasy.servlet.mapping.prefix</param-name>
+         <param-value>/health</param-value>
+      </init-param>
+   </servlet>
+   <servlet-mapping>
+      <servlet-name>HealthApplication</servlet-name>
+      <url-pattern>/health/*</url-pattern>
+   </servlet-mapping>
    <!-- SAML Response Handler -->
    <servlet>
       <servlet-name>SamlVerifierServlet</servlet-name>

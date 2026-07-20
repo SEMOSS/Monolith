@@ -63,6 +63,7 @@ import org.apache.logging.log4j.Logger;
 import com.github.f4b6a3.uuid.alt.GUID;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.ToNumberPolicy;
 import com.google.gson.reflect.TypeToken;
 
 import prerna.auth.User;
@@ -100,7 +101,8 @@ public class OpenAIEndpoints {
 	private static final String ERROR_TYPE = "errorType";
 	private static final String INSIGHT_NOT_FOUND = "INSIGHT_NOT_FOUND";
 
-	private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
+	private static final Gson GSON = new GsonBuilder().setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE)
+			.disableHtmlEscaping().create();
 
 	@POST
 	@Path("/v1/chat/completions")
@@ -155,6 +157,8 @@ public class OpenAIEndpoints {
 					request.getRequestURI(), e.getMessage(), e);
 			return ModelPixelExecutor.errorResponse(400, "Error processing JSON data: " + e.getMessage());
 		}
+
+		dataMap.remove("client_metadata");
 
 		boolean isStreamingRequest = false;
 		if (dataMap.containsKey("stream")) {
@@ -382,6 +386,26 @@ public class OpenAIEndpoints {
 											messageType = (String) resultOutput.get("messageType");
 										}
 
+										// grab token usage if present
+										if (resultOutput != null) {
+											if (capturedPromptTokens == null) {
+												capturedPromptTokens = toInteger(
+														resultOutput.get("numberOfTokensInPrompt"));
+											}
+											if (capturedCompletionTokens == null) {
+												capturedCompletionTokens = toInteger(
+														resultOutput.get("numberOfTokensInResponse"));
+											}
+											if (capturedCachedTokens == null) {
+												capturedCachedTokens = toInteger(
+														resultOutput.get("numberOfCacheReadTokens"));
+											}
+											if (capturedReasoningTokens == null) {
+												capturedReasoningTokens = toInteger(
+														resultOutput.get("numberOfThinkingTokens"));
+											}
+										}
+
 										if ("TOOL".equals(messageType)) {
 											// this is a function call request that was not streamed
 											// maybe the model doesn't support streaming of tools
@@ -497,6 +521,8 @@ public class OpenAIEndpoints {
 		} catch (Exception e) {
 			return ModelPixelExecutor.errorResponse(400, "Error processing JSON: " + e.getMessage());
 		}
+
+		dataMap.remove("client_metadata");
 
 		boolean isStreamingRequest = Boolean.parseBoolean(dataMap.getOrDefault("stream", false).toString());
 		String engineId = WebUtility.inputSanitizer((String) dataMap.remove("model"));
@@ -896,7 +922,12 @@ public class OpenAIEndpoints {
 
 							Map<String, Object> completedEvent = OpenAIResponsesHelper.createBaseEvent(
 									"response.completed", seq++, responseId, FINAL_ENGINE_ID, creationTimestamp);
-							completedEvent.put("status", "completed");
+							// status lives on the nested response object, not the event root;
+							// createBaseEvent seeds it as "in_progress" so flip it here
+							Object completedRespObj = completedEvent.get("response");
+							if (completedRespObj instanceof Map) {
+								((Map<String, Object>) completedRespObj).put("status", "completed");
+							}
 							OpenAIResponsesHelper.attachUsage(completedEvent, capturedInputTokens, capturedOutputTokens,
 									capturedCachedTokens, capturedReasoningTokens);
 							OpenAIResponsesHelper.writeSSEEvent(completedEvent, writer);
@@ -1654,6 +1685,14 @@ public class OpenAIEndpoints {
 			openAiResponse.add(newMap);
 		}
 		return openAiResponse;
+	}
+
+	/**
+	 * Coerce a loosely-typed token count (Integer, Long, Double from JSON
+	 * deserialization) into an Integer, or null if it is absent / not numeric.
+	 */
+	private static Integer toInteger(Object value) {
+		return (value instanceof Number) ? ((Number) value).intValue() : null;
 	}
 
 }
