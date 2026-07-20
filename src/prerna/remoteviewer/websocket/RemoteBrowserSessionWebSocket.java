@@ -116,6 +116,7 @@ public class RemoteBrowserSessionWebSocket {
 			}
 		});
 		session.setWsConnected(true);
+		RemoteBrowserSessionManager.getInstance().sendTabState(session);
 
 		classLogger.info("WebSocket opened for browser session {} by user {}", sessionId,
 				user.getPrimaryLoginToken().getId());
