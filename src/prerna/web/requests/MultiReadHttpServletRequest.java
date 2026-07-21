@@ -56,12 +56,6 @@ public class MultiReadHttpServletRequest extends HttpServletRequestWrapper {
 
 	public MultiReadHttpServletRequest(HttpServletRequest request) {
 		super(request);
-//		try {
-//			cacheInputStream();
-//			this.parameterMap = parseParameters(getInputStream());
-//		} catch (IOException e) {
-//			classLogger.error(Constants.STACKTRACE, e);
-//		}
 	}
 
 	@Override
