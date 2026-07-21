@@ -339,7 +339,7 @@ public class RemoteBrowserSessionController {
 			return buildError(Response.Status.FORBIDDEN, "Access denied");
 		}
 
-		RemoteBrowserSessionManager.getInstance().closeSession(session);
+		RemoteBrowserSessionManager.getInstance().disposeSession(session);
 		classLogger.info("Browser session {} closed by user {}", sessionId, user.getPrimaryLoginToken().getId());
 		return Response.ok(GSON.toJson(Map.of("message", "Session closed"))).build();
 	}
