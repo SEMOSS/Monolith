@@ -81,32 +81,6 @@ public class RunInsight {
 				.header("Pragma", "no-cache").build();
 	}
 
-//	private OptimizeRecipeTranslation getOptimizedRecipe(List<String> recipe) {
-//		OptimizeRecipeTranslation translation = new OptimizeRecipeTranslation();
-//		for (int i = 0; i < recipe.size(); i++) {
-//			String expression = recipe.get(i);
-//			// fill in the encodedToOriginal with map for the current expression
-//			expression = PixelPreProcessor.preProcessPixel(expression.trim(), translation.encodingList, translation.encodedToOriginal);
-//			try {
-//				Parser p = new Parser(
-//						new Lexer(
-//								new PushbackReader(
-//										new InputStreamReader(
-//												new ByteArrayInputStream(expression.getBytes("UTF-8")), "UTF-8"), expression.length())));
-//				// parsing the pixel - this process also determines if expression is syntactically correct
-//				Start tree = p.parse();
-//				// apply the translation
-//				// when we apply the translation, we will change encoded expressions back to their original form
-//				tree.apply(translation);
-//				// reset translation.encodedToOriginal for each expression
-//				translation.encodedToOriginal = new HashMap<String, String>();
-//			} catch (ParserException | LexerException | IOException e) {
-//				logger.error(Constants.STACKTRACE, e);
-//			}
-//		}
-//		return translation;
-//	}
-
 	/**
 	 * Utility method to execute the pixel on the insight
 	 * 
