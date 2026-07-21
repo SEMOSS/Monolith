@@ -152,22 +152,25 @@ public final class WebUtility {
 	 */
 	public static StreamingOutput getSOFile(String fileLocation) {
 		if (fileLocation != null) {
+			File daFile = new File(WebUtility.normalizePath(fileLocation));
 			try {
-				File daFile = new File(WebUtility.normalizePath(fileLocation));
-				FileReader fr = new FileReader(daFile);
-				BufferedReader br = new BufferedReader(fr);
 				return new StreamingOutput() {
 					@Override
 					public void write(OutputStream outputStream) throws IOException, WebApplicationException {
-						try (PrintWriter pw = new PrintWriter(outputStream);) {
-							String data = null;
-							while ((data = br.readLine()) != null) {
-								pw.println(data);
+						try (FileReader fr = new FileReader(daFile); BufferedReader br = new BufferedReader(fr);) {
+							try (PrintWriter pw = new PrintWriter(outputStream);) {
+								String data = null;
+								while ((data = br.readLine()) != null) {
+									pw.println(data);
+								}
+								daFile.delete();
 							}
-							// ps.write(data, 0 , data.length);
-							fr.close();
-							br.close();
-							daFile.delete();
+						} finally {
+							try {
+								daFile.delete();
+							} catch (Exception e) {
+								classLogger.error("Failed to delete file {}", daFile, e);
+							}
 						}
 					}
 				};

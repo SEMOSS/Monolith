@@ -81,10 +81,8 @@ public class MsGraphUtility {
 		boolean graphApiUsingSystemCredentials = Boolean.parseBoolean(
 				"" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_application_credentials"));
 
-		if (!graphApiUsingSystemCredentials) {
-			if (user.getAccessToken(AuthProvider.MICROSOFT) == null) {
-				throw new IllegalAccessException("Must be logged into your microsoft login to search for users");
-			}
+		if (!graphApiUsingSystemCredentials && user.getAccessToken(AuthProvider.MICROSOFT) == null) {
+			throw new IllegalAccessException("Must be logged into your microsoft login to search for users");
 		}
 
 		HttpSession session = request.getSession(false);
@@ -234,10 +232,8 @@ public class MsGraphUtility {
 		boolean graphApiUsingSystemCredentials = Boolean.parseBoolean(
 				"" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_application_credentials"));
 
-		if (!graphApiUsingSystemCredentials) {
-			if (user.getAccessToken(AuthProvider.MICROSOFT) == null) {
-				throw new IllegalAccessException("Must be logged into your microsoft login to search for users");
-			}
+		if (!graphApiUsingSystemCredentials && user.getAccessToken(AuthProvider.MICROSOFT) == null) {
+			throw new IllegalAccessException("Must be logged into your microsoft login to search for users");
 		}
 
 		// Create a session and define a single session key to store everything
