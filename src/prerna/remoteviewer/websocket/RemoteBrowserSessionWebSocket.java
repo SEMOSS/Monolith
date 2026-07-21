@@ -150,7 +150,7 @@ public class RemoteBrowserSessionWebSocket {
 
 		// Close-session event — handled directly
 		if ("close-session".equals(event.getType())) {
-			RemoteBrowserSessionManager.getInstance().disposeSession(sessionId);
+			RemoteBrowserSessionManager.getInstance().finishSession(sessionId);
 			return;
 		}
 
