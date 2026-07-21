@@ -721,7 +721,7 @@
    <session-config>
       <session-timeout>120</session-timeout>
       <cookie-config>
-         <name>monolith</name>
+         <name>Monolith</name>
          <http-only>false</http-only>
          <secure>false</secure>
 	  </cookie-config>

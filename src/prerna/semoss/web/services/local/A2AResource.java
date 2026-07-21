@@ -28,6 +28,7 @@
 package prerna.semoss.web.services.local;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.sql.Timestamp;
@@ -231,7 +232,12 @@ public class A2AResource {
 			} finally {
 				ThreadStore.remove();
 				if (eventSink != null && !eventSink.isClosed()) {
-					eventSink.close();
+					try {
+						eventSink.close();
+					} catch (IOException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
 				}
 			}
 		});

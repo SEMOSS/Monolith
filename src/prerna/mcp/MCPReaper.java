@@ -273,7 +273,12 @@ public class MCPReaper implements Runnable {
 			eventSink.send(event);
 		} finally {
 			if (this.eventSink != null) {
-				this.eventSink.close();
+				try {
+					this.eventSink.close();
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
 			}
 		}
 

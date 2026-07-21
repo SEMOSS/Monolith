@@ -312,8 +312,8 @@
 	  <pathelement location="${maven.repo.local}/org/datanucleus/datanucleus-api-jdo/3.2.6/datanucleus-api-jdo-3.2.6.jar"/>
 	  <pathelement location="${maven.repo.local}/org/datanucleus/datanucleus-core/3.2.10/datanucleus-core-3.2.10.jar"/>
 	  <pathelement location="${maven.repo.local}/org/datanucleus/datanucleus-rdbms/3.2.9/datanucleus-rdbms-3.2.9.jar"/>
-	  <!-- <pathelement location="${maven.repo.local}/javax/jdo/jdo-api/3.0.1/jdo-api-3.0.1.jar"/>
-	  <pathelement location="${maven.repo.local}/javax/transaction/jta/1.1/jta-1.1.jar"/> -->
+	  <pathelement location="${maven.repo.local}/javax/jdo/jdo-api/3.0.1/jdo-api-3.0.1.jar"/>
+	  <pathelement location="${maven.repo.local}/javax/transaction/jta/1.1/jta-1.1.jar"/>
 	  <pathelement location="${maven.repo.local}/org/antlr/antlr-runtime/3.4/antlr-runtime-3.4.jar"/>
 	  <pathelement location="${maven.repo.local}/org/antlr/stringtemplate/3.2.1/stringtemplate-3.2.1.jar"/>
 	  <pathelement location="${maven.repo.local}/antlr/antlr/2.7.7/antlr-2.7.7.jar"/>
@@ -373,8 +373,8 @@
 	  <pathelement location="${maven.repo.local}/org/apache/hadoop/hadoop-yarn-api/2.6.0/hadoop-yarn-api-2.6.0.jar"/>
 	  <pathelement location="${maven.repo.local}/org/apache/hadoop/hadoop-mapreduce-client-core/2.6.0/hadoop-mapreduce-client-core-2.6.0.jar"/>
 	  <pathelement location="${maven.repo.local}/org/apache/hadoop/hadoop-yarn-common/2.6.0/hadoop-yarn-common-2.6.0.jar"/>
-	  <!-- <pathelement location="${maven.repo.local}/javax/xml/bind/jaxb-api/2.2.2/jaxb-api-2.2.2.jar"/> -->
-	  <!-- <pathelement location="${maven.repo.local}/javax/xml/stream/stax-api/1.0-2/stax-api-1.0-2.jar"/> -->
+	  <pathelement location="${maven.repo.local}/javax/xml/bind/jaxb-api/2.2.2/jaxb-api-2.2.2.jar"/>
+	  <pathelement location="${maven.repo.local}/javax/xml/stream/stax-api/1.0-2/stax-api-1.0-2.jar"/>
 	  <pathelement location="${maven.repo.local}/com/sun/jersey/jersey-client/1.9/jersey-client-1.9.jar"/>
 	  <pathelement location="${maven.repo.local}/org/codehaus/jackson/jackson-jaxrs/1.9.13/jackson-jaxrs-1.9.13.jar"/>
 	  <pathelement location="${maven.repo.local}/org/codehaus/jackson/jackson-xc/1.9.13/jackson-xc-1.9.13.jar"/>
@@ -420,8 +420,8 @@
 	  <pathelement location="${maven.repo.local}/org/quartz-scheduler/quartz/2.2.1/quartz-2.2.1.jar"/>
 	  <pathelement location="${maven.repo.local}/c3p0/c3p0/0.9.1.1/c3p0-0.9.1.1.jar"/>
 	  <pathelement location="${maven.repo.local}/org/quartz-scheduler/quartz-jobs/2.2.1/quartz-jobs-2.2.1.jar"/>
-	  <!-- <pathelement location="${maven.repo.local}/javax/mail/mail/1.4/mail-1.4.jar"/> -->
-	  <!-- <pathelement location="${maven.repo.local}/javax/activation/activation/1.1/activation-1.1.jar"/> -->
+	  <pathelement location="${maven.repo.local}/javax/mail/mail/1.4/mail-1.4.jar"/> 
+	  <pathelement location="${maven.repo.local}/javax/activation/activation/1.1/activation-1.1.jar"/> 
 	  <pathelement location="${maven.repo.local}/org/apache/kafka/kafka-clients/0.10.1.0/kafka-clients-0.10.1.0.jar"/>
 	  <pathelement location="${maven.repo.local}/jakarta/servlet/jakarta.servlet-api/6.0.0/jakarta.servlet-api-6.0.0.jar"/>
 	  <pathelement location="${maven.repo.local}/jakarta/ws/rs/jakarta.ws.rs-api/4.0.0/jakarta.ws.rs-api-4.0.0.jar"/>
@@ -429,6 +429,8 @@
 	  <pathelement location="${maven.repo.local}/jakarta/activation/jakarta.activation-api/2.1.3/jakarta.activation-api-2.1.3.jar"/>
 	  <pathelement location="${maven.repo.local}/org/jboss/resteasy/resteasy-core/7.0.0.Final/resteasy-core-7.0.0.Final.jar"/>
 	  <pathelement location="${maven.repo.local}/org/jboss/resteasy/resteasy-jaxb-provider/7.0.0.Final/resteasy-jaxb-provider-7.0.0.Final.jar"/>
+	  <pathelement location="${maven.repo.local}/org/repository/org/openidentityplatform/openam/jakarta/jaxrpc-impl/16.1.1/jaxrpc-impl-16.1.1.jar"/>
+		
 	</path>
 
 </project>
