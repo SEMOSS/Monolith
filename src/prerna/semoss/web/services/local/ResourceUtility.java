@@ -314,7 +314,7 @@ public class ResourceUtility {
 	 * @param fullUrl
 	 * @return
 	 */
-	public static boolean allowAccessWithoutUsers(String fullUrl) {
+	public static boolean canAccessWithoutUsers(String fullUrl) {
 		for (String ignore : allowAccessWithoutUsers) {
 			if (fullUrl.endsWith(ignore)) {
 				return true;
@@ -329,7 +329,7 @@ public class ResourceUtility {
 	 * @param fullUrl
 	 * @return
 	 */
-	public static boolean allowAccessWithoutLogin(String fullUrl) {
+	public static boolean canAccessWithoutLogin(String fullUrl) {
 		for (String ignore : allowAccessWithoutLogin) {
 			if (fullUrl.endsWith(ignore)) {
 				return true;
