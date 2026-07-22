@@ -70,7 +70,7 @@ public class NoUserExistsFilter implements Filter {
 			// this will be the full path of the request
 			// like http://localhost:8080/Monolith_Dev/api/engine/runPixel
 			String fullUrl = WebUtility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
-			if (!ResourceUtility.allowAccessWithoutUsers(fullUrl)) {
+			if (!ResourceUtility.canAccessWithoutUsers(fullUrl)) {
 				boolean hasUser = hasUser();
 				// no users at all registered, we need to send to the admin page
 				if (!hasUser) {
