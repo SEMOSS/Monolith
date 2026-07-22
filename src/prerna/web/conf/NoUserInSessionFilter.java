@@ -61,7 +61,7 @@ public class NoUserInSessionFilter implements Filter {
 		// this will be the full path of the request
 		// like http://localhost:8080/Monolith_Dev/api/engine/runPixel
 		String fullUrl = WebUtility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
-		if (!ResourceUtility.allowAccessWithoutLogin(fullUrl)) {
+		if (!ResourceUtility.allowAccessWithoutLogin(fullUrl) && !isAutomationWebhookPath(fullUrl)) {
 			// due to FE being annoying
 			// we need to push a response for this one end point
 			// since security is embedded w/ normal semoss and not standalone
@@ -123,6 +123,11 @@ public class NoUserInSessionFilter implements Filter {
 				session.invalidate();
 			}
 		}
+	}
+
+	/** Returns true for automation webhook trigger paths (/api/automation/{id}/trigger). */
+	private static boolean isAutomationWebhookPath(String url) {
+		return url != null && url.contains("/api/automation/") && url.endsWith("/trigger");
 	}
 
 	@Override
