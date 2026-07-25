@@ -1,3 +1,5 @@
+name: local-monolith-with-postgres
+
 services:
   semoss:
     image: local-monolith
@@ -110,7 +112,7 @@ services:
       - mynetwork
 
   db:
-    image: postgres:latest
+    image: postgres:18
     container_name: postgres
     restart: always
     environment:
@@ -120,7 +122,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U myuser"]
