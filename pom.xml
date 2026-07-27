@@ -509,11 +509,11 @@
 		<!-- SAML ONE JAR -->
 		<!-- https://mvnrepository.com/artifact/org.openidentityplatform.openam/openam-federation-library -->
 		<!-- TODO: Upgrade to 16.1.1-->
-		<dependency>
+		<!--<dependency>
 		    <groupId>com.sun.xml.rpc</groupId>
 		    <artifactId>jaxrpc-impl</artifactId>
-		    <version>1.1.2_01</version> <!-- or another compatible 1.x version -->
-		</dependency>
+		    <version>1.1.2_01</version>  or another compatible 1.x version 
+		</dependency>-->
 		<dependency>
 			<groupId>org.openidentityplatform.openam</groupId>
 			<artifactId>openam-federation-library</artifactId>
@@ -701,11 +701,11 @@
 			<artifactId>jakarta.inject-api</artifactId>
 			<version>2.0.1</version>
 		</dependency>
-		<dependency>
+<!--		<dependency>
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-fileupload2-jakarta-servlet6</artifactId>
 			<version>2.0.0-M2</version>
-		</dependency>
+		</dependency>-->
 		<dependency>
 		    <groupId>org.apache.commons</groupId>
 		    <artifactId>commons-fileupload2-jakarta-servlet6</artifactId>
