@@ -382,15 +382,22 @@
 				<enabled>true</enabled>
 			</snapshots>
 		</repository>
-		<!-- repository for Apache Storm -->
-		<!-- <repository><id>clojars.org</id><url>http://clojars.org/repo</url></repository> -->
-		<repository>
-			<id>redshift</id>
-			<url>https://s3.amazonaws.com/redshift-maven-repository/release</url>
-		</repository>
 	</repositories>
 	<dependencyManagement>
 		<dependencies>
+			<dependency>
+				<groupId>io.grpc</groupId>
+				<artifactId>grpc-bom</artifactId>
+				<version>1.79.0</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+			<!-- Converge annotations-only jar: grpc 1.79 pulls 1.26, google-cloud pulls 1.24 -->
+			<dependency>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>animal-sniffer-annotations</artifactId>
+				<version>1.26</version>
+			</dependency>
 			<!-- CVE force: CVE-2026-42579 - override transitive Netty DNS artifacts to fixed version -->
 			<dependency>
 				<groupId>io.netty</groupId>

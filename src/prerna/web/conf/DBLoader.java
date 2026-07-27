@@ -56,6 +56,7 @@ import prerna.logging.SemossLogUtils;
 import prerna.masterdatabase.utility.MasterDatabaseUtility;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
+import prerna.reactor.ReactorFactory;
 import prerna.reactor.frame.r.util.RJavaTranslatorFactory;
 import prerna.reactor.scheduler.SchedulerDatabaseUtility;
 import prerna.reactor.scheduler.SchedulerFactorySingleton;
@@ -337,6 +338,9 @@ public class DBLoader implements ServletContextListener {
 			ChrootTemplate.warmAsync();
 			ChrootTemplate.awaitReady();
 		}
+
+		// warm up the reactors
+		ReactorFactory.load();
 
 		// startup ran all the way through - the app is booted and ready to serve.
 		// note: a required-resource failure returns early above without setting this,
