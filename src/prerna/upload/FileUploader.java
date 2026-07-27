@@ -49,8 +49,11 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 
-import org.apache.commons.fileupload.FileItem;
+//import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.io.FilenameUtils;
+
+import org.apache.commons.fileupload2.core.FileItem;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.tika.mime.MimeType;

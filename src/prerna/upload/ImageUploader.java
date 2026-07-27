@@ -45,9 +45,13 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.Response;
 
-import org.apache.commons.fileupload.FileItem;
-import org.apache.commons.fileupload.FileUploadException;
+//import org.apache.commons.fileupload.FileItem;
+//import org.apache.commons.fileupload.FileUploadException;
 import org.apache.commons.io.filefilter.WildcardFileFilter;
+
+import org.apache.commons.fileupload2.core.FileItem;
+import org.apache.commons.fileupload2.core.FileUploadException;
+
 import org.apache.http.HttpStatus;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -84,7 +88,7 @@ public class ImageUploader extends Uploader {
 	@Path("/engine/upload")
 	@Produces("application/json")
 	public Response uploadEngineImage(@Context ServletContext context, @Context HttpServletRequest request)
-			throws SQLException {
+			throws SQLException, IOException {
 		Map<String, String> returnMap = new HashMap<>();
 
 		HttpSession session = request.getSession(false);
@@ -425,7 +429,7 @@ public class ImageUploader extends Uploader {
 	@Path("/projectImage/upload")
 	@Produces("application/json")
 	public Response uploadProjectImage(@Context ServletContext context, @Context HttpServletRequest request)
-			throws SQLException {
+			throws SQLException, IOException {
 		Map<String, String> returnMap = new HashMap<>();
 
 		// base path is the project folder
@@ -674,7 +678,7 @@ public class ImageUploader extends Uploader {
 	@POST
 	@Path("/insightImage/upload")
 	@Produces("application/json")
-	public Response uploadInsightImage(@Context ServletContext context, @Context HttpServletRequest request) {
+	public Response uploadInsightImage(@Context ServletContext context, @Context HttpServletRequest request) throws IOException {
 		Map<String, String> returnMap = new HashMap<>();
 
 		// base path is the project folder
@@ -930,7 +934,7 @@ public class ImageUploader extends Uploader {
 	@Produces("application/json")
 	@Deprecated
 	public Response uploadDatabaseImage(@Context ServletContext context, @Context HttpServletRequest request)
-			throws SQLException {
+			throws SQLException, IOException {
 		Map<String, String> returnMap = new HashMap<>();
 
 		HttpSession session = request.getSession(false);
@@ -963,7 +967,7 @@ public class ImageUploader extends Uploader {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		// collect all of the data input on the form
-		FileItem imageFile = null;
+		org.apache.commons.fileupload2.core.FileItem imageFile = null;
 		String engineId = null;
 
 		for (FileItem fi : fileItems) {

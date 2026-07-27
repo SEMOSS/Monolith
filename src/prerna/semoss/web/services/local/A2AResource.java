@@ -231,12 +231,7 @@ public class A2AResource {
 			} finally {
 				ThreadStore.remove();
 				if (eventSink != null && !eventSink.isClosed()) {
-					try {
-						eventSink.close();
-					} catch (IOException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
+					eventSink.close();
 				}
 			}
 		});
