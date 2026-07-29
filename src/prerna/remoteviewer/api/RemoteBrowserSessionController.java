@@ -153,43 +153,6 @@ public class RemoteBrowserSessionController {
 	}
 
 	/**
-	 * Returns metadata for an existing session.
-	 *
-	 * <p>
-	 * GET /api/browser-sessions/{sessionId}
-	 */
-	@GET
-	@Path("/{sessionId}")
-	@Produces(MediaType.APPLICATION_JSON)
-	public Response getSession(@Context HttpServletRequest request, @PathParam("sessionId") String sessionId) {
-		User user;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			return buildError(Response.Status.UNAUTHORIZED, "User session is invalid");
-		}
-
-		Optional<RemoteBrowserSession> opt = RemoteBrowserSessionManager.getInstance().getSession(sessionId);
-		if (opt.isEmpty()) {
-			return buildError(Response.Status.NOT_FOUND, "Session not found");
-		}
-
-		RemoteBrowserSession session = opt.get();
-		if (!session.getUserId().equals(user.getPrimaryLoginToken().getId())) {
-			return buildError(Response.Status.FORBIDDEN, "Access denied");
-		}
-
-		Map<String, Object> info = new HashMap<>();
-		info.put("sessionId", session.getSessionId());
-		info.put("viewport", Map.of("width", session.getViewportWidth(), "height", session.getViewportHeight()));
-		info.put("currentUrl", safeUrl(session));
-		info.put("createdAt", session.getCreatedAt().toString());
-		info.put("lastActivityAt", session.getLastActivityAt().toString());
-
-		return Response.ok(GSON.toJson(info)).build();
-	}
-
-	/**
 	 * Returns the recorded steps for a session.
 	 *
 	 * <p>
@@ -376,71 +339,9 @@ public class RemoteBrowserSessionController {
 			return buildError(Response.Status.FORBIDDEN, "Access denied");
 		}
 
-		RemoteBrowserSessionManager.getInstance().closeSession(session);
+		RemoteBrowserSessionManager.getInstance().finishSession(session);
 		classLogger.info("Browser session {} closed by user {}", sessionId, user.getPrimaryLoginToken().getId());
 		return Response.ok(GSON.toJson(Map.of("message", "Session closed"))).build();
-	}
-
-	// ---- helpers ----
-
-	/**
-	 * Injects a single input event from an external source (e.g. Chrome extension)
-	 * into the session's event queue.
-	 * POST /api/browser-sessions/{sessionId}/inject
-	 */
-	@POST
-	@Path("/{sessionId}/inject")
-	@Consumes(MediaType.APPLICATION_JSON)
-	@Produces(MediaType.APPLICATION_JSON)
-	public Response injectEvent(@Context HttpServletRequest request,
-			@PathParam("sessionId") String sessionId, String body) {
-		User user;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			return buildError(Response.Status.UNAUTHORIZED, "User session is invalid");
-		}
-
-		Optional<RemoteBrowserSession> opt = RemoteBrowserSessionManager.getInstance().getSession(sessionId);
-		if (opt.isEmpty()) {
-			return buildError(Response.Status.NOT_FOUND, "Session not found");
-		}
-
-		RemoteBrowserSession session = opt.get();
-		if (!session.getUserId().equals(user.getPrimaryLoginToken().getId())) {
-			return buildError(Response.Status.FORBIDDEN, "Access denied");
-		}
-
-		RemoteBrowserInputEvent event;
-		try {
-			event = GSON.fromJson(body, RemoteBrowserInputEvent.class);
-		} catch (Exception e) {
-			return buildError(Response.Status.BAD_REQUEST, "Invalid event body");
-		}
-
-		classLogger.info("Remote viewer inject received session={} user={} event={}",
-				sessionId, user.getPrimaryLoginToken().getId(), describeEvent(event));
-
-		scaleRecordedCoordinates(event, session);
-
-		try {
-			RemoteBrowserInputEventValidator.validate(event, session.getViewportWidth(), session.getViewportHeight());
-		} catch (IllegalArgumentException e) {
-			classLogger.warn("Remote viewer inject rejected session={} event={} reason={}",
-					sessionId, describeEvent(event), e.getMessage());
-			return buildError(Response.Status.BAD_REQUEST, e.getMessage());
-		}
-
-		boolean offered = session.eventQueue.offer(event);
-		if (!offered) {
-			classLogger.warn("Remote viewer inject queue full session={} event={}", sessionId, describeEvent(event));
-			return buildError(Response.Status.TOO_MANY_REQUESTS, "Session event queue is full");
-		}
-
-		session.touchActivity();
-		classLogger.info("Remote viewer inject queued session={} queueSize={} event={}",
-				sessionId, session.eventQueue.size(), describeEvent(event));
-		return Response.ok(GSON.toJson(Map.of("queued", true))).build();
 	}
 
 	// ---- helpers ----
@@ -521,7 +422,7 @@ public class RemoteBrowserSessionController {
 
 	private static String safeUrl(RemoteBrowserSession session) {
 		try {
-			return session.getPage().url();
+			return session.getActivePage().url();
 		} catch (Exception e) {
 			return "";
 		}

@@ -60,6 +60,7 @@ import prerna.reactor.ReactorFactory;
 import prerna.reactor.frame.r.util.RJavaTranslatorFactory;
 import prerna.reactor.scheduler.SchedulerDatabaseUtility;
 import prerna.reactor.scheduler.SchedulerFactorySingleton;
+import prerna.remoteviewer.service.RemoteBrowserSessionManager;
 import prerna.util.AbstractFileWatcher;
 import prerna.util.ChromeDriverUtility;
 import prerna.util.ChrootTemplate;
@@ -462,6 +463,9 @@ public class DBLoader implements ServletContextListener {
 				classLogger.warn("Couldn't find database {} during shutdown", Constants.SCHEDULER_DB);
 			}
 		}
+
+		// closing playwright sessions
+		RemoteBrowserSessionManager.getInstance().shutdownAll();
 
 		// close r
 		try {
