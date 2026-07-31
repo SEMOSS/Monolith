@@ -453,14 +453,19 @@
 		<dependency>
 			<groupId>org.apache.tomcat</groupId>
 			<artifactId>tomcat-catalina</artifactId>
-			<version>9.0.120</version>
+			<version>11.0.24</version>
 		</dependency>
-		<!-- https://mvnrepository.com/artifact/javax.websocket/javax.websocket-api -->
+		<!-- Source: https://mvnrepository.com/artifact/jakarta.websocket/jakarta.websocket-api -->
 		<dependency>
-			<groupId>javax.websocket</groupId>
-			<artifactId>javax.websocket-api</artifactId>
-			<version>1.1</version>
-			<scope>provided</scope>
+		    <groupId>jakarta.websocket</groupId>
+		    <artifactId>jakarta.websocket-api</artifactId>
+		    <version>2.2.0</version>
+		</dependency>
+		<!-- Source: https://mvnrepository.com/artifact/jakarta.websocket/jakarta.websocket-client-api -->
+		<dependency>
+		    <groupId>jakarta.websocket</groupId>
+		    <artifactId>jakarta.websocket-client-api</artifactId>
+		    <version>2.2.0</version>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/jakarta.activation/jakarta.activation-api -->
 		<dependency>
@@ -472,7 +477,7 @@
 		<dependency>
 			<groupId>org.jboss.resteasy</groupId>
 			<artifactId>resteasy-core</artifactId>
-			<version>4.7.10.Final</version>
+			<version>7.0.2.Final</version>
 			<exclusions>
 				<exclusion>
 					<groupId>org.reactivestreams</groupId>
@@ -496,14 +501,14 @@
 		<dependency>
 			<groupId>org.jboss.resteasy</groupId>
 			<artifactId>resteasy-jaxb-provider</artifactId>
-			<version>4.7.10.Final</version>
+			<version>7.0.2.Final</version>
 		</dependency>
 		<!-- SAML ONE JAR -->
 		<!-- https://mvnrepository.com/artifact/org.openidentityplatform.openam/openam-federation-library -->
 		<dependency>
 			<groupId>org.openidentityplatform.openam</groupId>
 			<artifactId>openam-federation-library</artifactId>
-			<version>15.2.2</version>
+			<version>16.1.1</version>
 			<exclusions>
 				<exclusion>
 					<groupId>com.google.guava</groupId>
@@ -579,10 +584,11 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
+		<!-- Source: https://mvnrepository.com/artifact/org.apache.santuario/xmlsec -->
 		<dependency>
-			<groupId>org.apache.santuario</groupId>
-			<artifactId>xmlsec</artifactId>
-			<version>4.0.4</version>
+		    <groupId>org.apache.santuario</groupId>
+		    <artifactId>xmlsec</artifactId>
+		    <version>4.0.4</version>
 		</dependency>
 		<!-- adding updated jar to deal with exclusion w/ vulnerability -->
 		<!-- https://mvnrepository.com/artifact/com.fasterxml.woodstox/woodstox-core -->
@@ -660,13 +666,5 @@
 			<artifactId>json-sanitizer</artifactId>
 			<version>1.2.3</version>
 		</dependency>
-        <dependency>
-            <groupId>io.netty</groupId>
-            <artifactId>netty-bom</artifactId>
-            <!-- Update to 4.1.133.Final or 4.2.13.Final -->
-            <version>4.1.133.Final</version>
-            <type>pom</type>
-            <scope>import</scope>
-        </dependency>
     </dependencies>
 </project>

@@ -127,6 +127,7 @@ public class UserSessionLoader implements HttpSessionListener {
 			for (String insightId : copy) {
 				Insight insight = InsightStore.getInstance().get(insightId);
 				if (insight == null) {
+					MCPResource.clearInsightLock(insightId);
 					continue;
 				}
 				classLogger.info("Trying to drop insight {}", insightId);
@@ -135,6 +136,8 @@ public class UserSessionLoader implements HttpSessionListener {
 					classLogger.info("Dropped insight {}", insightId);
 				} catch (Exception e) {
 					classLogger.error("Error dropping insight {}", insightId, e);
+				} finally {
+					MCPResource.clearInsightLock(insightId);
 				}
 			}
 			classLogger.info("Successfully removed insight information from session");
@@ -163,7 +166,7 @@ public class UserSessionLoader implements HttpSessionListener {
 			}
 		}
 		// also attempt to clear via just the sessionId
-		MCPResource.clearInsight(sessionId);
+		MCPResource.clearSessionState(sessionId);
 
 		// clear temporal user values and identify any agent user for cleanup
 		User subAgent = removeAgentUserFromTemporalAccessKey(thisUser);

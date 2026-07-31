@@ -37,6 +37,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -44,6 +45,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.ReentrantLock;
 
 import javax.ws.rs.sse.OutboundSseEvent;
 import javax.ws.rs.sse.Sse;
@@ -68,6 +70,34 @@ import prerna.web.services.util.WebUtility;
 public class MCPReaper implements Runnable {
 
 	private static final Logger classLogger = LogManager.getLogger(MCPReaper.class);
+	private static final Map<String, ReentrantLock> INSIGHT_LOCKS = new ConcurrentHashMap<>();
+
+	/**
+	 * Removes a lock entry for an insight id from the MCP lock cache.
+	 *
+	 * @param insightId insight identifier
+	 */
+	public static void clearInsightLock(String insightId) {
+		String sanitizedInsightId = WebUtility.inputSanitizer(insightId);
+		if (sanitizedInsightId != null) {
+			INSIGHT_LOCKS.remove(sanitizedInsightId);
+		}
+	}
+
+	/**
+	 * Removes a lock entry for an insight instance from the MCP lock cache.
+	 *
+	 * @param insight insight instance
+	 */
+	public static void clearInsightLock(Insight insight) {
+		if (insight == null) {
+			return;
+		}
+		String sanitizedInsightId = WebUtility.inputSanitizer(insight.getInsightId());
+		String insightLockKey = sanitizedInsightId != null ? sanitizedInsightId
+				: Integer.toString(System.identityHashCode(insight));
+		INSIGHT_LOCKS.remove(insightLockKey);
+	}
 
 	private static final ScheduledExecutorService CONNECTION_REAPER = Executors.newSingleThreadScheduledExecutor(r -> {
 		Thread t = new Thread(r, "mcp-connection-reaper");
@@ -293,15 +323,20 @@ public class MCPReaper implements Runnable {
 
 		String jobId = "";
 		String insightId = WebUtility.inputSanitizer(insight.getInsightId());
+		String insightLockKey = insightId != null ? insightId : Integer.toString(System.identityHashCode(insight));
+		ReentrantLock insightLock = INSIGHT_LOCKS.computeIfAbsent(insightLockKey, ignored -> new ReentrantLock());
 
 		// serialize concurrent calls on the same insight - multiple parallel
 		// HTTP streaming connections from the same client share an insight instance
-		synchronized (insight) {
+		insightLock.lock();
+		try {
 			Boolean schedulerMode = ThreadStore.isSchedulerMode();
 			if (schedulerMode != null) {
 				insight.setSchedulerMode(schedulerMode);
 			}
 			return runPixelJob(user, insight, expression, jobId, insightId, sessionId, null, dropLogging);
+		} finally {
+			insightLock.unlock();
 		}
 	}
 

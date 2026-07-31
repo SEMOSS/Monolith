@@ -41,6 +41,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 
 import javax.annotation.security.PermitAll;
 import javax.inject.Singleton;
@@ -81,6 +82,7 @@ public class MCPResource {
 
 	public static final String MCP_AUTH_KEY = "MCP_AUTH_KEY";
 	private static final Map<String, Insight> INSIGHT_MAP = new ConcurrentHashMap<>();
+	private static final Map<String, ReentrantLock> SESSION_LOCKS = new ConcurrentHashMap<>();
 
 	private static final ExecutorService SSE_EXECUTOR;
 	static {
@@ -195,13 +197,18 @@ public class MCPResource {
 	 */
 	private static void addAuthKeyToSession(HttpSession session, String authorization) {
 		if (authorization != null) {
-			synchronized (session) {
+			String sessionId = session.getId();
+			ReentrantLock sessionLock = SESSION_LOCKS.computeIfAbsent(sessionId, ignored -> new ReentrantLock());
+			sessionLock.lock();
+			try {
 				Set<String> mcpKeys = (Set<String>) session.getAttribute(MCP_AUTH_KEY);
 				if (mcpKeys == null) {
 					mcpKeys = new HashSet<>();
 					session.setAttribute(MCP_AUTH_KEY, mcpKeys);
 				}
 				mcpKeys.add(authorization);
+			} finally {
+				sessionLock.unlock();
 			}
 		}
 	}
@@ -215,9 +222,40 @@ public class MCPResource {
 		if (key != null) {
 			Insight removedInsight = INSIGHT_MAP.remove(key);
 			if (removedInsight != null) {
+				MCPReaper.clearInsightLock(removedInsight);
 				classLogger.info("Removed cached insight from MCP thread");
 			}
 		}
+	}
+
+	/**
+	 * Remove the session lock entry created for MCP auth-key writes.
+	 *
+	 * @param sessionId http session id
+	 */
+	public static void clearSessionLock(String sessionId) {
+		if (sessionId != null) {
+			SESSION_LOCKS.remove(sessionId);
+		}
+	}
+
+	/**
+	 * Remove an insight lock entry from MCP reaper lock cache.
+	 *
+	 * @param insightId insight identifier
+	 */
+	public static void clearInsightLock(String insightId) {
+		MCPReaper.clearInsightLock(insightId);
+	}
+
+	/**
+	 * Clears MCP session-scoped cache and lock state.
+	 *
+	 * @param sessionId http session id
+	 */
+	public static void clearSessionState(String sessionId) {
+		clearInsight(sessionId);
+		clearSessionLock(sessionId);
 	}
 
 	/**
