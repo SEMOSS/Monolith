@@ -45,6 +45,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
+import javax.servlet.http.HttpServletResponse;
+import javax.ws.rs.core.MediaType;
 import javax.ws.rs.sse.OutboundSseEvent;
 import javax.ws.rs.sse.Sse;
 import javax.ws.rs.sse.SseEventSink;
@@ -91,6 +93,7 @@ public class MCPReaper implements Runnable {
 	// HTTP Stream specific fields
 	private InputStream is = null;
 	private OutputStream os = null;
+	private HttpServletResponse response = null;
 
 	// SSE specific fields
 	private BufferedReader reader = null;
@@ -98,23 +101,25 @@ public class MCPReaper implements Runnable {
 	private Sse sse = null;
 
 	/**
-	 * Constructor for HTTP Stream mode
-	 * 
+	 * Constructor for HTTP Stream mode. Takes the response rather than its output
+	 * stream because the status and headers depend on the message that comes in -
+	 * see {@link #sendHttpAccepted()}.
+	 *
 	 * @param insight
 	 * @param sessionId
 	 * @param is
-	 * @param os
+	 * @param response
 	 * @param toolbox
 	 * @param requestUrl
 	 * @param log4jContextMap
 	 */
-	public MCPReaper(Insight insight, String sessionId, InputStream is, OutputStream os, String toolbox,
+	public MCPReaper(Insight insight, String sessionId, InputStream is, HttpServletResponse response, String toolbox,
 			String requestUrl, Map<String, String> log4jContextMap, long idleTimeoutMinutes) {
 		this.mode = Mode.HTTP_STREAM;
 		this.insight = insight;
 		this.sessionId = sessionId;
 		this.is = is;
-		this.os = os;
+		this.response = response;
 		this.toolbox = toolbox;
 		this.requestUrl = requestUrl;
 		this.idleTimeoutMinutes = idleTimeoutMinutes;
@@ -208,6 +213,8 @@ public class MCPReaper implements Runnable {
 
 				if (output != null) {
 					sendHttpEvent(output);
+				} else {
+					sendHttpAccepted();
 				}
 			}
 		} catch (IOException e) {
@@ -227,15 +234,51 @@ public class MCPReaper implements Runnable {
 	}
 
 	/**
-	 * 
+	 *
 	 * @param data
 	 * @throws IOException
 	 */
 	private void sendHttpEvent(String data) throws IOException {
 		classLogger.debug("Sending data {}", data);
+		prepareHttpJsonResponse();
 		byte[] bytes = (data + "\n").getBytes(StandardCharsets.UTF_8);
 		this.os.write(bytes);
 		this.os.flush();
+	}
+
+	/**
+	 * Commits the response as a json message body. Deferred until we actually have
+	 * something to write, so that a notification can still go back as a 202.
+	 *
+	 * @throws IOException
+	 */
+	private void prepareHttpJsonResponse() throws IOException {
+		if (this.os == null) {
+			this.os = this.response.getOutputStream();
+		}
+		if (!this.response.isCommitted()) {
+			this.response.setStatus(HttpServletResponse.SC_OK);
+			this.response.setContentType(MediaType.APPLICATION_JSON);
+			this.response.setCharacterEncoding("UTF-8");
+			this.response.setHeader("Cache-Control", "no-cache");
+			this.response.setHeader("Connection", "keep-alive");
+		}
+	}
+
+	/**
+	 * A json-rpc notification carries no id and so gets no response body. The mcp
+	 * streamable http spec wants 202 Accepted for that, and clients rely on it: a
+	 * 200 that advertises a json content type with an empty body makes them try to
+	 * parse the message that never arrives.
+	 */
+	private void sendHttpAccepted() {
+		if (this.response.isCommitted()) {
+			// something already wrote on this connection, nothing left to say
+			return;
+		}
+		classLogger.debug("Acknowledging notification with 202 for session {}", this.sessionId);
+		this.response.setStatus(HttpServletResponse.SC_ACCEPTED);
+		this.response.setContentLength(0);
 	}
 
 	/**
@@ -393,7 +436,7 @@ public class MCPReaper implements Runnable {
 			return response.toString();
 		}
 
-		int id = root.getInt("id");
+		Object id = root.get("id");
 		response.put("id", id);
 		response.put("jsonrpc", "2.0");
 

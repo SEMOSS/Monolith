@@ -31,7 +31,6 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.time.ZoneId;
 import java.util.HashSet;
 import java.util.Map;
@@ -110,17 +109,9 @@ public class MCPResource {
 			@Context HttpServletRequest request, @Context HttpServletResponse response) {
 		classLogger.info("Running tool via streamable http... {}", toolbox_id);
 
-		// Get the input and output streams from the async context
+		// Get the input stream from the async context
 		try {
 			final InputStream is = request.getInputStream();
-			final OutputStream os = response.getOutputStream();
-
-			// set response headers
-			response.setContentType(MediaType.APPLICATION_JSON);
-			response.setHeader("Cache-Control", "no-cache");
-			response.setHeader("Connection", "keep-alive");
-			response.setCharacterEncoding("UTF-8");
-			response.flushBuffer();
 
 			// Initialize session
 			String authorization = request.getHeader("Authorization");
@@ -133,8 +124,8 @@ public class MCPResource {
 			long idleTimeoutMinutes = (sessionTimeoutSeconds <= 0) ? MAX_IDLE_TIMEOUT_MINUTES
 					: Math.min(MAX_IDLE_TIMEOUT_MINUTES, sessionTimeoutSeconds / 60L);
 
-			MCPReaper reaper = new MCPReaper(insight, sessionId, is, os, toolbox_id, request.getRequestURL().toString(),
-					ThreadContext.getImmutableContext(), idleTimeoutMinutes);
+			MCPReaper reaper = new MCPReaper(insight, sessionId, is, response, toolbox_id,
+					request.getRequestURL().toString(), ThreadContext.getImmutableContext(), idleTimeoutMinutes);
 			reaper.run();
 		} catch (IOException e) {
 			if (!WebUtility.handleStreamingException(e, classLogger, toolbox_id, null, null)) {
