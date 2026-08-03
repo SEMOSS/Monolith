@@ -63,8 +63,8 @@ import prerna.util.Constants;
  * <p>
  * This endpoint is purely the transport for one browser session:
  * <ol>
- * <li>On open, it binds a {@code RemoteBrowserFrameSender} that writes JSON to this socket
- * and flags the viewer as connected.</li>
+ * <li>On open, it binds a {@code RemoteBrowserFrameSender} that writes JSON to
+ * this socket and flags the viewer as connected.</li>
  * <li>Incoming input events are validated and enqueued on the session's event
  * queue.</li>
  * </ol>
@@ -72,17 +72,15 @@ import prerna.util.Constants;
  * <p>
  * The frame-producing loop (drain events, screenshot, push
  * {@code frame}/{@code navigated} messages) lives in
- * {@link RemoteBrowserSessionManager}, which starts it at session creation and only
- * streams once the {@code wsConnected} flag flips true. This endpoint does not
- * run its own loop.
+ * {@link RemoteBrowserSessionManager}, which starts it at session creation and
+ * only streams once the {@code wsConnected} flag flips true. This endpoint does
+ * not run its own loop.
  */
 @ServerEndpoint(value = "/browserSocket/{sessionId}", configurator = RemoteBrowserWSConfigurator.class)
 public class RemoteBrowserSessionWebSocket {
 
 	private static final Logger classLogger = LogManager.getLogger(RemoteBrowserSessionWebSocket.class);
 	private static final Gson GSON = new Gson();
-
-	// ---- WebSocket lifecycle ----
 
 	@OnOpen
 	public void onOpen(Session wsSession, EndpointConfig config, @PathParam("sessionId") String sessionId) {
@@ -104,10 +102,10 @@ public class RemoteBrowserSessionWebSocket {
 			return;
 		}
 
-		// Bind the RemoteBrowserFrameSender and flag the viewer as connected. The session's
-		// event loop (started by RemoteBrowserSessionManager at creation time) is already
-		// running and reads these two volatile fields each tick — it will begin
-		// streaming frames as soon as they are set.
+		// Bind the RemoteBrowserFrameSender and flag the viewer as connected. The
+		// session's event loop (started by RemoteBrowserSessionManager at creation
+		// time) is already running and reads these two volatile fields each tick - it
+		// will begin streaming frames as soon as they are set.
 		session.setRemoteBrowserFrameSender(json -> {
 			try {
 				wsSession.getBasicRemote().sendText(json);
@@ -116,6 +114,7 @@ public class RemoteBrowserSessionWebSocket {
 			}
 		});
 		session.setWsConnected(true);
+		RemoteBrowserSessionManager.getInstance().sendTabState(session);
 
 		classLogger.info("WebSocket opened for browser session {} by user {}", sessionId,
 				user.getPrimaryLoginToken().getId());
@@ -147,16 +146,16 @@ public class RemoteBrowserSessionWebSocket {
 			return;
 		}
 
-		// Close-session event — handled directly
+		// Close-session event - handled directly
 		if ("close-session".equals(event.getType())) {
-			RemoteBrowserSessionManager.getInstance().closeSession(sessionId);
+			RemoteBrowserSessionManager.getInstance().finishSession(sessionId);
 			return;
 		}
 
 		// All other events: enqueue for the Playwright thread
 		boolean offered = session.eventQueue.offer(event);
 		if (!offered) {
-			classLogger.warn("Event queue full for session {} — dropping event {}", sessionId, event.getType());
+			classLogger.warn("Event queue full for session {} - dropping event {}", sessionId, event.getType());
 		}
 	}
 
@@ -174,8 +173,6 @@ public class RemoteBrowserSessionWebSocket {
 	public void onError(Session wsSession, Throwable error, @PathParam("sessionId") String sessionId) {
 		classLogger.error("WebSocket error for session {}: {}", sessionId, error.getMessage(), error);
 	}
-
-	// ---- Helpers ----
 
 	/**
 	 * Send an error directly over a raw WebSocket Session (used before

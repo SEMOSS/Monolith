@@ -1,3 +1,5 @@
+name: local-monolith-with-postgres-minio-zk
+
 # shared environment for every semoss node in the cluster
 x-semoss-env: &semoss-env
   SETSOCIAL: 'true'
@@ -144,7 +146,7 @@ services:
       HOST_IP: 'semoss2:8080'
 
   db:
-    image: postgres:latest
+    image: postgres:18
     container_name: postgres
     restart: always
     environment:
