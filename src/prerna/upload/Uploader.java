@@ -37,21 +37,21 @@ import java.io.Reader;
 import java.io.Writer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.List;
 
-import javax.servlet.ServletContext;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.ws.rs.core.Context;
-
-import org.apache.commons.fileupload.FileItem;
-import org.apache.commons.fileupload.FileUploadException;
-import org.apache.commons.fileupload.ProgressListener;
-import org.apache.commons.fileupload.disk.DiskFileItemFactory;
-import org.apache.commons.fileupload.servlet.ServletFileUpload;
+import org.apache.commons.fileupload2.core.DiskFileItem;
+import org.apache.commons.fileupload2.core.DiskFileItemFactory;
+import org.apache.commons.fileupload2.core.FileUploadException;
+import org.apache.commons.fileupload2.core.ProgressListener;
+import org.apache.commons.fileupload2.jakarta.servlet6.JakartaServletDiskFileUpload;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.ws.rs.core.Context;
 import prerna.om.InsightStore;
 import prerna.util.FileEncoderDetector;
 import prerna.util.FileSystemUtil;
@@ -108,7 +108,7 @@ public abstract class Uploader extends HttpServlet {
 	 * @param fi   The file item to write.
 	 * @param file The file to write to.
 	 */
-	public void writeFile(FileItem fi, File file) {
+	public void writeFile(DiskFileItem fi, File file) {
 		try {
 			FileEncoderDetector analyzer = new FileEncoderDetector(fi);
 			if (analyzer.isTextContent()) {
@@ -125,7 +125,7 @@ public abstract class Uploader extends HttpServlet {
 				}
 			} else {
 				try {
-					fi.write(new File(WebUtility.normalizePath(file.getAbsolutePath())));
+					fi.write(Path.of(WebUtility.normalizePath(file.getAbsolutePath())));
 				} catch (Exception e) {
 					classLogger.error("Failed to write the uploaded binary file item to disk", e);
 				}
@@ -158,23 +158,23 @@ public abstract class Uploader extends HttpServlet {
 	 * @return A list of file items.
 	 * @throws FileUploadException if an error occurs while processing the request.
 	 */
-	protected List<FileItem> processRequest(@Context ServletContext context, @Context HttpServletRequest request,
+	protected List<DiskFileItem> processRequest(@Context ServletContext context, @Context HttpServletRequest request,
 			String insightId) throws FileUploadException {
 		String tempFilePath = context.getInitParameter(TEMP_FILE_UPLOAD_KEY);
 		tempFilePath = normalizeAndCreatePath(tempFilePath);
 
-		List<FileItem> fileItems = null;
-		DiskFileItemFactory factory = new DiskFileItemFactory();
-		// maximum size that will be stored in memory
-		factory.setSizeThreshold(maxMemSize);
-		// Location to save data that is larger than maxMemSize.
-		factory.setRepository(new File(tempFilePath));
+		List<DiskFileItem> fileItems = null;
+		DiskFileItemFactory factory = DiskFileItemFactory.builder()
+				// maximum size that will be stored in memory
+				.setThreshold(maxMemSize)
+				// Location to save data that is larger than maxMemSize.
+				.setPath(Path.of(tempFilePath)).get();
 		// Create a new file upload handler
-		ServletFileUpload upload = new ServletFileUpload(factory);
+		JakartaServletDiskFileUpload upload = new JakartaServletDiskFileUpload(factory);
 		// maximum file size to be uploaded.
-		upload.setSizeMax(maxFileSize);
+		upload.setMaxSize(maxFileSize);
 		// set encoding as well for the request
-		upload.setHeaderEncoding("UTF-8");
+		upload.setHeaderCharset(StandardCharsets.UTF_8);
 		// make sure the insight id is valid if present
 		if (insightId != null) {
 			if (InsightStore.getInstance().get(insightId) == null) {

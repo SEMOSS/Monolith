@@ -35,18 +35,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.annotation.security.PermitAll;
-import javax.servlet.ServletContext;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpSession;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.Response;
-
-import org.apache.commons.fileupload.FileItem;
-import org.apache.commons.fileupload.FileUploadException;
+import org.apache.commons.fileupload2.core.DiskFileItem;
+import org.apache.commons.fileupload2.core.FileUploadException;
 import org.apache.commons.io.filefilter.WildcardFileFilter;
 import org.apache.http.HttpStatus;
 import org.apache.logging.log4j.LogManager;
@@ -54,6 +44,15 @@ import org.apache.logging.log4j.Logger;
 
 import com.google.common.io.Files;
 
+import jakarta.annotation.security.PermitAll;
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.Response;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityInsightUtils;
@@ -108,7 +107,7 @@ public class ImageUploader extends Uploader {
 			return WebUtility.getResponse(returnMap, 400);
 		}
 
-		List<FileItem> fileItems = null;
+		List<DiskFileItem> fileItems = null;
 		try {
 			fileItems = processRequest(context, request, null);
 		} catch (FileUploadException e) {
@@ -117,18 +116,25 @@ public class ImageUploader extends Uploader {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		// collect all of the data input on the form
-		FileItem imageFile = null;
+		DiskFileItem imageFile = null;
 		String engineId = null;
 
-		for (FileItem fi : fileItems) {
-			String fieldName = fi.getFieldName();
-			String value = WebUtility.inputSanitizer(fi.getString());
-			if (fieldName.equals("file")) {
-				imageFile = fi;
+		try {
+			for (DiskFileItem fi : fileItems) {
+				String fieldName = fi.getFieldName();
+				String value = WebUtility.inputSanitizer(fi.getString());
+				if (fieldName.equals("file")) {
+					imageFile = fi;
+				}
+				if (fieldName.equals("engineId")) {
+					engineId = value;
+				}
 			}
-			if (fieldName.equals("engineId")) {
-				engineId = value;
-			}
+		} catch (IOException e) {
+			classLogger.error("Failed to read the form fields from the uploaded request", e);
+			HashMap<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Error uploading file. Error = " + e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		if (imageFile == null) {
@@ -453,7 +459,7 @@ public class ImageUploader extends Uploader {
 			return WebUtility.getResponse(returnMap, 400);
 		}
 
-		List<FileItem> fileItems = null;
+		List<DiskFileItem> fileItems = null;
 		try {
 			fileItems = processRequest(context, request, null);
 		} catch (FileUploadException e) {
@@ -462,19 +468,26 @@ public class ImageUploader extends Uploader {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		// collect all of the data input on the form
-		FileItem imageFile = null;
+		DiskFileItem imageFile = null;
 		String projectId = null;
 		String projectName = null;
 
-		for (FileItem fi : fileItems) {
-			String fieldName = fi.getFieldName();
-			String value = WebUtility.inputSanitizer(fi.getString());
-			if (fieldName.equals("file")) {
-				imageFile = fi;
+		try {
+			for (DiskFileItem fi : fileItems) {
+				String fieldName = fi.getFieldName();
+				String value = WebUtility.inputSanitizer(fi.getString());
+				if (fieldName.equals("file")) {
+					imageFile = fi;
+				}
+				if (fieldName.equals("projectId")) {
+					projectId = value;
+				}
 			}
-			if (fieldName.equals("projectId")) {
-				projectId = value;
-			}
+		} catch (IOException e) {
+			classLogger.error("Failed to read the form fields from the uploaded request", e);
+			HashMap<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Error uploading file. Error = " + e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		if (imageFile == null) {
@@ -659,7 +672,7 @@ public class ImageUploader extends Uploader {
 		return AssetUtility.getProjectVersionFolder(projectName, projectId);
 	}
 
-	private String getProjectImageLoc(String filePath, String id, String name, FileItem imageFile) {
+	private String getProjectImageLoc(String filePath, String id, String name, DiskFileItem imageFile) {
 		String imageDir = getProjectImageDir(filePath, id, name);
 		if (ClusterUtil.IS_CLUSTER) {
 			return imageDir + DIR_SEPARATOR + id + "." + imageFile.getContentType().split("/")[1];
@@ -702,7 +715,7 @@ public class ImageUploader extends Uploader {
 			return WebUtility.getResponse(returnMap, 400);
 		}
 
-		List<FileItem> fileItems = null;
+		List<DiskFileItem> fileItems = null;
 		try {
 			fileItems = processRequest(context, request, null);
 		} catch (FileUploadException e) {
@@ -711,23 +724,30 @@ public class ImageUploader extends Uploader {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		// collect all of the data input on the form
-		FileItem imageFile = null;
+		DiskFileItem imageFile = null;
 		String projectId = null;
 		String projectName = null;
 		String insightId = null;
 
-		for (FileItem fi : fileItems) {
-			String fieldName = fi.getFieldName();
-			String value = WebUtility.inputSanitizer(fi.getString());
-			if (fieldName.equals("file")) {
-				imageFile = fi;
+		try {
+			for (DiskFileItem fi : fileItems) {
+				String fieldName = fi.getFieldName();
+				String value = WebUtility.inputSanitizer(fi.getString());
+				if (fieldName.equals("file")) {
+					imageFile = fi;
+				}
+				if (fieldName.equals("projectId")) {
+					projectId = value;
+				}
+				if (fieldName.equals("insightId")) {
+					insightId = value;
+				}
 			}
-			if (fieldName.equals("projectId")) {
-				projectId = value;
-			}
-			if (fieldName.equals("insightId")) {
-				insightId = value;
-			}
+		} catch (IOException e) {
+			classLogger.error("Failed to read the form fields from the uploaded request", e);
+			HashMap<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Error uploading file. Error = " + e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		if (imageFile == null) {
@@ -954,7 +974,7 @@ public class ImageUploader extends Uploader {
 			return WebUtility.getResponse(returnMap, 400);
 		}
 
-		List<FileItem> fileItems = null;
+		List<DiskFileItem> fileItems = null;
 		try {
 			fileItems = processRequest(context, request, null);
 		} catch (FileUploadException e) {
@@ -963,21 +983,28 @@ public class ImageUploader extends Uploader {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		// collect all of the data input on the form
-		FileItem imageFile = null;
+		DiskFileItem imageFile = null;
 		String engineId = null;
 
-		for (FileItem fi : fileItems) {
-			String fieldName = fi.getFieldName();
-			String value = WebUtility.inputSanitizer(fi.getString());
-			if (fieldName.equals("file")) {
-				imageFile = fi;
+		try {
+			for (DiskFileItem fi : fileItems) {
+				String fieldName = fi.getFieldName();
+				String value = WebUtility.inputSanitizer(fi.getString());
+				if (fieldName.equals("file")) {
+					imageFile = fi;
+				}
+				if (fieldName.equals("engineId")) {
+					engineId = value;
+				}
+				if (fieldName.equals("databaseId")) {
+					engineId = value;
+				}
 			}
-			if (fieldName.equals("engineId")) {
-				engineId = value;
-			}
-			if (fieldName.equals("databaseId")) {
-				engineId = value;
-			}
+		} catch (IOException e) {
+			classLogger.error("Failed to read the form fields from the uploaded request", e);
+			HashMap<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Error uploading file. Error = " + e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		if (imageFile == null) {

@@ -36,20 +36,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import javax.annotation.security.PermitAll;
-import javax.servlet.ServletContext;
-import javax.servlet.http.HttpServletRequest;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.MultivaluedMap;
-import javax.ws.rs.core.Response;
-
-import org.apache.commons.fileupload.FileItem;
+import org.apache.commons.fileupload2.core.DiskFileItem;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -60,6 +47,18 @@ import org.apache.tika.mime.MimeTypes;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
+import jakarta.annotation.security.PermitAll;
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.MultivaluedMap;
+import jakarta.ws.rs.core.Response;
 import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
@@ -317,7 +316,7 @@ public class FileUploader extends Uploader {
 
 		ThreadStore.setSessionId(request.getSession().getId());
 		try {
-			List<FileItem> fileItems = processRequest(context, request, insightId);
+			List<DiskFileItem> fileItems = processRequest(context, request, insightId);
 			// collect all of the data input on the form
 			List<Map<String, String>> inputData = getBaseUploadData(fileItems, in, relativePath, projectId, engineId,
 					userSpace, user);
@@ -351,7 +350,7 @@ public class FileUploader extends Uploader {
 	 * @throws VirusScanningException if a virus is detected in the file.
 	 * @throws IOException            if an error occurs while writing the file.
 	 */
-	private List<Map<String, String>> getBaseUploadData(List<FileItem> fileItems, Insight in, String relativePath,
+	private List<Map<String, String>> getBaseUploadData(List<DiskFileItem> fileItems, Insight in, String relativePath,
 			String projectId, String engineId, boolean userSpace, User user)
 			throws VirusScanningException, IOException {
 		boolean pushEngine = false;
@@ -462,7 +461,7 @@ public class FileUploader extends Uploader {
 
 		ThreadStore.setSessionId(request.getSession().getId());
 		try {
-			List<FileItem> fileItems = processRequest(context, request, insightId);
+			List<DiskFileItem> fileItems = processRequest(context, request, insightId);
 			List<Map<String, String>> inputData = getBaseUploadData(fileItems, in, relativePath, null, null, true,
 					user);
 			return WebUtility.getResponse(inputData, 200);
@@ -529,7 +528,7 @@ public class FileUploader extends Uploader {
 
 		ThreadStore.setSessionId(request.getSession().getId());
 		try {
-			List<FileItem> fileItems = processRequest(context, request, insightId);
+			List<DiskFileItem> fileItems = processRequest(context, request, insightId);
 			// collect all of the data input on the form
 			IProject project = Utility.getProject(projectId);
 			List<Map<String, String>> inputData = uploadEngineAssets(fileItems, in, relativePath, project, user);
@@ -597,7 +596,7 @@ public class FileUploader extends Uploader {
 
 		ThreadStore.setSessionId(request.getSession().getId());
 		try {
-			List<FileItem> fileItems = processRequest(context, request, insightId);
+			List<DiskFileItem> fileItems = processRequest(context, request, insightId);
 			// collect all of the data input on the form
 			IEngine engine = Utility.getEngine(engineId);
 			List<Map<String, String>> inputData = uploadEngineAssets(fileItems, in, relativePath, engine, user);
@@ -697,7 +696,7 @@ public class FileUploader extends Uploader {
 	 * @throws VirusScanningException if a virus is detected in the file.
 	 * @throws IOException            if an error occurs while writing the file.
 	 */
-	private List<Map<String, String>> uploadEngineAssets(List<FileItem> fileItems, Insight in, String relativePath,
+	private List<Map<String, String>> uploadEngineAssets(List<DiskFileItem> fileItems, Insight in, String relativePath,
 			IEngine engine, User user) throws VirusScanningException, IOException {
 
 		String assetFolder = EngineUtility.getSpecificEngineAssetsFolder(engine.getCatalogType(), engine.getEngineId(),
@@ -766,14 +765,14 @@ public class FileUploader extends Uploader {
 	 * @throws VirusScanningException if a virus is detected in the file.
 	 * @throws IOException            if an error occurs while writing the file.
 	 */
-	private List<Map<String, String>> processFileItems(List<FileItem> fileItems, String filePath, String fePath)
+	private List<Map<String, String>> processFileItems(List<DiskFileItem> fileItems, String filePath, String fePath)
 			throws VirusScanningException, IOException {
-		Iterator<FileItem> iteratorFileItems = fileItems.iterator();
+		Iterator<DiskFileItem> iteratorFileItems = fileItems.iterator();
 		// collect all of the data input on the form
 		List<Map<String, String>> retData = new ArrayList<Map<String, String>>();
 
 		while (iteratorFileItems.hasNext()) {
-			FileItem fi = iteratorFileItems.next();
+			DiskFileItem fi = iteratorFileItems.next();
 			if (!fi.isFormField()) {
 				// Get the uploaded file parameters
 				String fieldName = fi.getFieldName();
@@ -854,7 +853,7 @@ public class FileUploader extends Uploader {
 	 * @throws VirusScanningException if a virus is detected in the file.
 	 * @throws IOException            if an error occurs while reading the file.
 	 */
-	private void checkForViruses(FileItem fi) throws VirusScanningException, IOException {
+	private void checkForViruses(DiskFileItem fi) throws VirusScanningException, IOException {
 		if (Utility.isVirusScanningEnabled()) {
 			try {
 				Map<String, Collection<String>> viruses = VirusScannerUtils.getViruses(fi.getName(),

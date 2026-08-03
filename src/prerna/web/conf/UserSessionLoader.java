@@ -34,16 +34,15 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import javax.servlet.annotation.WebListener;
-import javax.servlet.http.HttpSession;
-import javax.servlet.http.HttpSessionEvent;
-import javax.servlet.http.HttpSessionListener;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.microsoft.playwright.BrowserContext;
 
+import jakarta.servlet.annotation.WebListener;
+import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpSessionEvent;
+import jakarta.servlet.http.HttpSessionListener;
 import prerna.auth.SyncUserAssetsThread;
 import prerna.auth.User;
 import prerna.cluster.util.ClusterUtil;
@@ -127,6 +126,7 @@ public class UserSessionLoader implements HttpSessionListener {
 			for (String insightId : copy) {
 				Insight insight = InsightStore.getInstance().get(insightId);
 				if (insight == null) {
+					MCPResource.clearInsightLock(insightId);
 					continue;
 				}
 				classLogger.info("Trying to drop insight {}", insightId);
@@ -135,6 +135,8 @@ public class UserSessionLoader implements HttpSessionListener {
 					classLogger.info("Dropped insight {}", insightId);
 				} catch (Exception e) {
 					classLogger.error("Error dropping insight {}", insightId, e);
+				} finally {
+					MCPResource.clearInsightLock(insightId);
 				}
 			}
 			classLogger.info("Successfully removed insight information from session");
@@ -163,7 +165,7 @@ public class UserSessionLoader implements HttpSessionListener {
 			}
 		}
 		// also attempt to clear via just the sessionId
-		MCPResource.clearInsight(sessionId);
+		MCPResource.clearSessionState(sessionId);
 
 		// clear temporal user values and identify any agent user for cleanup
 		User subAgent = removeAgentUserFromTemporalAccessKey(thisUser);
