@@ -47,16 +47,15 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 
-import javax.servlet.http.HttpServletResponse;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.sse.OutboundSseEvent;
-import javax.ws.rs.sse.Sse;
-import javax.ws.rs.sse.SseEventSink;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.json.JSONObject;
 
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.sse.OutboundSseEvent;
+import jakarta.ws.rs.sse.Sse;
+import jakarta.ws.rs.sse.SseEventSink;
 import prerna.auth.User;
 import prerna.om.Insight;
 import prerna.om.ThreadStore;
@@ -346,7 +345,11 @@ public class MCPReaper implements Runnable {
 			eventSink.send(event);
 		} finally {
 			if (this.eventSink != null) {
-				this.eventSink.close();
+				try {
+					this.eventSink.close();
+				} catch (IOException e) {
+					classLogger.error("Unable to close SSE event sink", e);
+				}
 			}
 		}
 

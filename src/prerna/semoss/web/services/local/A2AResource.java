@@ -28,6 +28,7 @@
 package prerna.semoss.web.services.local;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.sql.Timestamp;
@@ -41,28 +42,14 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-import javax.annotation.security.PermitAll;
 import javax.inject.Singleton;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpSession;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.sse.Sse;
-import javax.ws.rs.sse.SseEventSink;
 
 import org.a2aproject.sdk.spec.AgentCapabilities;
 import org.a2aproject.sdk.spec.AgentCard;
@@ -92,6 +79,20 @@ import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializer;
 
+import jakarta.annotation.security.PermitAll;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.sse.Sse;
+import jakarta.ws.rs.sse.SseEventSink;
 import prerna.auth.User;
 import prerna.engine.impl.model.inferencetracking.ModelInferenceLogsUtils;
 import prerna.om.Insight;
@@ -111,9 +112,10 @@ import prerna.web.services.util.WebUtility;
 public class A2AResource {
 
 	private static final Logger logger = LogManager.getLogger(A2AResource.class);
+
 	private static final Gson GSON = new GsonBuilder()
-			.registerTypeAdapter(OffsetDateTime.class, (JsonSerializer<OffsetDateTime>) (src, typeOfSrc, context) ->
-					new JsonPrimitive(src.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)))
+			.registerTypeAdapter(OffsetDateTime.class, (JsonSerializer<OffsetDateTime>) (src, typeOfSrc,
+					context) -> new JsonPrimitive(src.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)))
 			.create();
 	private static final Map<String, Insight> INSIGHT_MAP = new java.util.concurrent.ConcurrentHashMap<>();
 	private static final String A2A_PROTOCOL_VERSION = "1.0";
@@ -142,8 +144,8 @@ public class A2AResource {
 		String name = stringValue(row, "name", "SEMOSS Workspace Agent");
 		String description = stringValue(row, "description", "SEMOSS workspace-backed agent");
 
-		return jsonResponse(buildAgentCard(name, description, endpointUrl(request, workspaceId),
-				workspaceSkills(row), securitySchemes(), securityRequirements()));
+		return jsonResponse(buildAgentCard(name, description, endpointUrl(request, workspaceId), workspaceSkills(row),
+				securitySchemes(), securityRequirements()));
 	}
 
 	@POST
@@ -191,8 +193,8 @@ public class A2AResource {
 	@Path("/rpc")
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.SERVER_SENT_EVENTS)
-	public void rpcSse(@PathParam("workspaceId") String workspaceId, InputStream is,
-			@Context SseEventSink eventSink, @Context Sse sse, @Context HttpServletRequest request) {
+	public void rpcSse(@PathParam("workspaceId") String workspaceId, InputStream is, @Context SseEventSink eventSink,
+			@Context Sse sse, @Context HttpServletRequest request) {
 		A2ARequestContext requestContext = initRequestContext(request);
 		ThreadStore.remove();
 		SSE_EXECUTOR.submit(() -> {
@@ -230,7 +232,11 @@ public class A2AResource {
 			} finally {
 				ThreadStore.remove();
 				if (eventSink != null && !eventSink.isClosed()) {
-					eventSink.close();
+					try {
+						eventSink.close();
+					} catch (IOException e) {
+						logger.error("Unable to close SSE event sink", e);
+					}
 				}
 			}
 		});
@@ -258,14 +264,14 @@ public class A2AResource {
 					+ "set WORKSPACE.CONFIG_JSON.modelId, or configure A2A_DEFAULT_MODEL_ID.");
 		}
 		if (Utility.getModel(engineId) == null) {
-			throw new IllegalArgumentException("Could not load model engine '" + engineId + "' for A2A workspace '"
-					+ workspaceId + "'");
+			throw new IllegalArgumentException(
+					"Could not load model engine '" + engineId + "' for A2A workspace '" + workspaceId + "'");
 		}
 
 		Map<String, Object> paramMap = new HashMap<>();
 		RunAgentRequest runRequest = new RunAgentRequest(roomId, input, engineId, "semoss", workspaceId,
-					AgentRunContext.DEFAULT_MAX_TURNS, AgentRunContext.DEFAULT_MAX_REFLECTIONS, paramMap,
-					new HashMap<>(), insight);
+				AgentRunContext.DEFAULT_MAX_TURNS, AgentRunContext.DEFAULT_MAX_REFLECTIONS, paramMap, new HashMap<>(),
+				insight);
 		RunAgentResult result = AgentRuntimeManager.get().run(runRequest);
 		if (honorReturnImmediately && !returnImmediately(params)) {
 			return taskFromRun(AgentRuntimeManager.get().waitForRun(result.getRunId(), insight, 0L));
@@ -293,8 +299,8 @@ public class A2AResource {
 		return taskFromRun(AgentRuntimeManager.get().stop(runId, insight));
 	}
 
-	private Map<String, Object> handleStreamAsJson(String workspaceId, JsonObject rpc,
-			A2ARequestContext requestContext) throws InterruptedException {
+	private Map<String, Object> handleStreamAsJson(String workspaceId, JsonObject rpc, A2ARequestContext requestContext)
+			throws InterruptedException {
 		if (isStreamingMessageMethod(text(rpc, "method"))) {
 			return streamTask(handleSend(workspaceId, rpc, requestContext, false));
 		}
@@ -304,7 +310,8 @@ public class A2AResource {
 	private void streamRun(String runId, SseEventSink eventSink, Sse sse, A2ARequestContext requestContext,
 			Object responseId) throws Exception {
 		// Poll durable AGENT_RUN state and emit an SSE status update whenever the task
-		// state changes, until the run reaches a terminal state or the client disconnects.
+		// state changes, until the run reaches a terminal state or the client
+		// disconnects.
 		// Replaces the removed in-memory AgentRunEventBus subscribe/replay path.
 		seedThreadStore(requestContext);
 		Insight insight = requestContext.insight;
@@ -312,7 +319,8 @@ public class A2AResource {
 		while (eventSink != null && !eventSink.isClosed()) {
 			Task task = taskFromRun(AgentRuntimeManager.get().getRun(runId, insight));
 			String state = task != null && task.status() != null && task.status().state() != null
-					? task.status().state().name() : null;
+					? task.status().state().name()
+					: null;
 			if (!Objects.equals(state, lastState)) {
 				lastState = state;
 				Map<String, Object> payload = statusUpdateFromTask(task, null);
@@ -347,13 +355,8 @@ public class A2AResource {
 		String authorization = request.getHeader("Authorization");
 		addAuthKeyToSession(session, authorization);
 		Insight insight = getInsight(session, authorization);
-		return new A2ARequestContext(
-				insight,
-				session.getId(),
-				ThreadStore.getRouteId(),
-				ThreadStore.getLocalHostname(),
-				ThreadStore.getLocalProtocol(),
-				ThreadStore.getLocalPort());
+		return new A2ARequestContext(insight, session.getId(), ThreadStore.getRouteId(), ThreadStore.getLocalHostname(),
+				ThreadStore.getLocalProtocol(), ThreadStore.getLocalPort());
 	}
 
 	private static void seedThreadStore(A2ARequestContext requestContext) {
@@ -542,28 +545,18 @@ public class A2AResource {
 		if (finalText != null) {
 			statusMessage = Message.builder()
 					.messageId(firstNonBlank(stringValue(run.get("finalOutputMessageId")), runId + "-final"))
-					.contextId(roomId)
-					.taskId(runId)
-					.role(Message.Role.ROLE_AGENT)
-					.parts(new TextPart(finalText, null))
+					.contextId(roomId).taskId(runId).role(Message.Role.ROLE_AGENT).parts(new TextPart(finalText, null))
 					.build();
 		}
 
 		TaskStatus status = new TaskStatus(toTaskState(stringValue(run.get("status"))), statusMessage,
 				toOffsetDateTime(firstNonNull(run.get("completedAt"), run.get("startedAt"), run.get("dateCreated"))));
 
-		return Task.builder()
-				.id(runId)
-				.contextId(roomId)
-				.status(status)
-				.artifacts(finalText == null ? List.of() : List.of(Artifact.builder()
-						.artifactId(runId + "-final-output")
-						.name("final-output")
-						.description("Final agent response")
-						.parts(new TextPart(finalText, null))
-						.build()))
-				.metadata(metadataFromRun(run))
-				.build();
+		return Task.builder().id(runId).contextId(roomId).status(status)
+				.artifacts(finalText == null ? List.of()
+						: List.of(Artifact.builder().artifactId(runId + "-final-output").name("final-output")
+								.description("Final agent response").parts(new TextPart(finalText, null)).build()))
+				.metadata(metadataFromRun(run)).build();
 	}
 
 	private static Map<String, Object> statusUpdateFromTask(Task task, Map<String, Object> event) {
@@ -717,7 +710,8 @@ public class A2AResource {
 	}
 
 	private static boolean isTerminalTask(Task task) {
-		return task != null && task.status() != null && task.status().state() != null && task.status().state().isFinal();
+		return task != null && task.status() != null && task.status().state() != null
+				&& task.status().state().isFinal();
 	}
 
 	private static Map<String, Object> metadataFromRun(Map<String, Object> run) {
@@ -826,30 +820,15 @@ public class A2AResource {
 			List<AgentSkill> skills, Map<String, SecurityScheme> securitySchemes,
 			List<SecurityRequirement> securityRequirements) {
 		AgentInterface jsonRpcInterface = new AgentInterface(A2A_TRANSPORT_JSONRPC, endpointUrl);
-		return AgentCard.builder()
-				.name(name)
-				.description(description)
-				.version(A2A_PROTOCOL_VERSION)
-				.url(endpointUrl)
-				.preferredTransport(A2A_TRANSPORT_JSONRPC)
-				.supportedInterfaces(List.of(jsonRpcInterface))
-				.defaultInputModes(List.of("text/plain"))
-				.defaultOutputModes(List.of("text/plain"))
-				.capabilities(AgentCapabilities.builder()
-						.streaming(true)
-						.pushNotifications(false)
-						.build())
-				.skills(skills)
-				.securitySchemes(securitySchemes)
-				.securityRequirements(securityRequirements)
-				.build();
+		return AgentCard.builder().name(name).description(description).version(A2A_PROTOCOL_VERSION).url(endpointUrl)
+				.preferredTransport(A2A_TRANSPORT_JSONRPC).supportedInterfaces(List.of(jsonRpcInterface))
+				.defaultInputModes(List.of("text/plain")).defaultOutputModes(List.of("text/plain"))
+				.capabilities(AgentCapabilities.builder().streaming(true).pushNotifications(false).build())
+				.skills(skills).securitySchemes(securitySchemes).securityRequirements(securityRequirements).build();
 	}
 
 	private static AgentSkill agentSkill(String id, String name, String description, List<Object> tags) {
-		AgentSkill.Builder builder = AgentSkill.builder()
-				.id(id)
-				.name(name)
-				.description(description);
+		AgentSkill.Builder builder = AgentSkill.builder().id(id).name(name).description(description);
 		if (tags != null && !tags.isEmpty()) {
 			List<String> stringTags = new ArrayList<>();
 			for (Object tag : tags) {
@@ -899,17 +878,13 @@ public class A2AResource {
 
 	private static Map<String, SecurityScheme> securitySchemes() {
 		Map<String, SecurityScheme> schemes = new HashMap<>();
-		schemes.put("semossBearer", HTTPAuthSecurityScheme.builder()
-				.scheme("Bearer")
-				.description("SEMOSS access key or session bearer token.")
-				.build());
+		schemes.put("semossBearer", HTTPAuthSecurityScheme.builder().scheme("Bearer")
+				.description("SEMOSS access key or session bearer token.").build());
 		return schemes;
 	}
 
 	private static List<SecurityRequirement> securityRequirements() {
-		return List.of(SecurityRequirement.builder()
-				.scheme("semossBearer", List.of())
-				.build());
+		return List.of(SecurityRequirement.builder().scheme("semossBearer", List.of()).build());
 	}
 
 	private static AgentSkill defaultSkill() {

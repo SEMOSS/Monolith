@@ -29,12 +29,11 @@ package prerna.web.conf;
 
 import java.util.Map;
 
-import javax.servlet.ServletContextEvent;
-import javax.servlet.ServletContextListener;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import jakarta.servlet.ServletContextEvent;
+import jakarta.servlet.ServletContextListener;
 import prerna.cluster.util.ZKClient;
 
 public class UserDBLoader implements ServletContextListener {

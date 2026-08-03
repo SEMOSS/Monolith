@@ -32,12 +32,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import javax.servlet.ServletException;
-import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
 import com.sun.identity.saml.common.SAMLUtils;
 import com.sun.identity.saml2.common.SAML2Constants;
 import com.sun.identity.saml2.common.SAML2Exception;
@@ -46,6 +40,11 @@ import com.sun.identity.saml2.meta.SAML2MetaManager;
 import com.sun.identity.saml2.profile.SPCache;
 import com.sun.identity.saml2.profile.SPSSOFederate;
 
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import prerna.web.conf.util.SSOUtil;
 
 /**
