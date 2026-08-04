@@ -138,7 +138,7 @@ public class InsightWebsocket {
 			return;
 		}
 
-		// Project-scoped streams are gated here, before a streamer is ever created —
+		// Project-scoped streams are gated here, before a streamer is ever created -
 		// the socket only proves "logged in", not "allowed to see this project's logs".
 		if ("app_logs".equals(type)) {
 			if (projectId.isEmpty()) {
@@ -158,8 +158,8 @@ public class InsightWebsocket {
 			return;
 		}
 
-		// Key by whichever scope id the type uses — roomId for claude_code,
-		// projectId for app_logs — so two different watches on the same insight
+		// Key by whichever scope id the type uses - roomId for claude_code,
+		// projectId for app_logs - so two different watches on the same insight
 		// don't collide under an empty-string key.
 		String streamerKey = type + ":" + (roomId.isEmpty() ? projectId : roomId);
 		SocketSessionHandler handler = SocketSessionHandlerFactory.getHandler(insightId);
@@ -176,7 +176,7 @@ public class InsightWebsocket {
 			ack.put("projectId", projectId);
 		}
 		try {
-			// Same lock SocketSessionHandler uses — a streamer thread pushing a line to
+			// Same lock SocketSessionHandler uses - a streamer thread pushing a line to
 			// this session and this ack send must not race Tomcat's WS RemoteEndpoint.
 			synchronized (session) {
 				session.getBasicRemote().sendText(ack.toString());
@@ -192,7 +192,7 @@ public class InsightWebsocket {
 	 * owner-only, not owner-or-editor.
 	 */
 	private boolean isProjectOwner(User user, String projectId) {
-		if (user == null) {
+		if (user == null || user.getPrimaryLoginToken() == null) {
 			return false;
 		}
 		if (AbstractSecurityUtils.anonymousUsersEnabled() && user.isAnonymous()) {

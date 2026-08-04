@@ -45,7 +45,7 @@ import prerna.logging.AppLogManager;
  * watching that project's insight.
  * <p>
  * Caller-side responsibility: {@code InsightWebsocket} must verify the
- * requesting user is a project owner before constructing this class — this
+ * requesting user is a project owner before constructing this class - this
  * class does not re-check authorization.
  */
 public class AppLogStreamer implements FileStreamer {
@@ -60,7 +60,7 @@ public class AppLogStreamer implements FileStreamer {
 
 	/**
 	 * Max characters broadcast per line. Some reactors log entire response
-	 * payloads through EngineLogger as a single line (seen: 150K+ chars) —
+	 * payloads through EngineLogger as a single line (seen: 150K+ chars) -
 	 * without a cap, one such line dominates the whole history window and blows
 	 * up a single WS message. The full line stays on disk; only the broadcast
 	 * is truncated.
@@ -124,7 +124,7 @@ public class AppLogStreamer implements FileStreamer {
 	/**
 	 * Sends the last {@link #INITIAL_HISTORY_BYTES} of the file on watch, so the
 	 * console doesn't open on a blank screen. Reuses {@link #readNewLines} to
-	 * broadcast — {@link #tailFile} re-stats the file for its own start offset
+	 * broadcast - {@link #tailFile} re-stats the file for its own start offset
 	 * right after this returns, so nothing here needs to hand back a offset.
 	 */
 	private void sendInitialHistory(Path filePath) {
@@ -142,7 +142,7 @@ public class AppLogStreamer implements FileStreamer {
 	}
 
 	/**
-	 * Tail the file by re-stat on each cycle — same approach as
+	 * Tail the file by re-stat on each cycle - same approach as
 	 * {@link ClaudeCodeHistoryStreamer}, which re-opens rather than holding a
 	 * single long-lived handle because CSI/NFS-backed volumes cache attributes
 	 * per-open-handle and would otherwise never see another process's appends.
@@ -188,7 +188,7 @@ public class AppLogStreamer implements FileStreamer {
 
 	/**
 	 * Reads bytes from {@code fromOffset} to {@code toOffset}, broadcasts every
-	 * complete line, and returns the offset just after the last complete line —
+	 * complete line, and returns the offset just after the last complete line -
 	 * any trailing partial line stays on disk and is re-read next cycle once the
 	 * rest of it has been written.
 	 */
