@@ -2,7 +2,7 @@
 <project
 	xmlns="http://maven.apache.org/POM/4.0.0"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>org.semoss</groupId>
 	<artifactId>monolith</artifactId>
@@ -432,6 +432,20 @@
 			<version>${ci.version}</version>
 			<classifier>shaded-dependencies</classifier>
 		</dependency>
+		<!-- https://mvnrepository.com/artifact/org.apache.tomcat/tomcat-catalina -->
+		<!-- this is the primary tomcat specific jar -->
+		<dependency>
+			<groupId>org.apache.tomcat</groupId>
+			<artifactId>tomcat-catalina</artifactId>
+			<version>11.0.24</version>
+		</dependency>
+		<!-- Source: https://mvnrepository.com/artifact/jakarta.servlet/jakarta.servlet-api -->
+		<dependency>
+		    <groupId>jakarta.servlet</groupId>
+		    <artifactId>jakarta.servlet-api</artifactId>
+		    <version>6.1.0</version>
+		    <scope>provided</scope>
+		</dependency>
 		<!-- Source: https://mvnrepository.com/artifact/org.a2aproject.sdk/a2a-java-sdk-spec -->
 		<dependency>
 		    <groupId>org.a2aproject.sdk</groupId>
@@ -448,31 +462,29 @@
 		    	</exclusion>
 		    </exclusions>
 		</dependency>
-		<!-- https://mvnrepository.com/artifact/org.apache.tomcat/tomcat-catalina -->
-		<!-- this is the primary tomcat specific jar -->
+		<!-- Source: https://mvnrepository.com/artifact/jakarta.websocket/jakarta.websocket-api -->
 		<dependency>
-			<groupId>org.apache.tomcat</groupId>
-			<artifactId>tomcat-catalina</artifactId>
-			<version>9.0.120</version>
+		    <groupId>jakarta.websocket</groupId>
+		    <artifactId>jakarta.websocket-api</artifactId>
+		    <version>2.2.0</version>
 		</dependency>
-		<!-- https://mvnrepository.com/artifact/javax.websocket/javax.websocket-api -->
+		<!-- Source: https://mvnrepository.com/artifact/jakarta.websocket/jakarta.websocket-client-api -->
 		<dependency>
-			<groupId>javax.websocket</groupId>
-			<artifactId>javax.websocket-api</artifactId>
-			<version>1.1</version>
-			<scope>provided</scope>
+		    <groupId>jakarta.websocket</groupId>
+		    <artifactId>jakarta.websocket-client-api</artifactId>
+		    <version>2.2.0</version>
 		</dependency>
-		<!-- https://mvnrepository.com/artifact/jakarta.activation/jakarta.activation-api -->
+		<!-- Source: https://mvnrepository.com/artifact/jakarta.activation/jakarta.activation-api -->
 		<dependency>
 			<groupId>jakarta.activation</groupId>
 			<artifactId>jakarta.activation-api</artifactId>
-			<version>1.2.2</version>
+			<version>2.1.4</version>
 		</dependency>
-		<!-- https://mvnrepository.com/artifact/org.jboss.resteasy/resteasy-core -->
+		<!-- Source: https://mvnrepository.com/artifact/org.jboss.resteasy/resteasy-core -->
 		<dependency>
 			<groupId>org.jboss.resteasy</groupId>
 			<artifactId>resteasy-core</artifactId>
-			<version>4.7.10.Final</version>
+			<version>7.0.2.Final</version>
 			<exclusions>
 				<exclusion>
 					<groupId>org.reactivestreams</groupId>
@@ -492,18 +504,18 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
-		<!-- https://mvnrepository.com/artifact/org.jboss.resteasy/resteasy-jaxb-provider -->
+		<!-- Source: https://mvnrepository.com/artifact/org.jboss.resteasy/resteasy-jaxb-provider -->
 		<dependency>
 			<groupId>org.jboss.resteasy</groupId>
 			<artifactId>resteasy-jaxb-provider</artifactId>
-			<version>4.7.10.Final</version>
+			<version>7.0.2.Final</version>
 		</dependency>
-		<!-- SAML ONE JAR -->
-		<!-- https://mvnrepository.com/artifact/org.openidentityplatform.openam/openam-federation-library -->
+		<!-- SAML ONE JAR --> 
+		<!-- Source: https://mvnrepository.com/artifact/org.openidentityplatform.openam/openam-federation-library -->
 		<dependency>
-			<groupId>org.openidentityplatform.openam</groupId>
-			<artifactId>openam-federation-library</artifactId>
-			<version>15.2.2</version>
+		    <groupId>org.openidentityplatform.openam</groupId>
+		    <artifactId>openam-federation-library</artifactId>
+		    <version>16.1.2</version>
 			<exclusions>
 				<exclusion>
 					<groupId>com.google.guava</groupId>
@@ -514,143 +526,21 @@
 					<artifactId>json</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>jakarta.activation</groupId>
-					<artifactId>jakarta.activation-api</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.fasterxml.woodstox</groupId>
-					<artifactId>woodstox-core</artifactId>
-				</exclusion>
-				<exclusion>
-					<artifactId>commons-logging</artifactId>
-					<groupId>commons-logging</groupId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.glassfish</groupId>
-					<artifactId>jakarta.json</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>joda-time</groupId>
-					<artifactId>joda-time</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.sun.xml.rpc</groupId>
-					<artifactId>jaxrpc-impl</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.javassist</groupId>
-					<artifactId>javassist</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.codehaus.woodstox</groupId>
-					<artifactId>stax2-api</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.ow2.asm</groupId>
-					<artifactId>*</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.sun.mail</groupId>
-					<artifactId>jakarta.mail</artifactId>
-				</exclusion>
-				<exclusion>
 					<groupId>org.owasp.esapi</groupId>
-					<artifactId>*</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.fasterxml.jackson.core</groupId>
-					<artifactId>*</artifactId>
+					<artifactId>esapi</artifactId>
 				</exclusion>
 				<exclusion>
 				    <groupId>org.slf4j</groupId>
 				    <artifactId>*</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>org.assertj</groupId>
-					<artifactId>assertj-core</artifactId>
-				</exclusion>
-				<exclusion>
 					<groupId>org.openidentityplatform.commons.i18n-framework</groupId>
 					<artifactId>slf4j</artifactId>
 				</exclusion>
+				<!-- this is due to broken openam build - they define this compile dependency that does not exist -->
 				<exclusion>
-					<groupId>org.apache.santuario</groupId>
-					<artifactId>xmlsec</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.santuario</groupId>
-			<artifactId>xmlsec</artifactId>
-			<version>4.0.4</version>
-		</dependency>
-		<!-- adding updated jar to deal with exclusion w/ vulnerability -->
-		<!-- https://mvnrepository.com/artifact/com.fasterxml.woodstox/woodstox-core -->
-		<dependency>
-			<groupId>com.fasterxml.woodstox</groupId>
-			<artifactId>woodstox-core</artifactId>
-			<version>5.4.0</version>
-		</dependency>
-		<!-- https://mvnrepository.com/artifact/javax.activation/activation -->
-		<!-- required for openam compilation without com.sum.mail -->
-		<dependency>
-			<groupId>javax.activation</groupId>
-			<artifactId>activation</artifactId>
-			<version>1.1.1</version>
-		</dependency>
-		<!-- https://mvnrepository.com/artifact/com.sun.xml.rpc/jaxrpc-impl -->
-		<dependency>
-			<groupId>com.sun.xml.rpc</groupId>
-			<artifactId>jaxrpc-impl</artifactId>
-			<version>1.1.6</version>
-			<exclusions>
-				<exclusion>
-					<groupId>com.sun.mail</groupId>
-					<artifactId>jakarta.mail</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.sun.xml.fastinfoset</groupId>
-					<artifactId>FastInfoset</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>jakarta.xml.rpc</groupId>
-					<artifactId>jakarta.xml.rpc-api</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-		<!-- https://mvnrepository.com/artifact/com.sun.xml.fastinfoset/FastInfoset -->
-		<dependency>
-			<groupId>com.sun.xml.fastinfoset</groupId>
-			<artifactId>FastInfoset</artifactId>
-			<version>1.2.18</version>
-		</dependency>
-		<!-- https://mvnrepository.com/artifact/jakarta.xml.rpc/jakarta.xml.rpc-api -->
-		<dependency>
-			<groupId>jakarta.xml.rpc</groupId>
-			<artifactId>jakarta.xml.rpc-api</artifactId>
-			<version>1.1.4</version>
-			<exclusions>
-				<exclusion>
-					<groupId>jakarta.servlet</groupId>
-					<artifactId>jakarta.servlet-api</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-		<!-- https://mvnrepository.com/artifact/org.bouncycastle/bcpkix-jdk18on -->
-		<dependency>
-			<groupId>org.bouncycastle</groupId>
-			<artifactId>bcpkix-jdk18on</artifactId>
-			<version>1.78.1</version>
-		</dependency>
-		<!-- https://mvnrepository.com/artifact/joda-time/joda-time -->
-		<dependency>
-			<groupId>joda-time</groupId>
-			<artifactId>joda-time</artifactId>
-			<version>2.14.2</version>
-			<exclusions>
-				<exclusion>
-					<groupId>org.joda</groupId>
-					<artifactId>joda-convert</artifactId>
+				    <groupId>org.openidentityplatform.openam.jakarta</groupId>
+				    <artifactId>jaxrpc-impl</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
@@ -663,10 +553,8 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-bom</artifactId>
-            <!-- Update to 4.1.133.Final or 4.2.13.Final -->
             <version>4.1.133.Final</version>
             <type>pom</type>
-            <scope>import</scope>
         </dependency>
     </dependencies>
 </project>

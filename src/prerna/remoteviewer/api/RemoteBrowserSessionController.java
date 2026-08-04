@@ -33,18 +33,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.DELETE;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -52,16 +40,26 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.google.gson.Gson;
 
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 import prerna.auth.User;
 import prerna.reactor.playwright.PlaywrightUtility;
 import prerna.reactor.playwright.RecordingMeta;
 import prerna.reactor.playwright.Selector;
 import prerna.reactor.playwright.StepsEnvelope;
 import prerna.remoteviewer.model.RemoteBrowserInputEvent;
+import prerna.remoteviewer.model.RemoteBrowserRecordedStep;
 import prerna.remoteviewer.model.RemoteBrowserSessionCreateRequest;
 import prerna.remoteviewer.model.RemoteBrowserSessionCreateResponse;
-import prerna.remoteviewer.model.RemoteBrowserRecordedStep;
-import prerna.remoteviewer.security.RemoteBrowserInputEventValidator;
 import prerna.remoteviewer.security.RemoteBrowserUrlSafetyValidator;
 import prerna.remoteviewer.service.RemoteBrowserSession;
 import prerna.remoteviewer.service.RemoteBrowserSessionManager;
@@ -161,7 +159,8 @@ public class RemoteBrowserSessionController {
 	@GET
 	@Path("/{sessionId}/steps")
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response getRemoteBrowserRecordedSteps(@Context HttpServletRequest request, @PathParam("sessionId") String sessionId) {
+	public Response getRemoteBrowserRecordedSteps(@Context HttpServletRequest request,
+			@PathParam("sessionId") String sessionId) {
 		User user;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -192,7 +191,8 @@ public class RemoteBrowserSessionController {
 	@GET
 	@Path("/{sessionId}/recording")
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response getRecordingEnvelope(@Context HttpServletRequest request, @PathParam("sessionId") String sessionId) {
+	public Response getRecordingEnvelope(@Context HttpServletRequest request,
+			@PathParam("sessionId") String sessionId) {
 		User user;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -213,7 +213,8 @@ public class RemoteBrowserSessionController {
 		try {
 			return Response.ok(JSON.writeValueAsString(session.getRecordingHistory())).build();
 		} catch (Exception e) {
-			classLogger.error("Failed to serialize remote browser recording session={}: {}", sessionId, e.getMessage(), e);
+			classLogger.error("Failed to serialize remote browser recording session={}: {}", sessionId, e.getMessage(),
+					e);
 			return buildError(Response.Status.INTERNAL_SERVER_ERROR, "Could not load recording");
 		}
 	}
@@ -283,13 +284,14 @@ public class RemoteBrowserSessionController {
 				try {
 					existingMeta = JSON.readValue(file.toFile(), StepsEnvelope.class).meta();
 				} catch (Exception ignored) {
-					// Keep saving even if the old file is malformed; only metadata preservation is lost.
+					// Keep saving even if the old file is malformed; only metadata preservation is
+					// lost.
 				}
 			}
 
 			RecordingMeta meta = new RecordingMeta(
-					(existingMeta != null && existingMeta.id() != null) ? existingMeta.id() : sessionId,
-					req.title, req.description,
+					(existingMeta != null && existingMeta.id() != null) ? existingMeta.id() : sessionId, req.title,
+					req.description,
 					(existingMeta != null && existingMeta.createdAt() != null) ? existingMeta.createdAt() : now, now,
 					req.intent);
 			StepsEnvelope env = new StepsEnvelope("1.0", meta, session.getRecordingHistory().steps());
@@ -369,10 +371,10 @@ public class RemoteBrowserSessionController {
 		double scaleY = (double) session.getViewportHeight() / recordedHeight;
 		event.setX(event.getX() * scaleX);
 		event.setY(event.getY() * scaleY);
-		classLogger.info("Remote viewer inject scaled coordinates session={} recordedViewport={}x{} sessionViewport={}x{} scale=({}, {}) from=({}, {}) to=({}, {})",
-				session.getSessionId(), recordedWidth, recordedHeight,
-				session.getViewportWidth(), session.getViewportHeight(),
-				round(scaleX), round(scaleY), round(originalX), round(originalY),
+		classLogger.info(
+				"Remote viewer inject scaled coordinates session={} recordedViewport={}x{} sessionViewport={}x{} scale=({}, {}) from=({}, {}) to=({}, {})",
+				session.getSessionId(), recordedWidth, recordedHeight, session.getViewportWidth(),
+				session.getViewportHeight(), round(scaleX), round(scaleY), round(originalX), round(originalY),
 				round(event.getX()), round(event.getY()));
 	}
 
@@ -381,18 +383,15 @@ public class RemoteBrowserSessionController {
 			return "null";
 		}
 
-        Selector selector = event.getSelector();
-		String selectorDesc = selector == null
-				? "none"
-				: selector.strategy() + ":" + truncate(selector.value(), 120);
+		Selector selector = event.getSelector();
+		String selectorDesc = selector == null ? "none" : selector.strategy() + ":" + truncate(selector.value(), 120);
 		StringBuilder sb = new StringBuilder();
 		sb.append("type=").append(event.getType());
 		sb.append(", x=").append(round(event.getX()));
 		sb.append(", y=").append(round(event.getY()));
 		sb.append(", selector=").append(selectorDesc);
 		sb.append(", waitAfterMs=").append(event.getWaitAfterMs());
-		sb.append(", recordedViewport=")
-				.append(event.getRecordedViewportWidth()).append("x")
+		sb.append(", recordedViewport=").append(event.getRecordedViewportWidth()).append("x")
 				.append(event.getRecordedViewportHeight());
 		if (event.getUrl() != null) {
 			sb.append(", url=").append(truncate(event.getUrl(), 180));

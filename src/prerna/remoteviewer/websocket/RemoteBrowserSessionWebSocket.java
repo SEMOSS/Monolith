@@ -31,21 +31,20 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
 
-import javax.websocket.CloseReason;
-import javax.websocket.EndpointConfig;
-import javax.websocket.OnClose;
-import javax.websocket.OnError;
-import javax.websocket.OnMessage;
-import javax.websocket.OnOpen;
-import javax.websocket.Session;
-import javax.websocket.server.PathParam;
-import javax.websocket.server.ServerEndpoint;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.google.gson.Gson;
 
+import jakarta.websocket.CloseReason;
+import jakarta.websocket.EndpointConfig;
+import jakarta.websocket.OnClose;
+import jakarta.websocket.OnError;
+import jakarta.websocket.OnMessage;
+import jakarta.websocket.OnOpen;
+import jakarta.websocket.Session;
+import jakarta.websocket.server.PathParam;
+import jakarta.websocket.server.ServerEndpoint;
 import prerna.auth.User;
 import prerna.remoteviewer.model.RemoteBrowserInputEvent;
 import prerna.remoteviewer.security.RemoteBrowserInputEventValidator;
@@ -53,6 +52,7 @@ import prerna.remoteviewer.service.RemoteBrowserRecordingService;
 import prerna.remoteviewer.service.RemoteBrowserSession;
 import prerna.remoteviewer.service.RemoteBrowserSessionManager;
 import prerna.util.Constants;
+import prerna.websocket.WSConfigurator;
 
 /**
  * WebSocket endpoint for a single remote browser session.
@@ -76,7 +76,7 @@ import prerna.util.Constants;
  * only streams once the {@code wsConnected} flag flips true. This endpoint does
  * not run its own loop.
  */
-@ServerEndpoint(value = "/browserSocket/{sessionId}", configurator = RemoteBrowserWSConfigurator.class)
+@ServerEndpoint(value = "/browserSocket/{sessionId}", configurator = WSConfigurator.class)
 public class RemoteBrowserSessionWebSocket {
 
 	private static final Logger classLogger = LogManager.getLogger(RemoteBrowserSessionWebSocket.class);
