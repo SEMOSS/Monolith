@@ -261,7 +261,10 @@ public class AnthropicEndpoints {
 
 		List<Map<String, Object>> messagesList = (List<Map<String, Object>>) messages;
 
-		room = RoomUtils.createRoomIfNotExists(roomId, insight, engine, null);
+		boolean appendFullPrompt = Boolean
+				.parseBoolean(String.valueOf(dataMap.remove(AbstractModelEngine.APPEND_FULL_PROMPT)));
+		room = appendFullPrompt ? RoomUtils.createRoomIfNotExists(roomId, insight, engine, null)
+				: RoomUtils.createRoomForStatelessAsk(roomId, insight, engine, null);
 
 		Object tools = dataMap.remove("tools");
 
@@ -277,7 +280,7 @@ public class AnthropicEndpoints {
 
 			List<Map<String, Object>> openAIMessages = (List<Map<String, Object>>) openAIFormat.get("messages");
 			dataMap.put(AbstractModelEngine.FULL_PROMPT, openAIMessages);
-			dataMap.put("append_full_prompt", true);
+			dataMap.put(AbstractModelEngine.APPEND_FULL_PROMPT, appendFullPrompt);
 			classLogger.info("Anthropic-normalized-prompt::{}::messages={} chars={}", JOB_ID, openAIMessages.size(),
 					GSON.toJson(openAIMessages).length());
 
@@ -296,6 +299,7 @@ public class AnthropicEndpoints {
 
 			List<Map<String, Object>> openAIMessages = (List<Map<String, Object>>) openAIFormat.get("messages");
 			dataMap.put(AbstractModelEngine.FULL_PROMPT, openAIMessages);
+			dataMap.put(AbstractModelEngine.APPEND_FULL_PROMPT, appendFullPrompt);
 			Gson gson = new GsonBuilder().setPrettyPrinting().create();
 			String openAIJson = gson.toJson(openAIMessages);
 			classLogger.info("Anthropic-normalized-prompt::{}::messages={} chars={}", JOB_ID, openAIMessages.size(),
