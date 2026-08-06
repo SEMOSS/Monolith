@@ -36,9 +36,8 @@ import java.util.Optional;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.Consumes;
@@ -54,9 +53,7 @@ import jakarta.ws.rs.core.Response;
 import prerna.auth.User;
 import prerna.reactor.playwright.PlaywrightUtility;
 import prerna.reactor.playwright.RecordingMeta;
-import prerna.reactor.playwright.Selector;
 import prerna.reactor.playwright.StepsEnvelope;
-import prerna.remoteviewer.model.RemoteBrowserInputEvent;
 import prerna.remoteviewer.model.RemoteBrowserRecordedStep;
 import prerna.remoteviewer.model.RemoteBrowserSessionCreateRequest;
 import prerna.remoteviewer.model.RemoteBrowserSessionCreateResponse;
@@ -75,8 +72,7 @@ import prerna.semoss.web.services.local.ResourceUtility;
 public class RemoteBrowserSessionController {
 
 	private static final Logger classLogger = LogManager.getLogger(RemoteBrowserSessionController.class);
-	private static final Gson GSON = new Gson();
-	private static final ObjectMapper JSON = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
+	private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
 
 	/**
 	 * Creates a new isolated browser session and navigates to the requested URL.
@@ -211,7 +207,7 @@ public class RemoteBrowserSessionController {
 		}
 
 		try {
-			return Response.ok(JSON.writeValueAsString(session.getRecordingHistory())).build();
+			return Response.ok(PlaywrightUtility.GSON.toJson(session.getRecordingHistory())).build();
 		} catch (Exception e) {
 			classLogger.error("Failed to serialize remote browser recording session={}: {}", sessionId, e.getMessage(),
 					e);
@@ -282,7 +278,7 @@ public class RemoteBrowserSessionController {
 			RecordingMeta existingMeta = null;
 			if (Files.exists(file)) {
 				try {
-					existingMeta = JSON.readValue(file.toFile(), StepsEnvelope.class).meta();
+					existingMeta = PlaywrightUtility.readStepsEnvelope(file.toFile()).meta();
 				} catch (Exception ignored) {
 					// Keep saving even if the old file is malformed; only metadata preservation is
 					// lost.
@@ -295,7 +291,7 @@ public class RemoteBrowserSessionController {
 					(existingMeta != null && existingMeta.createdAt() != null) ? existingMeta.createdAt() : now, now,
 					req.intent);
 			StepsEnvelope env = new StepsEnvelope("1.0", meta, session.getRecordingHistory().steps());
-			JSON.writeValue(file.toFile(), env);
+			PlaywrightUtility.writeStepsEnvelope(file.toFile(), env);
 			session.clearRecordingBuffer();
 			if (session.isRecordingEnabled()) {
 				prerna.remoteviewer.service.RemoteBrowserRecordingService.recordCurrentNavigation(session);
@@ -352,71 +348,6 @@ public class RemoteBrowserSessionController {
 		Map<String, String> body = new HashMap<>();
 		body.put("error", message);
 		return Response.status(status).entity(GSON.toJson(body)).build();
-	}
-
-	private static void scaleRecordedCoordinates(RemoteBrowserInputEvent event, RemoteBrowserSession session) {
-		if (event == null || event.getX() == null || event.getY() == null) {
-			return;
-		}
-
-		Integer recordedWidth = event.getRecordedViewportWidth();
-		Integer recordedHeight = event.getRecordedViewportHeight();
-		if (recordedWidth == null || recordedHeight == null || recordedWidth <= 0 || recordedHeight <= 0) {
-			return;
-		}
-
-		double originalX = event.getX();
-		double originalY = event.getY();
-		double scaleX = (double) session.getViewportWidth() / recordedWidth;
-		double scaleY = (double) session.getViewportHeight() / recordedHeight;
-		event.setX(event.getX() * scaleX);
-		event.setY(event.getY() * scaleY);
-		classLogger.info(
-				"Remote viewer inject scaled coordinates session={} recordedViewport={}x{} sessionViewport={}x{} scale=({}, {}) from=({}, {}) to=({}, {})",
-				session.getSessionId(), recordedWidth, recordedHeight, session.getViewportWidth(),
-				session.getViewportHeight(), round(scaleX), round(scaleY), round(originalX), round(originalY),
-				round(event.getX()), round(event.getY()));
-	}
-
-	private static String describeEvent(RemoteBrowserInputEvent event) {
-		if (event == null) {
-			return "null";
-		}
-
-		Selector selector = event.getSelector();
-		String selectorDesc = selector == null ? "none" : selector.strategy() + ":" + truncate(selector.value(), 120);
-		StringBuilder sb = new StringBuilder();
-		sb.append("type=").append(event.getType());
-		sb.append(", x=").append(round(event.getX()));
-		sb.append(", y=").append(round(event.getY()));
-		sb.append(", selector=").append(selectorDesc);
-		sb.append(", waitAfterMs=").append(event.getWaitAfterMs());
-		sb.append(", recordedViewport=").append(event.getRecordedViewportWidth()).append("x")
-				.append(event.getRecordedViewportHeight());
-		if (event.getUrl() != null) {
-			sb.append(", url=").append(truncate(event.getUrl(), 180));
-		}
-		if (event.getText() != null) {
-			sb.append(", textLength=").append(event.getText().length());
-		}
-		if (event.getKey() != null) {
-			sb.append(", key=").append(event.getKey());
-		}
-		return sb.toString();
-	}
-
-	private static String truncate(String value, int max) {
-		if (value == null || value.length() <= max) {
-			return value;
-		}
-		return value.substring(0, max) + "...";
-	}
-
-	private static Object round(Double value) {
-		if (value == null) {
-			return null;
-		}
-		return Math.round(value * 100.0) / 100.0;
 	}
 
 	private static String safeUrl(RemoteBrowserSession session) {
