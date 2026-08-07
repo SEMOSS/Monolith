@@ -1,0 +1,28 @@
+FROM quay.io/semoss/semoss-dev:6.0.0-SNAPSHOT-ubuntu22-fips-latest
+#FROM quay.io/semoss/semoss-dev:6.0.0-SNAPSHOT-ubi8-fips-latest
+
+USER root
+
+# Delete the current Monolith (but keep the web.xml)
+# And replace with the local development Monolith
+RUN cp $TOMCAT_HOME/webapps/Monolith/WEB-INF/web.xml /opt/original_web.xml && \
+    rm -rf $TOMCAT_HOME/webapps/Monolith
+
+COPY --chown=default:root target/monolith-*.war $TOMCAT_HOME/webapps/Monolith.war
+
+# Extract the WAR file and replace web.xml with original
+# Also make sure ownership is set properly
+RUN cd $TOMCAT_HOME/webapps && \
+    mkdir Monolith && \
+    cd Monolith && \
+    unzip ../Monolith.war && \
+    cp /opt/original_web.xml WEB-INF/web.xml && \
+    rm ../Monolith.war && \
+    chown -R default:root $TOMCAT_HOME/webapps/Monolith
+
+# The base supplies BouncyCastle, so the war must not. Two copies across two
+# classloaders break key handling.
+RUN if [ ! -d "$JAVA_HOME/lib/fips" ]; then echo "ERROR: base is not a -fips image"; exit 1; fi; \
+    if ls $TOMCAT_HOME/webapps/Monolith/WEB-INF/lib/bc*.jar >/dev/null 2>&1; then echo "ERROR: BouncyCastle in the war, build with -P dev,fips"; exit 1; fi
+
+USER 1001
