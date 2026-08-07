@@ -135,20 +135,21 @@ jobs:
           set -euo pipefail
           STD=$(ls target/monolith-*-libraries.tar.gz | head -1)
           FIPS=$(ls target/monolith-*-libraries-fips.tar.gz | head -1)
-          # the fips half must contain no BouncyCastle at all - the container
-          # supplies the validated bc-fips on the system classloader, and a second
-          # copy in WEB-INF/lib means two org.bouncycastle.* across two classloaders
-          if tar tzf "$FIPS" | grep -iE '/(bc-fips|bcprov|bcpkix|bcutil|bctls|bcmail|bcjmail|bcpg)-'; then
-            echo "::error::BouncyCastle found in $FIPS"
+          tar tzf "$FIPS" > /tmp/fips-entries.txt
+          tar tzf "$STD"  > /tmp/std-entries.txt
+          BC='/(bc-fips|bcprov|bcpkix|bcutil|bctls|bcmail|bcjmail|bcpg)-'
+          FIPS_BC=$(grep -ciE "$BC" /tmp/fips-entries.txt || true)
+          STD_BC=$(grep -ciE "$BC" /tmp/std-entries.txt || true)
+          if [ "$FIPS_BC" -ne 0 ]; then
+            echo "::error::$FIPS_BC BouncyCastle jar(s) found in $(basename "$FIPS")"
+            grep -iE "$BC" /tmp/fips-entries.txt
             exit 1
           fi
-          # and the standard half must still have it, or the two are not actually
-          # different and something has silently broken the split
-          if ! tar tzf "$STD" | grep -qiE '/(bcprov|bc-fips)-'; then
-            echo "::error::No BouncyCastle in $STD - the standard and fips tarballs are identical"
+          if [ "$STD_BC" -eq 0 ]; then
+            echo "::error::No BouncyCastle in $(basename "$STD") - the two tarballs are identical"
             exit 1
           fi
-          echo "OK: $(basename "$FIPS") is BouncyCastle-free, $(basename "$STD") is not"
+          echo "OK: $(basename "$FIPS") has no BouncyCastle; $(basename "$STD") has $STD_BC"
      
       - name: Clear Maven repository after deploy
         run: rm -rf .m2/repository/org/semoss
@@ -203,20 +204,21 @@ jobs:
           set -euo pipefail
           STD=$(ls target/monolith-*-libraries.tar.gz | head -1)
           FIPS=$(ls target/monolith-*-libraries-fips.tar.gz | head -1)
-          # the fips half must contain no BouncyCastle at all - the container
-          # supplies the validated bc-fips on the system classloader, and a second
-          # copy in WEB-INF/lib means two org.bouncycastle.* across two classloaders
-          if tar tzf "$FIPS" | grep -iE '/(bc-fips|bcprov|bcpkix|bcutil|bctls|bcmail|bcjmail|bcpg)-'; then
-            echo "::error::BouncyCastle found in $FIPS"
+          tar tzf "$FIPS" > /tmp/fips-entries.txt
+          tar tzf "$STD"  > /tmp/std-entries.txt
+          BC='/(bc-fips|bcprov|bcpkix|bcutil|bctls|bcmail|bcjmail|bcpg)-'
+          FIPS_BC=$(grep -ciE "$BC" /tmp/fips-entries.txt || true)
+          STD_BC=$(grep -ciE "$BC" /tmp/std-entries.txt || true)
+          if [ "$FIPS_BC" -ne 0 ]; then
+            echo "::error::$FIPS_BC BouncyCastle jar(s) found in $(basename "$FIPS")"
+            grep -iE "$BC" /tmp/fips-entries.txt
             exit 1
           fi
-          # and the standard half must still have it, or the two are not actually
-          # different and something has silently broken the split
-          if ! tar tzf "$STD" | grep -qiE '/(bcprov|bc-fips)-'; then
-            echo "::error::No BouncyCastle in $STD - the standard and fips tarballs are identical"
+          if [ "$STD_BC" -eq 0 ]; then
+            echo "::error::No BouncyCastle in $(basename "$STD") - the two tarballs are identical"
             exit 1
           fi
-          echo "OK: $(basename "$FIPS") is BouncyCastle-free, $(basename "$STD") is not"
+          echo "OK: $(basename "$FIPS") has no BouncyCastle; $(basename "$STD") has $STD_BC"
      
       - name: Clear Maven repository after release
         run: rm -rf .m2/repository/org/semoss
