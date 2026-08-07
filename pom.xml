@@ -37,6 +37,17 @@
 		<openhtml.version>1.0.1</openhtml.version>
 		<maven.build.timestamp.format>yyyy-MM-dd HH:mm:ss</maven.build.timestamp.format>
 		<build.date>${maven.build.timestamp}</build.date>
+		<!-- BouncyCastle FIPS, consumed only by the fips profile below. Keep in sync
+		     with bc.fips.version in Semoss/pom.xml and the BC_*_VERSION build args in
+		     Semoss/docker/Dockerfile.tomcat. -->
+		<bc.fips.version>2.1.2</bc.fips.version>
+		<bcpkix.fips.version>2.1.12</bcpkix.fips.version>
+		<bctls.fips.version>2.1.24</bctls.fips.version>
+		<bcutil.fips.version>2.1.7</bcutil.fips.version>
+		<!-- Must match the sshj version in Semoss/pom.xml. Referenced only by the
+		     fips profile, which re-declares sshj to strip its non-FIPS BouncyCastle
+		     transitives. -->
+		<sshj.version>0.40.0</sshj.version>
 	</properties>
 	<!-- LEGACY
 	<distributionManagement><snapshotRepository><id>ossrh</id><url>https://oss.sonatype.org/content/repositories/snapshots</url></snapshotRepository><repository><id>ossrh</id><url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url></repository></distributionManagement>
@@ -264,16 +275,32 @@
 					<plugin>
 						<artifactId>maven-assembly-plugin</artifactId>
 						<version>2.5.3</version>
-						<configuration>
-							<descriptor>libraries.xml</descriptor>
-						</configuration>
 						<executions>
+							<!-- Both tarballs come from ONE build. The docker workflows build
+							     the standard and -fips images from the same SEMOSS_VERSION, so
+							     both classifiers must exist under that version. libraries-fips
+							     differs only by excluding BouncyCastle, which it does by
+							     filename rather than by Maven scope so no second build or
+							     profile toggle is needed. -->
 							<execution>
 								<id>create-archive</id>
 								<phase>package</phase>
 								<goals>
 									<goal>single</goal>
 								</goals>
+								<configuration>
+									<descriptor>libraries.xml</descriptor>
+								</configuration>
+							</execution>
+							<execution>
+								<id>create-archive-fips</id>
+								<phase>package</phase>
+								<goals>
+									<goal>single</goal>
+								</goals>
+								<configuration>
+									<descriptor>libraries-fips.xml</descriptor>
+								</configuration>
 							</execution>
 						</executions>
 					</plugin>
@@ -349,6 +376,77 @@
 				</plugins>
 			</build>
 		</profile>
+		<profile>
+			<!-- Build the war for a FIPS 140-3 deployment: keep the BouncyCastle jars
+			     out of WEB-INF/lib so the container's copies on the system classloader
+			     (${JAVA_HOME}/lib/fips) are the only ones present.
+			     These are declared directly rather than relying on semoss's scope,
+			     because transitive scope is read from the published semoss pom (which
+			     resolves bc.fips.scope to compile) and only a direct declaration
+			     overrides it.
+			     Note dev is activeByDefault, and Maven drops activeByDefault as soon
+			     as any other profile is named, so pass it alongside: -P dev,fips
+			     locally or -P deploy,fips for a release build. -->
+			<id>fips</id>
+			<dependencies>
+				<dependency>
+					<groupId>org.bouncycastle</groupId>
+					<artifactId>bc-fips</artifactId>
+					<version>${bc.fips.version}</version>
+					<scope>provided</scope>
+				</dependency>
+				<dependency>
+					<groupId>org.bouncycastle</groupId>
+					<artifactId>bcpkix-fips</artifactId>
+					<version>${bcpkix.fips.version}</version>
+					<scope>provided</scope>
+				</dependency>
+				<dependency>
+					<groupId>org.bouncycastle</groupId>
+					<artifactId>bcutil-fips</artifactId>
+					<version>${bcutil.fips.version}</version>
+					<scope>provided</scope>
+				</dependency>
+				<!-- Not referenced at compile time - the JSSE provider is loaded from
+				     java.security at runtime. Declared so dependency scanners and the
+				     module inventory see it. -->
+				<dependency>
+					<groupId>org.bouncycastle</groupId>
+					<artifactId>bctls-fips</artifactId>
+					<version>${bctls.fips.version}</version>
+					<scope>provided</scope>
+				</dependency>
+				<!-- sshj pulls the non-FIPS bcprov/bcpkix/bcutil-jdk18on at runtime
+				     scope. Those would land in WEB-INF/lib beside the validated
+				     bc-fips on the system classloader, with both owning the
+				     org.bouncycastle.* namespace across two classloaders.
+				     Re-declared here only so the exclusion applies - a direct
+				     declaration at depth 1 overrides the transitive one from semoss.
+				     sshj itself stays at compile scope, so it is still packaged and
+				     SFTPStorageEngine still loads.
+				     Effect on FIPS builds: sshj's DefaultConfig gates its
+				     BouncyCastle-dependent algorithms behind isBouncyCastleRegistered(),
+				     so it falls back to the JCE-only set - dropping curve25519-sha256
+				     KEX and ssh-ed25519 host keys, keeping ecdh-sha2-nistp256,
+				     diffie-hellman-group14/16-sha256, aes-ctr, aes-gcm and hmac-sha2-*.
+				     Those are the approved ones. SFTPStorageEngine authenticates with a
+				     password and never loads a key, so no key-parsing path is affected.
+				     Non-FIPS builds keep the full set; see Semoss/pom.xml.
+				     Wildcard so a future sshj adding a fourth BC artifact cannot
+				     silently reintroduce one. -->
+				<dependency>
+					<groupId>com.hierynomus</groupId>
+					<artifactId>sshj</artifactId>
+					<version>${sshj.version}</version>
+					<exclusions>
+						<exclusion>
+							<groupId>org.bouncycastle</groupId>
+							<artifactId>*</artifactId>
+						</exclusion>
+					</exclusions>
+				</dependency>
+			</dependencies>
+		</profile>
 	</profiles>
 	<repositories>
 		<repository>
@@ -385,6 +483,29 @@
 	</repositories>
 	<dependencyManagement>
 		<dependencies>
+			<!-- Converge the non-FIPS BouncyCastle that sshj brings in. sshj 0.40.0
+			     declares bcprov-jdk18on 1.80 directly while its bcpkix-jdk18on 1.80
+			     pulls bcutil-jdk18on 1.80.2 which pulls bcprov-jdk18on 1.80.2, so
+			     without this the non-FIPS war ships mixed point releases.
+			     dependencyManagement is not inherited from the semoss pom, so this
+			     has to be repeated here even though Semoss/pom.xml pins the same
+			     versions. Only affects non-FIPS builds; the fips profile below
+			     excludes these entirely. -->
+			<dependency>
+				<groupId>org.bouncycastle</groupId>
+				<artifactId>bcprov-jdk18on</artifactId>
+				<version>1.80.2</version>
+			</dependency>
+			<dependency>
+				<groupId>org.bouncycastle</groupId>
+				<artifactId>bcpkix-jdk18on</artifactId>
+				<version>1.80.2</version>
+			</dependency>
+			<dependency>
+				<groupId>org.bouncycastle</groupId>
+				<artifactId>bcutil-jdk18on</artifactId>
+				<version>1.80.2</version>
+			</dependency>
 			<dependency>
 				<groupId>io.grpc</groupId>
 				<artifactId>grpc-bom</artifactId>
