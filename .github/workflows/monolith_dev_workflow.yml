@@ -130,6 +130,7 @@ jobs:
             /usr/share/maven/bin/mvn $MAVEN_CLI_OPTS deploy -P deploy -Dmaven.test.skip=${{ vars.SKIP_TESTS }}
 
       - name: Verify the FIPS libraries tarball
+        shell: bash
         run: |
           set -euo pipefail
           STD=$(ls target/monolith-*-libraries.tar.gz | head -1)
@@ -197,6 +198,7 @@ jobs:
             /usr/share/maven/bin/mvn $MAVEN_CLI_OPTS deploy -P deploy -Dmaven.test.skip=${{ vars.SKIP_TESTS }}
 
       - name: Verify the FIPS libraries tarball
+        shell: bash
         run: |
           set -euo pipefail
           STD=$(ls target/monolith-*-libraries.tar.gz | head -1)
