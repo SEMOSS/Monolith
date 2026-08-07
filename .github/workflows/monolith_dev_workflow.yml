@@ -128,6 +128,26 @@ jobs:
         run: |
             /usr/share/maven/bin/mvn $MAVEN_CLI_OPTS versions:set-property -Dproperty=ci.version -DnewVersion=${{ vars.VERSION }}-SNAPSHOT -DgenerateBackupPoms=false
             /usr/share/maven/bin/mvn $MAVEN_CLI_OPTS deploy -P deploy -Dmaven.test.skip=${{ vars.SKIP_TESTS }}
+
+      - name: Verify the FIPS libraries tarball
+        run: |
+          set -euo pipefail
+          STD=$(ls target/monolith-*-libraries.tar.gz | head -1)
+          FIPS=$(ls target/monolith-*-libraries-fips.tar.gz | head -1)
+          # the fips half must contain no BouncyCastle at all - the container
+          # supplies the validated bc-fips on the system classloader, and a second
+          # copy in WEB-INF/lib means two org.bouncycastle.* across two classloaders
+          if tar tzf "$FIPS" | grep -iE '/(bc-fips|bcprov|bcpkix|bcutil|bctls|bcmail|bcjmail|bcpg)-'; then
+            echo "::error::BouncyCastle found in $FIPS"
+            exit 1
+          fi
+          # and the standard half must still have it, or the two are not actually
+          # different and something has silently broken the split
+          if ! tar tzf "$STD" | grep -qiE '/(bcprov|bc-fips)-'; then
+            echo "::error::No BouncyCastle in $STD - the standard and fips tarballs are identical"
+            exit 1
+          fi
+          echo "OK: $(basename "$FIPS") is BouncyCastle-free, $(basename "$STD") is not"
      
       - name: Clear Maven repository after deploy
         run: rm -rf .m2/repository/org/semoss
@@ -175,6 +195,26 @@ jobs:
         run: |
             /usr/share/maven/bin/mvn $MAVEN_CLI_OPTS versions:set-property -Dproperty=ci.version -DnewVersion=${{ vars.VERSION }} -DgenerateBackupPoms=false
             /usr/share/maven/bin/mvn $MAVEN_CLI_OPTS deploy -P deploy -Dmaven.test.skip=${{ vars.SKIP_TESTS }}
+
+      - name: Verify the FIPS libraries tarball
+        run: |
+          set -euo pipefail
+          STD=$(ls target/monolith-*-libraries.tar.gz | head -1)
+          FIPS=$(ls target/monolith-*-libraries-fips.tar.gz | head -1)
+          # the fips half must contain no BouncyCastle at all - the container
+          # supplies the validated bc-fips on the system classloader, and a second
+          # copy in WEB-INF/lib means two org.bouncycastle.* across two classloaders
+          if tar tzf "$FIPS" | grep -iE '/(bc-fips|bcprov|bcpkix|bcutil|bctls|bcmail|bcjmail|bcpg)-'; then
+            echo "::error::BouncyCastle found in $FIPS"
+            exit 1
+          fi
+          # and the standard half must still have it, or the two are not actually
+          # different and something has silently broken the split
+          if ! tar tzf "$STD" | grep -qiE '/(bcprov|bc-fips)-'; then
+            echo "::error::No BouncyCastle in $STD - the standard and fips tarballs are identical"
+            exit 1
+          fi
+          echo "OK: $(basename "$FIPS") is BouncyCastle-free, $(basename "$STD") is not"
      
       - name: Clear Maven repository after release
         run: rm -rf .m2/repository/org/semoss
