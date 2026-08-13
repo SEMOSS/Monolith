@@ -84,6 +84,7 @@ import prerna.io.connector.salesforce.SalesforceTokenFiller;
 import prerna.io.connector.servicenow.ServiceNowTokenFiller;
 import prerna.security.HttpHelperUtility;
 import prerna.security.PKCEUtil;
+import prerna.usertracking.UserAuditTrailUtils;
 import prerna.usertracking.UserTrackingUtils;
 import prerna.util.Constants;
 import prerna.util.SocialPropertiesUtil;
@@ -207,6 +208,7 @@ public class UserResource {
 			// when we call session.invalidate() the UserSessionLoader will properly log is
 			// user logout or tomcat ending
 			session.setAttribute(UserSessionLoader.IS_USER_LOGOUT, true);
+			session.setAttribute(UserSessionLoader.USER_LOGOUT_IP_ADDR, WebUtility.getClientIp(request));
 			classLogger.info("User has logged out from all providers in the session");
 			// well, you have logged out and we always require a login
 			// so i will redirect you by default unless you specifically say not to
@@ -331,11 +333,14 @@ public class UserResource {
 	 */
 	public static void userTrackingLogin(HttpServletRequest request, User semossUser, AuthProvider ap) {
 		String ip = WebUtility.getClientIp(request);
+		String sessionId = "NO_SESSION_ID";
 		if (request.getSession() != null && request.getSession().getId() != null) {
-			UserTrackingUtils.registerLogin(request.getSession().getId(), ip, semossUser, ap);
+			sessionId = request.getSession().getId();
+			UserTrackingUtils.registerLogin(sessionId, ip, semossUser, ap);
 		} else {
-			UserTrackingUtils.registerLogin("NO_SESSION_ID", ip, semossUser, ap);
+			UserTrackingUtils.registerLogin(sessionId, ip, semossUser, ap);
 		}
+		UserAuditTrailUtils.recordLogin(semossUser, ap, sessionId, ip);
 	}
 
 	/**
