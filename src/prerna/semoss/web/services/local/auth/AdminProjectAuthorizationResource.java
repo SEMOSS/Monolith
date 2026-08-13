@@ -697,6 +697,59 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		return WebUtility.getResponse(ret, 200);
 	}
 
+	/**
+	 * Set whether a project can be cloned as a template by users who can view it.
+	 *
+	 * @param request current request
+	 * @param form    projectId and template boolean
+	 * @return operation status
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("setProjectTemplate")
+	public Response setProjectTemplate(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		String projectIdInput = form.getFirst("projectId");
+		String templateInput = form.getFirst("template");
+		if (projectIdInput == null || projectIdInput.trim().isEmpty() || templateInput == null
+				|| !("true".equalsIgnoreCase(templateInput) || "false".equalsIgnoreCase(templateInput))) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "projectId and a true or false template value are required");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		String projectId = WebUtility.inputSQLSanitizer(projectIdInput);
+		boolean isTemplate = Boolean.parseBoolean(templateInput);
+		SecurityAdminUtils adminUtils;
+		try {
+			User user = ResourceUtility.getUser(request);
+			adminUtils = performAdminCheck(request, user);
+		} catch (IllegalAccessException e) {
+			classLogger.warn("User attempted to update project {} template status without admin access", projectId);
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		try {
+			adminUtils.setProjectTemplate(projectId, isTemplate);
+		} catch (IllegalArgumentException e) {
+			classLogger.error("Failed to update template status for project {}", projectId, e);
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		} catch (Exception e) {
+			classLogger.error("Unexpected failure updating template status for project {}", projectId, e);
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
+			return WebUtility.getResponse(errorMap, 500);
+		}
+
+		classLogger.info("Admin has set project {} template status to {}", projectId, isTemplate);
+		Map<String, Object> ret = new HashMap<>();
+		ret.put("success", true);
+		return WebUtility.getResponse(ret, 200);
+	}
+
 	@POST
 	@Produces("application/json")
 	@Path("setProjectGlobal")
