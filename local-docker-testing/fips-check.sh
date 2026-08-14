@@ -91,12 +91,51 @@ public class FipsCheck {
 
         String trustStore = System.getProperty("javax.net.ssl.trustStore");
         if (trustStore != null) {
-            KeyStore ts = KeyStore.getInstance(System.getProperty("javax.net.ssl.trustStoreType", "BCFKS"));
+            // Resolved exactly the way sun.security.ssl.TrustStoreManager does, so
+            // this fails here for the same reason it would fail at handshake time.
+            String tsProvider = System.getProperty("javax.net.ssl.trustStoreProvider", "");
+            String tsType = System.getProperty("javax.net.ssl.trustStoreType", "BCFKS");
+            KeyStore ts = tsProvider.isEmpty()
+                    ? KeyStore.getInstance(tsType)
+                    : KeyStore.getInstance(tsType, tsProvider);
             ts.load(new java.io.FileInputStream(trustStore), "changeit".toCharArray());
-            check("truststore loads, " + ts.size() + " certs", ts.size() > 0);
+            check("truststore loads via provider \"" + (tsProvider.isEmpty() ? "<search order>" : tsProvider)
+                    + "\", " + ts.size() + " certs", ts.size() > 0);
+            check("javax.net.ssl.trustStoreProvider is BCFIPS", "BCFIPS".equals(tsProvider));
         } else {
             check("javax.net.ssl.trustStore is set", false);
         }
+
+        // The JDK default is ssl.KeyManagerFactory.algorithm=SunX509, which only
+        // SunJSSE implements. With SunJSSE out of the provider list, anything that
+        // builds an SSLContext from defaults throws NoSuchAlgorithmException on the
+        // first outbound HTTPS call, not at startup. java.security.fips overrides
+        // both to PKIX; these checks prove the override is in effect.
+        check("KeyManagerFactory default algorithm is PKIX (got \""
+                        + javax.net.ssl.KeyManagerFactory.getDefaultAlgorithm() + "\")",
+                "PKIX".equals(javax.net.ssl.KeyManagerFactory.getDefaultAlgorithm()));
+        check("TrustManagerFactory default algorithm is PKIX (got \""
+                        + javax.net.ssl.TrustManagerFactory.getDefaultAlgorithm() + "\")",
+                "PKIX".equals(javax.net.ssl.TrustManagerFactory.getDefaultAlgorithm()));
+        // Reported as FAIL rather than allowed to propagate: a wrong algorithm name
+        // throws NoSuchAlgorithmException here, and an uncaught stack trace would
+        // skip every remaining check.
+        check("default KeyManagerFactory resolves to BCJSSE", () ->
+                javax.net.ssl.KeyManagerFactory
+                        .getInstance(javax.net.ssl.KeyManagerFactory.getDefaultAlgorithm())
+                        .getProvider().getName().equals("BCJSSE"));
+        check("default TrustManagerFactory resolves to BCJSSE", () ->
+                javax.net.ssl.TrustManagerFactory
+                        .getInstance(javax.net.ssl.TrustManagerFactory.getDefaultAlgorithm())
+                        .getProvider().getName().equals("BCJSSE"));
+
+        // The end-to-end version of the four checks above: this is the call that
+        // HttpsURLConnection and every HTTP client make, and the one that reports
+        // "Default SSLContext not available" when any link in the chain is wrong.
+        check("default SSLContext comes from BCJSSE", () ->
+                javax.net.ssl.SSLContext.getDefault().getProvider().getName().equals("BCJSSE"));
+        check("default SSLSocketFactory builds", () ->
+                javax.net.ssl.SSLSocketFactory.getDefault() != null);
 
         // Not a failure: SUN must stay registered because BCFIPS seeds its DRBG
         // from it (drop SUN and provider lookup recurses into StackOverflowError).
@@ -121,12 +160,24 @@ public class FipsCheck {
 
     interface Action { void run() throws Exception; }
 
+    interface Condition { boolean test() throws Exception; }
+
     static boolean throwsOn(Action a) {
         try {
             a.run();
             return false;
         } catch (Throwable t) {
             return true;
+        }
+    }
+
+    // A throwing condition is a failed condition, and the exception is what
+    // explains it - printing it here keeps the run going instead of aborting.
+    static void check(String label, Condition c) {
+        try {
+            check(label, c.test());
+        } catch (Throwable t) {
+            check(label + " -> " + t, false);
         }
     }
 
