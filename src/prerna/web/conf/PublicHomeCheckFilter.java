@@ -28,17 +28,17 @@
 package prerna.web.conf;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.tika.Tika;
-
-import com.google.common.base.Strings;
 
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
@@ -62,7 +62,25 @@ public class PublicHomeCheckFilter implements Filter {
 
 	private static final Logger classLogger = LogManager.getLogger(PublicHomeCheckFilter.class);
 
-	private static final int BUFFER_SIZE = 8192;
+	// larger than the 8KB this used to read in, which measured faster for the file
+	// sizes a portal serves
+	private static final int COPY_BUFFER_SIZE = 64 * 1024;
+
+	// Connector attributes for handing a file off to be streamed by the kernel.
+	// Named here rather than imported so this does not compile against Tomcat
+	// internals, and so it simply degrades on a container that does not set them.
+	private static final String SENDFILE_SUPPORTED_ATTR = "org.apache.tomcat.sendfile.support";
+	private static final String SENDFILE_FILENAME_ATTR = "org.apache.tomcat.sendfile.filename";
+	private static final String SENDFILE_FILE_START_ATTR = "org.apache.tomcat.sendfile.start";
+	private static final String SENDFILE_FILE_END_ATTR = "org.apache.tomcat.sendfile.end";
+
+	// below this the syscall costs more than it saves, matching the threshold
+	// Tomcat's DefaultServlet uses
+	private static final long SENDFILE_MIN_SIZE = 48 * 1024;
+
+	// building a Tika loads its mime registry, so it is built once rather than per
+	// request. Tika is documented as thread safe for detection
+	private static final Tika TIKA = new Tika();
 
 	@Override
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2)
@@ -97,6 +115,7 @@ public class PublicHomeCheckFilter implements Filter {
 		// Load project
 		IProject project = Utility.getProject(projectId);
 		if (project == null) {
+			response.setContentType("text/plain; charset=UTF-8");
 			response.getWriter().write("Unable to load project with id='" + projectId + "'");
 			return;
 		}
@@ -139,6 +158,7 @@ public class PublicHomeCheckFilter implements Filter {
 		int subStringIndex = locForPath + locLength + 1;
 
 		if (subStringIndex > fullUrl.length()) {
+			response.setContentType("text/plain; charset=UTF-8");
 			response.getWriter().write("Improper portal URL - unable to find project ID for the portal");
 			return null;
 		}
@@ -148,7 +168,8 @@ public class PublicHomeCheckFilter implements Filter {
 			projectId = projectId.substring(0, projectId.indexOf("/"));
 		}
 
-		if (Strings.isNullOrEmpty(projectId)) {
+		if (projectId == null || projectId.isEmpty()) {
+			response.setContentType("text/plain; charset=UTF-8");
 			response.getWriter().write("Improper portal URL - unable to find project ID for the portal");
 			return null;
 		}
@@ -275,53 +296,6 @@ public class PublicHomeCheckFilter implements Filter {
 	}
 
 	/**
-	 * Serve file with proper HTTP headers including caching, content type, and
-	 * range support
-	 * 
-	 * @param file
-	 * @param context
-	 * @param request
-	 * @param response
-	 * @throws IOException
-	 */
-	private void serveFileWithHeaders(File file, ServletContext context, HttpServletRequest request,
-			HttpServletResponse response) throws IOException {
-
-		long lastModified = file.lastModified();
-		long fileSize = file.length();
-
-		// Check If-Modified-Since for caching
-		long ifModifiedSince = request.getDateHeader("If-Modified-Since");
-		if (ifModifiedSince != -1 && lastModified <= ifModifiedSince) {
-			response.setStatus(HttpServletResponse.SC_NOT_MODIFIED);
-			return;
-		}
-
-		// Determine content type using multiple methods (cascading fallback)
-		String contentType = determineContentType(file, context);
-		response.setContentType(contentType);
-
-		// Set standard headers
-		response.setDateHeader("Last-Modified", lastModified);
-		response.setHeader("Accept-Ranges", "bytes");
-
-		// Handle Range requests
-		String rangeHeader = request.getHeader("Range");
-		if (rangeHeader != null && rangeHeader.startsWith("bytes=")) {
-			servePartialContent(file, fileSize, rangeHeader, response);
-		} else {
-			// Serve full content
-			response.setContentLengthLong(fileSize);
-			response.setStatus(HttpServletResponse.SC_OK);
-
-			try (FileInputStream fis = new FileInputStream(file);
-					ServletOutputStream out = response.getOutputStream()) {
-				copyStream(fis, out);
-			}
-		}
-	}
-
-	/**
 	 * Determine content type using cascading methods: ServletContext,
 	 * Files.probeContentType, Tika
 	 * 
@@ -350,8 +324,7 @@ public class PublicHomeCheckFilter implements Filter {
 
 		// Try Apache Tika as last resort
 		try {
-			Tika tika = new Tika();
-			contentType = tika.detect(file);
+			contentType = TIKA.detect(file);
 			if (contentType != null && !contentType.isEmpty()) {
 				return contentType;
 			}
@@ -364,6 +337,89 @@ public class PublicHomeCheckFilter implements Filter {
 	}
 
 	/**
+	 * Adds an explicit UTF-8 charset to content types that carry text.
+	 *
+	 * The bytes are written straight through, so the charset is purely what the
+	 * browser is told. Without it a text/* or JSON/XML/JavaScript response is
+	 * decoded using the browser's own default, which mangles any character outside
+	 * ascii. Types that already name a charset are left alone, and binary types
+	 * never get one.
+	 *
+	 * @param contentType the detected type
+	 * @return the type to put on the response
+	 */
+	private String withCharset(String contentType) {
+		if (contentType == null || contentType.isEmpty()) {
+			return "application/octet-stream";
+		}
+		String lower = contentType.toLowerCase();
+		if (lower.contains("charset=")) {
+			return contentType;
+		}
+		boolean isText = lower.startsWith("text/") || lower.endsWith("+json") || lower.endsWith("+xml")
+				|| lower.equals("application/json") || lower.equals("application/xml")
+				|| lower.equals("application/javascript") || lower.equals("application/ecmascript")
+				|| lower.equals("image/svg+xml");
+		return isText ? contentType + "; charset=UTF-8" : contentType;
+	}
+
+	/**
+	 * Serve file with proper HTTP headers including caching, content type, and
+	 * range support
+	 * 
+	 * @param file
+	 * @param context
+	 * @param request
+	 * @param response
+	 * @throws IOException
+	 */
+	private void serveFileWithHeaders(File file, ServletContext context, HttpServletRequest request,
+			HttpServletResponse response) throws IOException {
+
+		if (file == null || !file.exists() || !file.isFile()) {
+			response.sendError(HttpServletResponse.SC_NOT_FOUND);
+			return;
+		}
+
+		// HTTP Date headers drop milliseconds; normalize to avoid subtle caching bugs
+		long lastModified = (file.lastModified() / 1000) * 1000;
+		long fileSize = file.length();
+
+		// Check Caching Headers
+		long ifModifiedSince = request.getDateHeader("If-Modified-Since");
+		if (ifModifiedSince != -1 && lastModified <= ifModifiedSince) {
+			response.setStatus(HttpServletResponse.SC_NOT_MODIFIED);
+			return;
+		}
+
+		// Apply fallback cascading content type
+		String contentType = withCharset(determineContentType(file, context));
+		response.setContentType(contentType);
+
+		response.setDateHeader("Last-Modified", lastModified);
+		response.setHeader("Accept-Ranges", "bytes");
+
+		// Process HTTP Range Header
+		String rangeHeader = request.getHeader("Range");
+		boolean isRangeRequest = rangeHeader != null && rangeHeader.startsWith("bytes=");
+
+		if (isRangeRequest) {
+			servePartialContent(file, fileSize, rangeHeader, request, response);
+		} else {
+			response.setContentLengthLong(fileSize);
+			response.setStatus(HttpServletResponse.SC_OK);
+
+			if (trySendfile(request, file, 0, fileSize)) {
+				return;
+			}
+			try (FileChannel fileChannel = FileChannel.open(file.toPath(), StandardOpenOption.READ);
+					ServletOutputStream out = response.getOutputStream()) {
+				copyRange(fileChannel, out, 0, fileSize);
+			}
+		}
+	}
+
+	/**
 	 * Serve partial content for HTTP Range requests (supports resumable downloads
 	 * and streaming)
 	 * 
@@ -373,83 +429,149 @@ public class PublicHomeCheckFilter implements Filter {
 	 * @param response
 	 * @throws IOException
 	 */
-	private void servePartialContent(File file, long fileSize, String rangeHeader, HttpServletResponse response)
-			throws IOException {
+	private void servePartialContent(File file, long fileSize, String rangeHeader, HttpServletRequest request,
+			HttpServletResponse response) throws IOException {
 
-		// Parse range header (supports single range only)
-		String range = rangeHeader.substring(6).trim(); // Remove "bytes="
-		String[] parts = range.split("-");
+		String range = rangeHeader.substring(6).trim();
+		String[] parts = range.split("-", -1);
 
 		long start = 0;
 		long end = fileSize - 1;
 
 		try {
-			if (!parts[0].isEmpty()) {
+			if (parts[0].isEmpty()) {
+				// suffix spec, "-500" means the last 500 bytes rather than through
+				// byte 500. This has to be checked first or the branch below claims it
+				if (parts.length < 2 || parts[1].isEmpty()) {
+					sendRangeNotSatisfiable(response, fileSize);
+					return;
+				}
+				long suffixLength = Long.parseLong(parts[1]);
+				if (suffixLength <= 0) {
+					sendRangeNotSatisfiable(response, fileSize);
+					return;
+				}
+				// asking for more than there is means the whole file
+				start = Math.max(0, fileSize - suffixLength);
+				end = fileSize - 1;
+			} else {
 				start = Long.parseLong(parts[0]);
-			}
-			if (parts.length > 1 && !parts[1].isEmpty()) {
-				end = Long.parseLong(parts[1]);
+				if (parts.length > 1 && !parts[1].isEmpty()) {
+					end = Long.parseLong(parts[1]);
+					// an end past the last byte is clamped rather than rejected
+					if (end >= fileSize) {
+						end = fileSize - 1;
+					}
+				}
 			}
 		} catch (NumberFormatException e) {
-			response.setHeader("Content-Range", "bytes */" + fileSize);
-			response.sendError(HttpServletResponse.SC_REQUESTED_RANGE_NOT_SATISFIABLE);
+			sendRangeNotSatisfiable(response, fileSize);
 			return;
 		}
 
-		// Validate range
 		if (start > end || start < 0 || end >= fileSize) {
-			response.setHeader("Content-Range", "bytes */" + fileSize);
-			response.sendError(HttpServletResponse.SC_REQUESTED_RANGE_NOT_SATISFIABLE);
+			sendRangeNotSatisfiable(response, fileSize);
 			return;
 		}
 
 		long contentLength = end - start + 1;
 
-		// Set headers for partial content
 		response.setStatus(HttpServletResponse.SC_PARTIAL_CONTENT);
 		response.setHeader("Content-Range", String.format("bytes %d-%d/%d", start, end, fileSize));
 		response.setContentLengthLong(contentLength);
 
-		// Stream the requested range
-		try (FileInputStream fis = new FileInputStream(file); ServletOutputStream out = response.getOutputStream()) {
-
-			fis.skip(start);
-			copyStreamWithLimit(fis, out, contentLength);
+		if (trySendfile(request, file, start, contentLength)) {
+			return;
+		}
+		try (FileChannel fileChannel = FileChannel.open(file.toPath(), StandardOpenOption.READ);
+				ServletOutputStream out = response.getOutputStream()) {
+			copyRange(fileChannel, out, start, contentLength);
 		}
 	}
 
 	/**
-	 * Copy stream with larger buffer for better performance
-	 * 
-	 * @param in
-	 * @param out
-	 * @throws IOException
+	 * Asks the connector to stream the file itself.
+	 *
+	 * When the connector takes it, the bytes go from the page cache to the socket
+	 * inside the kernel and never pass through the jvm at all, which is the only
+	 * real zero copy path available here. Reading the file and writing it to the
+	 * servlet output stream cannot do that no matter how it is written.
+	 *
+	 * The connector reports whether it can: it says no over TLS, for instance,
+	 * because the bytes have to be encrypted on the way out. Small files are not
+	 * worth the syscall, so those are left to the normal path, the same tradeoff
+	 * Tomcat's own DefaultServlet makes.
+	 *
+	 * Nothing may be written to the response afterwards, so callers return as soon
+	 * as this reports true. Headers set before this point still apply.
+	 *
+	 * @param request the request, which carries the connector's answer
+	 * @param file    the file to stream
+	 * @param start   first byte to send
+	 * @param length  how many bytes to send
+	 * @return true when the connector accepted it
 	 */
-	private void copyStream(FileInputStream in, ServletOutputStream out) throws IOException {
-		byte[] buffer = new byte[BUFFER_SIZE];
-		int bytesRead;
-		while ((bytesRead = in.read(buffer)) != -1) {
-			out.write(buffer, 0, bytesRead);
+	private boolean trySendfile(HttpServletRequest request, File file, long start, long length) {
+		if (length < SENDFILE_MIN_SIZE) {
+			return false;
 		}
+		if (!Boolean.TRUE.equals(request.getAttribute(SENDFILE_SUPPORTED_ATTR))) {
+			return false;
+		}
+
+		String canonicalPath;
+		try {
+			canonicalPath = file.getCanonicalPath();
+		} catch (IOException e) {
+			// no canonical path means no handoff, fall back to reading it here
+			classLogger.debug("Unable to resolve a canonical path for {}, not using sendfile", file.getName(), e);
+			return false;
+		}
+
+		request.setAttribute(SENDFILE_FILENAME_ATTR, canonicalPath);
+		request.setAttribute(SENDFILE_FILE_START_ATTR, Long.valueOf(start));
+		// the connector treats the end as exclusive
+		request.setAttribute(SENDFILE_FILE_END_ATTR, Long.valueOf(start + length));
+		return true;
 	}
 
 	/**
-	 * Copy stream with byte limit (for range requests)
+	 * Writes count bytes of the channel, starting at position, to the response.
+	 *
+	 * Reading through a heap buffer rather than FileChannel.transferTo is
+	 * deliberate. transferTo only reaches the kernel's sendfile path when the
+	 * destination is a socket or file channel; a ServletOutputStream wrapped by
+	 * Channels.newChannel is neither, so it falls back to copying through a
+	 * temporary direct buffer, which measures slower than this.
+	 *
+	 * @param fileChannel the open file
+	 * @param out         the response stream
+	 * @param position    first byte to send
+	 * @param count       how many bytes to send
+	 * @throws IOException if the read or write fails
 	 */
-	private void copyStreamWithLimit(FileInputStream in, ServletOutputStream out, long limit) throws IOException {
-		byte[] buffer = new byte[BUFFER_SIZE];
-		long remaining = limit;
+	private void copyRange(FileChannel fileChannel, ServletOutputStream out, long position, long count)
+			throws IOException {
+		ByteBuffer buffer = ByteBuffer.allocate(COPY_BUFFER_SIZE);
+		long remaining = count;
+		long offset = position;
 
 		while (remaining > 0) {
-			int toRead = (int) Math.min(buffer.length, remaining);
-			int bytesRead = in.read(buffer, 0, toRead);
-			if (bytesRead == -1) {
+			buffer.clear();
+			buffer.limit((int) Math.min(buffer.capacity(), remaining));
+			int read = fileChannel.read(buffer, offset);
+			if (read <= 0) {
 				break;
 			}
-
-			out.write(buffer, 0, bytesRead);
-			remaining -= bytesRead;
+			out.write(buffer.array(), 0, read);
+			offset += read;
+			remaining -= read;
 		}
+	}
+
+	private void sendRangeNotSatisfiable(HttpServletResponse response, long fileSize) throws IOException {
+		response.setHeader("Content-Range", "bytes */" + fileSize);
+		response.sendError(HttpServletResponse.SC_REQUESTED_RANGE_NOT_SATISFIABLE);
 	}
 
 	/**
