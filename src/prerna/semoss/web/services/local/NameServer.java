@@ -87,6 +87,8 @@ import prerna.reactor.IReactor;
 import prerna.reactor.ReactorFactory;
 import prerna.reactor.agent.mcp.MCPErrorCode;
 import prerna.reactor.agent.mcp.MCPUtility;
+import prerna.reactor.agent.run.AgentRuntimeManager;
+import prerna.reactor.agent.stream.AgentRunStreamService;
 import prerna.sablecc2.PixelRunner;
 import prerna.sablecc2.PixelStreamUtility;
 import prerna.sablecc2.PixelUtility;
@@ -1271,7 +1273,52 @@ public class NameServer {
 	}
 
 	/**
-	 * 
+	 * Drain buffered agent stream events and return the run snapshot. Unlike
+	 * {@link #pixelJobStreaming(MultivaluedMap, HttpServletRequest)} this
+	 * authorizes the caller against the run owner and removes drained events.
+	 */
+	@POST
+	@Path("/agentRunStreaming")
+	@Produces("application/json")
+	public Response agentRunStreaming(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+		String runId = WebUtility.inputSQLSanitizer(form.getFirst("runId"));
+		if (runId == null || runId.trim().isEmpty()) {
+			Map<String, Object> errorRet = new HashMap<>();
+			errorRet.put("errorMessage", "runId is required");
+			return WebUtility.getResponseNoCache(errorRet, 400);
+		}
+		HttpSession session = request.getSession(false);
+		User user = session == null ? null : (User) session.getAttribute(Constants.SESSION_USER);
+		if (user == null || user.isAnonymous()) {
+			Map<String, Object> errorRet = new HashMap<>();
+			errorRet.put("errorMessage", "Agent run streaming requires an authenticated user");
+			return WebUtility.getResponseNoCache(errorRet, 401);
+		}
+		Insight authInsight = new Insight();
+		authInsight.setUser(user);
+		try {
+			// Ownership check happens here: the run store scopes by the insight user,
+			// so another user's runId behaves like an unknown run.
+			Map<String, Object> runSnapshot = AgentRuntimeManager.get().getRunSnapshot(runId.trim(), authInsight);
+			AgentRunStreamService.DrainResult drained = AgentRunStreamService.get().drain(runId.trim());
+			Map<String, Object> dataReturn = new HashMap<>();
+			dataReturn.put("run", runSnapshot);
+			dataReturn.put("events", drained.getEvents());
+			dataReturn.put("droppedEvents", drained.getDroppedEvents());
+			return WebUtility.getResponseNoCache(dataReturn, 200);
+		} catch (SecurityException e) {
+			Map<String, Object> errorRet = new HashMap<>();
+			errorRet.put("errorMessage", "Agent run streaming requires an authenticated user");
+			return WebUtility.getResponseNoCache(errorRet, 401);
+		} catch (IllegalArgumentException e) {
+			Map<String, Object> errorRet = new HashMap<>();
+			errorRet.put("errorMessage", "No agent run found for runId=" + runId);
+			return WebUtility.getResponseNoCache(errorRet, 404);
+		}
+	}
+
+	/**
+	 *
 	 * @param form
 	 * @param request
 	 * @return
