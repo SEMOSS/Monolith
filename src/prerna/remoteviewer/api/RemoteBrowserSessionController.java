@@ -67,6 +67,7 @@ import prerna.remoteviewer.model.RemoteBrowserRecordedStep;
 import prerna.remoteviewer.model.RemoteBrowserSessionCreateRequest;
 import prerna.remoteviewer.model.RemoteBrowserSessionCreateResponse;
 import prerna.remoteviewer.security.RemoteBrowserUrlSafetyValidator;
+import prerna.remoteviewer.service.RemoteBrowserSelectedTextService;
 import prerna.remoteviewer.service.RemoteBrowserSession;
 import prerna.remoteviewer.service.RemoteBrowserSessionManager;
 import prerna.semoss.web.services.local.ResourceUtility;
@@ -149,7 +150,8 @@ public class RemoteBrowserSessionController {
 
 		String wsUrl = "/browserSocket/" + session.getSessionId();
 		RemoteBrowserSessionCreateResponse resp = new RemoteBrowserSessionCreateResponse(session.getSessionId(), wsUrl,
-				session.getViewportWidth(), session.getViewportHeight(), safeUrl(session));
+				session.getViewportWidth(), session.getViewportHeight(), safeUrl(session),
+				RemoteBrowserSelectedTextService.contextLimits());
 
 		classLogger.info("Browser session {} created for user {}", session.getSessionId(), userId);
 		return Response.ok(GSON.toJson(resp)).build();
