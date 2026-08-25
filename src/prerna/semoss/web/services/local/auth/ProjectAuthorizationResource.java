@@ -373,7 +373,7 @@ public class ProjectAuthorizationResource {
 		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
 
-		if (AbstractSecurityUtils.adminOnlyProjectAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
+		if (AbstractSecurityUtils.adminOnlyProjectAddAccess(projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
 			classLogger.warn("User is trying to add a user for project {} but is not an admin", projectId);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
@@ -469,7 +469,7 @@ public class ProjectAuthorizationResource {
 
 		// Determine if admin right are required to add users and, if so, if requester
 		// has those rights.
-		if (AbstractSecurityUtils.adminOnlyProjectAddAccess() && !SecurityAdminUtils.userIsAdmin(requester)) {
+		if (AbstractSecurityUtils.adminOnlyProjectAddAccess(projectId) && !SecurityAdminUtils.userIsAdmin(requester)) {
 			classLogger.warn("User is trying to add a user for project {} but is not an admin", projectId);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
@@ -518,7 +518,7 @@ public class ProjectAuthorizationResource {
 
 		// Determine if admin right are required to add users and, if so, if requester
 		// has those rights.
-		if (AbstractSecurityUtils.adminOnlyProjectAddAccess() && !SecurityAdminUtils.userIsAdmin(requester)) {
+		if (AbstractSecurityUtils.adminOnlyProjectAddAccess(projectId) && !SecurityAdminUtils.userIsAdmin(requester)) {
 			classLogger.warn("User is trying to add a user for project {} but is not an admin", projectId);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
@@ -606,7 +606,7 @@ public class ProjectAuthorizationResource {
 		String newPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
 
-		if (AbstractSecurityUtils.adminOnlyProjectAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
+		if (AbstractSecurityUtils.adminOnlyProjectAddAccess(projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
 			classLogger.warn("User is trying to edit user {} permissions for project {} but is not an admin",
 					existingUserId, projectId);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -667,7 +667,7 @@ public class ProjectAuthorizationResource {
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
 
-		if (AbstractSecurityUtils.adminOnlyProjectAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
+		if (AbstractSecurityUtils.adminOnlyProjectAddAccess(projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
 			classLogger.warn("User is trying to edit user permissions for project {} but is not an admin", projectId);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
@@ -726,7 +726,7 @@ public class ProjectAuthorizationResource {
 		String existingUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 
-		if (AbstractSecurityUtils.adminOnlyProjectAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
+		if (AbstractSecurityUtils.adminOnlyProjectAddAccess(projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
 			classLogger.warn("User is trying to remove user {} from having access to project {} but is not an admin",
 					existingUserId, projectId);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -842,7 +842,7 @@ public class ProjectAuthorizationResource {
 		boolean isPublic = Boolean.parseBoolean(form.getFirst("public"));
 		String logPublic = isPublic ? " public " : " private";
 
-		if (AbstractSecurityUtils.adminOnlyProjectSetPublic() && !SecurityAdminUtils.userIsAdmin(user)) {
+		if (AbstractSecurityUtils.adminOnlyProjectSetPublic(projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
 			classLogger.warn("User is trying to set the project {}{} but is not an admin", projectId, logPublic);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
@@ -900,7 +900,7 @@ public class ProjectAuthorizationResource {
 		boolean isDiscoverable = Boolean.parseBoolean(form.getFirst("discoverable"));
 		String logDiscoverable = isDiscoverable ? " discoverable " : " not discoverable";
 
-		if (AbstractSecurityUtils.adminOnlyProjectSetDiscoverable() && !SecurityAdminUtils.userIsAdmin(user)) {
+		if (AbstractSecurityUtils.adminOnlyProjectSetDiscoverable(projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
 			classLogger.warn("User is trying to set the project {}{} but is not an admin", projectId, logDiscoverable);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
@@ -1118,7 +1118,7 @@ public class ProjectAuthorizationResource {
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
 
-		if (AbstractSecurityUtils.adminOnlyProjectAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
+		if (AbstractSecurityUtils.adminOnlyProjectAddAccess(projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
 			classLogger.warn("User is trying to approve user access to project {} but is not an admin", projectId);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
@@ -1176,7 +1176,7 @@ public class ProjectAuthorizationResource {
 
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 
-		if (AbstractSecurityUtils.adminOnlyProjectAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
+		if (AbstractSecurityUtils.adminOnlyProjectAddAccess(projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
 			classLogger.warn("User is trying to deny user access to project {} but is not an admin", projectId);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
@@ -1227,7 +1227,7 @@ public class ProjectAuthorizationResource {
 
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
-		if (AbstractSecurityUtils.adminOnlyProjectAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
+		if (AbstractSecurityUtils.adminOnlyProjectAddAccess(projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
 			classLogger.warn("User is trying to add user permissions to project {} but is not an admin", projectId);
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
@@ -1304,7 +1304,7 @@ public class ProjectAuthorizationResource {
 		List<String> ids = gson.fromJson(form.getFirst("ids"), List.class);
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 
-		if (AbstractSecurityUtils.adminOnlyProjectAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
+		if (AbstractSecurityUtils.adminOnlyProjectAddAccess(projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
 			classLogger.warn("User is trying to remove users from having access to project {} but is not an admin",
 					projectId);
 			Map<String, String> errorMap = new HashMap<String, String>();
