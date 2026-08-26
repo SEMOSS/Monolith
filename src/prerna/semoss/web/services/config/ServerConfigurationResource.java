@@ -135,6 +135,17 @@ public class ServerConfigurationResource {
 		loadConfig.put("adminOnlyProjectAddAccess", AbstractSecurityUtils.adminOnlyProjectAddAccess());
 		loadConfig.put("adminOnlyProjectSetPublic", AbstractSecurityUtils.adminOnlyProjectSetPublic());
 		loadConfig.put("adminOnlyProjectSetDiscoverable", AbstractSecurityUtils.adminOnlyProjectSetDiscoverable());
+		loadConfig.put("adminOnlyWorkspaceAdd", AbstractSecurityUtils.adminOnlyWorkspaceAdd());
+		loadConfig.put("adminOnlyWorkspaceDelete", AbstractSecurityUtils.adminOnlyWorkspaceDelete());
+		loadConfig.put("adminOnlyWorkspaceAddAccess", AbstractSecurityUtils.adminOnlyWorkspaceAddAccess());
+		loadConfig.put("adminOnlyWorkspaceSetPublic", AbstractSecurityUtils.adminOnlyWorkspaceSetPublic());
+		loadConfig.put("adminOnlyWorkspaceSetDiscoverable",
+				AbstractSecurityUtils.adminOnlyWorkspaceSetDiscoverable());
+		loadConfig.put("adminOnlySkillAdd", AbstractSecurityUtils.adminOnlySkillAdd());
+		loadConfig.put("adminOnlySkillDelete", AbstractSecurityUtils.adminOnlySkillDelete());
+		loadConfig.put("adminOnlySkillAddAccess", AbstractSecurityUtils.adminOnlySkillAddAccess());
+		loadConfig.put("adminOnlySkillSetPublic", AbstractSecurityUtils.adminOnlySkillSetPublic());
+		loadConfig.put("adminOnlySkillSetDiscoverable", AbstractSecurityUtils.adminOnlySkillSetDiscoverable());
 		// admin only for engine actions
 		loadConfig.put("adminOnlyDbAdd", AbstractSecurityUtils.adminOnlyDatabaseAdd());
 		loadConfig.put("adminOnlyDbDelete", AbstractSecurityUtils.adminOnlyDatabaseDelete());
