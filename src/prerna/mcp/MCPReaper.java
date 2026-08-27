@@ -33,7 +33,10 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,6 +52,8 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import jakarta.servlet.http.HttpServletResponse;
@@ -57,9 +62,11 @@ import jakarta.ws.rs.sse.OutboundSseEvent;
 import jakarta.ws.rs.sse.Sse;
 import jakarta.ws.rs.sse.SseEventSink;
 import prerna.auth.User;
+import prerna.engine.impl.model.message.MessageInputMedia;
 import prerna.om.Insight;
 import prerna.om.ThreadStore;
 import prerna.reactor.agent.mcp.MCPErrorCode;
+import prerna.reactor.agent.mcp.MCPUtility;
 import prerna.sablecc2.PixelRunner;
 import prerna.sablecc2.comm.PixelJobManager;
 import prerna.sablecc2.comm.PixelJobRunner;
@@ -238,7 +245,7 @@ public class MCPReaper implements Runnable {
 				resetIdleTimer.run(); // message received - reset idle clock
 				classLogger.debug("HTTP REQUEST :::: {}", actualContent);
 				String output = generateResponse(actualContent, sessionId, toolbox, insight);
-				classLogger.debug("HTTP RESPONSE :::: {}", output);
+				classLogger.debug("HTTP RESPONSE generated ({} chars)", output == null ? 0 : output.length());
 
 				if (output != null) {
 					sendHttpEvent(output);
@@ -268,7 +275,7 @@ public class MCPReaper implements Runnable {
 	 * @throws IOException
 	 */
 	private void sendHttpEvent(String data) throws IOException {
-		classLogger.debug("Sending data {}", data);
+		classLogger.debug("Sending MCP HTTP response ({} chars)", data == null ? 0 : data.length());
 		prepareHttpJsonResponse();
 		byte[] bytes = (data + "\n").getBytes(StandardCharsets.UTF_8);
 		this.os.write(bytes);
@@ -320,7 +327,7 @@ public class MCPReaper implements Runnable {
 			if ((actualContent = this.reader.readLine()) != null) {
 				classLogger.debug("SSE REQUEST :::: {}", actualContent);
 				String output = generateResponse(actualContent, this.sessionId, this.toolbox, this.insight);
-				classLogger.debug("SSE RESPONSE :::: {}", output);
+				classLogger.debug("SSE RESPONSE generated ({} chars)", output == null ? 0 : output.length());
 
 				if (output != null) {
 					OutboundSseEvent event = this.sse.newEventBuilder().data(String.class, output).build();
@@ -570,16 +577,7 @@ public class MCPReaper implements Runnable {
 			Object retObject = null;
 			try {
 				retObject = runPixel(insight.getUser(), insight, pixel, sessionId);
-				Map<String, Object> resultMap = new HashMap<>();
-				List<Map<String, Object>> contentList = new ArrayList<>();
-				Map<String, Object> contentMap = new HashMap<>();
-				contentMap.put("type", "text");
-				contentMap.put("text", retObject);
-
-				contentList.add(contentMap);
-				resultMap.put("content", contentList);
-				resultMap.put("isError", false);
-				response.put("result", resultMap);
+				response.put("result", buildToolCallResult(retObject, insight));
 			} catch (SemossMCPException e) {
 				/*
 				 * { "jsonrpc": "2.0", "id": 3, "error": { "code": <example code>, "message":
@@ -607,6 +605,120 @@ public class MCPReaper implements Runnable {
 
 		// {"method":"tools/call","params":{"name":"get_stock_price","arguments":{"symbol":"GOOGL"}},"jsonrpc":"2.0","id":5}
 		return response.toString();
+	}
+
+	/**
+	 * Converts the internal room-file multimodal envelope into standard MCP content
+	 * blocks. Ordinary outputs remain a single text block.
+	 */
+	private Map<String, Object> buildToolCallResult(Object retObject, Insight insight) {
+		String output = retObject == null ? "null" : retObject.toString();
+		JSONObject envelope;
+		try {
+			envelope = new JSONObject(output);
+		} catch (JSONException e) {
+			return buildTextToolResult(output, false);
+		}
+
+		if (!envelope.has(MCPUtility.SEMOSS_MULTIMODAL_TOOL_RESPONSE_KEY)) {
+			return buildTextToolResult(output, false);
+		}
+
+		Object rawBlocks = envelope.opt(MCPUtility.SEMOSS_MULTIMODAL_TOOL_RESPONSE_KEY);
+		if (!(rawBlocks instanceof JSONArray)) {
+			return buildTextToolResult("Tool returned an invalid multimodal response.", true);
+		}
+
+		JSONArray blocks = (JSONArray) rawBlocks;
+		if (blocks.length() == 0) {
+			return buildTextToolResult("Tool returned an empty multimodal response.", true);
+		}
+		List<Map<String, Object>> content = new ArrayList<>();
+		try {
+			for (int blockIndex = 0; blockIndex < blocks.length(); blockIndex++) {
+				Object rawBlock = blocks.get(blockIndex);
+				if (!(rawBlock instanceof JSONObject)) {
+					return buildTextToolResult("Tool returned an invalid multimodal response.", true);
+				}
+
+				JSONObject block = (JSONObject) rawBlock;
+				String type = block.optString("type", null);
+				if ("text".equals(type)) {
+					Object text = block.opt("text");
+					if (!(text instanceof String)) {
+						return buildTextToolResult("Tool returned an invalid multimodal text block.", true);
+					}
+					content.add(textContent((String) text));
+				} else if ("image".equals(type) && !block.has("data")) {
+					List<String> imagePaths = imagePaths(block.opt("image"));
+					if (imagePaths.isEmpty()) {
+						return buildTextToolResult("Tool returned an invalid multimodal image block.", true);
+					}
+
+					for (String imagePath : imagePaths) {
+						Path resolvedPath = MCPUtility.resolveContainedMcpFile(insight.getInsightFolder(), imagePath);
+						String format = MessageInputMedia.extractFormat(resolvedPath.getFileName().toString());
+						String mimeType = MessageInputMedia.guessMimeType(resolvedPath.toString(), format);
+						if (mimeType == null || !mimeType.startsWith("image/")) {
+							return buildTextToolResult(
+									"External MCP currently supports image attachments only; the referenced file is not an image.",
+									true);
+						}
+
+						Map<String, Object> imageContent = new HashMap<>();
+						imageContent.put("type", "image");
+						imageContent.put("data",
+								Base64.getEncoder().encodeToString(Files.readAllBytes(resolvedPath)));
+						imageContent.put("mimeType", mimeType);
+						content.add(imageContent);
+					}
+				} else {
+					return buildTextToolResult(
+							"External MCP currently supports text and image result blocks only.", true);
+				}
+			}
+		} catch (Exception e) {
+			return buildTextToolResult(
+					"The tool returned an image that is unavailable or outside its execution folder.", true);
+		}
+
+		Map<String, Object> result = new HashMap<>();
+		result.put("content", content);
+		result.put("isError", false);
+		return result;
+	}
+
+	private List<String> imagePaths(Object rawImagePaths) {
+		List<String> paths = new ArrayList<>();
+		if (rawImagePaths instanceof JSONArray) {
+			JSONArray pathArray = (JSONArray) rawImagePaths;
+			for (int pathIndex = 0; pathIndex < pathArray.length(); pathIndex++) {
+				Object path = pathArray.opt(pathIndex);
+				if (!(path instanceof String) || ((String) path).isBlank()) {
+					return new ArrayList<>();
+				}
+				paths.add((String) path);
+			}
+		} else if (rawImagePaths instanceof String && !((String) rawImagePaths).isBlank()) {
+			paths.add((String) rawImagePaths);
+		}
+		return paths;
+	}
+
+	private Map<String, Object> buildTextToolResult(String text, boolean isError) {
+		Map<String, Object> result = new HashMap<>();
+		List<Map<String, Object>> content = new ArrayList<>();
+		content.add(textContent(text));
+		result.put("content", content);
+		result.put("isError", isError);
+		return result;
+	}
+
+	private Map<String, Object> textContent(String text) {
+		Map<String, Object> content = new HashMap<>();
+		content.put("type", "text");
+		content.put("text", text);
+		return content;
 	}
 
 	/**
