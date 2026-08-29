@@ -360,7 +360,8 @@ public class EngineRouteResource {
 			// Adding notification
 			String engineType = String.valueOf(SecurityEngineUtils.getEngineType(engineId)).toLowerCase();
 			NotificationDbUtils.createNotification(user, null, null, engineId, NotificationConstants.Type.SMSS_UPDATE,
-					engineType, NotificationConstants.Priority.MEDIUM, null, null);
+					engineType, NotificationConstants.Priority.MEDIUM, null, null,
+					NotificationConstants.DisplaySurface.BELL);
 
 			// Adding email notification
 			EmailUtility.sendSmssUpdateEmailNotification(user, engineId, EmailUtility.RESOURCE_TYPE.ENGINE);

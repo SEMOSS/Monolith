@@ -256,7 +256,8 @@ public class ProjectResource {
 		if (Utility.isNotificationDatabaseEnabled()) {
 			// Adding notification
 			NotificationDbUtils.createNotification(user, null, null, projectId, NotificationConstants.Type.SMSS_UPDATE,
-					NotificationConstants.APP_CATALOG, NotificationConstants.Priority.MEDIUM, null, null);
+					NotificationConstants.APP_CATALOG, NotificationConstants.Priority.MEDIUM, null, null,
+					NotificationConstants.DisplaySurface.BELL);
 
 			// Adding email notification
 			EmailUtility.sendSmssUpdateEmailNotification(user, projectId, EmailUtility.RESOURCE_TYPE.PROJECT);
