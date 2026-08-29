@@ -216,11 +216,11 @@ public class OpenAIEndpoints {
 		if (roomId == null) {
 			roomId = (String) request.getAttribute("roomId");
 		}
-		// room name gets updated during parsing of full prompt
-		room = RoomUtils.createRoomIfNotExists(roomId, insight, engine, null);
-		// this is if you are passing full prompt but want us to maintain the history
 		boolean appendFullPrompt = Boolean
-				.parseBoolean(WebUtility.inputSanitizer((String) dataMap.remove("append_full_prompt")) + "");
+				.parseBoolean(String.valueOf(dataMap.remove(AbstractModelEngine.APPEND_FULL_PROMPT)));
+		// room name gets updated during parsing of full prompt
+		room = appendFullPrompt ? RoomUtils.createRoomIfNotExists(roomId, insight, engine, null)
+				: RoomUtils.createRoomForStatelessAsk(roomId, insight, engine, null);
 
 		ModelPixelExecutor.initializeThreadStore(insight, SESSION_ID, JOB_ID);
 
@@ -569,11 +569,15 @@ public class OpenAIEndpoints {
 		if (roomId == null) {
 			roomId = resolveRoomIdFromCodexHeaders(request);
 		}
-		room = RoomUtils.createRoomIfNotExists(roomId, insight, engine, null);
+		boolean appendFullPrompt = Boolean
+				.parseBoolean(String.valueOf(dataMap.remove(AbstractModelEngine.APPEND_FULL_PROMPT)));
+		room = appendFullPrompt ? RoomUtils.createRoomIfNotExists(roomId, insight, engine, null)
+				: RoomUtils.createRoomForStatelessAsk(roomId, insight, engine, null);
 
 		ModelPixelExecutor.initializeThreadStore(insight, SESSION_ID, JOB_ID);
 
 		dataMap.put(AbstractModelEngine.FULL_PROMPT, messages);
+		dataMap.put(AbstractModelEngine.APPEND_FULL_PROMPT, appendFullPrompt);
 
 		if (!isStreamingRequest) {
 			try {
