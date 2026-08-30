@@ -189,16 +189,15 @@ public class PublicHomeCheckFilter implements Filter {
 	private boolean performSecurityChecks(String projectId, HttpSession session, HttpServletRequest request,
 			HttpServletResponse response) throws IOException {
 		if (!SecurityProjectUtils.projectIsGlobal(projectId)) {
-			if (session != null) {
-				User user = (User) session.getAttribute(Constants.SESSION_USER);
-				if (!SecurityProjectUtils.userCanViewProject(user, projectId)) {
-					sendError(request, response, HttpServletResponse.SC_FORBIDDEN,
-							"You do not have access to this project.");
-					return false;
-				}
-			} else {
+			User user = session == null ? null : (User) session.getAttribute(Constants.SESSION_USER);
+			if (user == null) {
 				sendError(request, response, HttpServletResponse.SC_FORBIDDEN,
 						"You must be logged in to access this project.");
+				return false;
+			}
+			if (!SecurityProjectUtils.userCanViewProject(user, projectId)) {
+				sendError(request, response, HttpServletResponse.SC_FORBIDDEN,
+						"You do not have access to this project.");
 				return false;
 			}
 		}
