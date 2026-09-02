@@ -11,7 +11,7 @@ Unlike the SEMOSS examples, these do **not** use the published
 yourself from this checkout:
 
 ```bash
-# from local_docker_testing/ (one level up)
+# from local-docker-testing/ (one level up)
 ./createLocalDockerScript.sh
 ```
 
