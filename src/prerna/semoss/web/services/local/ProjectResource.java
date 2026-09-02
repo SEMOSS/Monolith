@@ -455,9 +455,17 @@ public class ProjectResource {
 		IProject project = Utility.getProject(projectId);
 		String projectName = project.getProjectName();
 
-		String fileLocation = EngineUtility.getSpecificEngineBaseFolder(IEngine.CATALOG_TYPE.PROJECT, projectId,
-				projectName) + DIR_SEPARATOR + "app_root/version/assets/" + WebUtility.inputSanitizer(relPath);
-		File file = new File(WebUtility.normalizePath(fileLocation));
+		String assetsRoot = EngineUtility.getSpecificEngineBaseFolder(IEngine.CATALOG_TYPE.PROJECT, projectId,
+				projectName) + DIR_SEPARATOR + "app_root/version/assets";
+		File file = null;
+		try {
+			file = WebUtility.resolveWithin(Paths.get(WebUtility.normalizePath(assetsRoot)), relPath).toFile();
+		} catch (IOException | IllegalArgumentException | SecurityException e) {
+			classLogger.error("Rejected project asset request for project {}", Utility.cleanLogString(projectId), e);
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Invalid asset path");
+			return WebUtility.getResponse(errorMap, 400);
+		}
 		if (file != null && file.exists()) {
 			try {
 				String contents = FileUtils.readFileToString(file, "UTF-8");
@@ -784,12 +792,20 @@ public class ProjectResource {
 		IProject project = Utility.getProject(projectId);
 		String projectName = project.getProjectName();
 
-		String fileLocation = AssetUtility.getProjectVersionFolder(projectName, projectId);
-		if (params != null && !params.isEmpty() && !params.equals("undefined")) {
-			String encodedParams = Utility.encodeURIComponent(params);
-			fileLocation = fileLocation + DIR_SEPARATOR + id + DIR_SEPARATOR + "params" + DIR_SEPARATOR + encodedParams;
-		} else {
-			fileLocation = fileLocation + DIR_SEPARATOR + id;
+		String versionFolder = AssetUtility.getProjectVersionFolder(projectName, projectId);
+		String fileLocation;
+		try {
+			java.nio.file.Path versionRoot = Paths.get(WebUtility.normalizePath(versionFolder));
+			if (params != null && !params.isEmpty() && !params.equals("undefined")) {
+				String encodedParams = Utility.encodeURIComponent(params);
+				fileLocation = WebUtility.resolveWithin(versionRoot,
+						id + DIR_SEPARATOR + "params" + DIR_SEPARATOR + encodedParams).toString();
+			} else {
+				fileLocation = WebUtility.resolveWithin(versionRoot, id).toString();
+			}
+		} catch (IOException | IllegalArgumentException | SecurityException e) {
+			classLogger.error("Rejected insight image request for project {}", Utility.cleanLogString(projectId), e);
+			return null;
 		}
 		f = findImageFile(fileLocation);
 

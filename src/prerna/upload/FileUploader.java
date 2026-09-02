@@ -29,6 +29,8 @@ package prerna.upload;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -391,7 +393,9 @@ public class FileUploader extends Uploader {
 		String filePath = assetFolder;
 		// add relative path
 		if (relativePath != null) {
-			filePath = assetFolder + DIR_SEPARATOR + WebUtility.normalizePath(relativePath);
+			java.nio.file.Path assetRoot = Paths.get(WebUtility.normalizePath(assetFolder));
+			Files.createDirectories(assetRoot);
+			filePath = WebUtility.resolveWithin(assetRoot, relativePath).toString();
 			fePath += relativePath;
 		}
 		File fileDir = new File(WebUtility.normalizePath(filePath));
@@ -706,7 +710,9 @@ public class FileUploader extends Uploader {
 		String filePath = assetFolder;
 		// add relative path
 		if (relativePath != null) {
-			filePath = assetFolder + DIR_SEPARATOR + WebUtility.normalizePath(relativePath);
+			java.nio.file.Path assetRoot = Paths.get(WebUtility.normalizePath(assetFolder));
+			Files.createDirectories(assetRoot);
+			filePath = WebUtility.resolveWithin(assetRoot, relativePath).toString();
 			fePath += relativePath;
 		}
 		File fileDir = new File(WebUtility.normalizePath(filePath));

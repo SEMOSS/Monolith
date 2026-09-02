@@ -242,11 +242,6 @@ public class PublicHomeCheckFilter implements Filter {
 
 		String projectId = project.getProjectId();
 		String thisPortalsPath = "/" + publicHomeFolder + "/" + projectId + "/" + Constants.PORTALS_FOLDER + "/";
-		String fileToPull = realPath + thisPortalsPath;
-
-		if (!fileToPull.endsWith("/")) {
-			fileToPull += "/";
-		}
 
 		// Determine which file to serve
 		int index = fullUrl.indexOf(thisPortalsPath) + thisPortalsPath.length();
@@ -254,41 +249,35 @@ public class PublicHomeCheckFilter implements Filter {
 
 		if (index < fullUrl.length()) {
 			specificFile = fullUrl.substring(fullUrl.indexOf(thisPortalsPath) + thisPortalsPath.length());
-			fileToPull += specificFile;
+		} else if (project.getProjectType() == IProject.PROJECT_TYPE.BLOCKS) {
+			specificFile = IProject.BLOCK_FILE_NAME;
 		} else {
-			// Default file based on project type
-			if (project.getProjectType() == IProject.PROJECT_TYPE.BLOCKS) {
-				fileToPull += IProject.BLOCK_FILE_NAME;
-			} else {
-				fileToPull += "index.html";
-			}
+			specificFile = "index.html";
 		}
 
-		File file = new File(fileToPull);
+		Path basePath;
+		File file;
+		try {
+			basePath = new File(realPath + thisPortalsPath).toPath().toRealPath();
+			file = WebUtility.resolveWithin(basePath, specificFile).toFile();
+		} catch (IOException | IllegalArgumentException | SecurityException e) {
+			sendError(request, response, 404, "Could not find the requested resource");
+			return;
+		}
 
 		// Validate file exists
 		if (!file.exists()) {
-			sendError(request, response, 404,
-					"Could not find file at path " + thisPortalsPath + (specificFile != null ? specificFile : ""));
+			sendError(request, response, 404, "Could not find the requested resource");
 			return;
 		}
 
 		// Handle directory requests
 		if (file.isDirectory()) {
 			file = new File(file.getAbsolutePath() + "/index.html");
-			if (!file.exists()) {
-				sendError(request, response, 404, "Could not find index.html in directory " + thisPortalsPath
-						+ (specificFile != null ? specificFile : ""));
+			if (!file.exists() || !file.toPath().toRealPath().startsWith(basePath)) {
+				sendError(request, response, 404, "Could not find the requested resource");
 				return;
 			}
-		}
-
-		// Security: Prevent directory traversal
-		Path filePath = file.toPath().toRealPath();
-		Path basePath = new File(realPath + thisPortalsPath).toPath().toRealPath();
-		if (!filePath.startsWith(basePath)) {
-			sendError(request, response, 403, "Access denied");
-			return;
 		}
 
 		// Serve the file with proper headers
