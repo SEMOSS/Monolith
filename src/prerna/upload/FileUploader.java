@@ -264,10 +264,10 @@ public class FileUploader extends Uploader {
 			@QueryParam("projectId") String projectId, @QueryParam("engineId") String engineId,
 			@QueryParam("userSpace") boolean userSpace) {
 
-		insightId = WebUtility.inputSanitizer(insightId);
+		insightId = WebUtility.safeId(WebUtility.inputSanitizer(insightId));
 		relativePath = WebUtility.inputSanitizer(relativePath);
-		projectId = WebUtility.inputSanitizer(projectId);
-		engineId = WebUtility.inputSanitizer(engineId);
+		projectId = WebUtility.safeId(WebUtility.inputSanitizer(projectId));
+		engineId = WebUtility.safeId(WebUtility.inputSanitizer(engineId));
 
 		Insight in = getValidInsight(insightId);
 		if (in == null) {
@@ -437,7 +437,7 @@ public class FileUploader extends Uploader {
 	public Response userAssetsUpload(@Context ServletContext context, @Context HttpServletRequest request,
 			@QueryParam("insightId") String insightId, @QueryParam("path") String relativePath) {
 
-		insightId = WebUtility.inputSanitizer(insightId);
+		insightId = WebUtility.safeId(WebUtility.inputSanitizer(insightId));
 		relativePath = WebUtility.inputSanitizer(relativePath);
 
 		Insight in = getValidInsight(insightId);
@@ -498,9 +498,9 @@ public class FileUploader extends Uploader {
 			@QueryParam("insightId") String insightId, @QueryParam("path") String relativePath,
 			@QueryParam("projectId") String projectId) {
 
-		insightId = WebUtility.inputSanitizer(insightId);
+		insightId = WebUtility.safeId(WebUtility.inputSanitizer(insightId));
 		relativePath = WebUtility.inputSanitizer(relativePath);
-		projectId = WebUtility.inputSanitizer(projectId);
+		projectId = WebUtility.safeId(WebUtility.inputSanitizer(projectId));
 
 		Insight in = getValidInsight(insightId);
 		if (in == null) {
@@ -566,9 +566,9 @@ public class FileUploader extends Uploader {
 			@QueryParam("insightId") String insightId, @QueryParam("path") String relativePath,
 			@QueryParam("engineId") String engineId) {
 
-		insightId = WebUtility.inputSanitizer(insightId);
+		insightId = WebUtility.safeId(WebUtility.inputSanitizer(insightId));
 		relativePath = WebUtility.inputSanitizer(relativePath);
-		engineId = WebUtility.inputSanitizer(engineId);
+		engineId = WebUtility.safeId(WebUtility.inputSanitizer(engineId));
 
 		Insight in = getValidInsight(insightId);
 		if (in == null) {

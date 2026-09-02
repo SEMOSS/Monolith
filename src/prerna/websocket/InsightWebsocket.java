@@ -52,6 +52,7 @@ import prerna.reactor.agent.ClaudeCodeTranscriptParser;
 import prerna.sablecc2.PixelRunner;
 import prerna.sablecc2.PixelStreamUtility;
 import prerna.util.Constants;
+import prerna.web.services.util.WebUtility;
 
 @ServerEndpoint(value = "/insightSocket", configurator = WSConfigurator.class)
 public class InsightWebsocket {
@@ -165,8 +166,9 @@ public class InsightWebsocket {
 	private FileStreamer createStreamer(String type, JSONObject json, String insightId) {
 		switch (type) {
 		case "claude_code": {
-			String roomId = json.getString("roomId");
-			return new ClaudeCodeHistoryStreamer(roomId, insightId, ClaudeCodeTranscriptParser::parse);
+			String roomId = WebUtility.requireSafeId(json.getString("roomId"));
+			return new ClaudeCodeHistoryStreamer(roomId, WebUtility.requireSafeId(insightId),
+					ClaudeCodeTranscriptParser::parse);
 		}
 		default:
 			return null;

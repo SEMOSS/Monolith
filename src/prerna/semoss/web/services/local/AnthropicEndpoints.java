@@ -132,7 +132,7 @@ public class AnthropicEndpoints {
 		Insight insight = null;
 		Room room = null;
 
-		String claudeCodeSessionId = request.getHeader("x-claude-code-session-id");
+		String claudeCodeSessionId = WebUtility.safeId(request.getHeader("x-claude-code-session-id"));
 		classLogger.debug("Anthropic-Session-Header::{}::{}", JOB_ID, claudeCodeSessionId);
 
 		StringBuilder requestData = new StringBuilder();
@@ -183,17 +183,18 @@ public class AnthropicEndpoints {
 
 		// ROOM & INSIGHT LOGIC START ---------
 		String insightId = WebUtility.inputSanitizer((String) dataMap.remove("insight_id"));
-		String roomId = WebUtility.inputSanitizer((String) dataMap.remove("room_id"));
+		String roomId = WebUtility.safeId(WebUtility.inputSanitizer((String) dataMap.remove("room_id")));
 		if (roomId == null || roomId.isEmpty()) {
 			// Fallback: roomId may be set as a request attribute by CodeAssistantFilter
 			// when it parses the "room-{roomId}" segment from the x-api-key header.
-			roomId = (String) request.getAttribute("roomId");
+			roomId = WebUtility.safeId(request.getAttribute("roomId") == null ? null
+					: request.getAttribute("roomId").toString());
 		}
 		if (roomId == null || roomId.isEmpty()) {
-			roomId = WebUtility.inputSanitizer(request.getHeader("x-semoss-room-id"));
+			roomId = WebUtility.safeId(WebUtility.inputSanitizer(request.getHeader("x-semoss-room-id")));
 		}
 		if (roomId == null || roomId.isEmpty()) {
-			roomId = WebUtility.inputSanitizer(claudeCodeSessionId);
+			roomId = WebUtility.safeId(WebUtility.inputSanitizer(claudeCodeSessionId));
 		}
 
 		Object systemPromptBlock = dataMap.remove("system");

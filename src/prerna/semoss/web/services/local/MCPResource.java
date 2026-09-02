@@ -109,6 +109,7 @@ public class MCPResource {
 	@Produces(MediaType.APPLICATION_JSON)
 	public void commsHttp(@PathParam("toolbox_id") String toolbox_id, @QueryParam("access_key") String access,
 			@Context HttpServletRequest request, @Context HttpServletResponse response) {
+		toolbox_id = WebUtility.requireSafeId(toolbox_id);
 		classLogger.info("Running tool via streamable http... {}", toolbox_id);
 
 		// Get the input stream from the async context
@@ -153,6 +154,7 @@ public class MCPResource {
 	public void commsSse(@PathParam("toolbox_id") String toolbox_id, @QueryParam("access_key") String access,
 			@Context SseEventSink eventSink, @Context Sse sse, InputStream is, @Context HttpServletRequest request,
 			@Context HttpServletResponse response) {
+		toolbox_id = WebUtility.requireSafeId(toolbox_id);
 		classLogger.info("Running tool via SSE... {}", toolbox_id);
 
 		// Initialize session

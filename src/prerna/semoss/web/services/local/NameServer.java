@@ -228,8 +228,13 @@ public class NameServer {
 		// and the file id
 		// in order to download the file
 
-		insightId = WebUtility.inputSanitizer(insightId);
-		fileKey = WebUtility.inputSQLSanitizer(fileKey);
+		insightId = WebUtility.safeId(WebUtility.inputSanitizer(insightId));
+		fileKey = WebUtility.safeId(WebUtility.inputSQLSanitizer(fileKey));
+		if (insightId == null || fileKey == null) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Invalid insight id or file key");
+			return WebUtility.getResponse(errorMap, 400);
+		}
 
 		Insight insight = InsightStore.getInstance().get(insightId);
 		if (insight == null) {

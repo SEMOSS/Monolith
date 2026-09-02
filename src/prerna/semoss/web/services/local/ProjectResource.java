@@ -152,7 +152,12 @@ public class ProjectResource {
 	@Path("/updateSmssFile")
 	@Produces("application/json;charset=utf-8")
 	public Response updateSmssFile(@Context HttpServletRequest request, @PathParam("projectId") String projectId) {
-		projectId = WebUtility.inputSanitizer(projectId);
+		projectId = WebUtility.safeId(WebUtility.inputSanitizer(projectId));
+		if (projectId == null) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Invalid project id");
+			return WebUtility.getResponse(errorMap, 400);
+		}
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -359,7 +364,12 @@ public class ProjectResource {
 	public Response getProjectLandingPage(@Context final Request coreRequest, @Context HttpServletRequest request,
 			@PathParam("projectId") String projectId) {
 		User user = null;
-		projectId = WebUtility.inputSanitizer(projectId);
+		projectId = WebUtility.safeId(WebUtility.inputSanitizer(projectId));
+		if (projectId == null) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Invalid project id");
+			return WebUtility.getResponse(errorMap, 400);
+		}
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
@@ -419,7 +429,12 @@ public class ProjectResource {
 	@Produces({ MediaType.TEXT_HTML, MediaType.APPLICATION_OCTET_STREAM })
 	public Response downloadProjectAsset(@Context final Request coreRequest, @Context HttpServletRequest request,
 			@PathParam("projectId") String projectId, @PathParam("relPath") String relPath) {
-		projectId = WebUtility.inputSanitizer(projectId);
+		projectId = WebUtility.safeId(WebUtility.inputSanitizer(projectId));
+		if (projectId == null) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Invalid project id");
+			return WebUtility.getResponse(errorMap, 400);
+		}
 
 		User user = null;
 		try {
@@ -577,7 +592,12 @@ public class ProjectResource {
 	@Produces({ MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML })
 	public Response downloadProjectImage(@Context final Request coreRequest, @Context HttpServletRequest request,
 			@PathParam("projectId") String projectId) {
-		projectId = WebUtility.inputSanitizer(projectId);
+		projectId = WebUtility.safeId(WebUtility.inputSanitizer(projectId));
+		if (projectId == null) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Invalid project id");
+			return WebUtility.getResponse(errorMap, 400);
+		}
 
 		User user = null;
 		try {
@@ -683,8 +703,13 @@ public class ProjectResource {
 			@PathParam("projectId") String projectId, @QueryParam("rdbmsId") String id,
 			@QueryParam("params") String params) {
 
-		projectId = WebUtility.inputSanitizer(projectId);
-		id = WebUtility.inputSanitizer(id);
+		projectId = WebUtility.safeId(WebUtility.inputSanitizer(projectId));
+		if (projectId == null) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Invalid project id");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		id = WebUtility.safeId(WebUtility.inputSanitizer(id));
 		params = WebUtility.inputSanitizer(params);
 
 		String sessionId = null;
@@ -1065,8 +1090,11 @@ public class ProjectResource {
 	public StreamingOutput getJDBCCSVOutput(@PathParam("projectId") String projectId,
 			@QueryParam("insightId") String insightId, @QueryParam("sql") String sql,
 			@Context HttpServletRequest request, @Context ResourceContext resourceContext) {
-		projectId = WebUtility.inputSanitizer(projectId);
-		insightId = WebUtility.inputSanitizer(insightId);
+		projectId = WebUtility.safeId(WebUtility.inputSanitizer(projectId));
+		insightId = WebUtility.safeId(WebUtility.inputSanitizer(insightId));
+		if (projectId == null || insightId == null) {
+			return WebUtility.getSO("Invalid project or insight id");
+		}
 
 		if (projectId == null) {
 			projectId = "session";
