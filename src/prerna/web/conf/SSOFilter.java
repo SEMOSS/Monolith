@@ -205,7 +205,7 @@ public class SSOFilter implements Filter {
 				if (addLocation) {
 					((HttpServletResponse) response).setHeader("location", redirectUrl);
 				}
-				((HttpServletResponse) response).sendError(302, "Need to redirect to " + redirectUrl);
+				((HttpServletResponse) response).sendError(302);
 			}
 
 			if (tracker != null) {

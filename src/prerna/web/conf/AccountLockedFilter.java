@@ -74,7 +74,7 @@ public class AccountLockedFilter implements Filter {
 				String redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length())
 						+ SET_ACCOUNT_LOCKED_HTML;
 				((HttpServletResponse) arg1).setHeader("redirect", redirectUrl);
-				((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + redirectUrl);
+				((HttpServletResponse) arg1).sendError(302);
 				return;
 			}
 		}

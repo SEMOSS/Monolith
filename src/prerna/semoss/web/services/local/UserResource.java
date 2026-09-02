@@ -581,7 +581,7 @@ public class UserResource {
 
 					if (clientId == null || clientSecret == null || redirectUri == null) {
 						response.setStatus(400);
-						response.getWriter().write("Jira credentials not found for connection id = " + connectionId);
+						response.getWriter().write("Jira credentials not found for the supplied connection id");
 						return null;
 					}
 
@@ -666,7 +666,7 @@ public class UserResource {
 
 		if (clientId == null || scope == null || redirectUri == null) {
 			response.setStatus(400);
-			response.getWriter().write("Jira credentials not found for connection id = " + connectionId);
+			response.getWriter().write("Jira credentials not found for the supplied connection id");
 			return null;
 		}
 
@@ -821,7 +821,7 @@ public class UserResource {
 					if (clientId == null || clientSecret == null || redirectUri == null) {
 						response.setStatus(400);
 						response.getWriter()
-								.write("Salesforce credentials not found for connection id = " + connectionId);
+								.write("Salesforce credentials not found for the supplied connection id");
 						return null;
 					}
 
@@ -960,7 +960,7 @@ public class UserResource {
 					if (instanceUrl == null || clientId == null || clientSecret == null || redirectUri == null) {
 						response.setStatus(400);
 						response.getWriter()
-								.write("ServiceNow credentials not found for connection id =" + connectionId);
+								.write("ServiceNow credentials not found for the supplied connection id");
 						return null;
 					}
 

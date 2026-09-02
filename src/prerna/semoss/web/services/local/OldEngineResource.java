@@ -32,6 +32,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Vector;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -141,14 +143,17 @@ public class OldEngineResource {
 
 					// very risky business going on right now.... will not work on other bindings
 					if (paramValueCol != null) {
-						query = query.replaceFirst(paramBind[i], paramValueCol);
+						query = query.replaceFirst(Pattern.quote(paramBind[i]),
+								Matcher.quoteReplacement(paramValueCol));
 					}
 					if (paramValueTable != null) {
-						query = query.replaceFirst(paramBind[i], paramValueTable);
+						query = query.replaceFirst(Pattern.quote(paramBind[i]),
+								Matcher.quoteReplacement(paramValueTable));
 					}
 
 				} else {
-					query = query.replaceFirst(paramBind[i], paramValueStr);
+					query = query.replaceFirst(Pattern.quote(paramBind[i]),
+							Matcher.quoteReplacement(paramValueStr));
 				}
 			}
 		}
