@@ -38,6 +38,8 @@ import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.text.Normalizer;
 import java.text.Normalizer.Form;
 import java.util.ArrayList;
@@ -48,6 +50,7 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.TimeZone;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.apache.commons.io.FilenameUtils;
@@ -94,6 +97,8 @@ import prerna.web.conf.DBLoader;
 public final class WebUtility {
 
 	private static final Logger classLogger = LogManager.getLogger(WebUtility.class);
+
+	private static final Pattern SAFE_ID_PATTERN = Pattern.compile("[A-Za-z0-9_-]{1,128}");
 
 	private static final FastDateFormat expiresDateFormat = FastDateFormat.getInstance("EEE, dd MMM yyyy HH:mm:ss zzz",
 			TimeZone.getTimeZone("GMT"));
@@ -591,6 +596,62 @@ public final class WebUtility {
 		normalizedString = normalizedString.replace("\\", "/");
 
 		return normalizedString;
+	}
+
+	/**
+	 * Validate that an opaque identifier is safe to use as a file path segment.
+	 * 
+	 * @param id
+	 * @return
+	 */
+	public static String requireSafeId(String id) {
+		if (id == null || !SAFE_ID_PATTERN.matcher(id).matches()) {
+			classLogger.error("Rejected illegal identifier '{}'", Utility.cleanLogString(id));
+			throw new IllegalArgumentException("Illegal identifier");
+		}
+		return id;
+	}
+
+	/**
+	 * Nullable form of {@link #requireSafeId(String)} so callers can fall through to
+	 * their existing missing-identifier handling.
+	 * 
+	 * @param id
+	 * @return
+	 */
+	public static String safeId(String id) {
+		if (id == null || !SAFE_ID_PATTERN.matcher(id).matches()) {
+			return null;
+		}
+		return id;
+	}
+
+	/**
+	 * Resolve an untrusted relative path under a base directory and fail if the
+	 * result escapes it. Containment is asserted on the canonical path so symlink
+	 * escapes are caught as well.
+	 * 
+	 * @param baseDir
+	 * @param untrustedRelative
+	 * @return
+	 * @throws IOException
+	 */
+	public static Path resolveWithin(Path baseDir, String untrustedRelative) throws IOException {
+		if (baseDir == null) {
+			throw new IllegalArgumentException("No base directory provided");
+		}
+		if (untrustedRelative == null || untrustedRelative.trim().isEmpty()
+				|| untrustedRelative.indexOf('\0') >= 0) {
+			throw new IllegalArgumentException("Illegal relative path");
+		}
+		Path base = baseDir.toRealPath();
+		Path candidate = base.resolve(untrustedRelative).normalize();
+		Path canonical = Files.exists(candidate) ? candidate.toRealPath() : candidate.toAbsolutePath();
+		if (!canonical.startsWith(base)) {
+			classLogger.error("Rejected path escaping base directory '{}'", Utility.cleanLogString(untrustedRelative));
+			throw new SecurityException("Path escapes the permitted base directory");
+		}
+		return canonical;
 	}
 
 	/**
