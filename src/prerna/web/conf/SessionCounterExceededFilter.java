@@ -109,7 +109,7 @@ public class SessionCounterExceededFilter implements Filter {
 					String redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length())
 							+ FAIL_HTML;
 					((HttpServletResponse) arg1).setHeader("redirect", redirectUrl);
-					((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + redirectUrl);
+					((HttpServletResponse) arg1).sendError(302);
 					return -1;
 				}
 			} else {

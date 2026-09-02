@@ -165,8 +165,9 @@ public class UserAccessKeyFilter implements Filter {
 				}
 
 				try {
-					IAccessTokenFiller thisTokenFiller = (IAccessTokenFiller) Class.forName(tokenFillerClass)
-							.getConstructor().newInstance();
+					IAccessTokenFiller thisTokenFiller = Class
+							.forName(tokenFillerClass, false, UserAccessKeyFilter.class.getClassLoader())
+							.asSubclass(IAccessTokenFiller.class).getDeclaredConstructor().newInstance();
 					String prefix = thisProvider.getLabel().toLowerCase() + "_";
 					String userInfoURL = socialData.getProperty(prefix + "userinfo_url");
 					// "name","id","email"

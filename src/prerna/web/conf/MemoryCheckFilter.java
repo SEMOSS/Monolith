@@ -98,7 +98,7 @@ public class MemoryCheckFilter implements Filter {
 			String redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length())
 					+ NO_MORE_MEMORY;
 			((HttpServletResponse) arg1).setHeader("redirect", redirectUrl);
-			((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + redirectUrl);
+			((HttpServletResponse) arg1).sendError(302);
 			return;
 		}
 
