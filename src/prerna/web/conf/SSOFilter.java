@@ -126,6 +126,7 @@ public class SSOFilter implements Filter {
 
 		// User has not logged in. Capture redirect context and send the browser
 		// to the configured SAML login entry point.
+		
 		if (user == null) {
 			classLogger.info("Starting saml transaction.");
 			if (session == null) {
@@ -135,9 +136,26 @@ public class SSOFilter implements Filter {
 			// this will be the full path of the request
 			// like http://localhost:8080/Monolith_Dev/api/engine/runPixel
 			String fullUrl = WebUtility.cleanHttpResponse(((HttpServletRequest) request).getRequestURL().toString());
+			boolean isPortalUrl = fullUrl.contains("/public_home/");
 
 			// we need to store information in the session
 			// so that we can properly come back to the referer once an admin has been added
+			String referer = WebUtility.cleanHttpResponse(((HttpServletRequest) request).getHeader("referer"));
+			String redirectAfterLogin;
+			if (isPortalUrl) {
+				// Always return to the portal URL itself, not wherever the referer points
+				classLogger.info("Setting session redirect value to the request URL = {}", 
+						Utility.cleanLogString(fullUrl));
+				redirectAfterLogin = fullUrl;
+			} else if (referer != null) {
+				classLogger.info("Setting session redirect value to referer = {}", 
+						Utility.cleanLogString(referer));
+				redirectAfterLogin = referer;
+			} else {
+				classLogger.info("No session redirect value found...");
+				redirectAfterLogin = null;
+			}
+			session.setAttribute(SSOUtil.SAML_REDIRECT_KEY, redirectAfterLogin);
 
 			// we add a location to the headers when we want the browser to auto move
 			// which is the case for portals as there is no FE and all managed by the BE
@@ -145,22 +163,12 @@ public class SSOFilter implements Filter {
 			// will redirect
 			// and return the html as the response but doesn't seem like the FE knows what
 			// to do with that
-			// so only on portals do we add the location header...
-			boolean addLocation = false;
-
-			String referer = WebUtility.cleanHttpResponse(((HttpServletRequest) request).getHeader("referer"));
-			if (referer != null) {
-				classLogger.info("Setting session redirect value to referer = {}", Utility.cleanLogString(referer));
-			} else if (fullUrl.contains("/public_home/")) {
-				addLocation = true;
-				classLogger.info("Setting session redirect value to the request URL = {}",
-						Utility.cleanLogString(fullUrl));
-				referer = fullUrl;
-			} else {
-				classLogger.info("No session redirect value found...");
-			}
-			// set the referer if we have it
-			session.setAttribute(SSOUtil.SAML_REDIRECT_KEY, referer);
+			// use sec-fetch-dest to see if the request is for a document nav or iframe
+			// fall back to portal check if not passed (some scripts or older browsers)
+			String fetchDest = ((HttpServletRequest) request).getHeader("Sec-Fetch-Dest");
+			boolean addLocation = (fetchDest == null && isPortalUrl) 
+					|| "document".equalsIgnoreCase(fetchDest) 
+					|| "iframe".equalsIgnoreCase(fetchDest);
 
 			// this will be the deployment name of the app
 			String contextPath = request.getServletContext().getContextPath();
