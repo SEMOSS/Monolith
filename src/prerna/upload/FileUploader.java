@@ -93,6 +93,10 @@ public class FileUploader extends Uploader {
 
 	private static final Logger classLogger = LogManager.getLogger(FileUploader.class);
 
+	private static String normalizeUploadRelativePath(String relativePath) {
+		return relativePath != null && relativePath.startsWith("/") ? relativePath.substring(1) : relativePath;
+	}
+
 	/*
 	 * Moving a file onto the BE cannot be performed through pixel Thus, we still
 	 * expose "drag and drop" of a file through a rest call However, this is only
@@ -405,10 +409,11 @@ public class FileUploader extends Uploader {
 		}
 		String filePath = assetFolder;
 		// add relative path
-		if (relativePath != null && !relativePath.isEmpty() && !relativePath.equals("/")) {
+		String containedRelativePath = normalizeUploadRelativePath(relativePath);
+		if (containedRelativePath != null && !containedRelativePath.isEmpty()) {
 			java.nio.file.Path assetRoot = Paths.get(WebUtility.normalizePath(assetFolder));
 			Files.createDirectories(assetRoot);
-			filePath = WebUtility.resolveWithin(assetRoot, relativePath).toString();
+			filePath = WebUtility.resolveWithin(assetRoot, containedRelativePath).toString();
 			fePath += relativePath;
 		}
 		File fileDir = new File(WebUtility.normalizePath(filePath));
@@ -724,10 +729,11 @@ public class FileUploader extends Uploader {
 
 		String filePath = assetFolder;
 		// add relative path
-		if (relativePath != null && !relativePath.isEmpty() && !relativePath.equals("/")) {
+		String containedRelativePath = normalizeUploadRelativePath(relativePath);
+		if (containedRelativePath != null && !containedRelativePath.isEmpty()) {
 			java.nio.file.Path assetRoot = Paths.get(WebUtility.normalizePath(assetFolder));
 			Files.createDirectories(assetRoot);
-			filePath = WebUtility.resolveWithin(assetRoot, relativePath).toString();
+			filePath = WebUtility.resolveWithin(assetRoot, containedRelativePath).toString();
 			fePath += relativePath;
 		}
 		File fileDir = new File(WebUtility.normalizePath(filePath));
