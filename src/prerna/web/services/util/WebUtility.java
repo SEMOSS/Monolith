@@ -38,6 +38,9 @@ import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
+import java.nio.file.Path;
 import java.text.Normalizer;
 import java.text.Normalizer.Form;
 import java.util.ArrayList;
@@ -48,6 +51,7 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.TimeZone;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.apache.commons.io.FilenameUtils;
@@ -94,6 +98,7 @@ import prerna.web.conf.DBLoader;
 public final class WebUtility {
 
 	private static final Logger classLogger = LogManager.getLogger(WebUtility.class);
+	private static final Pattern SAFE_PATH_SEGMENT_PATTERN = Pattern.compile("(?!\\.{1,2}$)[^/\\\\\\x00]+");
 
 	private static final FastDateFormat expiresDateFormat = FastDateFormat.getInstance("EEE, dd MMM yyyy HH:mm:ss zzz",
 			TimeZone.getTimeZone("GMT"));
@@ -591,6 +596,77 @@ public final class WebUtility {
 		normalizedString = normalizedString.replace("\\", "/");
 
 		return normalizedString;
+	}
+
+	/**
+	 * Return whether a value can be used as one filesystem path segment without
+	 * changing the set of otherwise valid identifier characters.
+	 *
+	 * @param value candidate segment
+	 * @return {@code true} when the value is nonempty and cannot traverse folders
+	 */
+	public static boolean isSafePathSegment(String value) {
+		return safePathSegment(value) != null;
+	}
+
+	/**
+	 * Return a filesystem-safe single segment, or {@code null} when the supplied
+	 * value contains traversal syntax.
+	 *
+	 * @param value candidate segment
+	 * @return the unchanged value when safe; otherwise {@code null}
+	 */
+	public static String safePathSegment(String value) {
+		return value != null && SAFE_PATH_SEGMENT_PATTERN.matcher(value).matches() ? value : null;
+	}
+
+	/**
+	 * Resolve a relative path beneath a trusted base. Existing path components are
+	 * canonicalized so an existing symlinked parent cannot redirect a new child
+	 * outside the base directory.
+	 *
+	 * @param baseDir         trusted existing directory
+	 * @param relativePath    untrusted relative path; an empty value selects the base
+	 * @return contained absolute path
+	 * @throws IOException when existing components cannot be canonicalized
+	 */
+	public static Path resolveWithin(Path baseDir, String relativePath) throws IOException {
+		if (baseDir == null) {
+			throw new IllegalArgumentException("No base directory provided");
+		}
+		if (relativePath == null || relativePath.indexOf('\0') >= 0) {
+			throw new IllegalArgumentException("Illegal relative path");
+		}
+
+		Path base = baseDir.toRealPath();
+		if (relativePath.isEmpty()) {
+			return base;
+		}
+
+		Path relative = Path.of(relativePath.replace('\\', '/'));
+		if (relative.isAbsolute()) {
+			throw new SecurityException("Path escapes the permitted base directory");
+		}
+		Path candidate = base.resolve(relative).normalize();
+		Path canonicalCandidate = Files.exists(candidate) ? candidate.toRealPath() : candidate.toAbsolutePath();
+		if (!canonicalCandidate.startsWith(base)) {
+			throw new SecurityException("Path escapes the permitted base directory");
+		}
+
+		Path existing = candidate;
+		while (existing != null && !Files.exists(existing, LinkOption.NOFOLLOW_LINKS)) {
+			existing = existing.getParent();
+		}
+		if (existing == null) {
+			throw new SecurityException("Path escapes the permitted base directory");
+		}
+
+		Path canonicalExisting = existing.toRealPath();
+		canonicalCandidate = canonicalExisting.resolve(existing.relativize(candidate)).normalize();
+		if (!canonicalCandidate.startsWith(base)) {
+			throw new SecurityException("Path escapes the permitted base directory");
+		}
+		return canonicalCandidate;
 	}
 
 	/**

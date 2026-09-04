@@ -282,8 +282,8 @@ public class ImageUploader extends Uploader {
 	public Response deleteEngineImage(@Context HttpServletRequest request) throws SQLException {
 		Map<String, String> returnMap = new HashMap<>();
 
-		String engineId = WebUtility.inputSanitizer(request.getParameter("engineId"));
-		if (engineId == null) {
+		String engineId = WebUtility.safePathSegment(WebUtility.inputSanitizer(request.getParameter("engineId")));
+		if (!WebUtility.isSafePathSegment(engineId)) {
 			returnMap.put(Constants.ERROR_MESSAGE, "Need to pass the proper engine id to remove the image");
 			return WebUtility.getResponse(returnMap, 400);
 		}
@@ -578,9 +578,9 @@ public class ImageUploader extends Uploader {
 		String filePath = WebUtility
 				.normalizePath(EngineUtility.getLocalEngineBaseDirectory(IEngine.CATALOG_TYPE.PROJECT));
 
-		String projectId = WebUtility.inputSanitizer(request.getParameter("projectId"));
+		String projectId = WebUtility.safePathSegment(WebUtility.inputSanitizer(request.getParameter("projectId")));
 		String projectName = null;
-		if (projectId == null) {
+		if (!WebUtility.isSafePathSegment(projectId)) {
 			returnMap.put(Constants.ERROR_MESSAGE, "Need to pass the proper project id to remove the image");
 			return WebUtility.getResponse(returnMap, 400);
 		}
@@ -838,14 +838,14 @@ public class ImageUploader extends Uploader {
 	public Response deleteInsightImage(@Context HttpServletRequest request) throws SQLException {
 		Map<String, String> returnMap = new HashMap<>();
 
-		String projectId = WebUtility.inputSanitizer(request.getParameter("projectId"));
+		String projectId = WebUtility.safePathSegment(WebUtility.inputSanitizer(request.getParameter("projectId")));
 		String projectName = null;
-		String insightId = WebUtility.inputSanitizer(request.getParameter("insightId"));
-		if (projectId == null) {
+		String insightId = WebUtility.safePathSegment(WebUtility.inputSanitizer(request.getParameter("insightId")));
+		if (!WebUtility.isSafePathSegment(projectId)) {
 			returnMap.put(Constants.ERROR_MESSAGE, "Need to pass the proper project id to remove the image");
 			return WebUtility.getResponse(returnMap, 400);
 		}
-		if (insightId == null) {
+		if (!WebUtility.isSafePathSegment(insightId)) {
 			returnMap.put(Constants.ERROR_MESSAGE, "Need to pass the proper insight id to remove the image");
 			return WebUtility.getResponse(returnMap, 400);
 		}
@@ -1160,10 +1160,11 @@ public class ImageUploader extends Uploader {
 		String engineId = WebUtility.inputSanitizer(request.getParameter("engineId"));
 		if (engineId == null) {
 			engineId = WebUtility.inputSanitizer(request.getParameter("databaseId"));
-			if (engineId == null) {
-				returnMap.put(Constants.ERROR_MESSAGE, "Need to pass the proper engine id to remove the image");
-				return WebUtility.getResponse(returnMap, 400);
-			}
+		}
+		engineId = WebUtility.safePathSegment(engineId);
+		if (!WebUtility.isSafePathSegment(engineId)) {
+			returnMap.put(Constants.ERROR_MESSAGE, "Need to pass the proper engine id to remove the image");
+			return WebUtility.getResponse(returnMap, 400);
 		}
 
 		HttpSession session = request.getSession(false);

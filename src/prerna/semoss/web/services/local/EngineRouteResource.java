@@ -200,7 +200,12 @@ public class EngineRouteResource {
 	@Path("/updateSmssFile")
 	@Produces("application/json;charset=utf-8")
 	public Response updateSmssFile(@Context HttpServletRequest request, @PathParam("engineId") String engineId) {
-		engineId = WebUtility.inputSanitizer(engineId);
+		engineId = WebUtility.safePathSegment(WebUtility.inputSanitizer(engineId));
+		if (!WebUtility.isSafePathSegment(engineId)) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Invalid engine id");
+			return WebUtility.getResponse(errorMap, 400);
+		}
 
 		User user = null;
 		try {
@@ -396,7 +401,12 @@ public class EngineRouteResource {
 	@Produces({ MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML })
 	public Response imageDownload(@Context final Request coreRequest, @Context HttpServletRequest request,
 			@PathParam("engineId") String engineId) {
-		engineId = WebUtility.inputSanitizer(engineId);
+		engineId = WebUtility.safePathSegment(WebUtility.inputSanitizer(engineId));
+		if (!WebUtility.isSafePathSegment(engineId)) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Invalid engine id");
+			return WebUtility.getResponse(errorMap, 400);
+		}
 
 		User user = null;
 		try {
