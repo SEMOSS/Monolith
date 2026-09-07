@@ -116,7 +116,8 @@ public class PublicHomeCheckFilter implements Filter {
 		IProject project = Utility.getProject(projectId);
 		if (project == null) {
 			response.setContentType("text/plain; charset=UTF-8");
-			response.getWriter().write("Unable to load project with id='" + projectId + "'");
+			response.setHeader("X-Content-Type-Options", "nosniff");
+			response.getWriter().write("Unable to load the requested project");
 			return;
 		}
 
