@@ -37,10 +37,10 @@
 		<openhtml.version>1.0.1</openhtml.version>
 		<maven.build.timestamp.format>yyyy-MM-dd HH:mm:ss</maven.build.timestamp.format>
 		<build.date>${maven.build.timestamp}</build.date>
-		<!-- BouncyCastle FIPS, consumed only by the fips profile below. Keep in sync
-		     with bc.fips.version in Semoss/pom.xml and the BC_*_VERSION build args in
-		     Semoss/docker/Dockerfile.tomcat. -->
-		<bc.fips.version>2.1.2</bc.fips.version>
+		<!-- BouncyCastle FIPS versions shared by dependencyManagement and the fips
+		     profile. FIPS deployments must separately align the container-provided
+		     jars and verify their certification; this POM does not update the image. -->
+		<bc.fips.version>2.1.3</bc.fips.version>
 		<bcpkix.fips.version>2.1.12</bcpkix.fips.version>
 		<bctls.fips.version>2.1.24</bctls.fips.version>
 		<bcutil.fips.version>2.1.7</bcutil.fips.version>
@@ -483,6 +483,40 @@
 	</repositories>
 	<dependencyManagement>
 		<dependencies>
+			<!-- Override OpenAM/OpenDJ's older FIPS transitives without removing crypto
+			     providers needed at runtime. These patches address certificate validation,
+			     signature/integrity checks and resource-exhaustion findings. Share versions
+			     with the fips profile, which retains provided scope for container jars. -->
+			<dependency>
+				<groupId>org.bouncycastle</groupId>
+				<artifactId>bc-fips</artifactId>
+				<version>${bc.fips.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.bouncycastle</groupId>
+				<artifactId>bcpkix-fips</artifactId>
+				<version>${bcpkix.fips.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.bouncycastle</groupId>
+				<artifactId>bctls-fips</artifactId>
+				<version>${bctls.fips.version}</version>
+			</dependency>
+			<!-- CVE-2026-59889: override Semoss's Jackson 2 Databind 2.22.0
+			     with the same-line patch that enforces JsonView on unwrapped properties.
+			     This does not change the separate tools.jackson (Jackson 3) dependencies. -->
+			<dependency>
+				<groupId>com.fasterxml.jackson.core</groupId>
+				<artifactId>jackson-databind</artifactId>
+				<version>2.22.1</version>
+			</dependency>
+			<!-- CVE-2026-9563: override OpenAM/Jersey's Parsson 1.1.7 with the
+			     patched JSON provider; retain the provider instead of excluding it. -->
+			<dependency>
+				<groupId>org.eclipse.parsson</groupId>
+				<artifactId>parsson</artifactId>
+				<version>1.1.8</version>
+			</dependency>
 			<!-- Converge the non-FIPS BouncyCastle that sshj brings in. sshj 0.40.0
 			     declares bcprov-jdk18on 1.80 directly while its bcpkix-jdk18on 1.80
 			     pulls bcutil-jdk18on 1.80.2 which pulls bcprov-jdk18on 1.80.2, so
