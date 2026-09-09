@@ -295,6 +295,7 @@ public class MCPReaper implements Runnable {
 		if (!this.response.isCommitted()) {
 			this.response.setStatus(HttpServletResponse.SC_OK);
 			this.response.setContentType(MediaType.APPLICATION_JSON);
+			this.response.setHeader("X-Content-Type-Options", "nosniff");
 			this.response.setCharacterEncoding("UTF-8");
 			this.response.setHeader("Cache-Control", "no-cache");
 			this.response.setHeader("Connection", "keep-alive");
