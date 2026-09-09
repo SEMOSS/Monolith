@@ -87,7 +87,7 @@ import prerna.reactor.IReactor;
 import prerna.reactor.ReactorFactory;
 import prerna.reactor.agent.mcp.MCPErrorCode;
 import prerna.reactor.agent.mcp.MCPUtility;
-import prerna.reactor.agent.run.AgentRuntimeManager;
+import prerna.reactor.agent.run.AgentRunService;
 import prerna.reactor.agent.stream.AgentRunStreamService;
 import prerna.sablecc2.PixelRunner;
 import prerna.sablecc2.PixelStreamUtility;
@@ -1299,7 +1299,7 @@ public class NameServer {
 		try {
 			// Ownership check happens here: the run store scopes by the insight user,
 			// so another user's runId behaves like an unknown run.
-			Map<String, Object> runSnapshot = AgentRuntimeManager.get().getRunSnapshot(runId.trim(), authInsight);
+			Map<String, Object> runSnapshot = AgentRunService.get().getRunSnapshot(runId.trim(), authInsight);
 			AgentRunStreamService.DrainResult drained = AgentRunStreamService.get().drain(runId.trim());
 			Map<String, Object> dataReturn = new HashMap<>();
 			dataReturn.put("run", runSnapshot);

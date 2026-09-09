@@ -1420,6 +1420,14 @@ public class OpenAIEndpoints {
 	}
 
 	@POST
+	@Path("/v1/embeddings")
+	@Consumes({ "application/json" })
+	@Produces("application/json;charset=utf-8")
+	public Response runV1ModelEmbeddings(@Context HttpServletRequest request) {
+		return runModelEmbeddings(request);
+	}
+
+	@POST
 	@Path("/embeddings")
 	@Consumes({ "application/json" })
 	@Produces("application/json;charset=utf-8")
