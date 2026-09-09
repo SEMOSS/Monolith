@@ -37,7 +37,7 @@ import java.util.Map;
 
 import org.apache.commons.fileupload2.core.DiskFileItem;
 import org.apache.commons.fileupload2.core.FileUploadException;
-import org.apache.commons.io.filefilter.WildcardFileFilter;
+import org.apache.commons.io.filefilter.PrefixFileFilter;
 import org.apache.http.HttpStatus;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -536,7 +536,7 @@ public class ImageUploader extends Uploader {
 			// and delete them
 			File[] oldImages = null;
 			if (ClusterUtil.IS_CLUSTER) {
-				FilenameFilter appIdFilter = new WildcardFileFilter(projectId + "*");
+				FilenameFilter appIdFilter = new PrefixFileFilter(projectId);
 				oldImages = f.getParentFile().listFiles(appIdFilter);
 			} else {
 				oldImages = InsightUtility.findImageFile(f.getParentFile());
@@ -634,7 +634,7 @@ public class ImageUploader extends Uploader {
 		File f = new File(WebUtility.normalizePath(imageDir));
 		File[] oldImages = null;
 		if (ClusterUtil.IS_CLUSTER) {
-			FilenameFilter appIdFilter = new WildcardFileFilter(projectId + "*");
+			FilenameFilter appIdFilter = new PrefixFileFilter(projectId);
 			oldImages = f.listFiles(appIdFilter);
 		} else {
 			oldImages = InsightUtility.findImageFile(f);
