@@ -29,6 +29,8 @@ package prerna.upload;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -90,6 +92,10 @@ public class FileUploader extends Uploader {
 	private static final long serialVersionUID = 1L;
 
 	private static final Logger classLogger = LogManager.getLogger(FileUploader.class);
+
+	private static String normalizeUploadRelativePath(String relativePath) {
+		return relativePath != null && relativePath.startsWith("/") ? relativePath.substring(1) : relativePath;
+	}
 
 	/*
 	 * Moving a file onto the BE cannot be performed through pixel Thus, we still
@@ -264,10 +270,23 @@ public class FileUploader extends Uploader {
 			@QueryParam("projectId") String projectId, @QueryParam("engineId") String engineId,
 			@QueryParam("userSpace") boolean userSpace) {
 
-		insightId = WebUtility.inputSanitizer(insightId);
+		insightId = WebUtility.safePathSegment(WebUtility.inputSanitizer(insightId));
 		relativePath = WebUtility.inputSanitizer(relativePath);
 		projectId = WebUtility.inputSanitizer(projectId);
 		engineId = WebUtility.inputSanitizer(engineId);
+		boolean projectIdProvided = projectId != null;
+		boolean engineIdProvided = engineId != null;
+		if (projectId != null) {
+			projectId = WebUtility.safePathSegment(projectId);
+		}
+		if (engineId != null) {
+			engineId = WebUtility.safePathSegment(engineId);
+		}
+		if ((projectIdProvided && projectId == null) || (engineIdProvided && engineId == null)) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Invalid project or engine id");
+			return WebUtility.getResponse(errorMap, 400);
+		}
 
 		Insight in = getValidInsight(insightId);
 		if (in == null) {
@@ -390,8 +409,11 @@ public class FileUploader extends Uploader {
 		}
 		String filePath = assetFolder;
 		// add relative path
-		if (relativePath != null) {
-			filePath = assetFolder + DIR_SEPARATOR + WebUtility.normalizePath(relativePath);
+		String containedRelativePath = normalizeUploadRelativePath(relativePath);
+		if (containedRelativePath != null && !containedRelativePath.isEmpty()) {
+			java.nio.file.Path assetRoot = Paths.get(WebUtility.normalizePath(assetFolder));
+			Files.createDirectories(assetRoot);
+			filePath = WebUtility.resolveWithin(assetRoot, containedRelativePath).toString();
 			fePath += relativePath;
 		}
 		File fileDir = new File(WebUtility.normalizePath(filePath));
@@ -437,7 +459,7 @@ public class FileUploader extends Uploader {
 	public Response userAssetsUpload(@Context ServletContext context, @Context HttpServletRequest request,
 			@QueryParam("insightId") String insightId, @QueryParam("path") String relativePath) {
 
-		insightId = WebUtility.inputSanitizer(insightId);
+		insightId = WebUtility.safePathSegment(WebUtility.inputSanitizer(insightId));
 		relativePath = WebUtility.inputSanitizer(relativePath);
 
 		Insight in = getValidInsight(insightId);
@@ -498,9 +520,9 @@ public class FileUploader extends Uploader {
 			@QueryParam("insightId") String insightId, @QueryParam("path") String relativePath,
 			@QueryParam("projectId") String projectId) {
 
-		insightId = WebUtility.inputSanitizer(insightId);
+		insightId = WebUtility.safePathSegment(WebUtility.inputSanitizer(insightId));
 		relativePath = WebUtility.inputSanitizer(relativePath);
-		projectId = WebUtility.inputSanitizer(projectId);
+		projectId = WebUtility.safePathSegment(WebUtility.inputSanitizer(projectId));
 
 		Insight in = getValidInsight(insightId);
 		if (in == null) {
@@ -515,7 +537,8 @@ public class FileUploader extends Uploader {
 			return permResponse;
 		}
 
-		if (projectId == null || (projectId = projectId.trim()).isEmpty()) {
+		if (projectId == null || (projectId = projectId.trim()).isEmpty()
+				|| !WebUtility.isSafePathSegment(projectId)) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Must provide a project id.");
 			return WebUtility.getResponse(errorMap, 400);
@@ -566,9 +589,9 @@ public class FileUploader extends Uploader {
 			@QueryParam("insightId") String insightId, @QueryParam("path") String relativePath,
 			@QueryParam("engineId") String engineId) {
 
-		insightId = WebUtility.inputSanitizer(insightId);
+		insightId = WebUtility.safePathSegment(WebUtility.inputSanitizer(insightId));
 		relativePath = WebUtility.inputSanitizer(relativePath);
-		engineId = WebUtility.inputSanitizer(engineId);
+		engineId = WebUtility.safePathSegment(WebUtility.inputSanitizer(engineId));
 
 		Insight in = getValidInsight(insightId);
 		if (in == null) {
@@ -583,7 +606,8 @@ public class FileUploader extends Uploader {
 			return permResponse;
 		}
 
-		if (engineId == null || (engineId = engineId.trim()).isEmpty()) {
+		if (engineId == null || (engineId = engineId.trim()).isEmpty()
+				|| !WebUtility.isSafePathSegment(engineId)) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Must provide an engine id.");
 			return WebUtility.getResponse(errorMap, 400);
@@ -705,8 +729,11 @@ public class FileUploader extends Uploader {
 
 		String filePath = assetFolder;
 		// add relative path
-		if (relativePath != null) {
-			filePath = assetFolder + DIR_SEPARATOR + WebUtility.normalizePath(relativePath);
+		String containedRelativePath = normalizeUploadRelativePath(relativePath);
+		if (containedRelativePath != null && !containedRelativePath.isEmpty()) {
+			java.nio.file.Path assetRoot = Paths.get(WebUtility.normalizePath(assetFolder));
+			Files.createDirectories(assetRoot);
+			filePath = WebUtility.resolveWithin(assetRoot, containedRelativePath).toString();
 			fePath += relativePath;
 		}
 		File fileDir = new File(WebUtility.normalizePath(filePath));
