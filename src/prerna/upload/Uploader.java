@@ -29,6 +29,7 @@ package prerna.upload;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
@@ -37,7 +38,10 @@ import java.io.Reader;
 import java.io.Writer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.List;
 
 import org.apache.commons.fileupload2.core.DiskFileItem;
@@ -132,6 +136,39 @@ public abstract class Uploader extends HttpServlet {
 			}
 		} catch (Exception e) {
 			classLogger.error("Failed to write the uploaded file to disk", e);
+		}
+	}
+
+	/**
+	 * Write a newly named upload beneath its authorized destination. Unlike the
+	 * legacy writer, failures propagate to the endpoint instead of reporting success.
+	 * CREATE_NEW prevents overwriting a file or following a final symlink created
+	 * between unique-name selection and opening the output.
+	 */
+	protected void writeFileWithin(DiskFileItem fi, Path directory, Path selectedFile) throws IOException {
+		Path root = directory.toAbsolutePath().normalize();
+		Path candidate = selectedFile.toAbsolutePath().normalize();
+		if (!candidate.startsWith(root)) {
+			throw new SecurityException("Upload destination escapes its authorized directory");
+		}
+		Path target = WebUtility.resolveWithin(root, root.relativize(candidate).toString());
+		FileEncoderDetector analyzer = new FileEncoderDetector(fi);
+		boolean textContent = analyzer.isTextContent();
+		try (InputStream input = fi.getInputStream();
+				OutputStream output = Files.newOutputStream(target, StandardOpenOption.CREATE_NEW,
+						StandardOpenOption.WRITE, LinkOption.NOFOLLOW_LINKS)) {
+			if (textContent) {
+				try (Reader reader = new InputStreamReader(input, analyzer.getCharset());
+						Writer writer = new OutputStreamWriter(output, StandardCharsets.UTF_8)) {
+					char[] buffer = new char[1024];
+					int count;
+					while ((count = reader.read(buffer)) != -1) {
+						writer.write(buffer, 0, count);
+					}
+				}
+			} else {
+				input.transferTo(output);
+			}
 		}
 	}
 
