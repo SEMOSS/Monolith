@@ -32,11 +32,15 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URLEncoder;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
+import java.nio.file.Paths;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.commons.io.FilenameUtils;
 import org.apache.http.HttpEntity;
@@ -222,33 +226,36 @@ public class NameServer {
 	@GET
 	@Path("/downloadFile")
 	@Produces(MediaType.APPLICATION_OCTET_STREAM)
-	public Response downloadFile(@QueryParam("insightId") String insightId, @QueryParam("fileKey") String fileKey) {
-		// for "security"
-		// require the person to have both the insight id
-		// and the file id
-		// in order to download the file
-
-		insightId = WebUtility.inputSanitizer(insightId);
-		fileKey = WebUtility.inputSQLSanitizer(fileKey);
-
+	public Response downloadFile(@QueryParam("insightId") String insightId, @QueryParam("fileKey") String fileKey,
+			@Context HttpServletRequest request) {
+		// Export keys are capabilities within an insight, not a substitute for session ownership.
+		HttpSession session = request.getSession(false);
+		Set<String> sessionInsights = session == null ? null
+				: InsightStore.getInstance().getInsightIDsForSession(session.getId());
+		if (insightId == null || fileKey == null || sessionInsights == null || !sessionInsights.contains(insightId)) {
+			return WebUtility.getResponse(Map.of(Constants.ERROR_MESSAGE, "Export is not available in this session"), 403);
+		}
 		Insight insight = InsightStore.getInstance().get(insightId);
 		if (insight == null) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Could not find the insight id");
-			return WebUtility.getResponse(errorMap, 400);
+			return WebUtility.getResponse(Map.of(Constants.ERROR_MESSAGE, "Could not find the insight id"), 400);
 		}
 
 		try {
-			String filePath = insight.getExportFileLocation(fileKey);
-			File exportFile = new File(WebUtility.normalizePath(filePath));
-			if (!exportFile.exists()) {
-				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, "Could not find the file for given file id");
-				return WebUtility.getResponse(errorMap, 400);
+			// Only the server-side export registry may select a file. Its parent may be
+			// outside the insight folder (e.g. an authorized project asset).
+			java.nio.file.Path registered = Paths.get(insight.getExportFileLocation(fileKey)).toAbsolutePath().normalize();
+			java.nio.file.Path exportPath = WebUtility.resolveWithin(registered.getParent(),
+					registered.getFileName().toString());
+			if (!Files.isRegularFile(exportPath, LinkOption.NOFOLLOW_LINKS)) {
+				return WebUtility.getResponse(Map.of(Constants.ERROR_MESSAGE, "Could not find the file for given file id"), 400);
 			}
-
-			String exportName = FilenameUtils.getName(filePath);
-			return Response.status(200).entity(exportFile)
+			String exportName = registered.getFileName().toString().replace("\r", "").replace("\n", "")
+					.replace("\"", "_");
+			// Open now, without following a substituted final symlink; the JAX-RS
+			// InputStream provider closes the stream after writing the response.
+			long exportLength = Files.size(exportPath);
+			InputStream export = Files.newInputStream(exportPath, LinkOption.NOFOLLOW_LINKS);
+			return Response.status(200).entity(export).header("Content-Length", exportLength)
 					.header("Content-Disposition", "attachment; filename=\"" + exportName + "\"").build();
 		} catch (Exception e) {
 			Map<String, String> errorMap = new HashMap<>();
