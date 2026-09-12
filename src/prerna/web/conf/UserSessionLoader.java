@@ -238,6 +238,16 @@ public class UserSessionLoader implements HttpSessionListener {
 			classLogger.error("Failed to shut down client process wrapper during {} cleanup", userType, e);
 		}
 
+		try {
+			// stop the node.js agent worker if one was spawned
+			ClientProcessWrapper nodeCpw = user.getNodeClientProcessWrapper();
+			if (nodeCpw != null) {
+				nodeCpw.shutdown(true);
+			}
+		} catch (Exception e) {
+			classLogger.error("Failed to shut down node client process wrapper during {} cleanup", userType, e);
+		}
+
 		// remove mounts if chroot is enabled
 		try {
 			if (Boolean.parseBoolean(Utility.getDIHelperProperty(Constants.CHROOT_ENABLE))) {

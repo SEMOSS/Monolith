@@ -37,7 +37,7 @@ import java.util.Map;
 
 import org.apache.commons.fileupload2.core.DiskFileItem;
 import org.apache.commons.fileupload2.core.FileUploadException;
-import org.apache.commons.io.filefilter.WildcardFileFilter;
+import org.apache.commons.io.filefilter.PrefixFileFilter;
 import org.apache.http.HttpStatus;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -74,6 +74,8 @@ import prerna.web.services.util.WebUtility;
 public class ImageUploader extends Uploader {
 
 	private static final Logger classLogger = LogManager.getLogger(ImageUploader.class);
+
+	private static final long serialVersionUID = 1L;
 
 	/*
 	 * ENGINE
@@ -122,7 +124,7 @@ public class ImageUploader extends Uploader {
 		try {
 			for (DiskFileItem fi : fileItems) {
 				String fieldName = fi.getFieldName();
-				String value = WebUtility.inputSanitizer(fi.getString());
+				String value = WebUtility.inputSanitizer(Uploader.convertToString(fi.getReader()));
 				if (fieldName.equals("file")) {
 					imageFile = fi;
 				}
@@ -282,8 +284,11 @@ public class ImageUploader extends Uploader {
 	public Response deleteEngineImage(@Context HttpServletRequest request) throws SQLException {
 		Map<String, String> returnMap = new HashMap<>();
 
-		String engineId = WebUtility.inputSanitizer(request.getParameter("engineId"));
-		if (engineId == null) {
+		// not required for containment. userCanEditEngine below resolves engineId
+		// against the ENGINE table, so a traversal value is rejected before it reaches
+		// the image folder path
+		String engineId = WebUtility.safePathSegment(WebUtility.inputSanitizer(request.getParameter("engineId")));
+		if (!WebUtility.isSafePathSegment(engineId)) {
 			returnMap.put(Constants.ERROR_MESSAGE, "Need to pass the proper engine id to remove the image");
 			return WebUtility.getResponse(returnMap, 400);
 		}
@@ -475,7 +480,7 @@ public class ImageUploader extends Uploader {
 		try {
 			for (DiskFileItem fi : fileItems) {
 				String fieldName = fi.getFieldName();
-				String value = WebUtility.inputSanitizer(fi.getString());
+				String value = WebUtility.inputSanitizer(Uploader.convertToString(fi.getReader()));
 				if (fieldName.equals("file")) {
 					imageFile = fi;
 				}
@@ -536,7 +541,7 @@ public class ImageUploader extends Uploader {
 			// and delete them
 			File[] oldImages = null;
 			if (ClusterUtil.IS_CLUSTER) {
-				FilenameFilter appIdFilter = new WildcardFileFilter(projectId + "*");
+				FilenameFilter appIdFilter = new PrefixFileFilter(projectId);
 				oldImages = f.getParentFile().listFiles(appIdFilter);
 			} else {
 				oldImages = InsightUtility.findImageFile(f.getParentFile());
@@ -578,9 +583,12 @@ public class ImageUploader extends Uploader {
 		String filePath = WebUtility
 				.normalizePath(EngineUtility.getLocalEngineBaseDirectory(IEngine.CATALOG_TYPE.PROJECT));
 
-		String projectId = WebUtility.inputSanitizer(request.getParameter("projectId"));
+		// not required for containment. userCanEditProject below resolves projectId
+		// against the PROJECT table, and projectName is then read back from the
+		// security db rather than taken from the request
+		String projectId = WebUtility.safePathSegment(WebUtility.inputSanitizer(request.getParameter("projectId")));
 		String projectName = null;
-		if (projectId == null) {
+		if (!WebUtility.isSafePathSegment(projectId)) {
 			returnMap.put(Constants.ERROR_MESSAGE, "Need to pass the proper project id to remove the image");
 			return WebUtility.getResponse(returnMap, 400);
 		}
@@ -634,7 +642,7 @@ public class ImageUploader extends Uploader {
 		File f = new File(WebUtility.normalizePath(imageDir));
 		File[] oldImages = null;
 		if (ClusterUtil.IS_CLUSTER) {
-			FilenameFilter appIdFilter = new WildcardFileFilter(projectId + "*");
+			FilenameFilter appIdFilter = new PrefixFileFilter(projectId);
 			oldImages = f.listFiles(appIdFilter);
 		} else {
 			oldImages = InsightUtility.findImageFile(f);
@@ -690,10 +698,6 @@ public class ImageUploader extends Uploader {
 	public Response uploadInsightImage(@Context ServletContext context, @Context HttpServletRequest request) {
 		Map<String, String> returnMap = new HashMap<>();
 
-		// base path is the project folder
-		String filePath = WebUtility
-				.normalizePath(EngineUtility.getLocalEngineBaseDirectory(IEngine.CATALOG_TYPE.PROJECT));
-
 		HttpSession session = request.getSession(false);
 		User user = null;
 		if (session != null) {
@@ -732,7 +736,7 @@ public class ImageUploader extends Uploader {
 		try {
 			for (DiskFileItem fi : fileItems) {
 				String fieldName = fi.getFieldName();
-				String value = WebUtility.inputSanitizer(fi.getString());
+				String value = WebUtility.inputSanitizer(Uploader.convertToString(fi.getReader()));
 				if (fieldName.equals("file")) {
 					imageFile = fi;
 				}
@@ -838,14 +842,17 @@ public class ImageUploader extends Uploader {
 	public Response deleteInsightImage(@Context HttpServletRequest request) throws SQLException {
 		Map<String, String> returnMap = new HashMap<>();
 
-		String projectId = WebUtility.inputSanitizer(request.getParameter("projectId"));
+		// neither check is required for containment. userCanEditInsight below resolves
+		// projectId and insightId together against the INSIGHT table, so a traversal
+		// value in either is rejected before it reaches the image folder path
+		String projectId = WebUtility.safePathSegment(WebUtility.inputSanitizer(request.getParameter("projectId")));
 		String projectName = null;
-		String insightId = WebUtility.inputSanitizer(request.getParameter("insightId"));
-		if (projectId == null) {
+		String insightId = WebUtility.safePathSegment(WebUtility.inputSanitizer(request.getParameter("insightId")));
+		if (!WebUtility.isSafePathSegment(projectId)) {
 			returnMap.put(Constants.ERROR_MESSAGE, "Need to pass the proper project id to remove the image");
 			return WebUtility.getResponse(returnMap, 400);
 		}
-		if (insightId == null) {
+		if (!WebUtility.isSafePathSegment(insightId)) {
 			returnMap.put(Constants.ERROR_MESSAGE, "Need to pass the proper insight id to remove the image");
 			return WebUtility.getResponse(returnMap, 400);
 		}
@@ -1160,10 +1167,14 @@ public class ImageUploader extends Uploader {
 		String engineId = WebUtility.inputSanitizer(request.getParameter("engineId"));
 		if (engineId == null) {
 			engineId = WebUtility.inputSanitizer(request.getParameter("databaseId"));
-			if (engineId == null) {
-				returnMap.put(Constants.ERROR_MESSAGE, "Need to pass the proper engine id to remove the image");
-				return WebUtility.getResponse(returnMap, 400);
-			}
+		}
+		// not required for containment. userCanEditEngine below resolves engineId
+		// against the ENGINE table, so a traversal value is rejected before it reaches
+		// the image folder path
+		engineId = WebUtility.safePathSegment(engineId);
+		if (!WebUtility.isSafePathSegment(engineId)) {
+			returnMap.put(Constants.ERROR_MESSAGE, "Need to pass the proper engine id to remove the image");
+			return WebUtility.getResponse(returnMap, 400);
 		}
 
 		HttpSession session = request.getSession(false);

@@ -195,6 +195,14 @@ public class AnthropicEndpoints {
 		if (roomId == null || roomId.isEmpty()) {
 			roomId = WebUtility.inputSanitizer(claudeCodeSessionId);
 		}
+		if (roomId != null && !roomId.isEmpty()) {
+			roomId = WebUtility.safePathSegment(roomId);
+			if (roomId == null) {
+				Map<String, Object> errorMap = AnthropicMessagesHelper.createErrorResponse("invalid_request_error",
+						"Invalid room id");
+				return WebUtility.getResponse(errorMap, 400);
+			}
+		}
 
 		Object systemPromptBlock = dataMap.remove("system");
 		String systemPromptString = AnthropicMessagesHelper.getSystemMessage(systemPromptBlock);

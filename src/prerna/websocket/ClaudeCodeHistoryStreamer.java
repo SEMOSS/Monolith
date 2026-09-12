@@ -27,7 +27,6 @@
  *******************************************************************************/
 package prerna.websocket;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.charset.StandardCharsets;
@@ -42,6 +41,7 @@ import org.apache.logging.log4j.Logger;
 import org.json.JSONObject;
 
 import prerna.util.Utility;
+import prerna.web.services.util.WebUtility;
 
 public class ClaudeCodeHistoryStreamer implements FileStreamer {
 
@@ -80,14 +80,24 @@ public class ClaudeCodeHistoryStreamer implements FileStreamer {
 			return null;
 		}
 
-		String roomFolderPath = Utility.getBaseFolder() + File.separator + "room" + File.separator + roomId;
-		Path rootDir = Paths.get(roomFolderPath);
+		String safeRoomId = WebUtility.safePathSegment(roomId);
+		if (safeRoomId == null) {
+			return null;
+		}
+
+		Path roomsRoot = Paths.get(Utility.getBaseFolder(), "room");
+		Path rootDir;
+		try {
+			rootDir = WebUtility.resolveWithin(roomsRoot, safeRoomId);
+		} catch (IOException | IllegalArgumentException | SecurityException e) {
+			return null;
+		}
 
 		if (!Files.isDirectory(rootDir)) {
 			return null;
 		}
 
-		String targetFileName = roomId + ".jsonl";
+		String targetFileName = safeRoomId + ".jsonl";
 
 		try (Stream<Path> walk = Files.walk(rootDir)) {
 			return walk.filter(Files::isRegularFile).filter(p -> p.getFileName().toString().equals(targetFileName))
