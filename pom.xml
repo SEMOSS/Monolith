@@ -34,13 +34,25 @@
 		<ci.version>0.0.1-SNAPSHOT</ci.version>
 		<project.build.sourceEncoding>cp1252</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>cp1252</project.reporting.outputEncoding>
-		<openhtml.version>1.0.1</openhtml.version>
 		<maven.build.timestamp.format>yyyy-MM-dd HH:mm:ss</maven.build.timestamp.format>
 		<build.date>${maven.build.timestamp}</build.date>
+		<!-- Shared by the dev and deploy profiles, which configure the same plugin. -->
+		<maven.war.plugin.version>3.4.0</maven.war.plugin.version>
+		<!-- Multi-artifact families that must move together. Each version below is
+		     shared by two or more declared dependencies; bump the property, not the
+		     individual <version> elements. -->
+		<resteasy.version>7.0.4.Final</resteasy.version>
+		<jakarta.websocket.version>2.2.0</jakarta.websocket.version>
+		<!-- Pins that Semoss/pom.xml also carries at the same value. Its
+		     dependencyManagement is not inherited here, so each pom needs its own
+		     copy and the two have to be bumped together. -->
+		<bc.jdk18on.version>1.80.2</bc.jdk18on.version>
+		<netty.version>4.1.137.Final</netty.version>
+		<jackson3.version>3.1.5</jackson3.version>
 		<!-- BouncyCastle FIPS, consumed only by the fips profile below. Keep in sync
-		     with bc.fips.version in Semoss/pom.xml and the BC_*_VERSION build args in
-		     Semoss/docker/Dockerfile.tomcat. -->
-		<bc.fips.version>2.1.2</bc.fips.version>
+		     with the properties of the same name in Semoss/pom.xml and the
+		     BC_*_VERSION build args in Semoss/docker/Dockerfile.tomcat. -->
+		<bc.fips.version>2.1.3</bc.fips.version>
 		<bcpkix.fips.version>2.1.12</bcpkix.fips.version>
 		<bctls.fips.version>2.1.24</bctls.fips.version>
 		<bcutil.fips.version>2.1.7</bcutil.fips.version>
@@ -205,7 +217,7 @@
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-war-plugin</artifactId>
-						<version>3.4.0</version>
+						<version>${maven.war.plugin.version}</version>
 						<configuration>
 							<webXml>WebContent/WEB-INF/web.xml</webXml>
 							<failOnMissingWebXml>true</failOnMissingWebXml>
@@ -247,7 +259,7 @@
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-war-plugin</artifactId>
-						<version>3.4.0</version>
+						<version>${maven.war.plugin.version}</version>
 						<configuration>
 							<webXml>WebContent/WEB-INF/web.xml</webXml>
 							<failOnMissingWebXml>true</failOnMissingWebXml>
@@ -401,12 +413,6 @@
 					<version>${bcpkix.fips.version}</version>
 					<scope>provided</scope>
 				</dependency>
-				<dependency>
-					<groupId>org.bouncycastle</groupId>
-					<artifactId>bcutil-fips</artifactId>
-					<version>${bcutil.fips.version}</version>
-					<scope>provided</scope>
-				</dependency>
 				<!-- Not referenced at compile time - the JSSE provider is loaded from
 				     java.security at runtime. Declared so dependency scanners and the
 				     module inventory see it. -->
@@ -414,6 +420,12 @@
 					<groupId>org.bouncycastle</groupId>
 					<artifactId>bctls-fips</artifactId>
 					<version>${bctls.fips.version}</version>
+					<scope>provided</scope>
+				</dependency>
+				<dependency>
+					<groupId>org.bouncycastle</groupId>
+					<artifactId>bcutil-fips</artifactId>
+					<version>${bcutil.fips.version}</version>
 					<scope>provided</scope>
 				</dependency>
 				<!-- sshj pulls the non-FIPS bcprov/bcpkix/bcutil-jdk18on at runtime
@@ -494,17 +506,42 @@
 			<dependency>
 				<groupId>org.bouncycastle</groupId>
 				<artifactId>bcprov-jdk18on</artifactId>
-				<version>1.80.2</version>
+				<version>${bc.jdk18on.version}</version>
 			</dependency>
 			<dependency>
 				<groupId>org.bouncycastle</groupId>
 				<artifactId>bcpkix-jdk18on</artifactId>
-				<version>1.80.2</version>
+				<version>${bc.jdk18on.version}</version>
 			</dependency>
 			<dependency>
 				<groupId>org.bouncycastle</groupId>
 				<artifactId>bcutil-jdk18on</artifactId>
-				<version>1.80.2</version>
+				<version>${bc.jdk18on.version}</version>
+			</dependency>
+			<!-- Converge the FIPS BouncyCastle that reaches the non-FIPS war. Two
+			     separate paths feed it: bcpkix-fips from semoss, whose artifacts
+			     declare each other with open ranges (bcpkix-fips wants bcutil-fips
+			     [2.1.7,2.2.0), bcutil-fips wants bc-fips [2.1.0,2.2.0)), and
+			     opendj-core via openam-shared, which pins an older bctls-fips. -->
+			<dependency>
+				<groupId>org.bouncycastle</groupId>
+				<artifactId>bc-fips</artifactId>
+				<version>${bc.fips.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.bouncycastle</groupId>
+				<artifactId>bcpkix-fips</artifactId>
+				<version>${bcpkix.fips.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.bouncycastle</groupId>
+				<artifactId>bctls-fips</artifactId>
+				<version>${bctls.fips.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.bouncycastle</groupId>
+				<artifactId>bcutil-fips</artifactId>
+				<version>${bcutil.fips.version}</version>
 			</dependency>
 			<dependency>
 				<groupId>io.grpc</groupId>
@@ -519,30 +556,27 @@
 				<artifactId>animal-sniffer-annotations</artifactId>
 				<version>1.26</version>
 			</dependency>
-			<!-- CVE force: CVE-2026-42579 - override transitive Netty DNS artifacts to fixed version -->
 			<dependency>
 				<groupId>io.netty</groupId>
 				<artifactId>netty-bom</artifactId>
-				<version>4.1.133.Final</version>
+				<version>${netty.version}</version>
 				<type>pom</type>
 				<scope>import</scope>
 			</dependency>
-			<!-- GHSA-2m67-wjpj-xhg9 / CVE-2026-29062: force transitive tools.jackson.core (Jackson 3.x) from mcp-json-jackson3 up to fixed version -->
 			<dependency>
 				<groupId>tools.jackson.core</groupId>
 				<artifactId>jackson-core</artifactId>
-				<version>3.1.1</version>
+				<version>${jackson3.version}</version>
 			</dependency>
 			<dependency>
 				<groupId>tools.jackson.core</groupId>
 				<artifactId>jackson-databind</artifactId>
-				<version>3.1.1</version>
+				<version>${jackson3.version}</version>
 			</dependency>
-			<!-- CVE force: CVE-2025-12183/CVE-2025-66566 - override transitive org.lz4:lz4-java version (1.8.0) -->
 			<dependency>
-				<groupId>org.lz4</groupId>
-				<artifactId>lz4-java</artifactId>
-				<version>1.8.1</version>
+				<groupId>tools.jackson.dataformat</groupId>
+				<artifactId>jackson-dataformat-yaml</artifactId>
+				<version>${jackson3.version}</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
@@ -587,13 +621,13 @@
 		<dependency>
 		    <groupId>jakarta.websocket</groupId>
 		    <artifactId>jakarta.websocket-api</artifactId>
-		    <version>2.2.0</version>
+		    <version>${jakarta.websocket.version}</version>
 		</dependency>
 		<!-- Source: https://mvnrepository.com/artifact/jakarta.websocket/jakarta.websocket-client-api -->
 		<dependency>
 		    <groupId>jakarta.websocket</groupId>
 		    <artifactId>jakarta.websocket-client-api</artifactId>
-		    <version>2.2.0</version>
+		    <version>${jakarta.websocket.version}</version>
 		</dependency>
 		<!-- Source: https://mvnrepository.com/artifact/jakarta.activation/jakarta.activation-api -->
 		<dependency>
@@ -605,7 +639,7 @@
 		<dependency>
 			<groupId>org.jboss.resteasy</groupId>
 			<artifactId>resteasy-core</artifactId>
-			<version>7.0.2.Final</version>
+			<version>${resteasy.version}</version>
 			<exclusions>
 				<exclusion>
 					<groupId>org.reactivestreams</groupId>
@@ -629,7 +663,7 @@
 		<dependency>
 			<groupId>org.jboss.resteasy</groupId>
 			<artifactId>resteasy-jaxb-provider</artifactId>
-			<version>7.0.2.Final</version>
+			<version>${resteasy.version}</version>
 		</dependency>
 		<!-- SAML ONE JAR --> 
 		<!-- Source: https://mvnrepository.com/artifact/org.openidentityplatform.openam/openam-federation-library -->
@@ -651,6 +685,10 @@
 					<artifactId>esapi</artifactId>
 				</exclusion>
 				<exclusion>
+					<groupId>org.eclipse.parsson</groupId>
+					<artifactId>parsson</artifactId>
+				</exclusion>
+				<exclusion>
 				    <groupId>org.slf4j</groupId>
 				    <artifactId>*</artifactId>
 				</exclusion>
@@ -664,7 +702,7 @@
 				    <artifactId>jaxrpc-impl</artifactId>
 				</exclusion>
 			</exclusions>
-		</dependency>
+		</dependency> 
 		<!-- https://mvnrepository.com/artifact/com.mikesamuel/json-sanitizer -->
 		<dependency>
 			<groupId>com.mikesamuel</groupId>
@@ -672,10 +710,9 @@
 			<version>1.2.3</version>
 		</dependency>
         <dependency>
-            <groupId>io.netty</groupId>
-            <artifactId>netty-bom</artifactId>
-            <version>4.1.133.Final</version>
-            <type>pom</type>
-        </dependency>
+			<groupId>org.eclipse.parsson</groupId>
+			<artifactId>parsson</artifactId>
+			<version>1.1.8</version>
+		</dependency>
     </dependencies>
 </project>
