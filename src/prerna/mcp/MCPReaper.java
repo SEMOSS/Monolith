@@ -295,6 +295,7 @@ public class MCPReaper implements Runnable {
 		if (!this.response.isCommitted()) {
 			this.response.setStatus(HttpServletResponse.SC_OK);
 			this.response.setContentType(MediaType.APPLICATION_JSON);
+			this.response.setHeader("X-Content-Type-Options", "nosniff");
 			this.response.setCharacterEncoding("UTF-8");
 			this.response.setHeader("Cache-Control", "no-cache");
 			this.response.setHeader("Connection", "keep-alive");
@@ -667,14 +668,13 @@ public class MCPReaper implements Runnable {
 
 						Map<String, Object> imageContent = new HashMap<>();
 						imageContent.put("type", "image");
-						imageContent.put("data",
-								Base64.getEncoder().encodeToString(Files.readAllBytes(resolvedPath)));
+						imageContent.put("data", Base64.getEncoder().encodeToString(Files.readAllBytes(resolvedPath)));
 						imageContent.put("mimeType", mimeType);
 						content.add(imageContent);
 					}
 				} else {
-					return buildTextToolResult(
-							"External MCP currently supports text and image result blocks only.", true);
+					return buildTextToolResult("External MCP currently supports text and image result blocks only.",
+							true);
 				}
 			}
 		} catch (Exception e) {
