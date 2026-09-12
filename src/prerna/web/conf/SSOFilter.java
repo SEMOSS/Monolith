@@ -126,7 +126,7 @@ public class SSOFilter implements Filter {
 
 		// User has not logged in. Capture redirect context and send the browser
 		// to the configured SAML login entry point.
-		
+
 		if (user == null) {
 			classLogger.info("Starting saml transaction.");
 			if (session == null) {
@@ -144,12 +144,11 @@ public class SSOFilter implements Filter {
 			String redirectAfterLogin;
 			if (isPortalUrl) {
 				// Always return to the portal URL itself, not wherever the referer points
-				classLogger.info("Setting session redirect value to the request URL = {}", 
+				classLogger.info("Setting session redirect value to the request URL = {}",
 						Utility.cleanLogString(fullUrl));
 				redirectAfterLogin = fullUrl;
 			} else if (referer != null) {
-				classLogger.info("Setting session redirect value to referer = {}", 
-						Utility.cleanLogString(referer));
+				classLogger.info("Setting session redirect value to referer = {}", Utility.cleanLogString(referer));
 				redirectAfterLogin = referer;
 			} else {
 				classLogger.info("No session redirect value found...");
@@ -166,8 +165,7 @@ public class SSOFilter implements Filter {
 			// use sec-fetch-dest to see if the request is for a document nav or iframe
 			// fall back to portal check if not passed (some scripts or older browsers)
 			String fetchDest = ((HttpServletRequest) request).getHeader("Sec-Fetch-Dest");
-			boolean addLocation = (fetchDest == null && isPortalUrl) 
-					|| "document".equalsIgnoreCase(fetchDest) 
+			boolean addLocation = (fetchDest == null && isPortalUrl) || "document".equalsIgnoreCase(fetchDest)
 					|| "iframe".equalsIgnoreCase(fetchDest);
 
 			// this will be the deployment name of the app

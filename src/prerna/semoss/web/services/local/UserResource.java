@@ -837,8 +837,7 @@ public class UserResource {
 						response.setContentType("text/plain; charset=UTF-8");
 						response.setHeader("X-Content-Type-Options", "nosniff");
 						response.setStatus(400);
-						response.getWriter()
-								.write("Salesforce credentials not found for the requested connection");
+						response.getWriter().write("Salesforce credentials not found for the requested connection");
 						return null;
 					}
 
@@ -982,8 +981,7 @@ public class UserResource {
 						response.setContentType("text/plain; charset=UTF-8");
 						response.setHeader("X-Content-Type-Options", "nosniff");
 						response.setStatus(400);
-						response.getWriter()
-								.write("ServiceNow credentials not found for the requested connection");
+						response.getWriter().write("ServiceNow credentials not found for the requested connection");
 						return null;
 					}
 

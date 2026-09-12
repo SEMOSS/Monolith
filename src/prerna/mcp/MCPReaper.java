@@ -668,14 +668,13 @@ public class MCPReaper implements Runnable {
 
 						Map<String, Object> imageContent = new HashMap<>();
 						imageContent.put("type", "image");
-						imageContent.put("data",
-								Base64.getEncoder().encodeToString(Files.readAllBytes(resolvedPath)));
+						imageContent.put("data", Base64.getEncoder().encodeToString(Files.readAllBytes(resolvedPath)));
 						imageContent.put("mimeType", mimeType);
 						content.add(imageContent);
 					}
 				} else {
-					return buildTextToolResult(
-							"External MCP currently supports text and image result blocks only.", true);
+					return buildTextToolResult("External MCP currently supports text and image result blocks only.",
+							true);
 				}
 			}
 		} catch (Exception e) {
