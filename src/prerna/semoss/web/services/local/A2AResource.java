@@ -49,8 +49,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-import jakarta.inject.Singleton;
-
 import org.a2aproject.sdk.spec.AgentCapabilities;
 import org.a2aproject.sdk.spec.AgentCard;
 import org.a2aproject.sdk.spec.AgentInterface;
@@ -80,6 +78,7 @@ import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializer;
 
 import jakarta.annotation.security.PermitAll;
+import jakarta.inject.Singleton;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.ws.rs.Consumes;
@@ -99,9 +98,9 @@ import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.ThreadStore;
 import prerna.reactor.agent.AgentRunContext;
-import prerna.reactor.agent.run.AgentRuntimeManager;
-import prerna.reactor.agent.run.RunAgentRequest;
-import prerna.reactor.agent.run.RunAgentResult;
+import prerna.reactor.agent.run.AgentRunHandle;
+import prerna.reactor.agent.run.AgentRunRequest;
+import prerna.reactor.agent.run.AgentRunService;
 import prerna.util.Constants;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
@@ -269,14 +268,14 @@ public class A2AResource {
 		}
 
 		Map<String, Object> paramMap = new HashMap<>();
-		RunAgentRequest runRequest = new RunAgentRequest(roomId, input, engineId, "semoss", workspaceId,
+		AgentRunRequest runRequest = new AgentRunRequest(roomId, input, engineId, "semoss", workspaceId,
 				AgentRunContext.DEFAULT_MAX_TURNS, AgentRunContext.DEFAULT_MAX_REFLECTIONS, paramMap, new HashMap<>(),
 				insight);
-		RunAgentResult result = AgentRuntimeManager.get().run(runRequest);
+		AgentRunHandle handle = AgentRunService.get().run(runRequest);
 		if (honorReturnImmediately && !returnImmediately(params)) {
-			return taskFromRun(AgentRuntimeManager.get().waitForRun(result.getRunId(), insight, 0L));
+			return taskFromRun(AgentRunService.get().waitForRun(handle.runId(), insight, 0L));
 		}
-		return taskFromRun(AgentRuntimeManager.get().getRun(result.getRunId(), insight));
+		return taskFromRun(AgentRunService.get().getRun(handle.runId(), insight));
 	}
 
 	private Task handleGet(JsonObject rpc, A2ARequestContext requestContext) {
@@ -286,7 +285,7 @@ public class A2AResource {
 		if (runId == null) {
 			throw new IllegalArgumentException("task id is required");
 		}
-		return taskFromRun(AgentRuntimeManager.get().getRun(runId, insight));
+		return taskFromRun(AgentRunService.get().getRun(runId, insight));
 	}
 
 	private Task handleCancel(JsonObject rpc, A2ARequestContext requestContext) {
@@ -296,7 +295,7 @@ public class A2AResource {
 		if (runId == null) {
 			throw new IllegalArgumentException("task id is required");
 		}
-		return taskFromRun(AgentRuntimeManager.get().stop(runId, insight));
+		return taskFromRun(AgentRunService.get().stop(runId, insight));
 	}
 
 	private Map<String, Object> handleStreamAsJson(String workspaceId, JsonObject rpc, A2ARequestContext requestContext)
@@ -317,7 +316,7 @@ public class A2AResource {
 		Insight insight = requestContext.insight;
 		String lastState = null;
 		while (eventSink != null && !eventSink.isClosed()) {
-			Task task = taskFromRun(AgentRuntimeManager.get().getRun(runId, insight));
+			Task task = taskFromRun(AgentRunService.get().getRun(runId, insight));
 			String state = task != null && task.status() != null && task.status().state() != null
 					? task.status().state().name()
 					: null;
