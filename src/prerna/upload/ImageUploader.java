@@ -75,6 +75,8 @@ public class ImageUploader extends Uploader {
 
 	private static final Logger classLogger = LogManager.getLogger(ImageUploader.class);
 
+	private static final long serialVersionUID = 1L;
+
 	/*
 	 * ENGINE
 	 */
@@ -122,7 +124,7 @@ public class ImageUploader extends Uploader {
 		try {
 			for (DiskFileItem fi : fileItems) {
 				String fieldName = fi.getFieldName();
-				String value = WebUtility.inputSanitizer(fi.getString());
+				String value = WebUtility.inputSanitizer(Uploader.convertToString(fi.getReader()));
 				if (fieldName.equals("file")) {
 					imageFile = fi;
 				}
@@ -475,7 +477,7 @@ public class ImageUploader extends Uploader {
 		try {
 			for (DiskFileItem fi : fileItems) {
 				String fieldName = fi.getFieldName();
-				String value = WebUtility.inputSanitizer(fi.getString());
+				String value = WebUtility.inputSanitizer(Uploader.convertToString(fi.getReader()));
 				if (fieldName.equals("file")) {
 					imageFile = fi;
 				}
@@ -690,10 +692,6 @@ public class ImageUploader extends Uploader {
 	public Response uploadInsightImage(@Context ServletContext context, @Context HttpServletRequest request) {
 		Map<String, String> returnMap = new HashMap<>();
 
-		// base path is the project folder
-		String filePath = WebUtility
-				.normalizePath(EngineUtility.getLocalEngineBaseDirectory(IEngine.CATALOG_TYPE.PROJECT));
-
 		HttpSession session = request.getSession(false);
 		User user = null;
 		if (session != null) {
@@ -732,7 +730,7 @@ public class ImageUploader extends Uploader {
 		try {
 			for (DiskFileItem fi : fileItems) {
 				String fieldName = fi.getFieldName();
-				String value = WebUtility.inputSanitizer(fi.getString());
+				String value = WebUtility.inputSanitizer(Uploader.convertToString(fi.getReader()));
 				if (fieldName.equals("file")) {
 					imageFile = fi;
 				}
