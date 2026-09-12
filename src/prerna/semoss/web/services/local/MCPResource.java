@@ -42,13 +42,12 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
-import jakarta.inject.Singleton;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.ThreadContext;
 
 import jakarta.annotation.security.PermitAll;
+import jakarta.inject.Singleton;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
@@ -164,6 +163,7 @@ public class MCPResource {
 
 		try {
 			response.setContentType(MediaType.SERVER_SENT_EVENTS);
+			response.setHeader("X-Content-Type-Options", "nosniff");
 			response.setHeader("Cache-Control", "no-cache");
 			response.setHeader("Connection", "keep-alive");
 			response.setCharacterEncoding("UTF-8");
