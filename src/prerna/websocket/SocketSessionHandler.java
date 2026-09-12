@@ -116,7 +116,14 @@ public class SocketSessionHandler {
 	private void sendReturnData(String message) {
 		for (Session session : sessions) {
 			try {
-				session.getBasicRemote().sendText(message);
+				// Tomcat's WS RemoteEndpoint enforces a per-session state machine and
+				// throws IllegalStateException if two threads call sendText on the same
+				// session concurrently (a streamer thread here racing the message-handling
+				// thread sending an ack/error in InsightWebsocket). Session is the actual
+				// shared resource, so it's the lock.
+				synchronized (session) {
+					session.getBasicRemote().sendText(message);
+				}
 			} catch (IOException e) {
 				removeSession(session);
 			}
