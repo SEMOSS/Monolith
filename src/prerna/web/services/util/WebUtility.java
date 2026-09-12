@@ -625,8 +625,8 @@ public final class WebUtility {
 	 * canonicalized so an existing symlinked parent cannot redirect a new child
 	 * outside the base directory.
 	 *
-	 * @param baseDir         trusted existing directory
-	 * @param relativePath    untrusted relative path; an empty value selects the base
+	 * @param baseDir      trusted existing directory
+	 * @param relativePath untrusted relative path; an empty value selects the base
 	 * @return contained absolute path
 	 * @throws IOException when existing components cannot be canonicalized
 	 */
