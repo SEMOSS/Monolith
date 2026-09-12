@@ -270,10 +270,20 @@ public class FileUploader extends Uploader {
 			@QueryParam("projectId") String projectId, @QueryParam("engineId") String engineId,
 			@QueryParam("userSpace") boolean userSpace) {
 
+		// the insightId check is not required for containment. insightId is only used
+		// as
+		// an InsightStore key and never as a path component, and getValidInsight below
+		// rejects anything that is not an active key. the asset folder comes off the
+		// resolved Insight, not off the request
 		insightId = WebUtility.safePathSegment(WebUtility.inputSanitizer(insightId));
 		relativePath = WebUtility.inputSanitizer(relativePath);
 		projectId = WebUtility.inputSanitizer(projectId);
 		engineId = WebUtility.inputSanitizer(engineId);
+		// the projectId and engineId checks are not required for containment.
+		// checkProjectEditPermission and checkEngineEditPermission below resolve them
+		// against the PROJECT and ENGINE tables, and the asset folder is then built
+		// from
+		// the loaded engine rather than from the request value
 		boolean projectIdProvided = projectId != null;
 		boolean engineIdProvided = engineId != null;
 		if (projectId != null) {
@@ -459,6 +469,10 @@ public class FileUploader extends Uploader {
 	public Response userAssetsUpload(@Context ServletContext context, @Context HttpServletRequest request,
 			@QueryParam("insightId") String insightId, @QueryParam("path") String relativePath) {
 
+		// the insightId check is not required for containment. insightId is only used
+		// as
+		// an InsightStore key and never as a path component, and getValidInsight below
+		// rejects anything that is not an active key
 		insightId = WebUtility.safePathSegment(WebUtility.inputSanitizer(insightId));
 		relativePath = WebUtility.inputSanitizer(relativePath);
 
@@ -520,6 +534,9 @@ public class FileUploader extends Uploader {
 			@QueryParam("insightId") String insightId, @QueryParam("path") String relativePath,
 			@QueryParam("projectId") String projectId) {
 
+		// neither id check is required for containment. insightId is only an
+		// InsightStore key, and checkProjectEditPermission below resolves projectId
+		// against the PROJECT table before Utility.getProject builds the asset folder
 		insightId = WebUtility.safePathSegment(WebUtility.inputSanitizer(insightId));
 		relativePath = WebUtility.inputSanitizer(relativePath);
 		projectId = WebUtility.safePathSegment(WebUtility.inputSanitizer(projectId));
@@ -537,8 +554,7 @@ public class FileUploader extends Uploader {
 			return permResponse;
 		}
 
-		if (projectId == null || (projectId = projectId.trim()).isEmpty()
-				|| !WebUtility.isSafePathSegment(projectId)) {
+		if (projectId == null || (projectId = projectId.trim()).isEmpty() || !WebUtility.isSafePathSegment(projectId)) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Must provide a project id.");
 			return WebUtility.getResponse(errorMap, 400);
@@ -589,6 +605,9 @@ public class FileUploader extends Uploader {
 			@QueryParam("insightId") String insightId, @QueryParam("path") String relativePath,
 			@QueryParam("engineId") String engineId) {
 
+		// neither id check is required for containment. insightId is only an
+		// InsightStore key, and checkEngineEditPermission below resolves engineId
+		// against the ENGINE table before Utility.getEngine builds the asset folder
 		insightId = WebUtility.safePathSegment(WebUtility.inputSanitizer(insightId));
 		relativePath = WebUtility.inputSanitizer(relativePath);
 		engineId = WebUtility.safePathSegment(WebUtility.inputSanitizer(engineId));
@@ -606,8 +625,7 @@ public class FileUploader extends Uploader {
 			return permResponse;
 		}
 
-		if (engineId == null || (engineId = engineId.trim()).isEmpty()
-				|| !WebUtility.isSafePathSegment(engineId)) {
+		if (engineId == null || (engineId = engineId.trim()).isEmpty() || !WebUtility.isSafePathSegment(engineId)) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Must provide an engine id.");
 			return WebUtility.getResponse(errorMap, 400);

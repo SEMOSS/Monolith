@@ -200,6 +200,9 @@ public class EngineRouteResource {
 	@Path("/updateSmssFile")
 	@Produces("application/json;charset=utf-8")
 	public Response updateSmssFile(@Context HttpServletRequest request, @PathParam("engineId") String engineId) {
+		// not required for containment. engineExists/userIsOwner below resolve engineId
+		// against the ENGINE table on both the admin and non-admin branch, so a
+		// traversal value is rejected before it reaches the smss file path
 		engineId = WebUtility.safePathSegment(WebUtility.inputSanitizer(engineId));
 		if (!WebUtility.isSafePathSegment(engineId)) {
 			Map<String, String> errorMap = new HashMap<>();
@@ -217,9 +220,12 @@ public class EngineRouteResource {
 		}
 		try {
 			boolean isAdmin = SecurityAdminUtils.userIsAdmin(user);
-			if (!isAdmin) {
-				boolean isOwner = SecurityEngineUtils.userIsOwner(user, engineId);
-				if (!isOwner) {
+			if (isAdmin) {
+				if (!SecurityEngineUtils.engineExists(engineId)) {
+					throw new IllegalAccessException("Engine " + engineId + " does not exist.");
+				}
+			} else {
+				if (!SecurityEngineUtils.userIsOwner(user, engineId)) {
 					throw new IllegalAccessException("Engine " + engineId
 							+ " does not exist or user does not have permissions to update the smss. User must be the owner to perform this function.");
 				}
@@ -401,6 +407,10 @@ public class EngineRouteResource {
 	@Produces({ MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML })
 	public Response imageDownload(@Context final Request coreRequest, @Context HttpServletRequest request,
 			@PathParam("engineId") String engineId) {
+		// not required for containment. getEngineTypeAndSubtype and
+		// canAccessOrDiscoverableEngine below resolve engineId against the ENGINE
+		// table,
+		// so a traversal value is rejected before it reaches the image path
 		engineId = WebUtility.safePathSegment(WebUtility.inputSanitizer(engineId));
 		if (!WebUtility.isSafePathSegment(engineId)) {
 			Map<String, String> errorMap = new HashMap<>();
