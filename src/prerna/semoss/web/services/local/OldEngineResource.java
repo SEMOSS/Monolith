@@ -27,11 +27,9 @@
  *******************************************************************************/
 package prerna.semoss.web.services.local;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Vector;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -53,15 +51,12 @@ import jakarta.ws.rs.core.Response;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.engine.api.IDatabaseEngine;
-import prerna.engine.api.IDatabaseEngine.DATABASE_TYPE;
-import prerna.engine.api.IRawSelectWrapper;
 import prerna.forms.AbstractFormBuilder;
 import prerna.forms.FormBuilder;
 import prerna.forms.FormFactory;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.ThreadStore;
-import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.reactor.PixelPlanner;
 import prerna.reactor.legacy.playsheets.GetPlaysheetParamsReactor;
 import prerna.reactor.legacy.playsheets.RunPlaysheetReactor;
@@ -70,7 +65,6 @@ import prerna.sablecc2.om.PixelDataType;
 import prerna.sablecc2.om.ReactorKeysEnum;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.util.Constants;
-import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 @PermitAll
@@ -90,92 +84,6 @@ public class OldEngineResource {
 	public void setEngine(IDatabaseEngine coreEngine) {
 		classLogger.info("Setting core engine to {}", coreEngine);
 		this.coreEngine = coreEngine;
-	}
-
-	/**
-	 * Gets a list of perspectives for the given engine
-	 * 
-	 * @param request
-	 * @return a hashtable with "perspectives" pointing to to array of perspectives
-	 *         (e.g. ["Generic-Perspective","Movie-Perspective"])
-	 */
-//	@GET
-//	@Path("perspectives")
-//	@Produces("application/json")
-//	public Response getPerspectives(@Context HttpServletRequest request)
-//	{
-//		// if the type is null then send all the insights else only that
-//		Hashtable<String, Vector<String>> hashtable = new Hashtable<String, Vector<String>>(); 
-//		Vector<String> perspectivesVector = coreEngine.getPerspectives();
-//		hashtable.put("perspectives", perspectivesVector);
-////		return Response.status(200).entity(WebUtility.getSO(hashtable)).build();
-//		return WebUtility.getResponse(hashtable, 200);
-//	}
-
-	@Deprecated
-	// gets a particular insight
-	// not sure if I should keep it as it is or turn this into a post because of the
-	// query
-	@POST
-	@Path("querys")
-	@Produces("application/json")
-	public Response queryDataSelect(MultivaluedMap<String, String> form) {
-		// returns the insight
-		// based on the current ID get the data
-		// typically is a JSON of the insight
-		// this will also cache it
-		Gson gson = new Gson();
-		String query = form.getFirst("query");
-		String[] paramBind = gson.fromJson(form.getFirst("paramBind"), new TypeToken<String[]>() {
-		}.getType());
-		String[] paramValue = gson.fromJson(form.getFirst("paramValue"), new TypeToken<String[]>() {
-		}.getType());
-		// do the query binding server side isntead of on the front end.
-		if (paramBind.length > 0 && paramValue.length > 0 && (paramBind.length == paramValue.length)) {
-			for (int i = 0; i < paramBind.length && query.contains(paramBind[i]); i++) {
-//				String paramValueStr = coreEngine.getTransformedNodeName(paramValue[i], false);
-				String paramValueStr = paramValue[i];
-				if (coreEngine.getDatabaseType() == DATABASE_TYPE.RDBMS) {
-					String paramValueTable = Utility.getInstanceName(paramValueStr);
-					String paramValueCol = Utility.getClassName(paramValueStr);
-
-					// very risky business going on right now.... will not work on other bindings
-					if (paramValueCol != null) {
-						query = query.replaceFirst(paramBind[i], paramValueCol);
-					}
-					if (paramValueTable != null) {
-						query = query.replaceFirst(paramBind[i], paramValueTable);
-					}
-
-				} else {
-					query = query.replaceFirst(paramBind[i], paramValueStr);
-				}
-			}
-		}
-		classLogger.info(Utility.cleanLogString(query));
-
-		// flush data out
-		List<Object[]> data = new Vector<Object[]>();
-		IRawSelectWrapper wrapper = null;
-		try {
-			wrapper = WrapperManager.getInstance().getRawWrapper(coreEngine, query);
-			while (wrapper.hasNext()) {
-				data.add(wrapper.next().getRawValues());
-			}
-		} catch (Exception e) {
-			classLogger.error("Failed to execute the data select query and iterate the result wrapper", e);
-		} finally {
-			if (wrapper != null) {
-				try {
-					wrapper.close();
-				} catch (IOException e) {
-					classLogger.error("Failed to close the result wrapper after executing the data select query", e);
-				}
-			}
-		}
-
-//		return Response.status(200).entity(WebUtility.getSO(data)).build();
-		return WebUtility.getResponse(data, 200);
 	}
 
 	/**
@@ -334,36 +242,5 @@ public class OldEngineResource {
 
 		return WebUtility.getResponse(gson.toJson(auditInfo), 200);
 	}
-
-//	@GET
-//	@Path("/exportDatabase")
-//	@Produces("application/zip")
-//	public Response exportDatabase(@Context HttpServletRequest request) {
-//		HttpSession session = request.getSession();
-//		String engineId = coreEngine.getEngineId();
-//		String engineName = coreEngine.getEngineName();
-//
-//		// we want to start exporting the solr documents as well
-//		// since we want to move away from using the rdbms insights for that
-//		DBAdminResource dbAdmin = new DBAdminResource();
-//		MultivaluedMap<String, String> form = new MultivaluedHashMap<String, String>();
-//		form.putSingle("engineName", engineId);
-//		dbAdmin.exportDbSolrInfo(form , request);
-//		
-//		// close the engine so we can export it
-//		session.removeAttribute(engineId);
-//		DIHelper.getInstance().removeLocalProperty(engineId);
-//		coreEngine.close();
-//		
-//		classLogger.info("Attending to export engine = " + engineId);
-//		File zip = ZipDatabase.zipEngine(engineId, engineName);
-//		
-//		Response resp = Response.ok(zip)
-//				.header("x-filename", zip.getName())
-//				.header("content-type", "application/zip")
-//				.header("Content-Disposition", "attachment; filename=\"" + zip.getName() + "\"" ).build();
-//		
-//		return resp;
-//	}
 
 }
