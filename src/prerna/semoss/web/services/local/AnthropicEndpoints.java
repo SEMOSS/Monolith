@@ -64,6 +64,7 @@ import prerna.auth.User;
 import prerna.auth.utils.SecurityEngineUtils;
 import prerna.engine.api.IModelEngine;
 import prerna.engine.impl.model.AbstractModelEngine;
+import prerna.engine.impl.model.ModelPixelInvoker;
 import prerna.engine.impl.model.Room;
 import prerna.engine.impl.model.RoomUtils;
 import prerna.engine.impl.model.inferencetracking.ModelInferenceLogsUtils;
@@ -232,7 +233,7 @@ public class AnthropicEndpoints {
 		}
 		insight.setUser(user);
 
-		ModelPixelExecutor.initializeThreadStore(insight, SESSION_ID, JOB_ID);
+		ModelPixelInvoker.initializeThreadStore(insight, SESSION_ID, JOB_ID);
 		// ROOM & INSIGHT LOGIC END ---------
 
 		Object messages = dataMap.remove("messages");
@@ -326,7 +327,7 @@ public class AnthropicEndpoints {
 			Map<String, Object> dataMap, String engineId) {
 		AskModelEngineResponse<?> llmResponse;
 		try {
-			llmResponse = ModelPixelExecutor.askModelSync(engine, insight, room, dataMap);
+			llmResponse = ModelPixelInvoker.askModelSync(engine, insight, room, dataMap);
 		} catch (Exception e) {
 			classLogger.error("Synchronous model call failed for engine '{}'", engineId, e);
 			Map<String, Object> errorMap = AnthropicMessagesHelper.createErrorResponse("api_error",
@@ -373,7 +374,7 @@ public class AnthropicEndpoints {
 						long streamStartTime = System.currentTimeMillis();
 
 						try (Writer writer = new OutputStreamWriter(output, StandardCharsets.UTF_8)) {
-							asyncJobId = ModelPixelExecutor.startAsyncModelRequest(engine, FINAL_INSIGHT, FINAL_ROOM,
+							asyncJobId = ModelPixelInvoker.startAsyncModelRequest(engine, FINAL_INSIGHT, FINAL_ROOM,
 									FINAL_DATAMAP, FINAL_SESSION_ID);
 							classLogger.debug("Streaming job started: {}", asyncJobId);
 
@@ -732,7 +733,7 @@ public class AnthropicEndpoints {
 								}
 
 								try {
-									Thread.sleep(50);
+									Thread.sleep(ModelPixelInvoker.STREAM_POLL_INTERVAL_MS);
 								} catch (InterruptedException e) {
 									Thread.currentThread().interrupt();
 									break;
