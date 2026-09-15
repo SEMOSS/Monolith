@@ -668,7 +668,7 @@ public class ProjectResource {
 			}
 
 			return Response.status(200).entity(exportFile)
-					.header("Content-Disposition", "attachment; filename=" + exportName)
+					.header("Content-Disposition", WebUtility.responseHeaderValue("attachment; filename=" + exportName))
 //					.cacheControl(cc)
 					.tag(etag)
 //					.lastModified(new Date(exportFile.lastModified()))
@@ -786,7 +786,7 @@ public class ProjectResource {
 			}
 
 			return Response.status(200).entity(exportFile)
-					.header("Content-Disposition", "attachment; filename=" + exportName)
+					.header("Content-Disposition", WebUtility.responseHeaderValue("attachment; filename=" + exportName))
 //					.cacheControl(cc)
 					.tag(etag)
 //					.lastModified(new Date(exportFile.lastModified()))
