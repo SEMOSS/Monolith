@@ -120,7 +120,7 @@ public class ShareSessionFilter implements Filter {
 							for (Cookie c : cookies) {
 								if (c.getName().equals(DBLoader.getSessionIdKey())) {
 									c.setValue(sessionId);
-									((HttpServletResponse) arg1).addCookie(c);
+									((HttpServletResponse) arg1).addCookie(WebUtility.responseCookie(c));
 								}
 							}
 						}
@@ -133,7 +133,7 @@ public class ShareSessionFilter implements Filter {
 							c.setHttpOnly(true);
 							c.setSecure(req.isSecure());
 							c.setPath(contextPath);
-							((HttpServletResponse) arg1).addCookie(c);
+							((HttpServletResponse) arg1).addCookie(WebUtility.responseCookie(c));
 						}
 					} else if (shareAuth) {
 						classLogger.info("User has successfully used a share token '{}' to for authentication",
@@ -195,7 +195,7 @@ public class ShareSessionFilter implements Filter {
 				}
 
 				((HttpServletResponse) arg1).setStatus(HttpServletResponse.SC_TEMPORARY_REDIRECT);
-				((HttpServletResponse) arg1).setHeader("Location", fullUrl);
+				((HttpServletResponse) arg1).setHeader("Location", WebUtility.responseHeaderValue(fullUrl));
 				return;
 			}
 		}

@@ -188,7 +188,7 @@ public class SSOFilter implements Filter {
 						if (c.getName().equals(DBLoader.getSessionIdKey())) {
 							c.setValue(session.getId());
 							c.setDomain(customDomainForCookie);
-							((HttpServletResponse) response).addCookie(c);
+							((HttpServletResponse) response).addCookie(WebUtility.responseCookie(c));
 						}
 					}
 				}
@@ -198,8 +198,8 @@ public class SSOFilter implements Filter {
 			// 1) configured external login URL, or
 			// 2) internal SAML login page that routes into IdpSSOServlet/SPSSOServlet.
 			if (loginUrl != null && !(loginUrl = loginUrl.trim()).isEmpty()) {
-				((HttpServletResponse) response).setHeader("redirect", loginUrl);
-				((HttpServletResponse) response).setHeader("location", loginUrl);
+				((HttpServletResponse) response).setHeader("redirect", WebUtility.responseHeaderValue(loginUrl));
+				((HttpServletResponse) response).setHeader("location", WebUtility.responseHeaderValue(loginUrl));
 				((HttpServletResponse) response).sendError(302, "Need to redirect to " + loginUrl);
 			} else {
 				// if no login url defined
@@ -207,9 +207,9 @@ public class SSOFilter implements Filter {
 				// we redirect to the index.html page specifically created for the SAML call.
 				String redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length())
 						+ loginPath;
-				((HttpServletResponse) response).setHeader("redirect", redirectUrl);
+				((HttpServletResponse) response).setHeader("redirect", WebUtility.responseHeaderValue(redirectUrl));
 				if (addLocation) {
-					((HttpServletResponse) response).setHeader("location", redirectUrl);
+					((HttpServletResponse) response).setHeader("location", WebUtility.responseHeaderValue(redirectUrl));
 				}
 				((HttpServletResponse) response).sendError(302, "Redirect required");
 			}

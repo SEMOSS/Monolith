@@ -4,12 +4,12 @@
 		<title>SAML Login</title>
 		<script>
 			function redirectSAML() {
-				var xhttp = new XMLHttpRequest(),
-					origin = window.location.href;
-				endpoint = origin.substring(0, origin.lastIndexOf('/samlSPLogin')) + '/SPSSOServlet',
-				window.location.replace(endpoint);
-				xhttp.open('GET', endpoint, true);
-				xhttp.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+				// Only sibling endpoints are valid; never derive a destination from query/fragment text.
+				if (window.location.pathname.endsWith('/samlSPLogin')) {
+					window.location.replace('./SPSSOServlet');
+				} else {
+					window.location.replace('../SPSSOServlet');
+				}
 			}
 		</script>
 	</head>
