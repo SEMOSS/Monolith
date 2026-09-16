@@ -75,6 +75,22 @@ public class ImageUploader extends Uploader {
 
 	private static final Logger classLogger = LogManager.getLogger(ImageUploader.class);
 
+	/**
+	 * Extensions a stored image can be found again under. Kept in sync with
+	 * {@link InsightUtility#findImageFile(String)} - an image written with any
+	 * other extension is silently unreachable and gets replaced by a default
+	 * image on download, so it is rejected at upload time instead.
+	 */
+	private static final List<String> ALLOWED_IMAGE_EXTENSIONS = List.of("png", "jpg", "jpeg", "gif", "svg");
+
+	/** Fallback for uploads whose file name carries no extension of its own. */
+	private static final Map<String, String> MIME_TO_IMAGE_EXTENSION = Map.of(
+			"image/png", "png",
+			"image/jpeg", "jpg",
+			"image/jpg", "jpg",
+			"image/gif", "gif",
+			"image/svg+xml", "svg");
+
 	/*
 	 * ENGINE
 	 */
@@ -510,6 +526,15 @@ public class ImageUploader extends Uploader {
 		}
 		projectName = SecurityProjectUtils.getProjectAliasForId(projectId);
 
+		// resolve and validate before anything is written, so a rejected upload
+		// cannot delete the image the project already has
+		String imageExtension = resolveImageExtension(imageFile);
+		if (imageExtension == null) {
+			returnMap.put(Constants.ERROR_MESSAGE,
+					"Unsupported image type. Supported types are: " + String.join(", ", ALLOWED_IMAGE_EXTENSIONS));
+			return WebUtility.getResponse(returnMap, 400);
+		}
+
 		if (CouchUtil.COUCH_ENABLED) {
 			try {
 				Map<String, String> selectors = new HashMap<>();
@@ -522,7 +547,7 @@ public class ImageUploader extends Uploader {
 			}
 		} else {
 			String imageDir = getProjectImageDir(filePath, projectId, projectName);
-			String imageLoc = getProjectImageLoc(filePath, projectId, projectName, imageFile);
+			String imageLoc = getProjectImageLoc(filePath, projectId, projectName, imageExtension);
 
 			File f = new File(WebUtility.normalizePath(imageDir));
 			if (!f.exists()) {
@@ -672,12 +697,32 @@ public class ImageUploader extends Uploader {
 		return AssetUtility.getProjectVersionFolder(projectName, projectId);
 	}
 
-	private String getProjectImageLoc(String filePath, String id, String name, DiskFileItem imageFile) {
+	private String getProjectImageLoc(String filePath, String id, String name, String extension) {
 		String imageDir = getProjectImageDir(filePath, id, name);
 		if (ClusterUtil.IS_CLUSTER) {
-			return imageDir + DIR_SEPARATOR + id + "." + imageFile.getContentType().split("/")[1];
+			return imageDir + DIR_SEPARATOR + id + "." + extension;
 		}
-		return imageDir + DIR_SEPARATOR + "image." + imageFile.getContentType().split("/")[1];
+		return imageDir + DIR_SEPARATOR + "image." + extension;
+	}
+
+	/**
+	 * Resolves the extension a project image should be stored under. The uploaded
+	 * file name is preferred over the content type because a MIME subtype is not
+	 * always a usable extension - "image/svg+xml" yields "svg+xml", which nothing
+	 * can find again.
+	 *
+	 * @param imageFile the uploaded image
+	 * @return the lower-cased extension, or {@code null} when it is unsupported
+	 */
+	private String resolveImageExtension(DiskFileItem imageFile) {
+		String fileName = imageFile.getName();
+		String extension = (fileName == null) ? "" : Files.getFileExtension(fileName).toLowerCase();
+		if (extension.isEmpty()) {
+			String contentType = imageFile.getContentType();
+			extension = (contentType == null) ? ""
+					: MIME_TO_IMAGE_EXTENSION.getOrDefault(contentType.trim().toLowerCase(), "");
+		}
+		return ALLOWED_IMAGE_EXTENSIONS.contains(extension) ? extension : null;
 	}
 
 	/*

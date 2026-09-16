@@ -58,6 +58,7 @@ import com.google.gson.JsonParser;
 import jakarta.annotation.security.PermitAll;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
+import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
@@ -574,9 +575,10 @@ public class ProjectResource {
 
 	@GET
 	@Path("/projectImage/download")
-	@Produces({ MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML })
+	@Produces({ MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML, "image/png" })
 	public Response downloadProjectImage(@Context final Request coreRequest, @Context HttpServletRequest request,
-			@PathParam("projectId") String projectId) {
+			@PathParam("projectId") String projectId,
+			@QueryParam("fallback") @DefaultValue("true") boolean fallback) {
 		projectId = WebUtility.inputSanitizer(projectId);
 
 		User user = null;
@@ -632,7 +634,23 @@ public class ProjectResource {
 					.tag(etag)
 //					.lastModified(new Date(exportFile.lastModified()))
 					.build();
-		} else {
+		}
+
+		// the project has no image of its own. Callers that render their own
+		// placeholder ask for fallback=false and get a 404; everyone else keeps the
+		// historical behavior of being handed a default image.
+		if (!fallback) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "no image exists for this project");
+			return WebUtility.getResponse(errorMap, 404);
+		}
+
+		try {
+			byte[] defaultImage = DefaultImageGeneratorUtil.pickRandomImageBytes(projectId);
+			return Response.status(200).entity(defaultImage).type("image/png")
+					.header("Content-Disposition", "attachment; filename=" + projectId + "_Image.png").build();
+		} catch (IOException e) {
+			classLogger.error("Failed to serve a default project image for project {}", projectId, e);
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "error sending image file");
 			return WebUtility.getResponse(errorMap, 400);
@@ -640,10 +658,12 @@ public class ProjectResource {
 	}
 
 	/**
-	 * Use to find the file for the image
+	 * Use to find the file for the image. Only reports what already exists - a
+	 * project without an image must not have one generated here, or a GET would
+	 * write to disk and an image the user deleted would silently come back.
 	 * 
 	 * @param projectId
-	 * @return
+	 * @return the stored image, or {@code null} when the project has none
 	 * @throws Exception
 	 */
 	protected File getProjectImageFile(String projectId) throws Exception {
@@ -655,25 +675,7 @@ public class ProjectResource {
 		IProject project = Utility.getProject(projectId);
 		String projectName = project.getProjectName();
 		String fileLocation = AssetUtility.getProjectVersionFolder(projectName, projectId);
-		File f = findImageFile(fileLocation);
-		if (f != null) {
-			return f;
-		} else {
-			// make the image
-			f = new File(fileLocation);
-			if (!f.exists()) {
-				Boolean success = f.mkdirs();
-				if (!success) {
-					classLogger.info("Unable to create directory at location: {}",
-							Utility.cleanLogString(fileLocation));
-				}
-			}
-			fileLocation = fileLocation + DIR_SEPARATOR + "image.png";
-
-			DefaultImageGeneratorUtil.pickRandomImage(fileLocation);
-			f = new File(fileLocation);
-			return f;
-		}
+		return findImageFile(fileLocation);
 	}
 
 	@GET
