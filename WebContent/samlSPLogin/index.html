@@ -8,7 +8,9 @@
 				if (window.location.pathname.endsWith('/samlSPLogin')) {
 					window.location.replace('./SPSSOServlet');
 				} else {
-					window.location.replace('../SPSSOServlet');
+					var trailingSlashes = window.location.pathname.match(/\/+$/);
+					var levels = trailingSlashes ? trailingSlashes[0].length : 1;
+					window.location.replace('../'.repeat(levels) + 'SPSSOServlet');
 				}
 			}
 		</script>

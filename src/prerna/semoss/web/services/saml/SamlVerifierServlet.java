@@ -71,6 +71,7 @@ import prerna.util.SocialPropertiesUtil;
 import prerna.util.Utility;
 import prerna.web.conf.AdminStartupFilter;
 import prerna.web.conf.util.SSOUtil;
+import prerna.web.services.util.RedirectUtility;
 
 /**
  * Receives the SAML assertion callback from the IdP and finalizes login in this
@@ -229,6 +230,13 @@ public class SamlVerifierServlet extends HttpServlet {
 				classLogger.info("No redirect url was found...");
 				classLogger.info("Redirect to social.properties value");
 				originalRedirect = SocialPropertiesUtil.getInstance().getLoginRedirect();
+			}
+
+			try {
+				originalRedirect = RedirectUtility.samlReturnUrl(originalRedirect);
+			} catch (IllegalArgumentException e) {
+				response.sendError(HttpServletResponse.SC_FORBIDDEN, "Provided redirect is unauthorized");
+				return;
 			}
 
 			// Complete the SSO transaction by returning the user to their original target.

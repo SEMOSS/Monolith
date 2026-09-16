@@ -51,6 +51,7 @@ import prerna.auth.utils.SecurityShareSessionUtils;
 import prerna.semoss.web.services.local.UserResource;
 import prerna.util.Constants;
 import prerna.util.Utility;
+import prerna.web.services.util.RedirectUtility;
 import prerna.web.services.util.WebUtility;
 
 public class ShareSessionFilter implements Filter {
@@ -182,9 +183,9 @@ public class ShareSessionFilter implements Filter {
 				((HttpServletResponse) arg1).setStatus(HttpServletResponse.SC_MOVED_TEMPORARILY);
 				String newQueryString = removeQueryParam(currentQueryString, SHARE_TOKEN_KEY);
 				if (newQueryString != null && !newQueryString.isEmpty()) {
-					((HttpServletResponse) arg1).sendRedirect(fullUrl + "?" + newQueryString);
+					RedirectUtility.sendRequestRedirect((HttpServletResponse) arg1, fullUrl + "?" + newQueryString, HttpServletResponse.SC_MOVED_TEMPORARILY);
 				} else {
-					((HttpServletResponse) arg1).sendRedirect(fullUrl);
+					RedirectUtility.sendRequestRedirect((HttpServletResponse) arg1, fullUrl, HttpServletResponse.SC_MOVED_TEMPORARILY);
 				}
 				return;
 			} else if (method.equalsIgnoreCase("POST")) {
@@ -195,7 +196,7 @@ public class ShareSessionFilter implements Filter {
 				}
 
 				((HttpServletResponse) arg1).setStatus(HttpServletResponse.SC_TEMPORARY_REDIRECT);
-				((HttpServletResponse) arg1).setHeader("Location", WebUtility.responseHeaderValue(fullUrl));
+				RedirectUtility.sendRequestRedirect((HttpServletResponse) arg1, fullUrl, HttpServletResponse.SC_TEMPORARY_REDIRECT);
 				return;
 			}
 		}

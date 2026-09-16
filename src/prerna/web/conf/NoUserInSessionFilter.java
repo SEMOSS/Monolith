@@ -46,6 +46,7 @@ import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
 import prerna.util.SocialPropertiesUtil;
+import prerna.web.services.util.RedirectUtility;
 import prerna.web.services.util.WebUtility;
 
 public class NoUserInSessionFilter implements Filter {
@@ -107,7 +108,7 @@ public class NoUserInSessionFilter implements Filter {
 			} else {
 				String contextPath = context.getContextPath();
 				redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length()) + NO_USER_HTML;
-				((HttpServletResponse) arg1).sendRedirect(redirectUrl);
+				RedirectUtility.sendRequestRedirect((HttpServletResponse) arg1, redirectUrl, HttpServletResponse.SC_MOVED_TEMPORARILY);
 			}
 		} else {
 			// are we in public home - if no, we dont include ! in the redirect
