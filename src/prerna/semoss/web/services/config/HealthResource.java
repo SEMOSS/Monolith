@@ -46,8 +46,8 @@ import prerna.web.services.util.WebUtility;
  * and web.xml) and bypasses the security / user-session filter chain.
  * <p>
  * None of these methods call
- * {@link javax.servlet.http.HttpServletRequest#getSession()}, so no
- * {@link javax.servlet.http.HttpSession} is ever created for a probe.
+ * {@link jakarta.servlet.http.HttpServletRequest#getSession()}, so no
+ * {@link jakarta.servlet.http.HttpSession} is ever created for a probe.
  * <p>
  * {@link prerna.web.conf.StartUpSuccessFilter} also skips {@code /health/*}, so
  * these probes remain reachable even when startup has failed.

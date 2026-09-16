@@ -15,6 +15,11 @@ echo "Building Monolith..."
 cd ../Monolith
 mvn clean install -U -DskipTests=true
 
+echo "Staging Semoss js folder for the node execution environment..."
+rm -rf target/docker-js
+cp -R ../Semoss/js target/docker-js
+rm -rf target/docker-js/node_env/node_modules
+
 # Build Docker image from parent directory to access target folder
 echo "Building Docker image..."
 docker build --no-cache -f local-docker-testing/Dockerfile -t local-monolith .

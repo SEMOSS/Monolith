@@ -139,7 +139,8 @@
         try {
             errorMessage = SAML2Utils.bundle.getString(errorCode);
         } catch (Exception e) {
-            errorMessage = "errorCode=" + errorCode;
+            SAML2Utils.debug.warning("Unknown SAML error code: " + errorCode);
+            errorMessage = "Unknown SAML error";
         }
     }
 

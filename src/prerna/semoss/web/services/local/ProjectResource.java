@@ -152,7 +152,15 @@ public class ProjectResource {
 	@Path("/updateSmssFile")
 	@Produces("application/json;charset=utf-8")
 	public Response updateSmssFile(@Context HttpServletRequest request, @PathParam("projectId") String projectId) {
-		projectId = WebUtility.inputSanitizer(projectId);
+		// not required for containment. projectExists/userIsOwner below resolve
+		// projectId against the PROJECT table on both the admin and non-admin branch,
+		// so a traversal value is rejected before it reaches the smss file path
+		projectId = WebUtility.safePathSegment(WebUtility.inputSanitizer(projectId));
+		if (!WebUtility.isSafePathSegment(projectId)) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Invalid project id");
+			return WebUtility.getResponse(errorMap, 400);
+		}
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -163,9 +171,12 @@ public class ProjectResource {
 		}
 		try {
 			boolean isAdmin = SecurityAdminUtils.userIsAdmin(user);
-			if (!isAdmin) {
-				boolean isOwner = SecurityProjectUtils.userIsOwner(user, projectId);
-				if (!isOwner) {
+			if (isAdmin) {
+				if (!SecurityProjectUtils.projectExists(projectId)) {
+					throw new IllegalAccessException("Project " + projectId + " does not exist.");
+				}
+			} else {
+				if (!SecurityProjectUtils.userIsOwner(user, projectId)) {
 					throw new IllegalAccessException("Project " + projectId
 							+ " does not exist or user does not have permissions to update the smss of the project. User must be the owner to perform this function.");
 				}
@@ -295,13 +306,9 @@ public class ProjectResource {
 		}
 
 		try {
-			boolean isAdmin = SecurityAdminUtils.userIsAdmin(user);
-			if (!isAdmin) {
-				boolean isOwner = SecurityProjectUtils.userIsOwner(user, projectId);
-				if (!isOwner) {
-					throw new IllegalAccessException("Project " + projectId
-							+ " does not exist or user does not have permissions to update the smss of the project. User must be the owner to perform this function.");
-				}
+			if (!SecurityProjectUtils.userCanViewProject(user, projectId)) {
+				throw new IllegalAccessException("Project " + projectId
+						+ " does not exist or user does not have permissions to update the smss of the project. User must be the owner to perform this function.");
 			}
 		} catch (IllegalAccessException e) {
 			Map<String, String> errorMap = new HashMap<>();
@@ -359,7 +366,15 @@ public class ProjectResource {
 	public Response getProjectLandingPage(@Context final Request coreRequest, @Context HttpServletRequest request,
 			@PathParam("projectId") String projectId) {
 		User user = null;
-		projectId = WebUtility.inputSanitizer(projectId);
+		// not required for containment. canAccessProject below resolves projectId
+		// against the PROJECT table, so a traversal value is rejected before it reaches
+		// the landing page path
+		projectId = WebUtility.safePathSegment(WebUtility.inputSanitizer(projectId));
+		if (!WebUtility.isSafePathSegment(projectId)) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Invalid project id");
+			return WebUtility.getResponse(errorMap, 400);
+		}
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
@@ -419,7 +434,16 @@ public class ProjectResource {
 	@Produces({ MediaType.TEXT_HTML, MediaType.APPLICATION_OCTET_STREAM })
 	public Response downloadProjectAsset(@Context final Request coreRequest, @Context HttpServletRequest request,
 			@PathParam("projectId") String projectId, @PathParam("relPath") String relPath) {
-		projectId = WebUtility.inputSanitizer(projectId);
+		// not required for containment. canAccessProject below resolves projectId
+		// against the PROJECT table, so a traversal value is rejected before it reaches
+		// the assets folder path. relPath has no such backing check and is contained by
+		// resolveWithin further down
+		projectId = WebUtility.safePathSegment(WebUtility.inputSanitizer(projectId));
+		if (!WebUtility.isSafePathSegment(projectId)) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Invalid project id");
+			return WebUtility.getResponse(errorMap, 400);
+		}
 
 		User user = null;
 		try {
@@ -440,9 +464,18 @@ public class ProjectResource {
 		IProject project = Utility.getProject(projectId);
 		String projectName = project.getProjectName();
 
-		String fileLocation = EngineUtility.getSpecificEngineBaseFolder(IEngine.CATALOG_TYPE.PROJECT, projectId,
-				projectName) + DIR_SEPARATOR + "app_root/version/assets/" + WebUtility.inputSanitizer(relPath);
-		File file = new File(WebUtility.normalizePath(fileLocation));
+		String assetsRoot = EngineUtility.getSpecificEngineBaseFolder(IEngine.CATALOG_TYPE.PROJECT, projectId,
+				projectName) + DIR_SEPARATOR + "app_root/version/assets";
+		File file;
+		try {
+			file = WebUtility
+					.resolveWithin(Paths.get(WebUtility.normalizePath(assetsRoot)), WebUtility.inputSanitizer(relPath))
+					.toFile();
+		} catch (IOException | IllegalArgumentException | SecurityException e) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Invalid asset path");
+			return WebUtility.getResponse(errorMap, 400);
+		}
 		if (file != null && file.exists()) {
 			try {
 				String contents = FileUtils.readFileToString(file, "UTF-8");
@@ -577,7 +610,15 @@ public class ProjectResource {
 	@Produces({ MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML })
 	public Response downloadProjectImage(@Context final Request coreRequest, @Context HttpServletRequest request,
 			@PathParam("projectId") String projectId) {
-		projectId = WebUtility.inputSanitizer(projectId);
+		// not required for containment. canAccessOrDiscoverableProject below resolves
+		// projectId against the PROJECT table on both the view and discoverable branch,
+		// so a traversal value is rejected before it reaches the image path
+		projectId = WebUtility.safePathSegment(WebUtility.inputSanitizer(projectId));
+		if (!WebUtility.isSafePathSegment(projectId)) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Invalid project id");
+			return WebUtility.getResponse(errorMap, 400);
+		}
 
 		User user = null;
 		try {
@@ -683,9 +724,18 @@ public class ProjectResource {
 			@PathParam("projectId") String projectId, @QueryParam("rdbmsId") String id,
 			@QueryParam("params") String params) {
 
-		projectId = WebUtility.inputSanitizer(projectId);
-		id = WebUtility.inputSanitizer(id);
+		// not required for containment. canAccessInsight below resolves projectId and
+		// id together against the INSIGHT table, so a traversal value in either is
+		// rejected before it reaches the image path. params has no such backing check
+		// and is contained by resolveWithin further down
+		projectId = WebUtility.safePathSegment(WebUtility.inputSanitizer(projectId));
+		id = WebUtility.safePathSegment(WebUtility.inputSanitizer(id));
 		params = WebUtility.inputSanitizer(params);
+		if (!WebUtility.isSafePathSegment(projectId) || !WebUtility.isSafePathSegment(id)) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Invalid project or insight id");
+			return WebUtility.getResponse(errorMap, 400);
+		}
 
 		String sessionId = null;
 		User user = null;
@@ -759,12 +809,20 @@ public class ProjectResource {
 		IProject project = Utility.getProject(projectId);
 		String projectName = project.getProjectName();
 
-		String fileLocation = AssetUtility.getProjectVersionFolder(projectName, projectId);
-		if (params != null && !params.isEmpty() && !params.equals("undefined")) {
-			String encodedParams = Utility.encodeURIComponent(params);
-			fileLocation = fileLocation + DIR_SEPARATOR + id + DIR_SEPARATOR + "params" + DIR_SEPARATOR + encodedParams;
-		} else {
-			fileLocation = fileLocation + DIR_SEPARATOR + id;
+		String versionFolder = AssetUtility.getProjectVersionFolder(projectName, projectId);
+		String fileLocation;
+		try {
+			java.nio.file.Path versionRoot = Paths.get(WebUtility.normalizePath(versionFolder));
+			if (params != null && !params.isEmpty() && !params.equals("undefined")) {
+				String encodedParams = Utility.encodeURIComponent(params);
+				fileLocation = WebUtility
+						.resolveWithin(versionRoot, id + DIR_SEPARATOR + "params" + DIR_SEPARATOR + encodedParams)
+						.toString();
+			} else {
+				fileLocation = WebUtility.resolveWithin(versionRoot, id).toString();
+			}
+		} catch (IOException | IllegalArgumentException | SecurityException e) {
+			return null;
 		}
 		f = findImageFile(fileLocation);
 
@@ -1154,7 +1212,14 @@ public class ProjectResource {
 			if (output == null) {
 				return WebUtility.getSO("Unable to generate output from sql: " + sql);
 			}
-			return WebUtility.getSOFile(output + "");
+			java.nio.file.Path cacheRoot = Paths.get(Utility.getInsightCacheDir()).toRealPath();
+			java.nio.file.Path outputPath = Paths.get(output.toString());
+			java.nio.file.Path csvPath = (outputPath.isAbsolute() ? outputPath : cacheRoot.resolve(outputPath))
+					.toRealPath();
+			if (!csvPath.startsWith(cacheRoot) || !Files.isRegularFile(csvPath)) {
+				return WebUtility.getSO("Unable to generate output from sql: " + sql);
+			}
+			return WebUtility.getSOFile(csvPath.toString());
 
 		} catch (Exception e) {
 			return WebUtility.getSO(ExceptionUtils.getStackFrames(e));
