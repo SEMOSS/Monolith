@@ -88,6 +88,11 @@ fallback into the resource's version folder or upload it to cluster image storag
 The CouchDB project/database fallback likewise returns stock bytes without saving
 a per-resource attachment. Uploaded images continue to take precedence.
 
+Cluster downloads share a successful cloud-folder refresh for 30 seconds, so
+cards without custom images do not each trigger another folder pull. Local
+uploads take precedence immediately; a new upload from another node may take
+up to 30 seconds to appear on a node that is currently using a stock fallback.
+
 Selection uses the existing deterministic key: the resource name for local
 version paths, the resource ID for cluster image paths, and the partition/name
 for CouchDB. The selection stays stable while that key, the configured theme,
