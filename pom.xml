@@ -46,7 +46,8 @@
 		<!-- Pins that Semoss/pom.xml also carries at the same value. Its
 		     dependencyManagement is not inherited here, so each pom needs its own
 		     copy and the two have to be bumped together. -->
-		<bc.jdk18on.version>1.80.2</bc.jdk18on.version>
+		<!-- Version 1.85 addresses vulnerabilities inherited through SSHJ. -->
+		<bc.jdk18on.version>1.85</bc.jdk18on.version>
 		<netty.version>4.1.137.Final</netty.version>
 		<jackson3.version>3.1.5</jackson3.version>
 		<!-- BouncyCastle FIPS, consumed only by the fips profile below. Keep in sync
@@ -56,10 +57,10 @@
 		<bcpkix.fips.version>2.1.12</bcpkix.fips.version>
 		<bctls.fips.version>2.1.24</bctls.fips.version>
 		<bcutil.fips.version>2.1.7</bcutil.fips.version>
-		<!-- Must match the sshj version in Semoss/pom.xml. Referenced only by the
-		     fips profile, which re-declares sshj to strip its non-FIPS BouncyCastle
-		     transitives. -->
-		<sshj.version>0.40.0</sshj.version>
+		<!-- Must match the sshj version in Semoss/pom.xml. dependencyManagement
+		     applies it to the normal transitive dependency, while the fips profile
+		     re-declares sshj to strip its non-FIPS BouncyCastle transitives. -->
+		<sshj.version>0.41.0</sshj.version>
 	</properties>
 	<!-- LEGACY
 	<distributionManagement><snapshotRepository><id>ossrh</id><url>https://oss.sonatype.org/content/repositories/snapshots</url></snapshotRepository><repository><id>ossrh</id><url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url></repository></distributionManagement>
@@ -495,10 +496,16 @@
 	</repositories>
 	<dependencyManagement>
 		<dependencies>
-			<!-- Converge the non-FIPS BouncyCastle that sshj brings in. sshj 0.40.0
-			     declares bcprov-jdk18on 1.80 directly while its bcpkix-jdk18on 1.80
-			     pulls bcutil-jdk18on 1.80.2 which pulls bcprov-jdk18on 1.80.2, so
-			     without this the non-FIPS war ships mixed point releases.
+			<!-- Override the SSHJ version inherited through Semoss so Monolith does not
+			     depend on which Semoss snapshot is installed when this branch is built. -->
+			<dependency>
+				<groupId>com.hierynomus</groupId>
+				<artifactId>sshj</artifactId>
+				<version>${sshj.version}</version>
+			</dependency>
+			<!-- Converge the non-FIPS BouncyCastle that sshj brings in. Version 1.85
+			     addresses the vulnerabilities inherited through SSHJ and ensures the
+			     non-FIPS war ships one consistent BouncyCastle release.
 			     dependencyManagement is not inherited from the semoss pom, so this
 			     has to be repeated here even though Semoss/pom.xml pins the same
 			     versions. Only affects non-FIPS builds; the fips profile below
