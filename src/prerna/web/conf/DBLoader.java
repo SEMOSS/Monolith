@@ -47,6 +47,7 @@ import jakarta.servlet.ServletContextEvent;
 import jakarta.servlet.ServletContextListener;
 import jakarta.servlet.SessionCookieConfig;
 import prerna.cluster.util.ClusterUtil;
+import prerna.ds.node.NodeUtils;
 import prerna.engine.api.IDatabaseEngine;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.IEngine.CATALOG_TYPE;
@@ -337,6 +338,12 @@ public class DBLoader implements ServletContextListener {
 		if (Boolean.parseBoolean(Utility.getDIHelperProperty(Constants.CHROOT_ENABLE))) {
 			ChrootTemplate.warmAsync();
 			ChrootTemplate.awaitReady();
+		}
+
+		if (NodeUtils.isNodeToolEnabled()) {
+			Thread nodeEnvInstaller = new Thread(NodeUtils::ensureNodeEnvInstalled, "node-env-npm-ci");
+			nodeEnvInstaller.setDaemon(true);
+			nodeEnvInstaller.start();
 		}
 
 		// warm up the reactors

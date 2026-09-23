@@ -80,7 +80,7 @@ public class SchedulerFilter implements Filter {
 		User user = new User();
 		String[] accessPairs = userAccess.split(",");
 		for (String accessPair : accessPairs) {
-			String[] providerAndId = accessPair.split(":");
+			String[] providerAndId = accessPair.split(":", 2);
 
 			// Get the auth provider
 			AuthProvider provider = AuthProvider.valueOf(providerAndId[0]);
