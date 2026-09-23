@@ -609,8 +609,9 @@ public class ProjectResource {
 	 */
 
 	/**
-	 * Replace this project's catalog image with one multipart file named {@code file}.
-	 * Requires edit permission; accepts PNG, JPEG, or GIF up to 10 MiB.
+	 * Replace this project's catalog image with one multipart file named
+	 * {@code file}. Requires edit permission; accepts PNG, JPEG, or GIF up to 10
+	 * MiB.
 	 */
 	@POST
 	@Path("/image/upload")
@@ -685,8 +686,8 @@ public class ProjectResource {
 //			cc.setMaxAge(86400);
 //			cc.setPrivate(true);
 //			cc.setMustRevalidate(true);
-			EntityTag etag = new EntityTag(Integer.toHexString(exportFile.getAbsolutePath().hashCode())
-					+ "-" + exportFile.lastModified() + "-" + exportFile.length());
+			EntityTag etag = new EntityTag(Integer.toHexString(exportFile.getAbsolutePath().hashCode()) + "-"
+					+ exportFile.lastModified() + "-" + exportFile.length());
 			ResponseBuilder builder = coreRequest.evaluatePreconditions(etag);
 
 			// cached resource did not change
@@ -722,8 +723,8 @@ public class ProjectResource {
 
 		IProject project = Utility.getProject(projectId);
 		String projectName = project.getProjectName();
-		String fileLocation = EngineUtility.getSpecificEngineVersionFolder(IEngine.CATALOG_TYPE.PROJECT,
-				projectId, projectName);
+		String fileLocation = EngineUtility.getSpecificEngineVersionFolder(IEngine.CATALOG_TYPE.PROJECT, projectId,
+				projectName);
 		File f = findImageFile(fileLocation);
 		if (f != null) {
 			return f;
