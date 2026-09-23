@@ -44,7 +44,7 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.Response;
 import prerna.auth.User;
-import prerna.auth.utils.SecurityEngineUtils;
+import prerna.auth.utils.SecurityQueryUtils;
 import prerna.graph.utility.MsGraphUtility;
 import prerna.util.Constants;
 import prerna.util.SocialPropertiesUtil;
@@ -60,9 +60,8 @@ public class AuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("searchForUser")
-	public Response searchForUser(@Context HttpServletRequest request, @QueryParam("engineId") String engineId,
-			@QueryParam("searchTerm") String searchTerm, @QueryParam("limit") long limit,
-			@QueryParam("offset") long offset) {
+	public Response searchForUser(@Context HttpServletRequest request, @QueryParam("searchTerm") String searchTerm,
+			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
 
 		User user = null;
 		try {
@@ -74,6 +73,7 @@ public class AuthorizationResource {
 			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
+		searchTerm = searchTerm == null ? "" : searchTerm;
 
 		boolean graphApi = Boolean
 				.parseBoolean("" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_lookup"));
@@ -82,17 +82,16 @@ public class AuthorizationResource {
 		// then we will look at our security db
 		if (!graphApi) {
 			try {
-				List<Map<String, Object>> ret = SecurityEngineUtils.getEngineUsersNoCredentials(user, engineId,
-						searchTerm, limit, offset);
-				return WebUtility.getResponse(ret, 200);
-			} catch (IllegalAccessException e) {
-				classLogger.warn(
-						"User is trying to pull users for {} that do not have credentials without having proper access",
-						engineId);
+				List<Map<String, Object>> users = SecurityQueryUtils.searchForUser(searchTerm);
+				int fromIndex = (int) Math.min(Math.max(offset, 0L), users.size());
+				int toIndex = limit > 0 ? fromIndex + (int) Math.min((long) users.size() - fromIndex, limit)
+						: users.size();
+				return WebUtility.getResponse(users.subList(fromIndex, toIndex), 200);
+			} catch (Exception e) {
 				classLogger.error("Failed to search for user.", e);
 				Map<String, String> errorMap = new HashMap<>();
 				errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-				return WebUtility.getResponse(errorMap, 401);
+				return WebUtility.getResponse(errorMap, 500);
 			}
 		}
 
