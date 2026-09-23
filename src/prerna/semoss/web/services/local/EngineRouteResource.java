@@ -390,8 +390,9 @@ public class EngineRouteResource {
 	 */
 
 	/**
-	 * Replace this engine's catalog image with one multipart file named {@code file}.
-	 * Requires edit permission; accepts PNG, JPEG, or GIF up to 10 MiB.
+	 * Replace this engine's catalog image with one multipart file named
+	 * {@code file}. Requires edit permission; accepts PNG, JPEG, or GIF up to 10
+	 * MiB.
 	 */
 	@POST
 	@Path("/image/upload")
@@ -521,8 +522,8 @@ public class EngineRouteResource {
 //			cc.setMaxAge(86400);
 //			cc.setPrivate(true);
 //			cc.setMustRevalidate(true);
-			EntityTag etag = new EntityTag(Integer.toHexString(exportFile.getAbsolutePath().hashCode())
-					+ "-" + exportFile.lastModified() + "-" + exportFile.length());
+			EntityTag etag = new EntityTag(Integer.toHexString(exportFile.getAbsolutePath().hashCode()) + "-"
+					+ exportFile.lastModified() + "-" + exportFile.length());
 			ResponseBuilder builder = coreRequest.evaluatePreconditions(etag);
 
 			// cached resource did not change

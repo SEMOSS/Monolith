@@ -80,7 +80,8 @@ import prerna.web.services.util.WebUtility;
 public final class CatalogImageUploader {
 
 	private static final Logger classLogger = LogManager.getLogger(CatalogImageUploader.class);
-	static final long MAX_IMAGE_BYTES = 10L * 1024 * 1024;
+
+	private static final long MAX_IMAGE_BYTES = 10L * 1024 * 1024;
 	private static final long MAX_IMAGE_PIXELS = 25_000_000;
 	private static final List<String> IMAGE_EXTENSIONS = List.of("png", "jpeg", "jpg", "gif", "svg");
 	private static final Striped<Lock> IMAGE_LOCKS = Striped.lock(64);
@@ -113,8 +114,7 @@ public final class CatalogImageUploader {
 			if (!canEdit) {
 				return error("Resource does not exist or user does not have permission to edit it", 403);
 			}
-			IEngine.CATALOG_TYPE type = project ? IEngine.CATALOG_TYPE.PROJECT
-					: SecurityEngineUtils.getEngineType(id);
+			IEngine.CATALOG_TYPE type = project ? IEngine.CATALOG_TYPE.PROJECT : SecurityEngineUtils.getEngineType(id);
 			String name = project ? SecurityProjectUtils.getProjectAliasForId(id)
 					: SecurityEngineUtils.getEngineAliasForId(id);
 
@@ -139,9 +139,10 @@ public final class CatalogImageUploader {
 			}
 
 			String downloadPath = project ? "/project-{id}/projectImage/download" : "/e-{id}/image/download";
-			String imageUrl = UriBuilder.fromPath(request.getContextPath() + "/api" + downloadPath).build(id).toString();
-			return WebUtility.getResponse(Map.of("message", "Successfully updated image", "id", id,
-					"name", name, "imageUrl", imageUrl, "contentType", "image/" + extension), 200);
+			String imageUrl = UriBuilder.fromPath(request.getContextPath() + "/api" + downloadPath).build(id)
+					.toString();
+			return WebUtility.getResponse(Map.of("message", "Successfully updated image", "id", id, "name", name,
+					"imageUrl", imageUrl, "contentType", "image/" + extension), 200);
 		} catch (WebApplicationException e) {
 			return e.getResponse();
 		} catch (FileUploadSizeException e) {
@@ -177,7 +178,10 @@ public final class CatalogImageUploader {
 		return upload.parseRequest(request);
 	}
 
-	/** Detect and decode the bytes; never derive a storage path from client MIME or filename. */
+	/**
+	 * Detect and decode the bytes; never derive a storage path from client MIME or
+	 * filename.
+	 */
 	static String validateImage(DiskFileItem item) throws IOException {
 		if (item.getSize() == 0) {
 			throw new WebApplicationException(error("Image file is empty", 400));
@@ -248,7 +252,10 @@ public final class CatalogImageUploader {
 		}
 	}
 
-	/** Stage the new bytes before replacing anything, then remove other image formats only. */
+	/**
+	 * Stage the new bytes before replacing anything, then remove other image
+	 * formats only.
+	 */
 	static List<Path> replaceImage(Path directory, String basename, DiskFileItem item, String extension)
 			throws IOException {
 		Files.createDirectories(directory);
