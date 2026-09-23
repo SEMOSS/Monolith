@@ -38,11 +38,13 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.json.JSONObject;
 
+import prerna.auth.AccessPermissionEnum;
+import prerna.auth.utils.SecurityProjectUtils;
 import prerna.logging.AppLogManager;
 
 /**
- * Tails a project's app log file and broadcasts new lines to WS clients
- * watching that project's insight.
+ * Tails a project's app log file and sends new lines only to the authorized
+ * websocket session that requested the watch.
  * <p>
  * Caller-side responsibility: {@code InsightWebsocket} must verify the
  * requesting user is a project owner before constructing this class - this
@@ -70,12 +72,16 @@ public class AppLogStreamer implements FileStreamer {
 	private final String projectId;
 	private final String projectName;
 	private final String insightId;
+	private final String sessionId;
+	private final String userId;
 	private volatile boolean running = false;
 
-	public AppLogStreamer(String projectId, String projectName, String insightId) {
+	public AppLogStreamer(String projectId, String projectName, String insightId, String sessionId, String userId) {
 		this.projectId = projectId;
 		this.projectName = projectName;
 		this.insightId = insightId;
+		this.sessionId = sessionId;
+		this.userId = userId;
 	}
 
 	private Path resolveLogFile() {
@@ -85,6 +91,9 @@ public class AppLogStreamer implements FileStreamer {
 	@Override
 	public void start() {
 		running = true;
+		if (!verifyAccess()) {
+			return;
+		}
 
 		Path filePath = resolveLogFile();
 		if (!Files.exists(filePath)) {
@@ -107,6 +116,9 @@ public class AppLogStreamer implements FileStreamer {
 	/** Poll until the file appears. Returns null if stop() is called first. */
 	private Path waitForFile(Path filePath) {
 		while (running) {
+			if (!verifyAccess()) {
+				return null;
+			}
 			try {
 				Thread.sleep(POLL_INTERVAL_MS);
 			} catch (InterruptedException e) {
@@ -158,6 +170,9 @@ public class AppLogStreamer implements FileStreamer {
 		classLogger.info("Tailing {} for insightId={} (start offset={})", filePath, insightId, lastOffset);
 
 		while (running) {
+			if (!verifyAccess()) {
+				break;
+			}
 			try {
 				Thread.sleep(POLL_INTERVAL_MS);
 			} catch (InterruptedException e) {
@@ -239,7 +254,37 @@ public class AppLogStreamer implements FileStreamer {
 		msg.put("line", toSend);
 
 		SocketSessionHandler handler = SocketSessionHandlerFactory.getHandler(insightId);
-		handler.updateRecipe(msg.toString());
+		if (!handler.updateSession(sessionId, msg.toString())) {
+			running = false;
+		}
+	}
+
+	private boolean verifyAccess() {
+		if (!AppLogManager.isEnabled()) {
+			sendAccessError("Application logging is disabled");
+			return false;
+		}
+		try {
+			Integer permissionLevel = SecurityProjectUtils.getUserProjectPermission(userId, projectId);
+			if (permissionLevel != null && AccessPermissionEnum.isOwner(permissionLevel)) {
+				return true;
+			}
+		} catch (RuntimeException e) {
+			classLogger.error("Could not verify app log access for user={} project={}", userId, projectId, e);
+		}
+
+		sendAccessError("App log access is no longer available");
+		return false;
+	}
+
+	private void sendAccessError(String message) {
+		JSONObject error = new JSONObject();
+		error.put("action", "error");
+		error.put("type", "app_logs");
+		error.put("projectId", projectId);
+		error.put("message", message);
+		SocketSessionHandlerFactory.getHandler(insightId).updateSession(sessionId, error.toString());
+		running = false;
 	}
 
 	@Override

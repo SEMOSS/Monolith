@@ -51,6 +51,8 @@ public class SocketSessionHandler {
 	private final Map<String, FileStreamer> streamers = new ConcurrentHashMap<>();
 	/** Threads running the streamers */
 	private final Map<String, Thread> streamerThreads = new ConcurrentHashMap<>();
+	/** Session that owns a private streamer; shared streamers have no entry. */
+	private final Map<String, String> streamerSessionIds = new ConcurrentHashMap<>();
 
 	public void addSession(Session session) {
 		sessions.add(session);
@@ -58,6 +60,7 @@ public class SocketSessionHandler {
 
 	public void removeSession(Session session) {
 		sessions.remove(session);
+		stopStreamersForSession(session.getId());
 
 		// If no clients remain, stop all streamers for this handler
 		if (sessions.isEmpty()) {
@@ -71,14 +74,17 @@ public class SocketSessionHandler {
 	 * @param key      unique identifier for this streamer (e.g.
 	 *                 "claude_code:abc-123")
 	 * @param streamer the FileStreamer instance to run
+	 * @param sessionId owner for a private streamer, or null for a shared streamer
 	 */
-	public void startStreamer(String key, FileStreamer streamer) {
-		if (streamers.containsKey(key)) {
+	public void startStreamer(String key, FileStreamer streamer, String sessionId) {
+		if (streamers.putIfAbsent(key, streamer) != null) {
 			classLogger.info("Streamer already running for key={}", key);
 			return;
 		}
 
-		streamers.put(key, streamer);
+		if (sessionId != null) {
+			streamerSessionIds.put(key, sessionId);
+		}
 
 		Thread thread = new Thread(streamer::start, "streamer-" + key);
 		thread.setDaemon(true);
@@ -91,6 +97,7 @@ public class SocketSessionHandler {
 	/** Stop a specific streamer by key. */
 	public void stopStreamer(String key) {
 		FileStreamer streamer = streamers.remove(key);
+		streamerSessionIds.remove(key);
 		if (streamer != null) {
 			streamer.stop();
 		}
@@ -111,6 +118,31 @@ public class SocketSessionHandler {
 
 	public boolean isEmpty() {
 		return sessions.isEmpty();
+	}
+
+	private void stopStreamersForSession(String sessionId) {
+		for (Map.Entry<String, String> entry : streamerSessionIds.entrySet()) {
+			if (sessionId.equals(entry.getValue())) {
+				stopStreamer(entry.getKey());
+			}
+		}
+	}
+
+	public boolean updateSession(String sessionId, String message) {
+		for (Session session : sessions) {
+			if (sessionId.equals(session.getId())) {
+				try {
+					synchronized (session) {
+						session.getBasicRemote().sendText(message);
+					}
+					return true;
+				} catch (IOException e) {
+					removeSession(session);
+					return false;
+				}
+			}
+		}
+		return false;
 	}
 
 	private void sendReturnData(String message) {

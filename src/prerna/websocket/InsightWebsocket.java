@@ -49,6 +49,7 @@ import prerna.auth.AccessPermissionEnum;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityProjectUtils;
+import prerna.logging.AppLogManager;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.reactor.agent.ClaudeCodeTranscriptParser;
@@ -141,6 +142,10 @@ public class InsightWebsocket {
 		// Project-scoped streams are gated here, before a streamer is ever created -
 		// the socket only proves "logged in", not "allowed to see this project's logs".
 		if ("app_logs".equals(type)) {
+			if (!AppLogManager.isEnabled()) {
+				sendError(session, "Application logging is disabled");
+				return;
+			}
 			if (projectId.isEmpty()) {
 				sendError(session, "app_logs watch requires a 'projectId' field");
 				return;
@@ -152,7 +157,7 @@ public class InsightWebsocket {
 			}
 		}
 
-		FileStreamer streamer = createStreamer(type, json, insightId);
+		FileStreamer streamer = createStreamer(type, json, insightId, session);
 		if (streamer == null) {
 			sendError(session, "Unknown streamer type: " + type);
 			return;
@@ -161,9 +166,9 @@ public class InsightWebsocket {
 		// Key by whichever scope id the type uses - roomId for claude_code,
 		// projectId for app_logs - so two different watches on the same insight
 		// don't collide under an empty-string key.
-		String streamerKey = type + ":" + (roomId.isEmpty() ? projectId : roomId);
+		String streamerKey = buildStreamerKey(type, roomId, projectId, session);
 		SocketSessionHandler handler = SocketSessionHandlerFactory.getHandler(insightId);
-		handler.startStreamer(streamerKey, streamer);
+		handler.startStreamer(streamerKey, streamer, "app_logs".equals(type) ? session.getId() : null);
 
 		// Acknowledge the watch start
 		JSONObject ack = new JSONObject();
@@ -207,7 +212,7 @@ public class InsightWebsocket {
 	 * Create the appropriate FileStreamer for the given type. Add new streamer
 	 * types here as simple cases.
 	 */
-	private FileStreamer createStreamer(String type, JSONObject json, String insightId) {
+	private FileStreamer createStreamer(String type, JSONObject json, String insightId, Session session) {
 		switch (type) {
 		case "claude_code": {
 			String roomId = json.getString("roomId");
@@ -216,7 +221,9 @@ public class InsightWebsocket {
 		case "app_logs": {
 			String projectId = json.getString("projectId");
 			String projectName = SecurityProjectUtils.getProjectAliasForId(projectId);
-			return new AppLogStreamer(projectId, projectName, insightId);
+			User user = (User) session.getUserProperties().get(Constants.SESSION_USER);
+			return new AppLogStreamer(projectId, projectName, insightId, session.getId(),
+					user.getPrimaryLoginToken().getId());
 		}
 		default:
 			return null;
@@ -234,10 +241,18 @@ public class InsightWebsocket {
 		String type = json.optString("type", "");
 		String roomId = json.optString("roomId", "");
 		String projectId = json.optString("projectId", "");
-		String streamerKey = type + ":" + (roomId.isEmpty() ? projectId : roomId);
+		String streamerKey = buildStreamerKey(type, roomId, projectId, session);
 
 		SocketSessionHandler handler = SocketSessionHandlerFactory.getHandler(insightId);
 		handler.stopStreamer(streamerKey);
+	}
+
+	private String buildStreamerKey(String type, String roomId, String projectId, Session session) {
+		String scopeId = roomId.isEmpty() ? projectId : roomId;
+		if ("app_logs".equals(type)) {
+			return type + ":" + scopeId + ":" + session.getId();
+		}
+		return type + ":" + scopeId;
 	}
 
 	/**
