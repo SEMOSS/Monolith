@@ -30,12 +30,11 @@ package prerna.semoss.web.services.remote;
 import java.util.Arrays;
 import java.util.List;
 
-import javax.servlet.ServletContext;
-import javax.ws.rs.core.Context;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import jakarta.servlet.ServletContext;
+import jakarta.ws.rs.core.Context;
 import prerna.util.Constants;
 
 public class CentralNameServer {

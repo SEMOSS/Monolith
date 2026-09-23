@@ -31,22 +31,21 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.annotation.security.PermitAll;
-import javax.servlet.http.HttpServletRequest;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.MultivaluedMap;
-import javax.ws.rs.core.Response;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.google.gson.Gson;
 
+import jakarta.annotation.security.PermitAll;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.MultivaluedMap;
+import jakarta.ws.rs.core.Response;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
@@ -375,34 +374,6 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 
 		boolean success = adminUtils.deleteUser(userIdToDelete, userTypeToDelete);
 		return WebUtility.getResponse(success, 200);
-	}
-
-	@GET
-	@Path("/getAllDbUsers")
-	@Produces("application/json")
-	@Deprecated
-	/**
-	 * PLEASE USE
-	 * {@link AdminUserAuthorizationResource#getAllUsers(HttpServletRequest)}
-	 * 
-	 * @param request
-	 * @return
-	 */
-	public Response getAllDbUsers(@Context HttpServletRequest request) {
-		SecurityAdminUtils adminUtils = null;
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-			adminUtils = performAdminCheck(request, user);
-		} catch (IllegalAccessException e) {
-			classLogger.error("Failed to retrieve all db users.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		List<Map<String, Object>> ret = adminUtils.getAllUsers(null, -1, -1);
-		return WebUtility.getResponse(ret, 200);
 	}
 
 	@GET

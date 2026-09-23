@@ -33,10 +33,14 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -44,19 +48,25 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-
-import javax.ws.rs.sse.OutboundSseEvent;
-import javax.ws.rs.sse.Sse;
-import javax.ws.rs.sse.SseEventSink;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.sse.OutboundSseEvent;
+import jakarta.ws.rs.sse.Sse;
+import jakarta.ws.rs.sse.SseEventSink;
 import prerna.auth.User;
+import prerna.engine.impl.model.message.MessageInputMedia;
 import prerna.om.Insight;
 import prerna.om.ThreadStore;
 import prerna.reactor.agent.mcp.MCPErrorCode;
+import prerna.reactor.agent.mcp.MCPUtility;
 import prerna.sablecc2.PixelRunner;
 import prerna.sablecc2.comm.PixelJobManager;
 import prerna.sablecc2.comm.PixelJobRunner;
@@ -68,6 +78,34 @@ import prerna.web.services.util.WebUtility;
 public class MCPReaper implements Runnable {
 
 	private static final Logger classLogger = LogManager.getLogger(MCPReaper.class);
+	private static final Map<String, ReentrantLock> INSIGHT_LOCKS = new ConcurrentHashMap<>();
+
+	/**
+	 * Removes a lock entry for an insight id from the MCP lock cache.
+	 *
+	 * @param insightId insight identifier
+	 */
+	public static void clearInsightLock(String insightId) {
+		String sanitizedInsightId = WebUtility.inputSanitizer(insightId);
+		if (sanitizedInsightId != null) {
+			INSIGHT_LOCKS.remove(sanitizedInsightId);
+		}
+	}
+
+	/**
+	 * Removes a lock entry for an insight instance from the MCP lock cache.
+	 *
+	 * @param insight insight instance
+	 */
+	public static void clearInsightLock(Insight insight) {
+		if (insight == null) {
+			return;
+		}
+		String sanitizedInsightId = WebUtility.inputSanitizer(insight.getInsightId());
+		String insightLockKey = sanitizedInsightId != null ? sanitizedInsightId
+				: Integer.toString(System.identityHashCode(insight));
+		INSIGHT_LOCKS.remove(insightLockKey);
+	}
 
 	private static final ScheduledExecutorService CONNECTION_REAPER = Executors.newSingleThreadScheduledExecutor(r -> {
 		Thread t = new Thread(r, "mcp-connection-reaper");
@@ -91,6 +129,7 @@ public class MCPReaper implements Runnable {
 	// HTTP Stream specific fields
 	private InputStream is = null;
 	private OutputStream os = null;
+	private HttpServletResponse response = null;
 
 	// SSE specific fields
 	private BufferedReader reader = null;
@@ -98,23 +137,25 @@ public class MCPReaper implements Runnable {
 	private Sse sse = null;
 
 	/**
-	 * Constructor for HTTP Stream mode
-	 * 
+	 * Constructor for HTTP Stream mode. Takes the response rather than its output
+	 * stream because the status and headers depend on the message that comes in -
+	 * see {@link #sendHttpAccepted()}.
+	 *
 	 * @param insight
 	 * @param sessionId
 	 * @param is
-	 * @param os
+	 * @param response
 	 * @param toolbox
 	 * @param requestUrl
 	 * @param log4jContextMap
 	 */
-	public MCPReaper(Insight insight, String sessionId, InputStream is, OutputStream os, String toolbox,
+	public MCPReaper(Insight insight, String sessionId, InputStream is, HttpServletResponse response, String toolbox,
 			String requestUrl, Map<String, String> log4jContextMap, long idleTimeoutMinutes) {
 		this.mode = Mode.HTTP_STREAM;
 		this.insight = insight;
 		this.sessionId = sessionId;
 		this.is = is;
-		this.os = os;
+		this.response = response;
 		this.toolbox = toolbox;
 		this.requestUrl = requestUrl;
 		this.idleTimeoutMinutes = idleTimeoutMinutes;
@@ -204,10 +245,12 @@ public class MCPReaper implements Runnable {
 				resetIdleTimer.run(); // message received - reset idle clock
 				classLogger.debug("HTTP REQUEST :::: {}", actualContent);
 				String output = generateResponse(actualContent, sessionId, toolbox, insight);
-				classLogger.debug("HTTP RESPONSE :::: {}", output);
+				classLogger.debug("HTTP RESPONSE generated ({} chars)", output == null ? 0 : output.length());
 
 				if (output != null) {
 					sendHttpEvent(output);
+				} else {
+					sendHttpAccepted();
 				}
 			}
 		} catch (IOException e) {
@@ -227,15 +270,52 @@ public class MCPReaper implements Runnable {
 	}
 
 	/**
-	 * 
+	 *
 	 * @param data
 	 * @throws IOException
 	 */
 	private void sendHttpEvent(String data) throws IOException {
-		classLogger.debug("Sending data {}", data);
+		classLogger.debug("Sending MCP HTTP response ({} chars)", data == null ? 0 : data.length());
+		prepareHttpJsonResponse();
 		byte[] bytes = (data + "\n").getBytes(StandardCharsets.UTF_8);
 		this.os.write(bytes);
 		this.os.flush();
+	}
+
+	/**
+	 * Commits the response as a json message body. Deferred until we actually have
+	 * something to write, so that a notification can still go back as a 202.
+	 *
+	 * @throws IOException
+	 */
+	private void prepareHttpJsonResponse() throws IOException {
+		if (this.os == null) {
+			this.os = this.response.getOutputStream();
+		}
+		if (!this.response.isCommitted()) {
+			this.response.setStatus(HttpServletResponse.SC_OK);
+			this.response.setContentType(MediaType.APPLICATION_JSON);
+			this.response.setHeader("X-Content-Type-Options", "nosniff");
+			this.response.setCharacterEncoding("UTF-8");
+			this.response.setHeader("Cache-Control", "no-cache");
+			this.response.setHeader("Connection", "keep-alive");
+		}
+	}
+
+	/**
+	 * A json-rpc notification carries no id and so gets no response body. The mcp
+	 * streamable http spec wants 202 Accepted for that, and clients rely on it: a
+	 * 200 that advertises a json content type with an empty body makes them try to
+	 * parse the message that never arrives.
+	 */
+	private void sendHttpAccepted() {
+		if (this.response.isCommitted()) {
+			// something already wrote on this connection, nothing left to say
+			return;
+		}
+		classLogger.debug("Acknowledging notification with 202 for session {}", this.sessionId);
+		this.response.setStatus(HttpServletResponse.SC_ACCEPTED);
+		this.response.setContentLength(0);
 	}
 
 	/**
@@ -248,7 +328,7 @@ public class MCPReaper implements Runnable {
 			if ((actualContent = this.reader.readLine()) != null) {
 				classLogger.debug("SSE REQUEST :::: {}", actualContent);
 				String output = generateResponse(actualContent, this.sessionId, this.toolbox, this.insight);
-				classLogger.debug("SSE RESPONSE :::: {}", output);
+				classLogger.debug("SSE RESPONSE generated ({} chars)", output == null ? 0 : output.length());
 
 				if (output != null) {
 					OutboundSseEvent event = this.sse.newEventBuilder().data(String.class, output).build();
@@ -273,7 +353,11 @@ public class MCPReaper implements Runnable {
 			eventSink.send(event);
 		} finally {
 			if (this.eventSink != null) {
-				this.eventSink.close();
+				try {
+					this.eventSink.close();
+				} catch (IOException e) {
+					classLogger.error("Unable to close SSE event sink", e);
+				}
 			}
 		}
 
@@ -293,15 +377,20 @@ public class MCPReaper implements Runnable {
 
 		String jobId = "";
 		String insightId = WebUtility.inputSanitizer(insight.getInsightId());
+		String insightLockKey = insightId != null ? insightId : Integer.toString(System.identityHashCode(insight));
+		ReentrantLock insightLock = INSIGHT_LOCKS.computeIfAbsent(insightLockKey, ignored -> new ReentrantLock());
 
 		// serialize concurrent calls on the same insight - multiple parallel
 		// HTTP streaming connections from the same client share an insight instance
-		synchronized (insight) {
+		insightLock.lock();
+		try {
 			Boolean schedulerMode = ThreadStore.isSchedulerMode();
 			if (schedulerMode != null) {
 				insight.setSchedulerMode(schedulerMode);
 			}
 			return runPixelJob(user, insight, expression, jobId, insightId, sessionId, null, dropLogging);
+		} finally {
+			insightLock.unlock();
 		}
 	}
 
@@ -393,7 +482,7 @@ public class MCPReaper implements Runnable {
 			return response.toString();
 		}
 
-		int id = root.getInt("id");
+		Object id = root.get("id");
 		response.put("id", id);
 		response.put("jsonrpc", "2.0");
 
@@ -489,16 +578,7 @@ public class MCPReaper implements Runnable {
 			Object retObject = null;
 			try {
 				retObject = runPixel(insight.getUser(), insight, pixel, sessionId);
-				Map<String, Object> resultMap = new HashMap<>();
-				List<Map<String, Object>> contentList = new ArrayList<>();
-				Map<String, Object> contentMap = new HashMap<>();
-				contentMap.put("type", "text");
-				contentMap.put("text", retObject);
-
-				contentList.add(contentMap);
-				resultMap.put("content", contentList);
-				resultMap.put("isError", false);
-				response.put("result", resultMap);
+				response.put("result", buildToolCallResult(retObject, insight));
 			} catch (SemossMCPException e) {
 				/*
 				 * { "jsonrpc": "2.0", "id": 3, "error": { "code": <example code>, "message":
@@ -526,6 +606,119 @@ public class MCPReaper implements Runnable {
 
 		// {"method":"tools/call","params":{"name":"get_stock_price","arguments":{"symbol":"GOOGL"}},"jsonrpc":"2.0","id":5}
 		return response.toString();
+	}
+
+	/**
+	 * Converts the internal room-file multimodal envelope into standard MCP content
+	 * blocks. Ordinary outputs remain a single text block.
+	 */
+	private Map<String, Object> buildToolCallResult(Object retObject, Insight insight) {
+		String output = retObject == null ? "null" : retObject.toString();
+		JSONObject envelope;
+		try {
+			envelope = new JSONObject(output);
+		} catch (JSONException e) {
+			return buildTextToolResult(output, false);
+		}
+
+		if (!envelope.has(MCPUtility.SEMOSS_MULTIMODAL_TOOL_RESPONSE_KEY)) {
+			return buildTextToolResult(output, false);
+		}
+
+		Object rawBlocks = envelope.opt(MCPUtility.SEMOSS_MULTIMODAL_TOOL_RESPONSE_KEY);
+		if (!(rawBlocks instanceof JSONArray)) {
+			return buildTextToolResult("Tool returned an invalid multimodal response.", true);
+		}
+
+		JSONArray blocks = (JSONArray) rawBlocks;
+		if (blocks.length() == 0) {
+			return buildTextToolResult("Tool returned an empty multimodal response.", true);
+		}
+		List<Map<String, Object>> content = new ArrayList<>();
+		try {
+			for (int blockIndex = 0; blockIndex < blocks.length(); blockIndex++) {
+				Object rawBlock = blocks.get(blockIndex);
+				if (!(rawBlock instanceof JSONObject)) {
+					return buildTextToolResult("Tool returned an invalid multimodal response.", true);
+				}
+
+				JSONObject block = (JSONObject) rawBlock;
+				String type = block.optString("type", null);
+				if ("text".equals(type)) {
+					Object text = block.opt("text");
+					if (!(text instanceof String)) {
+						return buildTextToolResult("Tool returned an invalid multimodal text block.", true);
+					}
+					content.add(textContent((String) text));
+				} else if ("image".equals(type) && !block.has("data")) {
+					List<String> imagePaths = imagePaths(block.opt("image"));
+					if (imagePaths.isEmpty()) {
+						return buildTextToolResult("Tool returned an invalid multimodal image block.", true);
+					}
+
+					for (String imagePath : imagePaths) {
+						Path resolvedPath = MCPUtility.resolveContainedMcpFile(insight.getInsightFolder(), imagePath);
+						String format = MessageInputMedia.extractFormat(resolvedPath.getFileName().toString());
+						String mimeType = MessageInputMedia.guessMimeType(resolvedPath.toString(), format);
+						if (mimeType == null || !mimeType.startsWith("image/")) {
+							return buildTextToolResult(
+									"External MCP currently supports image attachments only; the referenced file is not an image.",
+									true);
+						}
+
+						Map<String, Object> imageContent = new HashMap<>();
+						imageContent.put("type", "image");
+						imageContent.put("data", Base64.getEncoder().encodeToString(Files.readAllBytes(resolvedPath)));
+						imageContent.put("mimeType", mimeType);
+						content.add(imageContent);
+					}
+				} else {
+					return buildTextToolResult("External MCP currently supports text and image result blocks only.",
+							true);
+				}
+			}
+		} catch (Exception e) {
+			return buildTextToolResult(
+					"The tool returned an image that is unavailable or outside its execution folder.", true);
+		}
+
+		Map<String, Object> result = new HashMap<>();
+		result.put("content", content);
+		result.put("isError", false);
+		return result;
+	}
+
+	private List<String> imagePaths(Object rawImagePaths) {
+		List<String> paths = new ArrayList<>();
+		if (rawImagePaths instanceof JSONArray) {
+			JSONArray pathArray = (JSONArray) rawImagePaths;
+			for (int pathIndex = 0; pathIndex < pathArray.length(); pathIndex++) {
+				Object path = pathArray.opt(pathIndex);
+				if (!(path instanceof String) || ((String) path).isBlank()) {
+					return new ArrayList<>();
+				}
+				paths.add((String) path);
+			}
+		} else if (rawImagePaths instanceof String && !((String) rawImagePaths).isBlank()) {
+			paths.add((String) rawImagePaths);
+		}
+		return paths;
+	}
+
+	private Map<String, Object> buildTextToolResult(String text, boolean isError) {
+		Map<String, Object> result = new HashMap<>();
+		List<Map<String, Object>> content = new ArrayList<>();
+		content.add(textContent(text));
+		result.put("content", content);
+		result.put("isError", isError);
+		return result;
+	}
+
+	private Map<String, Object> textContent(String text) {
+		Map<String, Object> content = new HashMap<>();
+		content.put("type", "text");
+		content.put("text", text);
+		return content;
 	}
 
 	/**

@@ -128,6 +128,28 @@ jobs:
         run: |
             /usr/share/maven/bin/mvn $MAVEN_CLI_OPTS versions:set-property -Dproperty=ci.version -DnewVersion=${{ vars.VERSION }}-SNAPSHOT -DgenerateBackupPoms=false
             /usr/share/maven/bin/mvn $MAVEN_CLI_OPTS deploy -P deploy -Dmaven.test.skip=${{ vars.SKIP_TESTS }}
+
+      - name: Verify the FIPS libraries tarball
+        shell: bash
+        run: |
+          set -euo pipefail
+          STD=$(ls target/monolith-*-libraries.tar.gz | head -1)
+          FIPS=$(ls target/monolith-*-libraries-fips.tar.gz | head -1)
+          tar tzf "$FIPS" > /tmp/fips-entries.txt
+          tar tzf "$STD"  > /tmp/std-entries.txt
+          BC='/(bc-fips|bcprov|bcpkix|bcutil|bctls|bcmail|bcjmail|bcpg)-'
+          FIPS_BC=$(grep -ciE "$BC" /tmp/fips-entries.txt || true)
+          STD_BC=$(grep -ciE "$BC" /tmp/std-entries.txt || true)
+          if [ "$FIPS_BC" -ne 0 ]; then
+            echo "::error::$FIPS_BC BouncyCastle jar(s) found in $(basename "$FIPS")"
+            grep -iE "$BC" /tmp/fips-entries.txt
+            exit 1
+          fi
+          if [ "$STD_BC" -eq 0 ]; then
+            echo "::error::No BouncyCastle in $(basename "$STD") - the two tarballs are identical"
+            exit 1
+          fi
+          echo "OK: $(basename "$FIPS") has no BouncyCastle; $(basename "$STD") has $STD_BC"
      
       - name: Clear Maven repository after deploy
         run: rm -rf .m2/repository/org/semoss
@@ -175,6 +197,28 @@ jobs:
         run: |
             /usr/share/maven/bin/mvn $MAVEN_CLI_OPTS versions:set-property -Dproperty=ci.version -DnewVersion=${{ vars.VERSION }} -DgenerateBackupPoms=false
             /usr/share/maven/bin/mvn $MAVEN_CLI_OPTS deploy -P deploy -Dmaven.test.skip=${{ vars.SKIP_TESTS }}
+
+      - name: Verify the FIPS libraries tarball
+        shell: bash
+        run: |
+          set -euo pipefail
+          STD=$(ls target/monolith-*-libraries.tar.gz | head -1)
+          FIPS=$(ls target/monolith-*-libraries-fips.tar.gz | head -1)
+          tar tzf "$FIPS" > /tmp/fips-entries.txt
+          tar tzf "$STD"  > /tmp/std-entries.txt
+          BC='/(bc-fips|bcprov|bcpkix|bcutil|bctls|bcmail|bcjmail|bcpg)-'
+          FIPS_BC=$(grep -ciE "$BC" /tmp/fips-entries.txt || true)
+          STD_BC=$(grep -ciE "$BC" /tmp/std-entries.txt || true)
+          if [ "$FIPS_BC" -ne 0 ]; then
+            echo "::error::$FIPS_BC BouncyCastle jar(s) found in $(basename "$FIPS")"
+            grep -iE "$BC" /tmp/fips-entries.txt
+            exit 1
+          fi
+          if [ "$STD_BC" -eq 0 ]; then
+            echo "::error::No BouncyCastle in $(basename "$STD") - the two tarballs are identical"
+            exit 1
+          fi
+          echo "OK: $(basename "$FIPS") has no BouncyCastle; $(basename "$STD") has $STD_BC"
      
       - name: Clear Maven repository after release
         run: rm -rf .m2/repository/org/semoss

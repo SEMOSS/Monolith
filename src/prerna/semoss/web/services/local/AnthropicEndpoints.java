@@ -38,33 +38,33 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.annotation.security.PermitAll;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.StreamingOutput;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.f4b6a3.uuid.alt.GUID;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonSyntaxException;
+import com.google.gson.ToNumberPolicy;
+import com.google.gson.reflect.TypeToken;
 
+import jakarta.annotation.security.PermitAll;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.StreamingOutput;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityEngineUtils;
 import prerna.engine.api.IModelEngine;
 import prerna.engine.impl.model.AbstractModelEngine;
+import prerna.engine.impl.model.ModelPixelInvoker;
 import prerna.engine.impl.model.Room;
 import prerna.engine.impl.model.RoomUtils;
 import prerna.engine.impl.model.inferencetracking.ModelInferenceLogsUtils;
@@ -95,9 +95,8 @@ public class AnthropicEndpoints {
 
 	private static final Logger classLogger = LogManager.getLogger(AnthropicEndpoints.class);
 
-	private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
-
-	private static final ObjectMapper MAPPER = new ObjectMapper();
+	private static final Gson GSON = new GsonBuilder().setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE)
+			.disableHtmlEscaping().create();
 
 	/**
 	 * Safety ceiling (in tokens) for the extended-thinking budget. The client's
@@ -152,12 +151,11 @@ public class AnthropicEndpoints {
 
 		classLogger.debug("Anthropic-Messages-API-request::{}::{}", JOB_ID, requestData.toString());
 
-		TypeReference<Map<String, Object>> mapType = new TypeReference<Map<String, Object>>() {
-		};
 		Map<String, Object> dataMap;
 		try {
-			dataMap = MAPPER.readValue(requestData.toString(), mapType);
-		} catch (JsonProcessingException e) {
+			dataMap = GSON.fromJson(requestData.toString(), new TypeToken<Map<String, Object>>() {
+			}.getType());
+		} catch (JsonSyntaxException e) {
 			classLogger.error("Error parsing request JSON", e);
 			Map<String, Object> errorMap = AnthropicMessagesHelper.createErrorResponse("invalid_request_error",
 					"Invalid JSON in request body");
@@ -198,6 +196,14 @@ public class AnthropicEndpoints {
 		if (roomId == null || roomId.isEmpty()) {
 			roomId = WebUtility.inputSanitizer(claudeCodeSessionId);
 		}
+		if (roomId != null && !roomId.isEmpty()) {
+			roomId = WebUtility.safePathSegment(roomId);
+			if (roomId == null) {
+				Map<String, Object> errorMap = AnthropicMessagesHelper.createErrorResponse("invalid_request_error",
+						"Invalid room id");
+				return WebUtility.getResponse(errorMap, 400);
+			}
+		}
 
 		Object systemPromptBlock = dataMap.remove("system");
 		String systemPromptString = AnthropicMessagesHelper.getSystemMessage(systemPromptBlock);
@@ -227,7 +233,7 @@ public class AnthropicEndpoints {
 		}
 		insight.setUser(user);
 
-		ModelPixelExecutor.initializeThreadStore(insight, SESSION_ID, JOB_ID);
+		ModelPixelInvoker.initializeThreadStore(insight, SESSION_ID, JOB_ID);
 		// ROOM & INSIGHT LOGIC END ---------
 
 		Object messages = dataMap.remove("messages");
@@ -321,7 +327,7 @@ public class AnthropicEndpoints {
 			Map<String, Object> dataMap, String engineId) {
 		AskModelEngineResponse<?> llmResponse;
 		try {
-			llmResponse = ModelPixelExecutor.askModelSync(engine, insight, room, dataMap);
+			llmResponse = ModelPixelInvoker.askModelSync(engine, insight, room, dataMap);
 		} catch (Exception e) {
 			classLogger.error("Synchronous model call failed for engine '{}'", engineId, e);
 			Map<String, Object> errorMap = AnthropicMessagesHelper.createErrorResponse("api_error",
@@ -368,7 +374,7 @@ public class AnthropicEndpoints {
 						long streamStartTime = System.currentTimeMillis();
 
 						try (Writer writer = new OutputStreamWriter(output, StandardCharsets.UTF_8)) {
-							asyncJobId = ModelPixelExecutor.startAsyncModelRequest(engine, FINAL_INSIGHT, FINAL_ROOM,
+							asyncJobId = ModelPixelInvoker.startAsyncModelRequest(engine, FINAL_INSIGHT, FINAL_ROOM,
 									FINAL_DATAMAP, FINAL_SESSION_ID);
 							classLogger.debug("Streaming job started: {}", asyncJobId);
 
@@ -436,8 +442,9 @@ public class AnthropicEndpoints {
 											// Thinking must lead the message at index 0. If a text or tool
 											// block already opened we cannot insert it before them, so drop
 											// the chunk rather than corrupt content-block ordering.
-											if (thinkingChunk != null && !thinkingChunk.isEmpty() && !thinkingBlockClosed
-													&& !textBlockStarted && toolBlockStarted.isEmpty()) {
+											if (thinkingChunk != null && !thinkingChunk.isEmpty()
+													&& !thinkingBlockClosed && !textBlockStarted
+													&& toolBlockStarted.isEmpty()) {
 												if (!thinkingBlockStarted) {
 													AnthropicMessagesHelper.writeThinkingContentBlockStart(0, writer);
 													thinkingBlockStarted = true;
@@ -677,10 +684,12 @@ public class AnthropicEndpoints {
 													argsJson = "{}";
 												}
 
-												AnthropicMessagesHelper.writeToolUseContentBlockStart(i + thinkingOffset, toolId,
-														toolName, writer);
-												AnthropicMessagesHelper.writeInputJsonDelta(i + thinkingOffset, argsJson, writer);
-												AnthropicMessagesHelper.writeContentBlockStop(i + thinkingOffset, writer);
+												AnthropicMessagesHelper.writeToolUseContentBlockStart(
+														i + thinkingOffset, toolId, toolName, writer);
+												AnthropicMessagesHelper.writeInputJsonDelta(i + thinkingOffset,
+														argsJson, writer);
+												AnthropicMessagesHelper.writeContentBlockStop(i + thinkingOffset,
+														writer);
 
 												Object sig = toolResp.get("thought_signature");
 												if (sig instanceof String && !((String) sig).isEmpty()) {
@@ -724,7 +733,7 @@ public class AnthropicEndpoints {
 								}
 
 								try {
-									Thread.sleep(50);
+									Thread.sleep(ModelPixelInvoker.STREAM_POLL_INTERVAL_MS);
 								} catch (InterruptedException e) {
 									Thread.currentThread().interrupt();
 									break;

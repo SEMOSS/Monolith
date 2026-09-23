@@ -27,9 +27,8 @@
  *******************************************************************************/
 package prerna.semoss.web.services.local.auth;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.ws.rs.core.Context;
-
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.ws.rs.core.Context;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityAdminUtils;
 

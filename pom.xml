@@ -2,7 +2,7 @@
 <project
 	xmlns="http://maven.apache.org/POM/4.0.0"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>org.semoss</groupId>
 	<artifactId>monolith</artifactId>
@@ -34,9 +34,32 @@
 		<ci.version>0.0.1-SNAPSHOT</ci.version>
 		<project.build.sourceEncoding>cp1252</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>cp1252</project.reporting.outputEncoding>
-		<openhtml.version>1.0.1</openhtml.version>
 		<maven.build.timestamp.format>yyyy-MM-dd HH:mm:ss</maven.build.timestamp.format>
 		<build.date>${maven.build.timestamp}</build.date>
+		<!-- Shared by the dev and deploy profiles, which configure the same plugin. -->
+		<maven.war.plugin.version>3.4.0</maven.war.plugin.version>
+		<!-- Multi-artifact families that must move together. Each version below is
+		     shared by two or more declared dependencies; bump the property, not the
+		     individual <version> elements. -->
+		<resteasy.version>7.0.4.Final</resteasy.version>
+		<jakarta.websocket.version>2.2.0</jakarta.websocket.version>
+		<!-- Pins that Semoss/pom.xml also carries at the same value. Its
+		     dependencyManagement is not inherited here, so each pom needs its own
+		     copy and the two have to be bumped together. -->
+		<bc.jdk18on.version>1.80.2</bc.jdk18on.version>
+		<netty.version>4.1.137.Final</netty.version>
+		<jackson3.version>3.1.5</jackson3.version>
+		<!-- BouncyCastle FIPS, consumed only by the fips profile below. Keep in sync
+		     with the properties of the same name in Semoss/pom.xml and the
+		     BC_*_VERSION build args in Semoss/docker/Dockerfile.tomcat. -->
+		<bc.fips.version>2.1.3</bc.fips.version>
+		<bcpkix.fips.version>2.1.12</bcpkix.fips.version>
+		<bctls.fips.version>2.1.24</bctls.fips.version>
+		<bcutil.fips.version>2.1.7</bcutil.fips.version>
+		<!-- Must match the sshj version in Semoss/pom.xml. Referenced only by the
+		     fips profile, which re-declares sshj to strip its non-FIPS BouncyCastle
+		     transitives. -->
+		<sshj.version>0.40.0</sshj.version>
 	</properties>
 	<!-- LEGACY
 	<distributionManagement><snapshotRepository><id>ossrh</id><url>https://oss.sonatype.org/content/repositories/snapshots</url></snapshotRepository><repository><id>ossrh</id><url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url></repository></distributionManagement>
@@ -194,7 +217,7 @@
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-war-plugin</artifactId>
-						<version>3.4.0</version>
+						<version>${maven.war.plugin.version}</version>
 						<configuration>
 							<webXml>WebContent/WEB-INF/web.xml</webXml>
 							<failOnMissingWebXml>true</failOnMissingWebXml>
@@ -236,7 +259,7 @@
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-war-plugin</artifactId>
-						<version>3.4.0</version>
+						<version>${maven.war.plugin.version}</version>
 						<configuration>
 							<webXml>WebContent/WEB-INF/web.xml</webXml>
 							<failOnMissingWebXml>true</failOnMissingWebXml>
@@ -264,16 +287,32 @@
 					<plugin>
 						<artifactId>maven-assembly-plugin</artifactId>
 						<version>2.5.3</version>
-						<configuration>
-							<descriptor>libraries.xml</descriptor>
-						</configuration>
 						<executions>
+							<!-- Both tarballs come from ONE build. The docker workflows build
+							     the standard and -fips images from the same SEMOSS_VERSION, so
+							     both classifiers must exist under that version. libraries-fips
+							     differs only by excluding BouncyCastle, which it does by
+							     filename rather than by Maven scope so no second build or
+							     profile toggle is needed. -->
 							<execution>
 								<id>create-archive</id>
 								<phase>package</phase>
 								<goals>
 									<goal>single</goal>
 								</goals>
+								<configuration>
+									<descriptor>libraries.xml</descriptor>
+								</configuration>
+							</execution>
+							<execution>
+								<id>create-archive-fips</id>
+								<phase>package</phase>
+								<goals>
+									<goal>single</goal>
+								</goals>
+								<configuration>
+									<descriptor>libraries-fips.xml</descriptor>
+								</configuration>
 							</execution>
 						</executions>
 					</plugin>
@@ -349,6 +388,77 @@
 				</plugins>
 			</build>
 		</profile>
+		<profile>
+			<!-- Build the war for a FIPS 140-3 deployment: keep the BouncyCastle jars
+			     out of WEB-INF/lib so the container's copies on the system classloader
+			     (${JAVA_HOME}/lib/fips) are the only ones present.
+			     These are declared directly rather than relying on semoss's scope,
+			     because transitive scope is read from the published semoss pom (which
+			     resolves bc.fips.scope to compile) and only a direct declaration
+			     overrides it.
+			     Note dev is activeByDefault, and Maven drops activeByDefault as soon
+			     as any other profile is named, so pass it alongside: -P dev,fips
+			     locally or -P deploy,fips for a release build. -->
+			<id>fips</id>
+			<dependencies>
+				<dependency>
+					<groupId>org.bouncycastle</groupId>
+					<artifactId>bc-fips</artifactId>
+					<version>${bc.fips.version}</version>
+					<scope>provided</scope>
+				</dependency>
+				<dependency>
+					<groupId>org.bouncycastle</groupId>
+					<artifactId>bcpkix-fips</artifactId>
+					<version>${bcpkix.fips.version}</version>
+					<scope>provided</scope>
+				</dependency>
+				<!-- Not referenced at compile time - the JSSE provider is loaded from
+				     java.security at runtime. Declared so dependency scanners and the
+				     module inventory see it. -->
+				<dependency>
+					<groupId>org.bouncycastle</groupId>
+					<artifactId>bctls-fips</artifactId>
+					<version>${bctls.fips.version}</version>
+					<scope>provided</scope>
+				</dependency>
+				<dependency>
+					<groupId>org.bouncycastle</groupId>
+					<artifactId>bcutil-fips</artifactId>
+					<version>${bcutil.fips.version}</version>
+					<scope>provided</scope>
+				</dependency>
+				<!-- sshj pulls the non-FIPS bcprov/bcpkix/bcutil-jdk18on at runtime
+				     scope. Those would land in WEB-INF/lib beside the validated
+				     bc-fips on the system classloader, with both owning the
+				     org.bouncycastle.* namespace across two classloaders.
+				     Re-declared here only so the exclusion applies - a direct
+				     declaration at depth 1 overrides the transitive one from semoss.
+				     sshj itself stays at compile scope, so it is still packaged and
+				     SFTPStorageEngine still loads.
+				     Effect on FIPS builds: sshj's DefaultConfig gates its
+				     BouncyCastle-dependent algorithms behind isBouncyCastleRegistered(),
+				     so it falls back to the JCE-only set - dropping curve25519-sha256
+				     KEX and ssh-ed25519 host keys, keeping ecdh-sha2-nistp256,
+				     diffie-hellman-group14/16-sha256, aes-ctr, aes-gcm and hmac-sha2-*.
+				     Those are the approved ones. SFTPStorageEngine authenticates with a
+				     password and never loads a key, so no key-parsing path is affected.
+				     Non-FIPS builds keep the full set; see Semoss/pom.xml.
+				     Wildcard so a future sshj adding a fourth BC artifact cannot
+				     silently reintroduce one. -->
+				<dependency>
+					<groupId>com.hierynomus</groupId>
+					<artifactId>sshj</artifactId>
+					<version>${sshj.version}</version>
+					<exclusions>
+						<exclusion>
+							<groupId>org.bouncycastle</groupId>
+							<artifactId>*</artifactId>
+						</exclusion>
+					</exclusions>
+				</dependency>
+			</dependencies>
+		</profile>
 	</profiles>
 	<repositories>
 		<repository>
@@ -382,39 +492,91 @@
 				<enabled>true</enabled>
 			</snapshots>
 		</repository>
-		<!-- repository for Apache Storm -->
-		<!-- <repository><id>clojars.org</id><url>http://clojars.org/repo</url></repository> -->
-		<repository>
-			<id>redshift</id>
-			<url>https://s3.amazonaws.com/redshift-maven-repository/release</url>
-		</repository>
 	</repositories>
 	<dependencyManagement>
 		<dependencies>
-			<!-- CVE force: CVE-2026-42579 - override transitive Netty DNS artifacts to fixed version -->
+			<!-- Converge the non-FIPS BouncyCastle that sshj brings in. sshj 0.40.0
+			     declares bcprov-jdk18on 1.80 directly while its bcpkix-jdk18on 1.80
+			     pulls bcutil-jdk18on 1.80.2 which pulls bcprov-jdk18on 1.80.2, so
+			     without this the non-FIPS war ships mixed point releases.
+			     dependencyManagement is not inherited from the semoss pom, so this
+			     has to be repeated here even though Semoss/pom.xml pins the same
+			     versions. Only affects non-FIPS builds; the fips profile below
+			     excludes these entirely. -->
 			<dependency>
-				<groupId>io.netty</groupId>
-				<artifactId>netty-bom</artifactId>
-				<version>4.1.133.Final</version>
+				<groupId>org.bouncycastle</groupId>
+				<artifactId>bcprov-jdk18on</artifactId>
+				<version>${bc.jdk18on.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.bouncycastle</groupId>
+				<artifactId>bcpkix-jdk18on</artifactId>
+				<version>${bc.jdk18on.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.bouncycastle</groupId>
+				<artifactId>bcutil-jdk18on</artifactId>
+				<version>${bc.jdk18on.version}</version>
+			</dependency>
+			<!-- Converge the FIPS BouncyCastle that reaches the non-FIPS war. Two
+			     separate paths feed it: bcpkix-fips from semoss, whose artifacts
+			     declare each other with open ranges (bcpkix-fips wants bcutil-fips
+			     [2.1.7,2.2.0), bcutil-fips wants bc-fips [2.1.0,2.2.0)), and
+			     opendj-core via openam-shared, which pins an older bctls-fips. -->
+			<dependency>
+				<groupId>org.bouncycastle</groupId>
+				<artifactId>bc-fips</artifactId>
+				<version>${bc.fips.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.bouncycastle</groupId>
+				<artifactId>bcpkix-fips</artifactId>
+				<version>${bcpkix.fips.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.bouncycastle</groupId>
+				<artifactId>bctls-fips</artifactId>
+				<version>${bctls.fips.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.bouncycastle</groupId>
+				<artifactId>bcutil-fips</artifactId>
+				<version>${bcutil.fips.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>io.grpc</groupId>
+				<artifactId>grpc-bom</artifactId>
+				<version>1.79.0</version>
 				<type>pom</type>
 				<scope>import</scope>
 			</dependency>
-			<!-- GHSA-2m67-wjpj-xhg9 / CVE-2026-29062: force transitive tools.jackson.core (Jackson 3.x) from mcp-json-jackson3 up to fixed version -->
+			<!-- Converge annotations-only jar: grpc 1.79 pulls 1.26, google-cloud pulls 1.24 -->
+			<dependency>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>animal-sniffer-annotations</artifactId>
+				<version>1.26</version>
+			</dependency>
+			<dependency>
+				<groupId>io.netty</groupId>
+				<artifactId>netty-bom</artifactId>
+				<version>${netty.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
 			<dependency>
 				<groupId>tools.jackson.core</groupId>
 				<artifactId>jackson-core</artifactId>
-				<version>3.1.1</version>
+				<version>${jackson3.version}</version>
 			</dependency>
 			<dependency>
 				<groupId>tools.jackson.core</groupId>
 				<artifactId>jackson-databind</artifactId>
-				<version>3.1.1</version>
+				<version>${jackson3.version}</version>
 			</dependency>
-			<!-- CVE force: CVE-2025-12183/CVE-2025-66566 - override transitive org.lz4:lz4-java version (1.8.0) -->
 			<dependency>
-				<groupId>org.lz4</groupId>
-				<artifactId>lz4-java</artifactId>
-				<version>1.8.1</version>
+				<groupId>tools.jackson.dataformat</groupId>
+				<artifactId>jackson-dataformat-yaml</artifactId>
+				<version>${jackson3.version}</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
@@ -424,6 +586,20 @@
 			<artifactId>semoss</artifactId>
 			<version>${ci.version}</version>
 			<classifier>shaded-dependencies</classifier>
+		</dependency>
+		<!-- https://mvnrepository.com/artifact/org.apache.tomcat/tomcat-catalina -->
+		<!-- this is the primary tomcat specific jar -->
+		<dependency>
+			<groupId>org.apache.tomcat</groupId>
+			<artifactId>tomcat-catalina</artifactId>
+			<version>11.0.24</version>
+		</dependency>
+		<!-- Source: https://mvnrepository.com/artifact/jakarta.servlet/jakarta.servlet-api -->
+		<dependency>
+		    <groupId>jakarta.servlet</groupId>
+		    <artifactId>jakarta.servlet-api</artifactId>
+		    <version>6.1.0</version>
+		    <scope>provided</scope>
 		</dependency>
 		<!-- Source: https://mvnrepository.com/artifact/org.a2aproject.sdk/a2a-java-sdk-spec -->
 		<dependency>
@@ -441,31 +617,29 @@
 		    	</exclusion>
 		    </exclusions>
 		</dependency>
-		<!-- https://mvnrepository.com/artifact/org.apache.tomcat/tomcat-catalina -->
-		<!-- this is the primary tomcat specific jar -->
+		<!-- Source: https://mvnrepository.com/artifact/jakarta.websocket/jakarta.websocket-api -->
 		<dependency>
-			<groupId>org.apache.tomcat</groupId>
-			<artifactId>tomcat-catalina</artifactId>
-			<version>9.0.119</version>
+		    <groupId>jakarta.websocket</groupId>
+		    <artifactId>jakarta.websocket-api</artifactId>
+		    <version>${jakarta.websocket.version}</version>
 		</dependency>
-		<!-- https://mvnrepository.com/artifact/javax.websocket/javax.websocket-api -->
+		<!-- Source: https://mvnrepository.com/artifact/jakarta.websocket/jakarta.websocket-client-api -->
 		<dependency>
-			<groupId>javax.websocket</groupId>
-			<artifactId>javax.websocket-api</artifactId>
-			<version>1.1</version>
-			<scope>provided</scope>
+		    <groupId>jakarta.websocket</groupId>
+		    <artifactId>jakarta.websocket-client-api</artifactId>
+		    <version>${jakarta.websocket.version}</version>
 		</dependency>
-		<!-- https://mvnrepository.com/artifact/jakarta.activation/jakarta.activation-api -->
+		<!-- Source: https://mvnrepository.com/artifact/jakarta.activation/jakarta.activation-api -->
 		<dependency>
 			<groupId>jakarta.activation</groupId>
 			<artifactId>jakarta.activation-api</artifactId>
-			<version>1.2.2</version>
+			<version>2.1.4</version>
 		</dependency>
-		<!-- https://mvnrepository.com/artifact/org.jboss.resteasy/resteasy-core -->
+		<!-- Source: https://mvnrepository.com/artifact/org.jboss.resteasy/resteasy-core -->
 		<dependency>
 			<groupId>org.jboss.resteasy</groupId>
 			<artifactId>resteasy-core</artifactId>
-			<version>4.7.10.Final</version>
+			<version>${resteasy.version}</version>
 			<exclusions>
 				<exclusion>
 					<groupId>org.reactivestreams</groupId>
@@ -485,18 +659,18 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
-		<!-- https://mvnrepository.com/artifact/org.jboss.resteasy/resteasy-jaxb-provider -->
+		<!-- Source: https://mvnrepository.com/artifact/org.jboss.resteasy/resteasy-jaxb-provider -->
 		<dependency>
 			<groupId>org.jboss.resteasy</groupId>
 			<artifactId>resteasy-jaxb-provider</artifactId>
-			<version>4.7.10.Final</version>
+			<version>${resteasy.version}</version>
 		</dependency>
-		<!-- SAML ONE JAR -->
-		<!-- https://mvnrepository.com/artifact/org.openidentityplatform.openam/openam-federation-library -->
+		<!-- SAML ONE JAR --> 
+		<!-- Source: https://mvnrepository.com/artifact/org.openidentityplatform.openam/openam-federation-library -->
 		<dependency>
-			<groupId>org.openidentityplatform.openam</groupId>
-			<artifactId>openam-federation-library</artifactId>
-			<version>15.2.2</version>
+		    <groupId>org.openidentityplatform.openam</groupId>
+		    <artifactId>openam-federation-library</artifactId>
+		    <version>16.1.2</version>
 			<exclusions>
 				<exclusion>
 					<groupId>com.google.guava</groupId>
@@ -507,146 +681,28 @@
 					<artifactId>json</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>jakarta.activation</groupId>
-					<artifactId>jakarta.activation-api</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.fasterxml.woodstox</groupId>
-					<artifactId>woodstox-core</artifactId>
-				</exclusion>
-				<exclusion>
-					<artifactId>commons-logging</artifactId>
-					<groupId>commons-logging</groupId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.glassfish</groupId>
-					<artifactId>jakarta.json</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>joda-time</groupId>
-					<artifactId>joda-time</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.sun.xml.rpc</groupId>
-					<artifactId>jaxrpc-impl</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.javassist</groupId>
-					<artifactId>javassist</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.codehaus.woodstox</groupId>
-					<artifactId>stax2-api</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.ow2.asm</groupId>
-					<artifactId>*</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.sun.mail</groupId>
-					<artifactId>jakarta.mail</artifactId>
-				</exclusion>
-				<exclusion>
 					<groupId>org.owasp.esapi</groupId>
-					<artifactId>*</artifactId>
+					<artifactId>esapi</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>com.fasterxml.jackson.core</groupId>
-					<artifactId>*</artifactId>
+					<groupId>org.eclipse.parsson</groupId>
+					<artifactId>parsson</artifactId>
 				</exclusion>
 				<exclusion>
 				    <groupId>org.slf4j</groupId>
 				    <artifactId>*</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>org.assertj</groupId>
-					<artifactId>assertj-core</artifactId>
-				</exclusion>
-				<exclusion>
 					<groupId>org.openidentityplatform.commons.i18n-framework</groupId>
 					<artifactId>slf4j</artifactId>
 				</exclusion>
+				<!-- this is due to broken openam build - they define this compile dependency that does not exist -->
 				<exclusion>
-					<groupId>org.apache.santuario</groupId>
-					<artifactId>xmlsec</artifactId>
+				    <groupId>org.openidentityplatform.openam.jakarta</groupId>
+				    <artifactId>jaxrpc-impl</artifactId>
 				</exclusion>
 			</exclusions>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.santuario</groupId>
-			<artifactId>xmlsec</artifactId>
-			<version>4.0.4</version>
-		</dependency>
-		<!-- adding updated jar to deal with exclusion w/ vulnerability -->
-		<!-- https://mvnrepository.com/artifact/com.fasterxml.woodstox/woodstox-core -->
-		<dependency>
-			<groupId>com.fasterxml.woodstox</groupId>
-			<artifactId>woodstox-core</artifactId>
-			<version>5.4.0</version>
-		</dependency>
-		<!-- https://mvnrepository.com/artifact/javax.activation/activation -->
-		<!-- required for openam compilation without com.sum.mail -->
-		<dependency>
-			<groupId>javax.activation</groupId>
-			<artifactId>activation</artifactId>
-			<version>1.1.1</version>
-		</dependency>
-		<!-- https://mvnrepository.com/artifact/com.sun.xml.rpc/jaxrpc-impl -->
-		<dependency>
-			<groupId>com.sun.xml.rpc</groupId>
-			<artifactId>jaxrpc-impl</artifactId>
-			<version>1.1.6</version>
-			<exclusions>
-				<exclusion>
-					<groupId>com.sun.mail</groupId>
-					<artifactId>jakarta.mail</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.sun.xml.fastinfoset</groupId>
-					<artifactId>FastInfoset</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>jakarta.xml.rpc</groupId>
-					<artifactId>jakarta.xml.rpc-api</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-		<!-- https://mvnrepository.com/artifact/com.sun.xml.fastinfoset/FastInfoset -->
-		<dependency>
-			<groupId>com.sun.xml.fastinfoset</groupId>
-			<artifactId>FastInfoset</artifactId>
-			<version>1.2.18</version>
-		</dependency>
-		<!-- https://mvnrepository.com/artifact/jakarta.xml.rpc/jakarta.xml.rpc-api -->
-		<dependency>
-			<groupId>jakarta.xml.rpc</groupId>
-			<artifactId>jakarta.xml.rpc-api</artifactId>
-			<version>1.1.4</version>
-			<exclusions>
-				<exclusion>
-					<groupId>jakarta.servlet</groupId>
-					<artifactId>jakarta.servlet-api</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-		<!-- https://mvnrepository.com/artifact/org.bouncycastle/bcpkix-jdk18on -->
-		<dependency>
-			<groupId>org.bouncycastle</groupId>
-			<artifactId>bcpkix-jdk18on</artifactId>
-			<version>1.78.1</version>
-		</dependency>
-		<!-- https://mvnrepository.com/artifact/joda-time/joda-time -->
-		<dependency>
-			<groupId>joda-time</groupId>
-			<artifactId>joda-time</artifactId>
-			<version>2.14.2</version>
-			<exclusions>
-				<exclusion>
-					<groupId>org.joda</groupId>
-					<artifactId>joda-convert</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
+		</dependency> 
 		<!-- https://mvnrepository.com/artifact/com.mikesamuel/json-sanitizer -->
 		<dependency>
 			<groupId>com.mikesamuel</groupId>
@@ -654,12 +710,9 @@
 			<version>1.2.3</version>
 		</dependency>
         <dependency>
-            <groupId>io.netty</groupId>
-            <artifactId>netty-bom</artifactId>
-            <!-- Update to 4.1.133.Final or 4.2.13.Final -->
-            <version>4.1.133.Final</version>
-            <type>pom</type>
-            <scope>import</scope>
-        </dependency>
+			<groupId>org.eclipse.parsson</groupId>
+			<artifactId>parsson</artifactId>
+			<version>1.1.8</version>
+		</dependency>
     </dependencies>
 </project>

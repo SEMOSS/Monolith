@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<web-app xmlns="https://xmlns.jcp.org/xml/ns/javaee" xmlns:web="https://xmlns.jcp.org/xml/ns/javaee/web-app_3_1.xsd" xmlns:xsi="https://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="https://xmlns.jcp.org/xml/ns/javaee" version="3.1">
+<web-app xmlns="https://jakarta.ee/xml/ns/jakartaee" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee https://jakarta.ee/xml/ns/jakartaee/web-app_6_0.xsd" version="6.0">
    <display-name>Monolith</display-name>
    <welcome-file-list>
       <welcome-file>index.html</welcome-file>
@@ -579,7 +579,7 @@
       <servlet-name>MainApplication</servlet-name>
       <servlet-class>org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher</servlet-class>
       <init-param>
-         <param-name>javax.ws.rs.Application</param-name>
+         <param-name>jakarta.ws.rs.Application</param-name>
          <param-value>prerna.semoss.web.app.MonolithApplication</param-value>
       </init-param>
       <init-param>
@@ -596,7 +596,7 @@
       <servlet-name>GitHubApplication</servlet-name>
       <servlet-class>org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher</servlet-class>
       <init-param>
-         <param-name>javax.ws.rs.Application</param-name>
+         <param-name>jakarta.ws.rs.Application</param-name>
          <param-value>prerna.semoss.web.app.GitHubApplication</param-value>
       </init-param>
       <init-param>
@@ -608,12 +608,29 @@
       <servlet-name>GitHubApplication</servlet-name>
       <url-pattern>/github/*</url-pattern>
    </servlet-mapping>
+   <!--  Microsoft Graph Change Notification Endpoints -->
+   <servlet>
+      <servlet-name>MicrosoftGraphApplication</servlet-name>
+      <servlet-class>org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher</servlet-class>
+      <init-param>
+         <param-name>jakarta.ws.rs.Application</param-name>
+         <param-value>prerna.semoss.web.app.MicrosoftGraphApplication</param-value>
+      </init-param>
+      <init-param>
+         <param-name>resteasy.servlet.mapping.prefix</param-name>
+         <param-value>/msgraph</param-value>
+      </init-param>
+   </servlet>
+   <servlet-mapping>
+      <servlet-name>MicrosoftGraphApplication</servlet-name>
+      <url-pattern>/msgraph/*</url-pattern>
+   </servlet-mapping>
    <!-- Servlet For External Applications Registering a Trusted Token To Alias User -->
    <servlet>
       <servlet-name>TrustedTokenApplication</servlet-name>
       <servlet-class>org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher</servlet-class>
       <init-param>
-         <param-name>javax.ws.rs.Application</param-name>
+         <param-name>jakarta.ws.rs.Application</param-name>
          <param-value>prerna.semoss.web.app.TrustedTokenApplication</param-value>
       </init-param>
       <init-param>
@@ -624,6 +641,23 @@
    <servlet-mapping>
       <servlet-name>TrustedTokenApplication</servlet-name>
       <url-pattern>/token/*</url-pattern>
+   </servlet-mapping>
+   <!-- Servlet For Health / Liveness Checks -->
+   <servlet>
+      <servlet-name>HealthApplication</servlet-name>
+      <servlet-class>org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher</servlet-class>
+      <init-param>
+         <param-name>jakarta.ws.rs.Application</param-name>
+         <param-value>prerna.semoss.web.app.HealthApplication</param-value>
+      </init-param>
+      <init-param>
+         <param-name>resteasy.servlet.mapping.prefix</param-name>
+         <param-value>/health</param-value>
+      </init-param>
+   </servlet>
+   <servlet-mapping>
+      <servlet-name>HealthApplication</servlet-name>
+      <url-pattern>/health/*</url-pattern>
    </servlet-mapping>
    <!-- SAML Response Handler -->
    <servlet>
@@ -647,7 +681,7 @@
       <servlet-name>AdminApplication</servlet-name>
       <servlet-class>org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher</servlet-class>
       <init-param>
-         <param-name>javax.ws.rs.Application</param-name>
+         <param-name>jakarta.ws.rs.Application</param-name>
          <param-value>prerna.semoss.web.app.AdminApplication</param-value>
       </init-param>
       <init-param>

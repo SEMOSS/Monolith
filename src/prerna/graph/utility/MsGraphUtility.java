@@ -33,9 +33,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpSession;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.json.JSONArray;
@@ -44,13 +41,15 @@ import org.json.JSONObject;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityProjectUtils;
-import prerna.graph.MSGraphAPICall;
+import prerna.io.connector.ms.MicrosoftGraphUserSearchClient;
 import prerna.util.Constants;
 import prerna.util.SocialPropertiesUtil;
 
@@ -81,10 +80,8 @@ public class MsGraphUtility {
 		boolean graphApiUsingSystemCredentials = Boolean.parseBoolean(
 				"" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_application_credentials"));
 
-		if (!graphApiUsingSystemCredentials) {
-			if (user.getAccessToken(AuthProvider.MICROSOFT) == null) {
-				throw new IllegalAccessException("Must be logged into your microsoft login to search for users");
-			}
+		if (!graphApiUsingSystemCredentials && user.getAccessToken(AuthProvider.MICROSOFT) == null) {
+			throw new IllegalAccessException("Must be logged into your microsoft login to search for users");
 		}
 
 		HttpSession session = request.getSession(false);
@@ -115,7 +112,7 @@ public class MsGraphUtility {
 		List<Map<String, Object>> filteredUsers = new ArrayList<>();
 
 		try {
-			MSGraphAPICall msGraphApi = new MSGraphAPICall();
+			MicrosoftGraphUserSearchClient msGraphApi = new MicrosoftGraphUserSearchClient();
 
 			// Step 3: Fetch more data if nextLink is in the session, else make a fresh call
 			// to Graph API
@@ -234,10 +231,8 @@ public class MsGraphUtility {
 		boolean graphApiUsingSystemCredentials = Boolean.parseBoolean(
 				"" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_application_credentials"));
 
-		if (!graphApiUsingSystemCredentials) {
-			if (user.getAccessToken(AuthProvider.MICROSOFT) == null) {
-				throw new IllegalAccessException("Must be logged into your microsoft login to search for users");
-			}
+		if (!graphApiUsingSystemCredentials && user.getAccessToken(AuthProvider.MICROSOFT) == null) {
+			throw new IllegalAccessException("Must be logged into your microsoft login to search for users");
 		}
 
 		// Create a session and define a single session key to store everything
@@ -269,7 +264,7 @@ public class MsGraphUtility {
 		List<Map<String, Object>> filteredUsers = new ArrayList<>();
 
 		try {
-			MSGraphAPICall msGraphApi = new MSGraphAPICall();
+			MicrosoftGraphUserSearchClient msGraphApi = new MicrosoftGraphUserSearchClient();
 
 			// Step 3: Fetch more data if nextLink is in the session, else make a fresh call
 			// to Graph API
@@ -403,7 +398,7 @@ public class MsGraphUtility {
 			Map<String, Object> sessionData, boolean graphApiUsingSystemCredentials) throws Exception {
 		String nextLink = (String) sessionData.get("nextLinkData");
 		List<Map<String, Object>> msGraphUsers = new ArrayList<>();
-		MSGraphAPICall msGraphApi = new MSGraphAPICall();
+		MicrosoftGraphUserSearchClient msGraphApi = new MicrosoftGraphUserSearchClient();
 
 		// Make API call to GraphAPI
 		String msUsers;
@@ -431,12 +426,12 @@ public class MsGraphUtility {
 		return msGraphUsers;
 	}
 
-	private static String fetchMsUsers(MSGraphAPICall msGraphApi, User user, String groupId, String searchTerm,
-			String nextLink, boolean graphApiUsingSystemCredentials) throws Exception {
+	private static String fetchMsUsers(MicrosoftGraphUserSearchClient msGraphApi, User user, String groupId,
+			String searchTerm, String nextLink, boolean graphApiUsingSystemCredentials) throws Exception {
 		AccessToken requestedAccessToken = graphApiUsingSystemCredentials ? null
 				: user.getAccessToken(AuthProvider.MICROSOFT);
-		MSGraphAPICall.GraphApiResponse graphApiResponse = msGraphApi.getUserDetails(requestedAccessToken, groupId,
-				searchTerm, nextLink);
+		MicrosoftGraphUserSearchClient.GraphApiResponse graphApiResponse = msGraphApi
+				.getUserDetails(requestedAccessToken, groupId, searchTerm, nextLink);
 
 		// Persist refreshed delegated token in the user session so subsequent calls use
 		// the latest token/refresh token pair.

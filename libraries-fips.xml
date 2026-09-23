@@ -1,0 +1,47 @@
+<assembly xmlns="http://maven.apache.org/ASSEMBLY/2.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/ASSEMBLY/2.0.0 http://maven.apache.org/xsd/assembly-2.0.0.xsd">
+  <!-- FIPS 140-3 counterpart of libraries.xml, selected by the fips profile via
+       the libraries.descriptor property.
+
+       BouncyCastle is excluded here BY FILENAME rather than by Maven scope, so
+       this and libraries.xml can both be produced from ONE build. That matters:
+       the docker workflows build the standard and -fips images from the same
+       SEMOSS_VERSION, so both tarballs have to exist under the same version. A
+       profile toggle would publish only one of them per run and the other image
+       would fail to resolve.
+
+       The FIPS container supplies bc-fips on the system classloader from
+       $JAVA_HOME/lib/fips, so nothing BouncyCastle belongs in WEB-INF/lib -
+       neither the non-FIPS jdk18on jars sshj pulls, nor the -fips jars Semoss
+       depends on directly. Two copies of org.bouncycastle.* across two
+       classloaders give ClassCastException on key objects.
+
+       The war itself is byte-identical between the two variants (it carries
+       only semoss-<ver>*, and that jar is built by Semoss, not here), so only
+       this half is published under a separate classifier. The id below becomes
+       that classifier: monolith-<ver>-libraries-fips.tar.gz -->
+  <id>libraries-fips</id>
+  <formats>
+    <format>tar.gz</format>
+  </formats>
+  <fileSets>
+    <fileSet>
+      <directory>${project.build.directory}/${project.build.finalName}/WEB-INF/lib</directory>
+      <outputDirectory>WEB-INF/lib</outputDirectory>
+	  <excludes>
+        <exclude>semoss-${ci.version}*.jar</exclude>
+        <!-- non-FIPS BouncyCastle, pulled transitively by sshj -->
+        <exclude>bcprov-jdk18on-*.jar</exclude>
+        <exclude>bcpkix-jdk18on-*.jar</exclude>
+        <exclude>bcutil-jdk18on-*.jar</exclude>
+        <!-- FIPS BouncyCastle - the container supplies these, they must not be
+             duplicated into the webapp classloader -->
+        <exclude>bc-fips-*.jar</exclude>
+        <exclude>bcpkix-fips-*.jar</exclude>
+        <exclude>bcutil-fips-*.jar</exclude>
+        <exclude>bctls-fips-*.jar</exclude>
+      </excludes>
+    </fileSet>
+  </fileSets>
+</assembly>

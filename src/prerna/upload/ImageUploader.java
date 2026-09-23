@@ -35,25 +35,24 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.annotation.security.PermitAll;
-import javax.servlet.ServletContext;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpSession;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.Response;
-
-import org.apache.commons.fileupload.FileItem;
-import org.apache.commons.fileupload.FileUploadException;
-import org.apache.commons.io.filefilter.WildcardFileFilter;
+import org.apache.commons.fileupload2.core.DiskFileItem;
+import org.apache.commons.fileupload2.core.FileUploadException;
+import org.apache.commons.io.filefilter.PrefixFileFilter;
 import org.apache.http.HttpStatus;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.google.common.io.Files;
 
+import jakarta.annotation.security.PermitAll;
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.Response;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityInsightUtils;
@@ -75,6 +74,8 @@ import prerna.web.services.util.WebUtility;
 public class ImageUploader extends Uploader {
 
 	private static final Logger classLogger = LogManager.getLogger(ImageUploader.class);
+
+	private static final long serialVersionUID = 1L;
 
 	/*
 	 * ENGINE
@@ -108,7 +109,7 @@ public class ImageUploader extends Uploader {
 			return WebUtility.getResponse(returnMap, 400);
 		}
 
-		List<FileItem> fileItems = null;
+		List<DiskFileItem> fileItems = null;
 		try {
 			fileItems = processRequest(context, request, null);
 		} catch (FileUploadException e) {
@@ -117,18 +118,25 @@ public class ImageUploader extends Uploader {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		// collect all of the data input on the form
-		FileItem imageFile = null;
+		DiskFileItem imageFile = null;
 		String engineId = null;
 
-		for (FileItem fi : fileItems) {
-			String fieldName = fi.getFieldName();
-			String value = WebUtility.inputSanitizer(fi.getString());
-			if (fieldName.equals("file")) {
-				imageFile = fi;
+		try {
+			for (DiskFileItem fi : fileItems) {
+				String fieldName = fi.getFieldName();
+				String value = WebUtility.inputSanitizer(Uploader.convertToString(fi.getReader()));
+				if (fieldName.equals("file")) {
+					imageFile = fi;
+				}
+				if (fieldName.equals("engineId")) {
+					engineId = value;
+				}
 			}
-			if (fieldName.equals("engineId")) {
-				engineId = value;
-			}
+		} catch (IOException e) {
+			classLogger.error("Failed to read the form fields from the uploaded request", e);
+			HashMap<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Error uploading file. Error = " + e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		if (imageFile == null) {
@@ -276,8 +284,11 @@ public class ImageUploader extends Uploader {
 	public Response deleteEngineImage(@Context HttpServletRequest request) throws SQLException {
 		Map<String, String> returnMap = new HashMap<>();
 
-		String engineId = WebUtility.inputSanitizer(request.getParameter("engineId"));
-		if (engineId == null) {
+		// not required for containment. userCanEditEngine below resolves engineId
+		// against the ENGINE table, so a traversal value is rejected before it reaches
+		// the image folder path
+		String engineId = WebUtility.safePathSegment(WebUtility.inputSanitizer(request.getParameter("engineId")));
+		if (!WebUtility.isSafePathSegment(engineId)) {
 			returnMap.put(Constants.ERROR_MESSAGE, "Need to pass the proper engine id to remove the image");
 			return WebUtility.getResponse(returnMap, 400);
 		}
@@ -453,7 +464,7 @@ public class ImageUploader extends Uploader {
 			return WebUtility.getResponse(returnMap, 400);
 		}
 
-		List<FileItem> fileItems = null;
+		List<DiskFileItem> fileItems = null;
 		try {
 			fileItems = processRequest(context, request, null);
 		} catch (FileUploadException e) {
@@ -462,19 +473,26 @@ public class ImageUploader extends Uploader {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		// collect all of the data input on the form
-		FileItem imageFile = null;
+		DiskFileItem imageFile = null;
 		String projectId = null;
 		String projectName = null;
 
-		for (FileItem fi : fileItems) {
-			String fieldName = fi.getFieldName();
-			String value = WebUtility.inputSanitizer(fi.getString());
-			if (fieldName.equals("file")) {
-				imageFile = fi;
+		try {
+			for (DiskFileItem fi : fileItems) {
+				String fieldName = fi.getFieldName();
+				String value = WebUtility.inputSanitizer(Uploader.convertToString(fi.getReader()));
+				if (fieldName.equals("file")) {
+					imageFile = fi;
+				}
+				if (fieldName.equals("projectId")) {
+					projectId = value;
+				}
 			}
-			if (fieldName.equals("projectId")) {
-				projectId = value;
-			}
+		} catch (IOException e) {
+			classLogger.error("Failed to read the form fields from the uploaded request", e);
+			HashMap<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Error uploading file. Error = " + e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		if (imageFile == null) {
@@ -523,7 +541,7 @@ public class ImageUploader extends Uploader {
 			// and delete them
 			File[] oldImages = null;
 			if (ClusterUtil.IS_CLUSTER) {
-				FilenameFilter appIdFilter = new WildcardFileFilter(projectId + "*");
+				FilenameFilter appIdFilter = new PrefixFileFilter(projectId);
 				oldImages = f.getParentFile().listFiles(appIdFilter);
 			} else {
 				oldImages = InsightUtility.findImageFile(f.getParentFile());
@@ -565,9 +583,12 @@ public class ImageUploader extends Uploader {
 		String filePath = WebUtility
 				.normalizePath(EngineUtility.getLocalEngineBaseDirectory(IEngine.CATALOG_TYPE.PROJECT));
 
-		String projectId = WebUtility.inputSanitizer(request.getParameter("projectId"));
+		// not required for containment. userCanEditProject below resolves projectId
+		// against the PROJECT table, and projectName is then read back from the
+		// security db rather than taken from the request
+		String projectId = WebUtility.safePathSegment(WebUtility.inputSanitizer(request.getParameter("projectId")));
 		String projectName = null;
-		if (projectId == null) {
+		if (!WebUtility.isSafePathSegment(projectId)) {
 			returnMap.put(Constants.ERROR_MESSAGE, "Need to pass the proper project id to remove the image");
 			return WebUtility.getResponse(returnMap, 400);
 		}
@@ -621,7 +642,7 @@ public class ImageUploader extends Uploader {
 		File f = new File(WebUtility.normalizePath(imageDir));
 		File[] oldImages = null;
 		if (ClusterUtil.IS_CLUSTER) {
-			FilenameFilter appIdFilter = new WildcardFileFilter(projectId + "*");
+			FilenameFilter appIdFilter = new PrefixFileFilter(projectId);
 			oldImages = f.listFiles(appIdFilter);
 		} else {
 			oldImages = InsightUtility.findImageFile(f);
@@ -659,7 +680,7 @@ public class ImageUploader extends Uploader {
 		return AssetUtility.getProjectVersionFolder(projectName, projectId);
 	}
 
-	private String getProjectImageLoc(String filePath, String id, String name, FileItem imageFile) {
+	private String getProjectImageLoc(String filePath, String id, String name, DiskFileItem imageFile) {
 		String imageDir = getProjectImageDir(filePath, id, name);
 		if (ClusterUtil.IS_CLUSTER) {
 			return imageDir + DIR_SEPARATOR + id + "." + imageFile.getContentType().split("/")[1];
@@ -676,10 +697,6 @@ public class ImageUploader extends Uploader {
 	@Produces("application/json")
 	public Response uploadInsightImage(@Context ServletContext context, @Context HttpServletRequest request) {
 		Map<String, String> returnMap = new HashMap<>();
-
-		// base path is the project folder
-		String filePath = WebUtility
-				.normalizePath(EngineUtility.getLocalEngineBaseDirectory(IEngine.CATALOG_TYPE.PROJECT));
 
 		HttpSession session = request.getSession(false);
 		User user = null;
@@ -702,7 +719,7 @@ public class ImageUploader extends Uploader {
 			return WebUtility.getResponse(returnMap, 400);
 		}
 
-		List<FileItem> fileItems = null;
+		List<DiskFileItem> fileItems = null;
 		try {
 			fileItems = processRequest(context, request, null);
 		} catch (FileUploadException e) {
@@ -711,23 +728,30 @@ public class ImageUploader extends Uploader {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		// collect all of the data input on the form
-		FileItem imageFile = null;
+		DiskFileItem imageFile = null;
 		String projectId = null;
 		String projectName = null;
 		String insightId = null;
 
-		for (FileItem fi : fileItems) {
-			String fieldName = fi.getFieldName();
-			String value = WebUtility.inputSanitizer(fi.getString());
-			if (fieldName.equals("file")) {
-				imageFile = fi;
+		try {
+			for (DiskFileItem fi : fileItems) {
+				String fieldName = fi.getFieldName();
+				String value = WebUtility.inputSanitizer(Uploader.convertToString(fi.getReader()));
+				if (fieldName.equals("file")) {
+					imageFile = fi;
+				}
+				if (fieldName.equals("projectId")) {
+					projectId = value;
+				}
+				if (fieldName.equals("insightId")) {
+					insightId = value;
+				}
 			}
-			if (fieldName.equals("projectId")) {
-				projectId = value;
-			}
-			if (fieldName.equals("insightId")) {
-				insightId = value;
-			}
+		} catch (IOException e) {
+			classLogger.error("Failed to read the form fields from the uploaded request", e);
+			HashMap<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Error uploading file. Error = " + e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		if (imageFile == null) {
@@ -818,14 +842,17 @@ public class ImageUploader extends Uploader {
 	public Response deleteInsightImage(@Context HttpServletRequest request) throws SQLException {
 		Map<String, String> returnMap = new HashMap<>();
 
-		String projectId = WebUtility.inputSanitizer(request.getParameter("projectId"));
+		// neither check is required for containment. userCanEditInsight below resolves
+		// projectId and insightId together against the INSIGHT table, so a traversal
+		// value in either is rejected before it reaches the image folder path
+		String projectId = WebUtility.safePathSegment(WebUtility.inputSanitizer(request.getParameter("projectId")));
 		String projectName = null;
-		String insightId = WebUtility.inputSanitizer(request.getParameter("insightId"));
-		if (projectId == null) {
+		String insightId = WebUtility.safePathSegment(WebUtility.inputSanitizer(request.getParameter("insightId")));
+		if (!WebUtility.isSafePathSegment(projectId)) {
 			returnMap.put(Constants.ERROR_MESSAGE, "Need to pass the proper project id to remove the image");
 			return WebUtility.getResponse(returnMap, 400);
 		}
-		if (insightId == null) {
+		if (!WebUtility.isSafePathSegment(insightId)) {
 			returnMap.put(Constants.ERROR_MESSAGE, "Need to pass the proper insight id to remove the image");
 			return WebUtility.getResponse(returnMap, 400);
 		}
@@ -954,7 +981,7 @@ public class ImageUploader extends Uploader {
 			return WebUtility.getResponse(returnMap, 400);
 		}
 
-		List<FileItem> fileItems = null;
+		List<DiskFileItem> fileItems = null;
 		try {
 			fileItems = processRequest(context, request, null);
 		} catch (FileUploadException e) {
@@ -963,21 +990,28 @@ public class ImageUploader extends Uploader {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		// collect all of the data input on the form
-		FileItem imageFile = null;
+		DiskFileItem imageFile = null;
 		String engineId = null;
 
-		for (FileItem fi : fileItems) {
-			String fieldName = fi.getFieldName();
-			String value = WebUtility.inputSanitizer(fi.getString());
-			if (fieldName.equals("file")) {
-				imageFile = fi;
+		try {
+			for (DiskFileItem fi : fileItems) {
+				String fieldName = fi.getFieldName();
+				String value = WebUtility.inputSanitizer(fi.getString());
+				if (fieldName.equals("file")) {
+					imageFile = fi;
+				}
+				if (fieldName.equals("engineId")) {
+					engineId = value;
+				}
+				if (fieldName.equals("databaseId")) {
+					engineId = value;
+				}
 			}
-			if (fieldName.equals("engineId")) {
-				engineId = value;
-			}
-			if (fieldName.equals("databaseId")) {
-				engineId = value;
-			}
+		} catch (IOException e) {
+			classLogger.error("Failed to read the form fields from the uploaded request", e);
+			HashMap<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Error uploading file. Error = " + e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		if (imageFile == null) {
@@ -1133,10 +1167,14 @@ public class ImageUploader extends Uploader {
 		String engineId = WebUtility.inputSanitizer(request.getParameter("engineId"));
 		if (engineId == null) {
 			engineId = WebUtility.inputSanitizer(request.getParameter("databaseId"));
-			if (engineId == null) {
-				returnMap.put(Constants.ERROR_MESSAGE, "Need to pass the proper engine id to remove the image");
-				return WebUtility.getResponse(returnMap, 400);
-			}
+		}
+		// not required for containment. userCanEditEngine below resolves engineId
+		// against the ENGINE table, so a traversal value is rejected before it reaches
+		// the image folder path
+		engineId = WebUtility.safePathSegment(engineId);
+		if (!WebUtility.isSafePathSegment(engineId)) {
+			returnMap.put(Constants.ERROR_MESSAGE, "Need to pass the proper engine id to remove the image");
+			return WebUtility.getResponse(returnMap, 400);
 		}
 
 		HttpSession session = request.getSession(false);

@@ -35,11 +35,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.StringTokenizer;
 
-import javax.servlet.ServletContext;
-import javax.servlet.ServletContextEvent;
-import javax.servlet.ServletContextListener;
-import javax.servlet.SessionCookieConfig;
-
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -47,7 +42,12 @@ import org.apache.logging.log4j.ThreadContext;
 
 import com.github.f4b6a3.uuid.alt.GUID;
 
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.ServletContextEvent;
+import jakarta.servlet.ServletContextListener;
+import jakarta.servlet.SessionCookieConfig;
 import prerna.cluster.util.ClusterUtil;
+import prerna.ds.node.NodeUtils;
 import prerna.engine.api.IDatabaseEngine;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.IEngine.CATALOG_TYPE;
@@ -56,9 +56,11 @@ import prerna.logging.SemossLogUtils;
 import prerna.masterdatabase.utility.MasterDatabaseUtility;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
+import prerna.reactor.ReactorFactory;
 import prerna.reactor.frame.r.util.RJavaTranslatorFactory;
 import prerna.reactor.scheduler.SchedulerDatabaseUtility;
 import prerna.reactor.scheduler.SchedulerFactorySingleton;
+import prerna.remoteviewer.service.RemoteBrowserSessionManager;
 import prerna.util.AbstractFileWatcher;
 import prerna.util.ChromeDriverUtility;
 import prerna.util.ChrootTemplate;
@@ -90,6 +92,23 @@ public class DBLoader implements ServletContextListener {
 
 	// keep track of all the watcher threads to kill
 	private static List<Thread> watcherList = new ArrayList<>();
+
+	/**
+	 * Flipped to true only once {@link #contextInitialized} has run all the way
+	 * through a successful startup. The readiness health probe (see
+	 * {@link prerna.semoss.web.services.config.HealthResource}) reads this to
+	 * report whether the application has finished booting.
+	 */
+	private static volatile boolean startupComplete = false;
+
+	/**
+	 * Flipped to false only when a required-resource check fails during startup.
+	 * {@link StartUpSuccessFilter} reads this to redirect users to the failure
+	 * page, and the health probe surfaces it. Note this stays true while still
+	 * booting, so it is distinct from {@link #startupComplete} (booting = false,
+	 * success = true).
+	 */
+	private static volatile boolean startupSuccess = true;
 
 	@Override
 	public void contextInitialized(ServletContextEvent arg0) {
@@ -203,11 +222,10 @@ public class DBLoader implements ServletContextListener {
 		// if there was an issue starting up the server
 		// we should do it here so that we can redirect the user
 		{
-			boolean startupFailed = false;
 			// Check localmaster
 			if (!SystemEngineRegistry.isLocalMasterDbLoaded()) {
 				classLogger.error("STARTUP CHECK FAILED: localmaster is not loaded");
-				startupFailed = true;
+				startupSuccess = false;
 			} else {
 				classLogger.info("STARTUP CHECK PASSED: localmaster is connected");
 			}
@@ -215,7 +233,7 @@ public class DBLoader implements ServletContextListener {
 			// Check security
 			if (!SystemEngineRegistry.isSecurityDbLoaded()) {
 				classLogger.error("STARTUP CHECK FAILED: security is not loaded");
-				startupFailed = true;
+				startupSuccess = false;
 			} else {
 				classLogger.info("STARTUP CHECK PASSED: security is connected");
 			}
@@ -224,7 +242,7 @@ public class DBLoader implements ServletContextListener {
 			if (!Utility.schedulerForceDisable()) {
 				if (!SystemEngineRegistry.isSchedulerDbLoaded()) {
 					classLogger.error("STARTUP CHECK FAILED: scheduler is not loaded (SCHEDULER_FORCE_DISABLE=false)");
-					startupFailed = true;
+					startupSuccess = false;
 				} else {
 					classLogger.info("STARTUP CHECK PASSED: scheduler is connected");
 				}
@@ -236,7 +254,7 @@ public class DBLoader implements ServletContextListener {
 			if (Utility.isUserTrackingEnabled()) {
 				if (!SystemEngineRegistry.isUserTrackingDbLoaded()) {
 					classLogger.error("STARTUP CHECK FAILED: userTracking is not loaded (USER_TRACKING_ENABLED=true)");
-					startupFailed = true;
+					startupSuccess = false;
 				} else {
 					classLogger.info("STARTUP CHECK PASSED: userTracking is connected");
 				}
@@ -248,7 +266,7 @@ public class DBLoader implements ServletContextListener {
 			if (Utility.isAuditLogsDatabaseEnabled()) {
 				if (!SystemEngineRegistry.isAuditLogsDbLoaded()) {
 					classLogger.error("STARTUP CHECK FAILED: auditDb is not loaded (AUDIT_LOGS_DATABASE_ENABLED=true)");
-					startupFailed = true;
+					startupSuccess = false;
 				} else {
 					classLogger.info("STARTUP CHECK PASSED: auditDb is connected");
 				}
@@ -261,7 +279,7 @@ public class DBLoader implements ServletContextListener {
 				if (!SystemEngineRegistry.isModelInferenceLogsDbLoaded()) {
 					classLogger.error(
 							"STARTUP CHECK FAILED: modelInferenceLogsDb is not loaded (MODEL_INFERENCE_LOGS_ENABLED=true)");
-					startupFailed = true;
+					startupSuccess = false;
 				} else {
 					classLogger.info("STARTUP CHECK PASSED: modelInferenceLogsDb is connected");
 				}
@@ -274,7 +292,7 @@ public class DBLoader implements ServletContextListener {
 				if (!SystemEngineRegistry.isNotificationDbLoaded()) {
 					classLogger.error(
 							"STARTUP CHECK FAILED: notificationDb is not loaded (NOTIFICATION_DATABASE_ENABLED=true)");
-					startupFailed = true;
+					startupSuccess = false;
 				} else {
 					classLogger.info("STARTUP CHECK PASSED: notificationDb is connected");
 				}
@@ -282,9 +300,8 @@ public class DBLoader implements ServletContextListener {
 				classLogger.info("STARTUP CHECK SKIPPED: notificationDb (NOTIFICATION_DATABASE_ENABLED=false)");
 			}
 
-			if (startupFailed) {
+			if (!startupSuccess) {
 				classLogger.error("STARTUP FAILED - See detailed errors above");
-				StartUpSuccessFilter.setStartUpSuccess(false);
 				// dont continue trying to load / init
 				return;
 			}
@@ -306,8 +323,7 @@ public class DBLoader implements ServletContextListener {
 		}
 
 		// this will likely need to be broken out into another service in the future
-		// but for now
-		// start one time thread to pull all the images for the engines
+		// but for now start one time thread to pull all the images for the engines
 		CATALOG_TYPE[] types = IEngine.CATALOG_TYPE.values();
 		for (CATALOG_TYPE eType : types) {
 			new Thread() {
@@ -323,6 +339,20 @@ public class DBLoader implements ServletContextListener {
 			ChrootTemplate.warmAsync();
 			ChrootTemplate.awaitReady();
 		}
+
+		if (NodeUtils.isNodeToolEnabled()) {
+			Thread nodeEnvInstaller = new Thread(NodeUtils::ensureNodeEnvInstalled, "node-env-npm-ci");
+			nodeEnvInstaller.setDaemon(true);
+			nodeEnvInstaller.start();
+		}
+
+		// warm up the reactors
+		ReactorFactory.load();
+
+		// startup ran all the way through - the app is booted and ready to serve.
+		// note: a required-resource failure returns early above without setting this,
+		// so readiness stays false until (and unless) a full successful startup.
+		startupComplete = true;
 	}
 
 	private void loadSmss(String pathKey) {
@@ -440,6 +470,9 @@ public class DBLoader implements ServletContextListener {
 			}
 		}
 
+		// closing playwright sessions
+		RemoteBrowserSessionManager.getInstance().shutdownAll();
+
 		// close r
 		try {
 			RJavaTranslatorFactory.stopRConnection();
@@ -471,10 +504,34 @@ public class DBLoader implements ServletContextListener {
 
 	/**
 	 * Get a custom logout url
-	 * 
+	 *
 	 * @return
 	 */
 	public static String getCustomLogoutUrl() {
 		return DBLoader.customLogoutUrl;
+	}
+
+	/**
+	 * Whether the startup routine ({@link #contextInitialized}) has run all the way
+	 * through a successful boot. Used by the readiness health probe. Returns false
+	 * while the application is still starting up, or if startup failed and returned
+	 * early on a required-resource error.
+	 *
+	 * @return true once the application has finished booting successfully
+	 */
+	public static boolean isStartupComplete() {
+		return DBLoader.startupComplete;
+	}
+
+	/**
+	 * Whether startup completed without a required-resource failure. Read by
+	 * {@link StartUpSuccessFilter} to gate the failure redirect, and surfaced by
+	 * the health probe. Stays true while the application is still starting up; it
+	 * only flips to false once a required-resource check has failed.
+	 *
+	 * @return false once startup has been marked as failed
+	 */
+	public static boolean isStartupSuccess() {
+		return DBLoader.startupSuccess;
 	}
 }

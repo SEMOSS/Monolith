@@ -41,30 +41,32 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import javax.annotation.security.PermitAll;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpSession;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.StreamingOutput;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.f4b6a3.uuid.alt.GUID;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonSyntaxException;
+import com.google.gson.ToNumberPolicy;
+import com.google.gson.reflect.TypeToken;
 
+import jakarta.annotation.security.PermitAll;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.StreamingOutput;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityEngineUtils;
 import prerna.engine.api.IModelEngine;
 import prerna.engine.impl.model.AbstractModelEngine;
+import prerna.engine.impl.model.ModelPixelInvoker;
 import prerna.engine.impl.model.Room;
 import prerna.engine.impl.model.RoomUtils;
 import prerna.engine.impl.model.responses.AskModelEngineResponse;
@@ -90,7 +92,8 @@ public class OllamaEndpoints {
 	private static final String ERROR_TYPE = "errorType";
 	private static final String INSIGHT_NOT_FOUND = "INSIGHT_NOT_FOUND";
 
-	private static final ObjectMapper MAPPER = new ObjectMapper();
+	private static final Gson GSON = new GsonBuilder().setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE)
+			.disableHtmlEscaping().create();
 
 	@POST
 	@Path("/api/chat")
@@ -116,8 +119,8 @@ public class OllamaEndpoints {
 		Map<String, Object> dataMap;
 		try {
 			dataMap = readRequestData(request);
-		} catch (JsonProcessingException e) {
-			classLogger.error("Failed to parse JSON payload for Ollama /chat request: {}", e.getOriginalMessage(), e);
+		} catch (JsonSyntaxException e) {
+			classLogger.error("Failed to parse JSON payload for Ollama /chat request: {}", e.getMessage(), e);
 			return ModelPixelExecutor.errorResponse(400, "Error processing JSON data: " + e.getMessage());
 		} catch (IOException e) {
 			classLogger.error("Failed to read request body for Ollama /chat endpoint: {}", e.getMessage(), e);
@@ -155,7 +158,7 @@ public class OllamaEndpoints {
 		String roomId = sanitize(dataMap.remove("room_id"));
 		Room room = RoomUtils.createRoomIfNotExists(roomId, insight, engine, null);
 
-		ModelPixelExecutor.initializeThreadStore(insight, SESSION_ID, JOB_ID);
+		ModelPixelInvoker.initializeThreadStore(insight, SESSION_ID, JOB_ID);
 
 		Object messagesInput = dataMap.remove("messages");
 		if (messagesInput == null) {
@@ -178,7 +181,7 @@ public class OllamaEndpoints {
 
 		if (!stream) {
 			try {
-				AskModelEngineResponse llmResponse = ModelPixelExecutor.askModelSync(engine, insight, room, dataMap);
+				AskModelEngineResponse llmResponse = ModelPixelInvoker.askModelSync(engine, insight, room, dataMap);
 				Map<String, Object> payload = OllamaResponsesHelper.processFullChatResponse(engineId, llmResponse);
 				return WebUtility.getResponse(payload, 200);
 			} catch (Exception e) {
@@ -200,7 +203,7 @@ public class OllamaEndpoints {
 
 				String jobId = null;
 				try (Writer writer = new BufferedWriter(new OutputStreamWriter(rawOutput, StandardCharsets.UTF_8))) {
-					jobId = ModelPixelExecutor.startAsyncModelRequest(engine, insight, room, dataMap, SESSION_ID);
+					jobId = ModelPixelInvoker.startAsyncModelRequest(engine, insight, room, dataMap, SESSION_ID);
 
 					boolean started = false;
 
@@ -350,7 +353,7 @@ public class OllamaEndpoints {
 
 						// small delay
 						try {
-							Thread.sleep(100);
+							Thread.sleep(ModelPixelInvoker.STREAM_POLL_INTERVAL_MS);
 						} catch (InterruptedException e) {
 							Thread.currentThread().interrupt();
 							break;
@@ -400,9 +403,8 @@ public class OllamaEndpoints {
 		Map<String, Object> dataMap;
 		try {
 			dataMap = readRequestData(request);
-		} catch (JsonProcessingException e) {
-			classLogger.error("Failed to parse JSON payload for Ollama /generate request: {}", e.getOriginalMessage(),
-					e);
+		} catch (JsonSyntaxException e) {
+			classLogger.error("Failed to parse JSON payload for Ollama /generate request: {}", e.getMessage(), e);
 			return ModelPixelExecutor.errorResponse(400, "Error processing JSON data: " + e.getMessage());
 		} catch (IOException e) {
 			classLogger.error("Failed to read request body for Ollama /generate endpoint: {}", e.getMessage(), e);
@@ -440,7 +442,7 @@ public class OllamaEndpoints {
 		String roomId = sanitize(dataMap.remove("room_id"));
 		Room room = RoomUtils.createRoomIfNotExists(roomId, insight, engine, null);
 
-		ModelPixelExecutor.initializeThreadStore(insight, SESSION_ID, JOB_ID);
+		ModelPixelInvoker.initializeThreadStore(insight, SESSION_ID, JOB_ID);
 
 		Object promptInput = dataMap.remove("prompt");
 		Object inputFallback = dataMap.remove("input");
@@ -462,7 +464,7 @@ public class OllamaEndpoints {
 
 		if (!stream) {
 			try {
-				AskModelEngineResponse llmResponse = ModelPixelExecutor.askModelSync(engine, insight, room, dataMap);
+				AskModelEngineResponse llmResponse = ModelPixelInvoker.askModelSync(engine, insight, room, dataMap);
 				Map<String, Object> payload = OllamaResponsesHelper.processFullGenerateResponse(engineId, llmResponse);
 				return WebUtility.getResponse(payload, 200);
 			} catch (Exception e) {
@@ -478,7 +480,7 @@ public class OllamaEndpoints {
 			public void write(OutputStream rawOutput) throws IOException, WebApplicationException {
 				String jobId = null;
 				try (Writer writer = new BufferedWriter(new OutputStreamWriter(rawOutput, StandardCharsets.UTF_8))) {
-					jobId = ModelPixelExecutor.startAsyncModelRequest(engine, insight, room, dataMap, SESSION_ID);
+					jobId = ModelPixelInvoker.startAsyncModelRequest(engine, insight, room, dataMap, SESSION_ID);
 
 					boolean started = false;
 
@@ -593,7 +595,7 @@ public class OllamaEndpoints {
 
 						// small delay
 						try {
-							Thread.sleep(100);
+							Thread.sleep(ModelPixelInvoker.STREAM_POLL_INTERVAL_MS);
 						} catch (InterruptedException e) {
 							Thread.currentThread().interrupt();
 							break;
@@ -633,9 +635,8 @@ public class OllamaEndpoints {
 		Map<String, Object> dataMap;
 		try {
 			dataMap = readRequestData(request);
-		} catch (JsonProcessingException e) {
-			classLogger.error("Failed to parse JSON payload for Ollama /embeddings request: {}", e.getOriginalMessage(),
-					e);
+		} catch (JsonSyntaxException e) {
+			classLogger.error("Failed to parse JSON payload for Ollama /embeddings request: {}", e.getMessage(), e);
 			return ModelPixelExecutor.errorResponse(400, "Error processing JSON data: " + e.getMessage());
 		} catch (IOException e) {
 			classLogger.error("Failed to read request body for Ollama /embeddings endpoint: {}", e.getMessage(), e);
@@ -669,7 +670,7 @@ public class OllamaEndpoints {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		insight.setUser(user);
-		ModelPixelExecutor.initializeThreadStore(insight, SESSION_ID, JOB_ID);
+		ModelPixelInvoker.initializeThreadStore(insight, SESSION_ID, JOB_ID);
 
 		Object promptInput = dataMap.remove("prompt");
 		Object inputInput = dataMap.remove("input");
@@ -689,8 +690,7 @@ public class OllamaEndpoints {
 		}
 	}
 
-	private Map<String, Object> readRequestData(HttpServletRequest request)
-			throws IOException, JsonProcessingException {
+	private Map<String, Object> readRequestData(HttpServletRequest request) throws IOException {
 		StringBuilder requestData = new StringBuilder();
 		try (BufferedReader reader = new BufferedReader(new InputStreamReader(request.getInputStream()))) {
 			String line;
@@ -699,9 +699,8 @@ public class OllamaEndpoints {
 			}
 		}
 
-		TypeReference<Map<String, Object>> mapType = new TypeReference<Map<String, Object>>() {
-		};
-		return MAPPER.readValue(WebUtility.jsonSanitizer(requestData.toString()), mapType);
+		return GSON.fromJson(WebUtility.jsonSanitizer(requestData.toString()), new TypeToken<Map<String, Object>>() {
+		}.getType());
 	}
 
 	private Insight resolveInsight(String sessionId, String insightId) {

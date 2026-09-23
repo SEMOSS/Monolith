@@ -34,14 +34,15 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import javax.servlet.annotation.WebListener;
-import javax.servlet.http.HttpSession;
-import javax.servlet.http.HttpSessionEvent;
-import javax.servlet.http.HttpSessionListener;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.microsoft.playwright.BrowserContext;
+
+import jakarta.servlet.annotation.WebListener;
+import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpSessionEvent;
+import jakarta.servlet.http.HttpSessionListener;
 import prerna.auth.SyncUserAssetsThread;
 import prerna.auth.User;
 import prerna.cluster.util.ClusterUtil;
@@ -52,6 +53,7 @@ import prerna.om.ClientProcessWrapper;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.LocalUserStore;
+import prerna.reactor.playwright.PlaywrightSession;
 import prerna.semoss.web.services.local.MCPResource;
 import prerna.usertracking.UserTrackingUtils;
 import prerna.util.Constants;
@@ -124,6 +126,7 @@ public class UserSessionLoader implements HttpSessionListener {
 			for (String insightId : copy) {
 				Insight insight = InsightStore.getInstance().get(insightId);
 				if (insight == null) {
+					MCPResource.clearInsightLock(insightId);
 					continue;
 				}
 				classLogger.info("Trying to drop insight {}", insightId);
@@ -132,6 +135,8 @@ public class UserSessionLoader implements HttpSessionListener {
 					classLogger.info("Dropped insight {}", insightId);
 				} catch (Exception e) {
 					classLogger.error("Error dropping insight {}", insightId, e);
+				} finally {
+					MCPResource.clearInsightLock(insightId);
 				}
 			}
 			classLogger.info("Successfully removed insight information from session");
@@ -160,7 +165,7 @@ public class UserSessionLoader implements HttpSessionListener {
 			}
 		}
 		// also attempt to clear via just the sessionId
-		MCPResource.clearInsight(sessionId);
+		MCPResource.clearSessionState(sessionId);
 
 		// clear temporal user values and identify any agent user for cleanup
 		User subAgent = removeAgentUserFromTemporalAccessKey(thisUser);
@@ -205,6 +210,8 @@ public class UserSessionLoader implements HttpSessionListener {
 			cleanupUserRooms(subAgent, "agent user");
 		}
 
+		cleanupPlaywrightSessions(thisUser);
+
 		// register the successful logout
 		UserTrackingUtils.registerLogout(sessionId);
 		classLogger.info("Finished logout");
@@ -229,6 +236,16 @@ public class UserSessionLoader implements HttpSessionListener {
 			}
 		} catch (Exception e) {
 			classLogger.error("Failed to shut down client process wrapper during {} cleanup", userType, e);
+		}
+
+		try {
+			// stop the node.js agent worker if one was spawned
+			ClientProcessWrapper nodeCpw = user.getNodeClientProcessWrapper();
+			if (nodeCpw != null) {
+				nodeCpw.shutdown(true);
+			}
+		} catch (Exception e) {
+			classLogger.error("Failed to shut down node client process wrapper during {} cleanup", userType, e);
 		}
 
 		// remove mounts if chroot is enabled
@@ -316,6 +333,30 @@ public class UserSessionLoader implements HttpSessionListener {
 		} catch (Exception e) {
 			classLogger.error("Failed to clear temporal access key during session user cleanup", e);
 			return null;
+		}
+	}
+
+	private void cleanupPlaywrightSessions(User thisUser) {
+		if (thisUser != null) {
+			Set<String> playwrightSessionIds = thisUser.getPlaywrightSessionIds();
+			for (String sessionId : playwrightSessionIds) {
+				try {
+					PlaywrightSession thisSession = thisUser.getPlaywrightSession(sessionId);
+					if (thisSession != null) {
+						thisSession.close();
+					}
+				} catch (Exception e) {
+					classLogger.error("Error occurred closing the playwright session {}", sessionId, e);
+				}
+			}
+			BrowserContext sharedContext = thisUser.getSharedPlaywrightContext();
+			if (sharedContext != null) {
+				try {
+					sharedContext.close();
+				} catch (Exception e) {
+					classLogger.error("Error occurred closing the playwright shared context", e);
+				}
+			}
 		}
 	}
 

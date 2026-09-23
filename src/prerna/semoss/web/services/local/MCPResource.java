@@ -31,7 +31,6 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.time.ZoneId;
 import java.util.HashSet;
 import java.util.Map;
@@ -41,27 +40,27 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-
-import javax.annotation.security.PermitAll;
-import javax.inject.Singleton;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.sse.Sse;
-import javax.ws.rs.sse.SseEventSink;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.ThreadContext;
 
+import jakarta.annotation.security.PermitAll;
+import jakarta.inject.Singleton;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.sse.Sse;
+import jakarta.ws.rs.sse.SseEventSink;
 import prerna.auth.User;
 import prerna.mcp.MCPReaper;
 import prerna.om.Insight;
@@ -81,6 +80,7 @@ public class MCPResource {
 
 	public static final String MCP_AUTH_KEY = "MCP_AUTH_KEY";
 	private static final Map<String, Insight> INSIGHT_MAP = new ConcurrentHashMap<>();
+	private static final Map<String, ReentrantLock> SESSION_LOCKS = new ConcurrentHashMap<>();
 
 	private static final ExecutorService SSE_EXECUTOR;
 	static {
@@ -110,17 +110,9 @@ public class MCPResource {
 			@Context HttpServletRequest request, @Context HttpServletResponse response) {
 		classLogger.info("Running tool via streamable http... {}", toolbox_id);
 
-		// Get the input and output streams from the async context
+		// Get the input stream from the async context
 		try {
 			final InputStream is = request.getInputStream();
-			final OutputStream os = response.getOutputStream();
-
-			// set response headers
-			response.setContentType(MediaType.APPLICATION_JSON);
-			response.setHeader("Cache-Control", "no-cache");
-			response.setHeader("Connection", "keep-alive");
-			response.setCharacterEncoding("UTF-8");
-			response.flushBuffer();
 
 			// Initialize session
 			String authorization = request.getHeader("Authorization");
@@ -133,8 +125,8 @@ public class MCPResource {
 			long idleTimeoutMinutes = (sessionTimeoutSeconds <= 0) ? MAX_IDLE_TIMEOUT_MINUTES
 					: Math.min(MAX_IDLE_TIMEOUT_MINUTES, sessionTimeoutSeconds / 60L);
 
-			MCPReaper reaper = new MCPReaper(insight, sessionId, is, os, toolbox_id, request.getRequestURL().toString(),
-					ThreadContext.getImmutableContext(), idleTimeoutMinutes);
+			MCPReaper reaper = new MCPReaper(insight, sessionId, is, response, toolbox_id,
+					request.getRequestURL().toString(), ThreadContext.getImmutableContext(), idleTimeoutMinutes);
 			reaper.run();
 		} catch (IOException e) {
 			if (!WebUtility.handleStreamingException(e, classLogger, toolbox_id, null, null)) {
@@ -171,6 +163,7 @@ public class MCPResource {
 
 		try {
 			response.setContentType(MediaType.SERVER_SENT_EVENTS);
+			response.setHeader("X-Content-Type-Options", "nosniff");
 			response.setHeader("Cache-Control", "no-cache");
 			response.setHeader("Connection", "keep-alive");
 			response.setCharacterEncoding("UTF-8");
@@ -195,13 +188,18 @@ public class MCPResource {
 	 */
 	private static void addAuthKeyToSession(HttpSession session, String authorization) {
 		if (authorization != null) {
-			synchronized (session) {
+			String sessionId = session.getId();
+			ReentrantLock sessionLock = SESSION_LOCKS.computeIfAbsent(sessionId, ignored -> new ReentrantLock());
+			sessionLock.lock();
+			try {
 				Set<String> mcpKeys = (Set<String>) session.getAttribute(MCP_AUTH_KEY);
 				if (mcpKeys == null) {
 					mcpKeys = new HashSet<>();
 					session.setAttribute(MCP_AUTH_KEY, mcpKeys);
 				}
 				mcpKeys.add(authorization);
+			} finally {
+				sessionLock.unlock();
 			}
 		}
 	}
@@ -215,9 +213,40 @@ public class MCPResource {
 		if (key != null) {
 			Insight removedInsight = INSIGHT_MAP.remove(key);
 			if (removedInsight != null) {
+				MCPReaper.clearInsightLock(removedInsight);
 				classLogger.info("Removed cached insight from MCP thread");
 			}
 		}
+	}
+
+	/**
+	 * Remove the session lock entry created for MCP auth-key writes.
+	 *
+	 * @param sessionId http session id
+	 */
+	public static void clearSessionLock(String sessionId) {
+		if (sessionId != null) {
+			SESSION_LOCKS.remove(sessionId);
+		}
+	}
+
+	/**
+	 * Remove an insight lock entry from MCP reaper lock cache.
+	 *
+	 * @param insightId insight identifier
+	 */
+	public static void clearInsightLock(String insightId) {
+		MCPReaper.clearInsightLock(insightId);
+	}
+
+	/**
+	 * Clears MCP session-scoped cache and lock state.
+	 *
+	 * @param sessionId http session id
+	 */
+	public static void clearSessionState(String sessionId) {
+		clearInsight(sessionId);
+		clearSessionLock(sessionId);
 	}
 
 	/**

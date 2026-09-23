@@ -41,21 +41,6 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
 
-import javax.annotation.security.PermitAll;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.MultivaluedMap;
-import javax.ws.rs.core.NewCookie;
-import javax.ws.rs.core.Response;
-
 import org.apache.http.client.ClientProtocolException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -66,6 +51,20 @@ import org.owasp.encoder.Encode;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
+import jakarta.annotation.security.PermitAll;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.MultivaluedMap;
+import jakarta.ws.rs.core.NewCookie;
+import jakarta.ws.rs.core.Response;
 import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.SyncUserAssetsThread;
@@ -581,8 +580,14 @@ public class UserResource {
 					String userInfoUrl = (String) details.get("userInfoUrl");
 
 					if (clientId == null || clientSecret == null || redirectUri == null) {
+						classLogger.warn(
+								"Jira credentials unavailable for connectionId='{}'; missing clientId={}, clientSecret={}, redirectUri={}",
+								Utility.cleanLogString(connectionId), clientId == null, clientSecret == null,
+								redirectUri == null);
+						response.setContentType("text/plain; charset=UTF-8");
+						response.setHeader("X-Content-Type-Options", "nosniff");
 						response.setStatus(400);
-						response.getWriter().write("Jira credentials not found for connection id = " + connectionId);
+						response.getWriter().write("Jira credentials not found for the requested connection");
 						return null;
 					}
 
@@ -666,8 +671,13 @@ public class UserResource {
 		String scope = (String) details.get("scope");
 
 		if (clientId == null || scope == null || redirectUri == null) {
+			classLogger.warn(
+					"Jira credentials unavailable for connectionId='{}'; missing clientId={}, scope={}, redirectUri={}",
+					Utility.cleanLogString(connectionId), clientId == null, scope == null, redirectUri == null);
+			response.setContentType("text/plain; charset=UTF-8");
+			response.setHeader("X-Content-Type-Options", "nosniff");
 			response.setStatus(400);
-			response.getWriter().write("Jira credentials not found for connection id = " + connectionId);
+			response.getWriter().write("Jira credentials not found for the requested connection");
 			return null;
 		}
 
@@ -820,9 +830,14 @@ public class UserResource {
 					String clientSecret = details.getValue1();
 
 					if (clientId == null || clientSecret == null || redirectUri == null) {
+						classLogger.warn(
+								"Salesforce credentials unavailable for connectionId='{}'; missing clientId={}, clientSecret={}, redirectUri={}",
+								Utility.cleanLogString(connectionId), clientId == null, clientSecret == null,
+								redirectUri == null);
+						response.setContentType("text/plain; charset=UTF-8");
+						response.setHeader("X-Content-Type-Options", "nosniff");
 						response.setStatus(400);
-						response.getWriter()
-								.write("Salesforce credentials not found for connection id = " + connectionId);
+						response.getWriter().write("Salesforce credentials not found for the requested connection");
 						return null;
 					}
 
@@ -959,9 +974,14 @@ public class UserResource {
 					String userInfoUrl = details.get("userProfileUrl"); // to pass to fillAccessToken method
 
 					if (instanceUrl == null || clientId == null || clientSecret == null || redirectUri == null) {
+						classLogger.warn(
+								"ServiceNow credentials unavailable for connectionId='{}'; missing instanceUrl={}, clientId={}, clientSecret={}, redirectUri={}",
+								Utility.cleanLogString(connectionId), instanceUrl == null, clientId == null,
+								clientSecret == null, redirectUri == null);
+						response.setContentType("text/plain; charset=UTF-8");
+						response.setHeader("X-Content-Type-Options", "nosniff");
 						response.setStatus(400);
-						response.getWriter()
-								.write("ServiceNow credentials not found for connection id =" + connectionId);
+						response.getWriter().write("ServiceNow credentials not found for the requested connection");
 						return null;
 					}
 

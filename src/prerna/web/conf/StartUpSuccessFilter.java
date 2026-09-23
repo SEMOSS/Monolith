@@ -29,21 +29,18 @@ package prerna.web.conf;
 
 import java.io.IOException;
 
-import javax.servlet.Filter;
-import javax.servlet.FilterChain;
-import javax.servlet.FilterConfig;
-import javax.servlet.ServletContext;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.FilterConfig;
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import prerna.web.services.util.WebUtility;
 
 public class StartUpSuccessFilter implements Filter {
-
-	private static boolean startUpSuccess = true;
 
 	private static final String FAIL_HTML = "/startUpFail/";
 
@@ -51,8 +48,19 @@ public class StartUpSuccessFilter implements Filter {
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2)
 			throws IOException, ServletException {
 		ServletContext context = arg0.getServletContext();
+
+		// never redirect health/liveness/readiness probes - they must stay reachable
+		// so orchestrators can observe status precisely when startup has failed
+		if (arg0 instanceof HttpServletRequest) {
+			String servletPath = ((HttpServletRequest) arg0).getServletPath();
+			if (servletPath != null && servletPath.startsWith("/health")) {
+				arg2.doFilter(arg0, arg1);
+				return;
+			}
+		}
+
 		WebUtility.loggingContext(arg0);
-		if (!startUpSuccess) {
+		if (!DBLoader.isStartupSuccess()) {
 			// this will be the deployment name of the app
 			String contextPath = context.getContextPath();
 
@@ -65,16 +73,12 @@ public class StartUpSuccessFilter implements Filter {
 				String redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length())
 						+ FAIL_HTML;
 				((HttpServletResponse) arg1).setHeader("redirect", redirectUrl);
-				((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + redirectUrl);
+				((HttpServletResponse) arg1).sendError(302, "Redirect required");
 				return;
 			}
 		}
 
 		arg2.doFilter(arg0, arg1);
-	}
-
-	static void setStartUpSuccess(boolean startUpSuccess) {
-		StartUpSuccessFilter.startUpSuccess = startUpSuccess;
 	}
 
 	@Override

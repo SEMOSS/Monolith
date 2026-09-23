@@ -1,0 +1,368 @@
+/*******************************************************************************
+ * Copyright 2015 Defense Health Agency (DHA)
+ *
+ * If your use of this software does not include any GPLv2 components:
+ * 	Licensed under the Apache License, Version 2.0 (the "License");
+ * 	you may not use this file except in compliance with the License.
+ * 	You may obtain a copy of the License at
+ *
+ * 	  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * 	Unless required by applicable law or agreed to in writing, software
+ * 	distributed under the License is distributed on an "AS IS" BASIS,
+ * 	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * 	See the License for the specific language governing permissions and
+ * 	limitations under the License.
+ * ----------------------------------------------------------------------------
+ * If your use of this software includes any GPLv2 components:
+ * 	This program is free software; you can redistribute it and/or
+ * 	modify it under the terms of the GNU General Public License
+ * 	as published by the Free Software Foundation; either version 2
+ * 	of the License, or (at your option) any later version.
+ *
+ * 	This program is distributed in the hope that it will be useful,
+ * 	but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * 	GNU General Public License for more details.
+ *******************************************************************************/
+package prerna.remoteviewer.api;
+
+import java.nio.file.Files;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import prerna.auth.User;
+import prerna.reactor.playwright.PlaywrightUtility;
+import prerna.reactor.playwright.RecordingMeta;
+import prerna.reactor.playwright.StepsEnvelope;
+import prerna.remoteviewer.model.RemoteBrowserRecordedStep;
+import prerna.remoteviewer.model.RemoteBrowserSessionCreateRequest;
+import prerna.remoteviewer.model.RemoteBrowserSessionCreateResponse;
+import prerna.remoteviewer.security.RemoteBrowserUrlSafetyValidator;
+import prerna.remoteviewer.service.RemoteBrowserSession;
+import prerna.remoteviewer.service.RemoteBrowserSessionManager;
+import prerna.semoss.web.services.local.ResourceUtility;
+
+/**
+ * REST resource for creating and managing remote browser sessions.
+ *
+ * <p>
+ * Mounted at {@code /api/browser-sessions} via {@code MonolithApplication}.
+ */
+@Path("/browser-sessions")
+public class RemoteBrowserSessionController {
+
+	private static final Logger classLogger = LogManager.getLogger(RemoteBrowserSessionController.class);
+	private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
+
+	/**
+	 * Creates a new isolated browser session and navigates to the requested URL.
+	 *
+	 * <p>
+	 * POST /api/browser-sessions
+	 * 
+	 * <pre>
+	 * {
+	 *   "url": "https://github.com",
+	 *   "viewportWidth": 1365,
+	 *   "viewportHeight": 768
+	 * }
+	 * </pre>
+	 */
+	@POST
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response createSession(@Context HttpServletRequest request, String body) {
+		User user;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			return buildError(Response.Status.UNAUTHORIZED, "User session is invalid");
+		}
+
+		RemoteBrowserSessionCreateRequest req;
+		try {
+			req = GSON.fromJson(body, RemoteBrowserSessionCreateRequest.class);
+		} catch (Exception e) {
+			return buildError(Response.Status.BAD_REQUEST, "Invalid request body");
+		}
+
+		if (req == null) {
+			return buildError(Response.Status.BAD_REQUEST, "Invalid request body");
+		}
+
+		String requestedUrl = req.getUrl() == null ? "" : req.getUrl().trim();
+		boolean preserveExisting = Boolean.TRUE.equals(req.getPreserveExisting());
+		if (requestedUrl.isBlank() && !preserveExisting) {
+			return buildError(Response.Status.BAD_REQUEST, "Field 'url' is required");
+		}
+
+		if (!requestedUrl.isBlank()) {
+			try {
+				RemoteBrowserUrlSafetyValidator.validate(requestedUrl);
+			} catch (IllegalArgumentException e) {
+				return buildError(Response.Status.BAD_REQUEST, e.getMessage());
+			}
+		}
+
+		String userId = user.getPrimaryLoginToken().getId();
+		int vpWidth = req.getViewportWidth() != null ? req.getViewportWidth() : 0;
+		int vpHeight = req.getViewportHeight() != null ? req.getViewportHeight() : 0;
+
+		RemoteBrowserSession session;
+		try {
+			session = RemoteBrowserSessionManager.getInstance().createSession(user, requestedUrl, vpWidth, vpHeight);
+		} catch (IllegalStateException e) {
+			return buildError(Response.Status.TOO_MANY_REQUESTS, e.getMessage());
+		} catch (Exception e) {
+			classLogger.error("Failed to create browser session for user {}: {}", userId, e.getMessage(), e);
+			return buildError(Response.Status.INTERNAL_SERVER_ERROR, "Could not create browser session");
+		}
+
+		String wsUrl = "/browserSocket/" + session.getSessionId();
+		RemoteBrowserSessionCreateResponse resp = new RemoteBrowserSessionCreateResponse(session.getSessionId(), wsUrl,
+				session.getViewportWidth(), session.getViewportHeight(), safeUrl(session));
+
+		classLogger.info("Browser session {} created for user {}", session.getSessionId(), userId);
+		return Response.ok(GSON.toJson(resp)).build();
+	}
+
+	/**
+	 * Returns the recorded steps for a session.
+	 *
+	 * <p>
+	 * GET /api/browser-sessions/{sessionId}/steps
+	 */
+	@GET
+	@Path("/{sessionId}/steps")
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response getRemoteBrowserRecordedSteps(@Context HttpServletRequest request,
+			@PathParam("sessionId") String sessionId) {
+		User user;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			return buildError(Response.Status.UNAUTHORIZED, "User session is invalid");
+		}
+
+		Optional<RemoteBrowserSession> opt = RemoteBrowserSessionManager.getInstance().getSession(sessionId);
+		if (opt.isEmpty()) {
+			return buildError(Response.Status.NOT_FOUND, "Session not found");
+		}
+
+		RemoteBrowserSession session = opt.get();
+		if (!session.getUserId().equals(user.getPrimaryLoginToken().getId())) {
+			return buildError(Response.Status.FORBIDDEN, "Access denied");
+		}
+
+		List<RemoteBrowserRecordedStep> steps = session.getRemoteBrowserRecordedSteps();
+		return Response.ok(GSON.toJson(steps)).build();
+	}
+
+	/**
+	 * Returns the full replayable recording envelope for a session.
+	 *
+	 * <p>
+	 * GET /api/browser-sessions/{sessionId}/recording
+	 */
+	@GET
+	@Path("/{sessionId}/recording")
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response getRecordingEnvelope(@Context HttpServletRequest request,
+			@PathParam("sessionId") String sessionId) {
+		User user;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			return buildError(Response.Status.UNAUTHORIZED, "User session is invalid");
+		}
+
+		Optional<RemoteBrowserSession> opt = RemoteBrowserSessionManager.getInstance().getSession(sessionId);
+		if (opt.isEmpty()) {
+			return buildError(Response.Status.NOT_FOUND, "Session not found");
+		}
+
+		RemoteBrowserSession session = opt.get();
+		if (!session.getUserId().equals(user.getPrimaryLoginToken().getId())) {
+			return buildError(Response.Status.FORBIDDEN, "Access denied");
+		}
+
+		try {
+			return Response.ok(PlaywrightUtility.GSON.toJson(session.getRecordingHistory())).build();
+		} catch (Exception e) {
+			classLogger.error("Failed to serialize remote browser recording session={}: {}", sessionId, e.getMessage(),
+					e);
+			return buildError(Response.Status.INTERNAL_SERVER_ERROR, "Could not load recording");
+		}
+	}
+
+	/**
+	 * Saves the replayable Playwright recording for a remote browser session into
+	 * the selected project's recordings folder.
+	 *
+	 * <p>
+	 * POST /api/browser-sessions/{sessionId}/recording/save
+	 *
+	 * <pre>
+	 * {
+	 *   "project": "PROJECT_ID",
+	 *   "name": "github-login-2026-07-07",
+	 *   "title": "Github login",
+	 *   "description": "",
+	 *   "intent": ""
+	 * }
+	 * </pre>
+	 */
+	@POST
+	@Path("/{sessionId}/recording/save")
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response saveRecording(@Context HttpServletRequest request, @PathParam("sessionId") String sessionId,
+			String body) {
+		User user;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			return buildError(Response.Status.UNAUTHORIZED, "User session is invalid");
+		}
+
+		Optional<RemoteBrowserSession> opt = RemoteBrowserSessionManager.getInstance().getSession(sessionId);
+		if (opt.isEmpty()) {
+			return buildError(Response.Status.NOT_FOUND, "No active recording buffer found");
+		}
+
+		RemoteBrowserSession session = opt.get();
+		if (!session.getUserId().equals(user.getPrimaryLoginToken().getId())) {
+			return buildError(Response.Status.FORBIDDEN, "Access denied");
+		}
+
+		SaveRecordingRequest req;
+		try {
+			req = GSON.fromJson(body, SaveRecordingRequest.class);
+		} catch (Exception e) {
+			return buildError(Response.Status.BAD_REQUEST, "Invalid request body");
+		}
+
+		if (req == null || req.project == null || req.project.isBlank()) {
+			return buildError(Response.Status.BAD_REQUEST, "Field 'project' is required");
+		}
+		if (req.name == null || req.name.isBlank()) {
+			return buildError(Response.Status.BAD_REQUEST, "Field 'name' is required");
+		}
+
+		try {
+			long now = System.currentTimeMillis();
+			String base = PlaywrightUtility.sanitizeFilename(req.name);
+			java.nio.file.Path file = PlaywrightUtility.initRecordingsDir(req.project)
+					.resolve(base.endsWith(".json") ? base : base + ".json");
+
+			RecordingMeta existingMeta = null;
+			if (Files.exists(file)) {
+				try {
+					existingMeta = PlaywrightUtility.readStepsEnvelope(file.toFile()).meta();
+				} catch (Exception ignored) {
+					// Keep saving even if the old file is malformed; only metadata preservation is
+					// lost.
+				}
+			}
+
+			RecordingMeta meta = new RecordingMeta(
+					(existingMeta != null && existingMeta.id() != null) ? existingMeta.id() : sessionId, req.title,
+					req.description,
+					(existingMeta != null && existingMeta.createdAt() != null) ? existingMeta.createdAt() : now, now,
+					req.intent);
+			StepsEnvelope env = new StepsEnvelope("1.0", meta, session.getRecordingHistory().steps());
+			PlaywrightUtility.writeStepsEnvelope(file.toFile(), env);
+			session.clearRecordingBuffer();
+			if (session.isRecordingEnabled()) {
+				prerna.remoteviewer.service.RemoteBrowserRecordingService.recordCurrentNavigation(session);
+			}
+
+			Map<String, Object> response = new HashMap<>();
+			response.put("filePath", file.toAbsolutePath().toString());
+			response.put("fileName", file.getFileName().toString());
+			response.put("project", req.project);
+			response.put("saved", true);
+			return Response.ok(GSON.toJson(response)).build();
+		} catch (Exception e) {
+			classLogger.error("Failed to save remote browser recording session={} project={} name={}: {}", sessionId,
+					req.project, req.name, e.getMessage(), e);
+			return buildError(Response.Status.INTERNAL_SERVER_ERROR, "Could not save recording");
+		}
+	}
+
+	/**
+	 * Closes a browser session.
+	 *
+	 * <p>
+	 * DELETE /api/browser-sessions/{sessionId}
+	 */
+	@DELETE
+	@Path("/{sessionId}")
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response closeSession(@Context HttpServletRequest request, @PathParam("sessionId") String sessionId) {
+		User user;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			return buildError(Response.Status.UNAUTHORIZED, "User session is invalid");
+		}
+
+		Optional<RemoteBrowserSession> opt = RemoteBrowserSessionManager.getInstance().getSession(sessionId);
+		if (opt.isEmpty()) {
+			return Response.ok(GSON.toJson(Map.of("message", "Session not found or already closed"))).build();
+		}
+
+		RemoteBrowserSession session = opt.get();
+		if (!session.getUserId().equals(user.getPrimaryLoginToken().getId())) {
+			return buildError(Response.Status.FORBIDDEN, "Access denied");
+		}
+
+		RemoteBrowserSessionManager.getInstance().finishSession(session);
+		classLogger.info("Browser session {} closed by user {}", sessionId, user.getPrimaryLoginToken().getId());
+		return Response.ok(GSON.toJson(Map.of("message", "Session closed"))).build();
+	}
+
+	// ---- helpers ----
+
+	private static Response buildError(Response.Status status, String message) {
+		Map<String, String> body = new HashMap<>();
+		body.put("error", message);
+		return Response.status(status).entity(GSON.toJson(body)).build();
+	}
+
+	private static String safeUrl(RemoteBrowserSession session) {
+		try {
+			return session.getActivePage().url();
+		} catch (Exception e) {
+			return "";
+		}
+	}
+
+	private static class SaveRecordingRequest {
+		private String project;
+		private String name;
+		private String title;
+		private String description;
+		private String intent;
+	}
+}

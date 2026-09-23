@@ -38,6 +38,9 @@ import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
+import java.nio.file.Path;
 import java.text.Normalizer;
 import java.text.Normalizer.Form;
 import java.util.ArrayList;
@@ -48,17 +51,8 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.TimeZone;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-
-import javax.servlet.ServletRequest;
-import javax.servlet.http.Cookie;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpSession;
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.NewCookie;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.ResponseBuilder;
-import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.time.FastDateFormat;
@@ -76,6 +70,15 @@ import com.google.common.net.InternetDomainName;
 import com.google.gson.Gson;
 import com.google.json.JsonSanitizer;
 
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.core.NewCookie;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response.ResponseBuilder;
+import jakarta.ws.rs.core.StreamingOutput;
 import prerna.auth.AccessToken;
 import prerna.auth.User;
 import prerna.logging.SemossLogUtils;
@@ -95,6 +98,7 @@ import prerna.web.conf.DBLoader;
 public final class WebUtility {
 
 	private static final Logger classLogger = LogManager.getLogger(WebUtility.class);
+	private static final Pattern SAFE_PATH_SEGMENT_PATTERN = Pattern.compile("(?!\\.{1,2}$)[^/\\\\\\x00]+");
 
 	private static final FastDateFormat expiresDateFormat = FastDateFormat.getInstance("EEE, dd MMM yyyy HH:mm:ss zzz",
 			TimeZone.getTimeZone("GMT"));
@@ -152,22 +156,25 @@ public final class WebUtility {
 	 */
 	public static StreamingOutput getSOFile(String fileLocation) {
 		if (fileLocation != null) {
+			File daFile = new File(WebUtility.normalizePath(fileLocation));
 			try {
-				File daFile = new File(WebUtility.normalizePath(fileLocation));
-				FileReader fr = new FileReader(daFile);
-				BufferedReader br = new BufferedReader(fr);
 				return new StreamingOutput() {
 					@Override
 					public void write(OutputStream outputStream) throws IOException, WebApplicationException {
-						try (PrintWriter pw = new PrintWriter(outputStream);) {
-							String data = null;
-							while ((data = br.readLine()) != null) {
-								pw.println(data);
+						try (FileReader fr = new FileReader(daFile); BufferedReader br = new BufferedReader(fr);) {
+							try (PrintWriter pw = new PrintWriter(outputStream);) {
+								String data = null;
+								while ((data = br.readLine()) != null) {
+									pw.println(data);
+								}
+								daFile.delete();
 							}
-							// ps.write(data, 0 , data.length);
-							fr.close();
-							br.close();
-							daFile.delete();
+						} finally {
+							try {
+								daFile.delete();
+							} catch (Exception e) {
+								classLogger.error("Failed to delete file {}", daFile, e);
+							}
 						}
 					}
 				};
@@ -589,6 +596,77 @@ public final class WebUtility {
 		normalizedString = normalizedString.replace("\\", "/");
 
 		return normalizedString;
+	}
+
+	/**
+	 * Return whether a value can be used as one filesystem path segment without
+	 * changing the set of otherwise valid identifier characters.
+	 *
+	 * @param value candidate segment
+	 * @return {@code true} when the value is nonempty and cannot traverse folders
+	 */
+	public static boolean isSafePathSegment(String value) {
+		return safePathSegment(value) != null;
+	}
+
+	/**
+	 * Return a filesystem-safe single segment, or {@code null} when the supplied
+	 * value contains traversal syntax.
+	 *
+	 * @param value candidate segment
+	 * @return the unchanged value when safe; otherwise {@code null}
+	 */
+	public static String safePathSegment(String value) {
+		return value != null && SAFE_PATH_SEGMENT_PATTERN.matcher(value).matches() ? value : null;
+	}
+
+	/**
+	 * Resolve a relative path beneath a trusted base. Existing path components are
+	 * canonicalized so an existing symlinked parent cannot redirect a new child
+	 * outside the base directory.
+	 *
+	 * @param baseDir      trusted existing directory
+	 * @param relativePath untrusted relative path; an empty value selects the base
+	 * @return contained absolute path
+	 * @throws IOException when existing components cannot be canonicalized
+	 */
+	public static Path resolveWithin(Path baseDir, String relativePath) throws IOException {
+		if (baseDir == null) {
+			throw new IllegalArgumentException("No base directory provided");
+		}
+		if (relativePath == null || relativePath.indexOf('\0') >= 0) {
+			throw new IllegalArgumentException("Illegal relative path");
+		}
+
+		Path base = baseDir.toRealPath();
+		if (relativePath.isEmpty()) {
+			return base;
+		}
+
+		Path relative = Path.of(relativePath.replace('\\', '/'));
+		if (relative.isAbsolute()) {
+			throw new SecurityException("Path escapes the permitted base directory");
+		}
+		Path candidate = base.resolve(relative).normalize();
+		Path canonicalCandidate = Files.exists(candidate) ? candidate.toRealPath() : candidate.toAbsolutePath();
+		if (!canonicalCandidate.startsWith(base)) {
+			throw new SecurityException("Path escapes the permitted base directory");
+		}
+
+		Path existing = candidate;
+		while (existing != null && !Files.exists(existing, LinkOption.NOFOLLOW_LINKS)) {
+			existing = existing.getParent();
+		}
+		if (existing == null) {
+			throw new SecurityException("Path escapes the permitted base directory");
+		}
+
+		Path canonicalExisting = existing.toRealPath();
+		canonicalCandidate = canonicalExisting.resolve(existing.relativize(candidate)).normalize();
+		if (!canonicalCandidate.startsWith(base)) {
+			throw new SecurityException("Path escapes the permitted base directory");
+		}
+		return canonicalCandidate;
 	}
 
 	/**

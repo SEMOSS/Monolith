@@ -127,7 +127,8 @@
 --%><%@ page language="java" 
         import="com.sun.identity.saml.common.SAMLConstants,                
                 com.sun.identity.saml2.common.SAML2Utils,
-                org.owasp.esapi.ESAPI"
+                org.owasp.esapi.ESAPI,
+                jakarta.servlet.http.HttpServletResponse"
 %><%
     String errorMessage;
     String errorCode = request.getParameter(SAMLConstants.ERROR_CODE);
@@ -138,7 +139,8 @@
         try {
             errorMessage = SAML2Utils.bundle.getString(errorCode);
         } catch (Exception e) {
-            errorMessage = "errorCode=" + errorCode;
+            SAML2Utils.debug.warning("Unknown SAML error code: " + errorCode);
+            errorMessage = "Unknown SAML error";
         }
     }
 

@@ -29,6 +29,8 @@ package prerna.upload;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -36,20 +38,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import javax.annotation.security.PermitAll;
-import javax.servlet.ServletContext;
-import javax.servlet.http.HttpServletRequest;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.MultivaluedMap;
-import javax.ws.rs.core.Response;
-
-import org.apache.commons.fileupload.FileItem;
+import org.apache.commons.fileupload2.core.DiskFileItem;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -60,6 +49,18 @@ import org.apache.tika.mime.MimeTypes;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
+import jakarta.annotation.security.PermitAll;
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.MultivaluedMap;
+import jakarta.ws.rs.core.Response;
 import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
@@ -91,6 +92,10 @@ public class FileUploader extends Uploader {
 	private static final long serialVersionUID = 1L;
 
 	private static final Logger classLogger = LogManager.getLogger(FileUploader.class);
+
+	private static String normalizeUploadRelativePath(String relativePath) {
+		return relativePath != null && relativePath.startsWith("/") ? relativePath.substring(1) : relativePath;
+	}
 
 	/*
 	 * Moving a file onto the BE cannot be performed through pixel Thus, we still
@@ -265,10 +270,33 @@ public class FileUploader extends Uploader {
 			@QueryParam("projectId") String projectId, @QueryParam("engineId") String engineId,
 			@QueryParam("userSpace") boolean userSpace) {
 
-		insightId = WebUtility.inputSanitizer(insightId);
+		// the insightId check is not required for containment. insightId is only used
+		// as
+		// an InsightStore key and never as a path component, and getValidInsight below
+		// rejects anything that is not an active key. the asset folder comes off the
+		// resolved Insight, not off the request
+		insightId = WebUtility.safePathSegment(WebUtility.inputSanitizer(insightId));
 		relativePath = WebUtility.inputSanitizer(relativePath);
 		projectId = WebUtility.inputSanitizer(projectId);
 		engineId = WebUtility.inputSanitizer(engineId);
+		// the projectId and engineId checks are not required for containment.
+		// checkProjectEditPermission and checkEngineEditPermission below resolve them
+		// against the PROJECT and ENGINE tables, and the asset folder is then built
+		// from
+		// the loaded engine rather than from the request value
+		boolean projectIdProvided = projectId != null;
+		boolean engineIdProvided = engineId != null;
+		if (projectId != null) {
+			projectId = WebUtility.safePathSegment(projectId);
+		}
+		if (engineId != null) {
+			engineId = WebUtility.safePathSegment(engineId);
+		}
+		if ((projectIdProvided && projectId == null) || (engineIdProvided && engineId == null)) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Invalid project or engine id");
+			return WebUtility.getResponse(errorMap, 400);
+		}
 
 		Insight in = getValidInsight(insightId);
 		if (in == null) {
@@ -317,7 +345,7 @@ public class FileUploader extends Uploader {
 
 		ThreadStore.setSessionId(request.getSession().getId());
 		try {
-			List<FileItem> fileItems = processRequest(context, request, insightId);
+			List<DiskFileItem> fileItems = processRequest(context, request, insightId);
 			// collect all of the data input on the form
 			List<Map<String, String>> inputData = getBaseUploadData(fileItems, in, relativePath, projectId, engineId,
 					userSpace, user);
@@ -351,7 +379,7 @@ public class FileUploader extends Uploader {
 	 * @throws VirusScanningException if a virus is detected in the file.
 	 * @throws IOException            if an error occurs while writing the file.
 	 */
-	private List<Map<String, String>> getBaseUploadData(List<FileItem> fileItems, Insight in, String relativePath,
+	private List<Map<String, String>> getBaseUploadData(List<DiskFileItem> fileItems, Insight in, String relativePath,
 			String projectId, String engineId, boolean userSpace, User user)
 			throws VirusScanningException, IOException {
 		boolean pushEngine = false;
@@ -391,8 +419,11 @@ public class FileUploader extends Uploader {
 		}
 		String filePath = assetFolder;
 		// add relative path
-		if (relativePath != null) {
-			filePath = assetFolder + DIR_SEPARATOR + WebUtility.normalizePath(relativePath);
+		String containedRelativePath = normalizeUploadRelativePath(relativePath);
+		if (containedRelativePath != null && !containedRelativePath.isEmpty()) {
+			java.nio.file.Path assetRoot = Paths.get(WebUtility.normalizePath(assetFolder));
+			Files.createDirectories(assetRoot);
+			filePath = WebUtility.resolveWithin(assetRoot, containedRelativePath).toString();
 			fePath += relativePath;
 		}
 		File fileDir = new File(WebUtility.normalizePath(filePath));
@@ -438,7 +469,11 @@ public class FileUploader extends Uploader {
 	public Response userAssetsUpload(@Context ServletContext context, @Context HttpServletRequest request,
 			@QueryParam("insightId") String insightId, @QueryParam("path") String relativePath) {
 
-		insightId = WebUtility.inputSanitizer(insightId);
+		// the insightId check is not required for containment. insightId is only used
+		// as
+		// an InsightStore key and never as a path component, and getValidInsight below
+		// rejects anything that is not an active key
+		insightId = WebUtility.safePathSegment(WebUtility.inputSanitizer(insightId));
 		relativePath = WebUtility.inputSanitizer(relativePath);
 
 		Insight in = getValidInsight(insightId);
@@ -462,7 +497,7 @@ public class FileUploader extends Uploader {
 
 		ThreadStore.setSessionId(request.getSession().getId());
 		try {
-			List<FileItem> fileItems = processRequest(context, request, insightId);
+			List<DiskFileItem> fileItems = processRequest(context, request, insightId);
 			List<Map<String, String>> inputData = getBaseUploadData(fileItems, in, relativePath, null, null, true,
 					user);
 			return WebUtility.getResponse(inputData, 200);
@@ -499,9 +534,12 @@ public class FileUploader extends Uploader {
 			@QueryParam("insightId") String insightId, @QueryParam("path") String relativePath,
 			@QueryParam("projectId") String projectId) {
 
-		insightId = WebUtility.inputSanitizer(insightId);
+		// neither id check is required for containment. insightId is only an
+		// InsightStore key, and checkProjectEditPermission below resolves projectId
+		// against the PROJECT table before Utility.getProject builds the asset folder
+		insightId = WebUtility.safePathSegment(WebUtility.inputSanitizer(insightId));
 		relativePath = WebUtility.inputSanitizer(relativePath);
-		projectId = WebUtility.inputSanitizer(projectId);
+		projectId = WebUtility.safePathSegment(WebUtility.inputSanitizer(projectId));
 
 		Insight in = getValidInsight(insightId);
 		if (in == null) {
@@ -516,7 +554,7 @@ public class FileUploader extends Uploader {
 			return permResponse;
 		}
 
-		if (projectId == null || (projectId = projectId.trim()).isEmpty()) {
+		if (projectId == null || (projectId = projectId.trim()).isEmpty() || !WebUtility.isSafePathSegment(projectId)) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Must provide a project id.");
 			return WebUtility.getResponse(errorMap, 400);
@@ -529,7 +567,7 @@ public class FileUploader extends Uploader {
 
 		ThreadStore.setSessionId(request.getSession().getId());
 		try {
-			List<FileItem> fileItems = processRequest(context, request, insightId);
+			List<DiskFileItem> fileItems = processRequest(context, request, insightId);
 			// collect all of the data input on the form
 			IProject project = Utility.getProject(projectId);
 			List<Map<String, String>> inputData = uploadEngineAssets(fileItems, in, relativePath, project, user);
@@ -567,9 +605,12 @@ public class FileUploader extends Uploader {
 			@QueryParam("insightId") String insightId, @QueryParam("path") String relativePath,
 			@QueryParam("engineId") String engineId) {
 
-		insightId = WebUtility.inputSanitizer(insightId);
+		// neither id check is required for containment. insightId is only an
+		// InsightStore key, and checkEngineEditPermission below resolves engineId
+		// against the ENGINE table before Utility.getEngine builds the asset folder
+		insightId = WebUtility.safePathSegment(WebUtility.inputSanitizer(insightId));
 		relativePath = WebUtility.inputSanitizer(relativePath);
-		engineId = WebUtility.inputSanitizer(engineId);
+		engineId = WebUtility.safePathSegment(WebUtility.inputSanitizer(engineId));
 
 		Insight in = getValidInsight(insightId);
 		if (in == null) {
@@ -584,7 +625,7 @@ public class FileUploader extends Uploader {
 			return permResponse;
 		}
 
-		if (engineId == null || (engineId = engineId.trim()).isEmpty()) {
+		if (engineId == null || (engineId = engineId.trim()).isEmpty() || !WebUtility.isSafePathSegment(engineId)) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Must provide an engine id.");
 			return WebUtility.getResponse(errorMap, 400);
@@ -597,7 +638,7 @@ public class FileUploader extends Uploader {
 
 		ThreadStore.setSessionId(request.getSession().getId());
 		try {
-			List<FileItem> fileItems = processRequest(context, request, insightId);
+			List<DiskFileItem> fileItems = processRequest(context, request, insightId);
 			// collect all of the data input on the form
 			IEngine engine = Utility.getEngine(engineId);
 			List<Map<String, String>> inputData = uploadEngineAssets(fileItems, in, relativePath, engine, user);
@@ -697,7 +738,7 @@ public class FileUploader extends Uploader {
 	 * @throws VirusScanningException if a virus is detected in the file.
 	 * @throws IOException            if an error occurs while writing the file.
 	 */
-	private List<Map<String, String>> uploadEngineAssets(List<FileItem> fileItems, Insight in, String relativePath,
+	private List<Map<String, String>> uploadEngineAssets(List<DiskFileItem> fileItems, Insight in, String relativePath,
 			IEngine engine, User user) throws VirusScanningException, IOException {
 
 		String assetFolder = EngineUtility.getSpecificEngineAssetsFolder(engine.getCatalogType(), engine.getEngineId(),
@@ -706,8 +747,11 @@ public class FileUploader extends Uploader {
 
 		String filePath = assetFolder;
 		// add relative path
-		if (relativePath != null) {
-			filePath = assetFolder + DIR_SEPARATOR + WebUtility.normalizePath(relativePath);
+		String containedRelativePath = normalizeUploadRelativePath(relativePath);
+		if (containedRelativePath != null && !containedRelativePath.isEmpty()) {
+			java.nio.file.Path assetRoot = Paths.get(WebUtility.normalizePath(assetFolder));
+			Files.createDirectories(assetRoot);
+			filePath = WebUtility.resolveWithin(assetRoot, containedRelativePath).toString();
 			fePath += relativePath;
 		}
 		File fileDir = new File(WebUtility.normalizePath(filePath));
@@ -766,14 +810,14 @@ public class FileUploader extends Uploader {
 	 * @throws VirusScanningException if a virus is detected in the file.
 	 * @throws IOException            if an error occurs while writing the file.
 	 */
-	private List<Map<String, String>> processFileItems(List<FileItem> fileItems, String filePath, String fePath)
+	private List<Map<String, String>> processFileItems(List<DiskFileItem> fileItems, String filePath, String fePath)
 			throws VirusScanningException, IOException {
-		Iterator<FileItem> iteratorFileItems = fileItems.iterator();
+		Iterator<DiskFileItem> iteratorFileItems = fileItems.iterator();
 		// collect all of the data input on the form
 		List<Map<String, String>> retData = new ArrayList<Map<String, String>>();
 
 		while (iteratorFileItems.hasNext()) {
-			FileItem fi = iteratorFileItems.next();
+			DiskFileItem fi = iteratorFileItems.next();
 			if (!fi.isFormField()) {
 				// Get the uploaded file parameters
 				String fieldName = fi.getFieldName();
@@ -854,7 +898,7 @@ public class FileUploader extends Uploader {
 	 * @throws VirusScanningException if a virus is detected in the file.
 	 * @throws IOException            if an error occurs while reading the file.
 	 */
-	private void checkForViruses(FileItem fi) throws VirusScanningException, IOException {
+	private void checkForViruses(DiskFileItem fi) throws VirusScanningException, IOException {
 		if (Utility.isVirusScanningEnabled()) {
 			try {
 				Map<String, Collection<String>> viruses = VirusScannerUtils.getViruses(fi.getName(),

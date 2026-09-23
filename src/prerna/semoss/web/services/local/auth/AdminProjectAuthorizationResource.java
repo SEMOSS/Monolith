@@ -30,47 +30,40 @@ package prerna.semoss.web.services.local.auth;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.stream.Collectors;
-
-import javax.annotation.security.PermitAll;
-import javax.servlet.ServletContext;
-import javax.servlet.http.HttpServletRequest;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.MultivaluedMap;
-import javax.ws.rs.core.Response;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.google.gson.Gson;
 
+import jakarta.annotation.security.PermitAll;
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.MultivaluedMap;
+import jakarta.ws.rs.core.Response;
 import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityAdminUtils;
-import prerna.auth.utils.SecurityProjectUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
 import prerna.auth.utils.reactors.admin.AdminMyProjectsReactor;
-import prerna.cluster.util.ClusterUtil;
 import prerna.graph.utility.MsGraphUtility;
 import prerna.om.Insight;
-import prerna.project.api.IProject;
 import prerna.sablecc2.om.GenRowStruct;
 import prerna.sablecc2.om.PixelDataType;
 import prerna.sablecc2.om.ReactorKeysEnum;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
-import prerna.util.Settings;
 import prerna.util.SocialPropertiesUtil;
-import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 @Path("/auth/admin/project")
@@ -253,13 +246,17 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		return WebUtility.getResponse(outputNoun.getValue(), 200);
 	}
 
-	@POST
+	@GET
 	@Path("/getAllUserProjects")
 	@Produces("application/json")
-	public Response getAllUserProjects(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+	public Response getAllUserProjects(@Context HttpServletRequest request, @QueryParam("userId") String userId,
+			@QueryParam("projectTypes") List<String> projectTypes, @QueryParam("searchTerm") String searchTerm,
+			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+		userId = WebUtility.inputSQLSanitizer(userId);
+		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
+		projectTypes = WebUtility.inputSanitizer(projectTypes);
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
-		String userId = WebUtility.inputSQLSanitizer(form.getFirst("userId"));
 		try {
 			user = ResourceUtility.getUser(request);
 			adminUtils = performAdminCheck(request, user);
@@ -272,7 +269,35 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		return WebUtility.getResponse(adminUtils.getAllUserProjects(userId), 200);
+		return WebUtility.getResponse(adminUtils.getAllUserProjects(userId, projectTypes, searchTerm, limit, offset),
+				200);
+	}
+
+	@GET
+	@Path("/getUserProjectsNoCredentials")
+	@Produces("application/json")
+	public Response getUserProjectsNoCredentials(@Context HttpServletRequest request,
+			@QueryParam("userId") String userId, @QueryParam("projectTypes") List<String> projectTypes,
+			@QueryParam("searchTerm") String searchTerm, @QueryParam("limit") long limit,
+			@QueryParam("offset") long offset) {
+		userId = WebUtility.inputSQLSanitizer(userId);
+		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
+		projectTypes = WebUtility.inputSanitizer(projectTypes);
+		SecurityAdminUtils adminUtils = null;
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+			adminUtils = performAdminCheck(request, user);
+		} catch (IllegalAccessException e) {
+			classLogger.warn("Non-admin user tried to list the projects that user {} does not have access to", userId);
+			classLogger.error("Failed to list the projects that user {} does not have access to", userId, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		return WebUtility.getResponse(
+				adminUtils.getUserProjectsNoCredentials(userId, projectTypes, searchTerm, limit, offset), 200);
 	}
 
 	@POST
@@ -672,6 +697,59 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		return WebUtility.getResponse(ret, 200);
 	}
 
+	/**
+	 * Set whether a project can be cloned as a template by users who can view it.
+	 *
+	 * @param request current request
+	 * @param form    projectId and template boolean
+	 * @return operation status
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("setProjectTemplate")
+	public Response setProjectTemplate(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		String projectIdInput = form.getFirst("projectId");
+		String templateInput = form.getFirst("template");
+		if (projectIdInput == null || projectIdInput.trim().isEmpty() || templateInput == null
+				|| !("true".equalsIgnoreCase(templateInput) || "false".equalsIgnoreCase(templateInput))) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "projectId and a true or false template value are required");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+
+		String projectId = WebUtility.inputSQLSanitizer(projectIdInput);
+		boolean isTemplate = Boolean.parseBoolean(templateInput);
+		SecurityAdminUtils adminUtils;
+		try {
+			User user = ResourceUtility.getUser(request);
+			adminUtils = performAdminCheck(request, user);
+		} catch (IllegalAccessException e) {
+			classLogger.warn("User attempted to update project {} template status without admin access", projectId);
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		try {
+			adminUtils.setProjectTemplate(projectId, isTemplate);
+		} catch (IllegalArgumentException e) {
+			classLogger.error("Failed to update template status for project {}", projectId, e);
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
+		} catch (Exception e) {
+			classLogger.error("Unexpected failure updating template status for project {}", projectId, e);
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
+			return WebUtility.getResponse(errorMap, 500);
+		}
+
+		classLogger.info("Admin has set project {} template status to {}", projectId, isTemplate);
+		Map<String, Object> ret = new HashMap<>();
+		ret.put("success", true);
+		return WebUtility.getResponse(ret, 200);
+	}
+
 	@POST
 	@Produces("application/json")
 	@Path("setProjectGlobal")
@@ -1025,86 +1103,6 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		Map<String, Object> ret = new HashMap<String, Object>();
 		ret.put("success", true);
 		return WebUtility.getResponse(ret, 200);
-	}
-
-	@POST
-	@Produces("application/json")
-	@Path("setProjectPortal")
-	public Response setProjectPortal(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		SecurityAdminUtils adminUtils = null;
-		User user = null;
-
-		String projectId = WebUtility.inputSQLSanitizer(form.getFirst("projectId"));
-		boolean hasPortal = Boolean.parseBoolean(form.getFirst("hasPortal"));
-		String portalName = WebUtility.inputSQLSanitizer(form.getFirst("portalName"));
-		String logPortal = hasPortal ? " enable portal " : " disable portal";
-
-		try {
-			user = ResourceUtility.getUser(request);
-			adminUtils = performAdminCheck(request, user);
-		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to {} for project {}", logPortal, projectId);
-			classLogger.error("Failed to update project portal.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		try {
-			adminUtils.setProjectPortal(user, projectId, hasPortal, portalName);
-		} catch (Exception e) {
-			classLogger.error("Failed to update project portal.", e);
-			Map<String, String> errorRet = new HashMap<String, String>();
-			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
-			return WebUtility.getResponse(errorRet, 500);
-		}
-
-		IProject project = Utility.getProject(projectId);
-		try {
-			SecurityProjectUtils.setProjectPortal(user, projectId, hasPortal, portalName);
-			project.setHasPortal(hasPortal);
-		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to {} for project {}", logPortal, projectId);
-			classLogger.error("Failed to update project portal.", e);
-			Map<String, String> errorRet = new HashMap<String, String>();
-			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorRet, 400);
-		} catch (Exception e) {
-			classLogger.error("Failed to update project portal.", e);
-			Map<String, String> errorRet = new HashMap<String, String>();
-			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
-			return WebUtility.getResponse(errorRet, 500);
-		}
-
-		try {
-			String projectSmss = project.getSmssFilePath();
-			Map<String, String> mods = new HashMap<>();
-			mods.put(Settings.PUBLIC_HOME_ENABLE, hasPortal + "");
-			Properties props = Utility.loadProperties(projectSmss);
-			if (props.get(Settings.PUBLIC_HOME_ENABLE) == null) {
-				classLogger.info("Updating project smss to include public home property to {} for project {}",
-						logPortal, Utility.cleanLogString(projectId));
-				Utility.addKeysAtLocationIntoPropertiesFile(projectSmss, Constants.CONNECTION_URL, mods);
-			} else {
-				classLogger.info("Modifying project smss to {} for project {}", logPortal,
-						Utility.cleanLogString(projectId));
-				Utility.changePropertiesFileValue(projectSmss, Settings.PUBLIC_HOME_ENABLE, hasPortal + "");
-			}
-
-			// reload and set the prop again
-			Properties newSmssProp = Utility.loadProperties(projectSmss);
-			project.setSmssProp(newSmssProp);
-
-			// push to cloud
-			ClusterUtil.pushProjectSmss(projectId);
-		} catch (Exception e) {
-			// ignore
-		}
-
-		// log the operation
-		classLogger.info("User is trying to {} for project {}", logPortal, projectId);
-
-		return WebUtility.getResponse(true, 200);
 	}
 
 }

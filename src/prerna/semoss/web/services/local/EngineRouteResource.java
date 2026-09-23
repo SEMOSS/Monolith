@@ -40,20 +40,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
-import javax.annotation.security.PermitAll;
-import javax.servlet.http.HttpServletRequest;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.EntityTag;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Request;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.ResponseBuilder;
-
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.filefilter.WildcardFileFilter;
 import org.apache.logging.log4j.LogManager;
@@ -62,6 +48,21 @@ import org.apache.logging.log4j.Logger;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
+import jakarta.annotation.security.PermitAll;
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.EntityTag;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Request;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response.ResponseBuilder;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityEngineUtils;
@@ -75,6 +76,7 @@ import prerna.io.connector.couch.CouchUtil;
 import prerna.io.connector.secrets.ISecrets;
 import prerna.io.connector.secrets.SecretsFactory;
 import prerna.notifications.NotificationDbUtils;
+import prerna.upload.CatalogImageUploader;
 import prerna.util.Constants;
 import prerna.util.DefaultImageGeneratorUtil;
 import prerna.util.EmailUtility;
@@ -201,7 +203,15 @@ public class EngineRouteResource {
 	@Path("/updateSmssFile")
 	@Produces("application/json;charset=utf-8")
 	public Response updateSmssFile(@Context HttpServletRequest request, @PathParam("engineId") String engineId) {
-		engineId = WebUtility.inputSanitizer(engineId);
+		// not required for containment. engineExists/userIsOwner below resolve engineId
+		// against the ENGINE table on both the admin and non-admin branch, so a
+		// traversal value is rejected before it reaches the smss file path
+		engineId = WebUtility.safePathSegment(WebUtility.inputSanitizer(engineId));
+		if (!WebUtility.isSafePathSegment(engineId)) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Invalid engine id");
+			return WebUtility.getResponse(errorMap, 400);
+		}
 
 		User user = null;
 		try {
@@ -213,9 +223,12 @@ public class EngineRouteResource {
 		}
 		try {
 			boolean isAdmin = SecurityAdminUtils.userIsAdmin(user);
-			if (!isAdmin) {
-				boolean isOwner = SecurityEngineUtils.userIsOwner(user, engineId);
-				if (!isOwner) {
+			if (isAdmin) {
+				if (!SecurityEngineUtils.engineExists(engineId)) {
+					throw new IllegalAccessException("Engine " + engineId + " does not exist.");
+				}
+			} else {
+				if (!SecurityEngineUtils.userIsOwner(user, engineId)) {
 					throw new IllegalAccessException("Engine " + engineId
 							+ " does not exist or user does not have permissions to update the smss. User must be the owner to perform this function.");
 				}
@@ -378,13 +391,27 @@ public class EngineRouteResource {
 	 */
 
 	/**
+	 * Replace this engine's catalog image with one multipart file named
+	 * {@code file}. Requires edit permission; accepts PNG, JPEG, or GIF up to 10
+	 * MiB.
+	 */
+	@POST
+	@Path("/image/upload")
+	@Consumes(MediaType.MULTIPART_FORM_DATA)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response uploadImage(@Context ServletContext context, @Context HttpServletRequest request,
+			@PathParam("engineId") String engineId) {
+		return CatalogImageUploader.upload(context, request, engineId, false);
+	}
+
+	/**
 	 * Download the image associated with this engine. The lookup falls through
 	 * three sources in order: CouchDB (if enabled), cloud storage (if running in
 	 * cluster mode), and finally the engine's local version folder. If no image
-	 * exists locally a default placeholder image is generated.
+	 * exists locally the shared stock image is served without copying it.
 	 * <p>
 	 * Honors HTTP {@code If-None-Match} via an entity tag built from the file's
-	 * last-modified timestamp, so an unchanged image returns 304.
+	 * path, last-modified timestamp, and size, so an unchanged image returns 304.
 	 *
 	 * @param coreRequest the JAX-RS request, used for cache precondition evaluation
 	 * @param request     the underlying HTTP request (provides the user session)
@@ -398,7 +425,16 @@ public class EngineRouteResource {
 	@Produces({ MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML })
 	public Response imageDownload(@Context final Request coreRequest, @Context HttpServletRequest request,
 			@PathParam("engineId") String engineId) {
-		engineId = WebUtility.inputSanitizer(engineId);
+		// not required for containment. getEngineTypeAndSubtype and
+		// canAccessOrDiscoverableEngine below resolve engineId against the ENGINE
+		// table,
+		// so a traversal value is rejected before it reaches the image path
+		engineId = WebUtility.safePathSegment(WebUtility.inputSanitizer(engineId));
+		if (!WebUtility.isSafePathSegment(engineId)) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Invalid engine id");
+			return WebUtility.getResponse(errorMap, 400);
+		}
 
 		User user = null;
 		try {
@@ -474,9 +510,9 @@ public class EngineRouteResource {
 		} else {
 			exportFile = findImageFile(engineVersionPath);
 			if (exportFile == null) {
-				// make the image
+				// Resolve the shared stock file without creating an engine asset.
 				String fileLocation = engineVersionPath + "/" + "image.png";
-				exportFile = DefaultImageGeneratorUtil.pickRandomImage(fileLocation);
+				exportFile = DefaultImageGeneratorUtil.getStockImageForPath(fileLocation);
 			}
 		}
 
@@ -487,7 +523,8 @@ public class EngineRouteResource {
 //			cc.setMaxAge(86400);
 //			cc.setPrivate(true);
 //			cc.setMustRevalidate(true);
-			EntityTag etag = new EntityTag(Long.toString(exportFile.lastModified()));
+			EntityTag etag = new EntityTag(Integer.toHexString(exportFile.getAbsolutePath().hashCode()) + "-"
+					+ exportFile.lastModified() + "-" + exportFile.length());
 			ResponseBuilder builder = coreRequest.evaluatePreconditions(etag);
 
 			// cached resource did not change

@@ -27,11 +27,11 @@
  *******************************************************************************/
 package prerna.semoss.web.github;
 
-import javax.servlet.ServletContextEvent;
-import javax.servlet.ServletContextListener;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import jakarta.servlet.ServletContextEvent;
+import jakarta.servlet.ServletContextListener;
 
 /**
  * Cleans up GitHub web resources when the web app stops.

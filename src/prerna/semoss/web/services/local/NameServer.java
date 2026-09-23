@@ -38,23 +38,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.annotation.security.PermitAll;
-import javax.servlet.http.Cookie;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpSession;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.MultivaluedMap;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.StreamingOutput;
-
 import org.apache.commons.io.FilenameUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.client.ClientProtocolException;
@@ -76,6 +59,22 @@ import com.google.gson.JsonSyntaxException;
 import com.google.gson.ToNumberPolicy;
 import com.google.gson.internal.LinkedTreeMap;
 
+import jakarta.annotation.security.PermitAll;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.MultivaluedMap;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.StreamingOutput;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityInsightUtils;
@@ -88,6 +87,8 @@ import prerna.reactor.IReactor;
 import prerna.reactor.ReactorFactory;
 import prerna.reactor.agent.mcp.MCPErrorCode;
 import prerna.reactor.agent.mcp.MCPUtility;
+import prerna.reactor.agent.run.AgentRunService;
+import prerna.reactor.agent.stream.AgentRunStreamService;
 import prerna.sablecc2.PixelRunner;
 import prerna.sablecc2.PixelStreamUtility;
 import prerna.sablecc2.PixelUtility;
@@ -96,7 +97,6 @@ import prerna.sablecc2.comm.PixelJobRunner;
 import prerna.sablecc2.comm.PixelJobStatus;
 import prerna.sablecc2.om.execptions.SemossMCPException;
 import prerna.semoss.web.services.remote.CentralNameServer;
-import prerna.semoss.web.services.remote.EngineRemoteResource;
 import prerna.util.ChromeDriverUtility;
 import prerna.util.Constants;
 import prerna.util.PlaySheetRDFMapBasedEnum;
@@ -1273,7 +1273,52 @@ public class NameServer {
 	}
 
 	/**
-	 * 
+	 * Drain buffered agent stream events and return the run snapshot. Unlike
+	 * {@link #pixelJobStreaming(MultivaluedMap, HttpServletRequest)} this
+	 * authorizes the caller against the run owner and removes drained events.
+	 */
+	@POST
+	@Path("/agentRunStreaming")
+	@Produces("application/json")
+	public Response agentRunStreaming(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
+		String runId = WebUtility.inputSQLSanitizer(form.getFirst("runId"));
+		if (runId == null || runId.trim().isEmpty()) {
+			Map<String, Object> errorRet = new HashMap<>();
+			errorRet.put("errorMessage", "runId is required");
+			return WebUtility.getResponseNoCache(errorRet, 400);
+		}
+		HttpSession session = request.getSession(false);
+		User user = session == null ? null : (User) session.getAttribute(Constants.SESSION_USER);
+		if (user == null || user.isAnonymous()) {
+			Map<String, Object> errorRet = new HashMap<>();
+			errorRet.put("errorMessage", "Agent run streaming requires an authenticated user");
+			return WebUtility.getResponseNoCache(errorRet, 401);
+		}
+		Insight authInsight = new Insight();
+		authInsight.setUser(user);
+		try {
+			// Ownership check happens here: the run store scopes by the insight user,
+			// so another user's runId behaves like an unknown run.
+			Map<String, Object> runSnapshot = AgentRunService.get().getRunSnapshot(runId.trim(), authInsight);
+			AgentRunStreamService.DrainResult drained = AgentRunStreamService.get().drain(runId.trim());
+			Map<String, Object> dataReturn = new HashMap<>();
+			dataReturn.put("run", runSnapshot);
+			dataReturn.put("events", drained.getEvents());
+			dataReturn.put("droppedEvents", drained.getDroppedEvents());
+			return WebUtility.getResponseNoCache(dataReturn, 200);
+		} catch (SecurityException e) {
+			Map<String, Object> errorRet = new HashMap<>();
+			errorRet.put("errorMessage", "Agent run streaming requires an authenticated user");
+			return WebUtility.getResponseNoCache(errorRet, 401);
+		} catch (IllegalArgumentException e) {
+			Map<String, Object> errorRet = new HashMap<>();
+			errorRet.put("errorMessage", "No agent run found for runId=" + runId);
+			return WebUtility.getResponseNoCache(errorRet, 404);
+		}
+	}
+
+	/**
+	 *
 	 * @param form
 	 * @param request
 	 * @return
@@ -1382,20 +1427,6 @@ public class NameServer {
 
 		IDatabaseEngine engine = Utility.getDatabase(engineId);
 		OldEngineResource res = new OldEngineResource();
-		res.setEngine(engine);
-		return res;
-	}
-
-	@Path("s-{engine}")
-	public Object getEngineProxy(@PathParam("engine") String db, @Context HttpServletRequest request) {
-		// this is the name server
-		// this needs to return stuff
-		db = WebUtility.inputSQLSanitizer(db);
-
-		classLogger.debug("Getting database: {}", db);
-		HttpSession session = request.getSession();
-		IDatabaseEngine engine = (IDatabaseEngine) session.getAttribute(db);
-		EngineRemoteResource res = new EngineRemoteResource();
 		res.setEngine(engine);
 		return res;
 	}

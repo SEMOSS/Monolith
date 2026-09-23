@@ -29,17 +29,16 @@ package prerna.web.conf;
 
 import java.io.IOException;
 
-import javax.servlet.Filter;
-import javax.servlet.FilterChain;
-import javax.servlet.FilterConfig;
-import javax.servlet.ServletContext;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
-
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.FilterConfig;
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import prerna.auth.User;
 import prerna.reactor.mgmt.MgmtUtil;
 import prerna.util.Constants;
@@ -99,7 +98,7 @@ public class MemoryCheckFilter implements Filter {
 			String redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length())
 					+ NO_MORE_MEMORY;
 			((HttpServletResponse) arg1).setHeader("redirect", redirectUrl);
-			((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + redirectUrl);
+			((HttpServletResponse) arg1).sendError(302, "Redirect required");
 			return;
 		}
 

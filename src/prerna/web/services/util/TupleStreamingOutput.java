@@ -31,17 +31,17 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.StreamingOutput;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.openrdf.query.QueryEvaluationException;
 import org.openrdf.query.TupleQueryResult;
 
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.core.StreamingOutput;
+
 public class TupleStreamingOutput implements StreamingOutput {
 
-	private static final Logger classLogger = LogManager.getLogger(TupleStreamingOutput.class); 
+	private static final Logger classLogger = LogManager.getLogger(TupleStreamingOutput.class);
 
 	TupleQueryResult gqr = null;
 
@@ -54,13 +54,14 @@ public class TupleStreamingOutput implements StreamingOutput {
 		ObjectOutputStream os = new ObjectOutputStream(outputStream);
 		try {
 			classLogger.info("Writing Objects ");
-			while(gqr.hasNext()) {
+			while (gqr.hasNext()) {
 				classLogger.info(".");
-				os.writeObject(gqr.next());	
+				os.writeObject(gqr.next());
 			}
 			os.writeObject("null");
 		} catch (QueryEvaluationException e) {
-			classLogger.error("Failed to evaluate the tuple query result and write the objects to the output stream", e);
+			classLogger.error("Failed to evaluate the tuple query result and write the objects to the output stream",
+					e);
 		}
 	}
 }
