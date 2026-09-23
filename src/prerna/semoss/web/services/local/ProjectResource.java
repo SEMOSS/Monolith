@@ -56,8 +56,10 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 import jakarta.annotation.security.PermitAll;
+import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
+import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
@@ -94,6 +96,7 @@ import prerna.sablecc2.PixelRunner;
 import prerna.sablecc2.PixelStreamUtility;
 import prerna.sablecc2.om.NounStore;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
+import prerna.upload.CatalogImageUploader;
 import prerna.util.AssetUtility;
 import prerna.util.Constants;
 import prerna.util.DefaultImageGeneratorUtil;
@@ -605,6 +608,30 @@ public class ProjectResource {
 	 * Code below is around app images and insight images
 	 */
 
+	/**
+	 * Replace this project's catalog image with one multipart file named
+	 * {@code file}. Requires edit permission; accepts PNG, JPEG, or GIF up to 10
+	 * MiB.
+	 */
+	@POST
+	@Path("/image/upload")
+	@Consumes(MediaType.MULTIPART_FORM_DATA)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response uploadImage(@Context ServletContext context, @Context HttpServletRequest request,
+			@PathParam("projectId") String projectId) {
+		return CatalogImageUploader.upload(context, request, projectId, true);
+	}
+
+	/** Alias matching the existing project image download route. */
+	@POST
+	@Path("/projectImage/upload")
+	@Consumes(MediaType.MULTIPART_FORM_DATA)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response uploadProjectImage(@Context ServletContext context, @Context HttpServletRequest request,
+			@PathParam("projectId") String projectId) {
+		return uploadImage(context, request, projectId);
+	}
+
 	@GET
 	@Path("/projectImage/download")
 	@Produces({ MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML })
@@ -659,7 +686,8 @@ public class ProjectResource {
 //			cc.setMaxAge(86400);
 //			cc.setPrivate(true);
 //			cc.setMustRevalidate(true);
-			EntityTag etag = new EntityTag(Long.toString(exportFile.lastModified()));
+			EntityTag etag = new EntityTag(Integer.toHexString(exportFile.getAbsolutePath().hashCode()) + "-"
+					+ exportFile.lastModified() + "-" + exportFile.length());
 			ResponseBuilder builder = coreRequest.evaluatePreconditions(etag);
 
 			// cached resource did not change
@@ -695,26 +723,14 @@ public class ProjectResource {
 
 		IProject project = Utility.getProject(projectId);
 		String projectName = project.getProjectName();
-		String fileLocation = AssetUtility.getProjectVersionFolder(projectName, projectId);
+		String fileLocation = EngineUtility.getSpecificEngineVersionFolder(IEngine.CATALOG_TYPE.PROJECT, projectId,
+				projectName);
 		File f = findImageFile(fileLocation);
 		if (f != null) {
 			return f;
-		} else {
-			// make the image
-			f = new File(fileLocation);
-			if (!f.exists()) {
-				Boolean success = f.mkdirs();
-				if (!success) {
-					classLogger.info("Unable to create directory at location: {}",
-							Utility.cleanLogString(fileLocation));
-				}
-			}
-			fileLocation = fileLocation + DIR_SEPARATOR + "image.png";
-
-			DefaultImageGeneratorUtil.pickRandomImage(fileLocation);
-			f = new File(fileLocation);
-			return f;
 		}
+		// Resolve the shared stock file without creating a project asset.
+		return DefaultImageGeneratorUtil.getStockImageForPath(fileLocation + DIR_SEPARATOR + "image.png");
 	}
 
 	@GET

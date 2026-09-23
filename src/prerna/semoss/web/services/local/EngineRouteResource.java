@@ -49,7 +49,9 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 import jakarta.annotation.security.PermitAll;
+import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
@@ -74,6 +76,7 @@ import prerna.io.connector.couch.CouchUtil;
 import prerna.io.connector.secrets.ISecrets;
 import prerna.io.connector.secrets.SecretsFactory;
 import prerna.notifications.NotificationDbUtils;
+import prerna.upload.CatalogImageUploader;
 import prerna.util.Constants;
 import prerna.util.DefaultImageGeneratorUtil;
 import prerna.util.EmailUtility;
@@ -387,13 +390,27 @@ public class EngineRouteResource {
 	 */
 
 	/**
+	 * Replace this engine's catalog image with one multipart file named
+	 * {@code file}. Requires edit permission; accepts PNG, JPEG, or GIF up to 10
+	 * MiB.
+	 */
+	@POST
+	@Path("/image/upload")
+	@Consumes(MediaType.MULTIPART_FORM_DATA)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response uploadImage(@Context ServletContext context, @Context HttpServletRequest request,
+			@PathParam("engineId") String engineId) {
+		return CatalogImageUploader.upload(context, request, engineId, false);
+	}
+
+	/**
 	 * Download the image associated with this engine. The lookup falls through
 	 * three sources in order: CouchDB (if enabled), cloud storage (if running in
 	 * cluster mode), and finally the engine's local version folder. If no image
-	 * exists locally a default placeholder image is generated.
+	 * exists locally the shared stock image is served without copying it.
 	 * <p>
 	 * Honors HTTP {@code If-None-Match} via an entity tag built from the file's
-	 * last-modified timestamp, so an unchanged image returns 304.
+	 * path, last-modified timestamp, and size, so an unchanged image returns 304.
 	 *
 	 * @param coreRequest the JAX-RS request, used for cache precondition evaluation
 	 * @param request     the underlying HTTP request (provides the user session)
@@ -492,9 +509,9 @@ public class EngineRouteResource {
 		} else {
 			exportFile = findImageFile(engineVersionPath);
 			if (exportFile == null) {
-				// make the image
+				// Resolve the shared stock file without creating an engine asset.
 				String fileLocation = engineVersionPath + "/" + "image.png";
-				exportFile = DefaultImageGeneratorUtil.pickRandomImage(fileLocation);
+				exportFile = DefaultImageGeneratorUtil.getStockImageForPath(fileLocation);
 			}
 		}
 
@@ -505,7 +522,8 @@ public class EngineRouteResource {
 //			cc.setMaxAge(86400);
 //			cc.setPrivate(true);
 //			cc.setMustRevalidate(true);
-			EntityTag etag = new EntityTag(Long.toString(exportFile.lastModified()));
+			EntityTag etag = new EntityTag(Integer.toHexString(exportFile.getAbsolutePath().hashCode()) + "-"
+					+ exportFile.lastModified() + "-" + exportFile.length());
 			ResponseBuilder builder = coreRequest.evaluatePreconditions(etag);
 
 			// cached resource did not change
