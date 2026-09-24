@@ -55,6 +55,7 @@ import prerna.auth.utils.SecurityQueryUtils;
 import prerna.cluster.util.ClusterUtil;
 import prerna.semoss.web.services.local.SessionResource;
 import prerna.util.Constants;
+import prerna.web.services.util.RedirectUtility;
 import prerna.web.services.util.WebUtility;
 
 public class NoUserInSessionTrustedTokenFilter implements Filter {
@@ -163,7 +164,7 @@ public class NoUserInSessionTrustedTokenFilter implements Filter {
 						String setCookieString = DBLoader.getSessionIdKey() + "=" + sessionId + "; Path=" + contextPath
 								+ "; HttpOnly"
 								+ ((ClusterUtil.IS_CLUSTER || req.isSecure()) ? "; Secure; SameSite=None" : "");
-						((HttpServletResponse) arg1).addHeader("Set-Cookie", setCookieString);
+						((HttpServletResponse) arg1).addHeader("Set-Cookie", WebUtility.responseHeaderValue(setCookieString));
 					} else {
 						// invalidate the session
 						if (((HttpServletRequest) arg0).isRequestedSessionIdValid()) {
@@ -202,14 +203,14 @@ public class NoUserInSessionTrustedTokenFilter implements Filter {
 
 					String method = req.getMethod();
 					if (method.equalsIgnoreCase("GET")) {
-						((HttpServletResponse) arg1).addHeader("Set-Cookie", setCookieString);
+						((HttpServletResponse) arg1).addHeader("Set-Cookie", WebUtility.responseHeaderValue(setCookieString));
 						((HttpServletResponse) arg1).setStatus(HttpServletResponse.SC_MOVED_TEMPORARILY);
-						((HttpServletResponse) arg1).sendRedirect(fullUrl + "?" + req.getQueryString());
+						RedirectUtility.sendRequestRedirect((HttpServletResponse) arg1, fullUrl + "?" + req.getQueryString(), HttpServletResponse.SC_MOVED_TEMPORARILY);
 						return;
 					} else if (method.equalsIgnoreCase("POST")) {
-						((HttpServletResponse) arg1).addHeader("Set-Cookie", setCookieString);
+						((HttpServletResponse) arg1).addHeader("Set-Cookie", WebUtility.responseHeaderValue(setCookieString));
 						((HttpServletResponse) arg1).setStatus(HttpServletResponse.SC_TEMPORARY_REDIRECT);
-						((HttpServletResponse) arg1).setHeader("Location", fullUrl);
+						RedirectUtility.sendRequestRedirect((HttpServletResponse) arg1, fullUrl, HttpServletResponse.SC_TEMPORARY_REDIRECT);
 						return;
 					}
 				}
