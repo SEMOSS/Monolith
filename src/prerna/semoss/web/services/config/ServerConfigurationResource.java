@@ -266,24 +266,28 @@ public class ServerConfigurationResource {
 	private static Map<String, Object> getConfiguration(@Context HttpServletRequest request, User user) {
 		HttpSession session = request.getSession();
 
-		Map<String, Object> myConfiguration = new HashMap<>();
-		myConfiguration.putAll(config);
+		Map<String, Object> clientConfig = new HashMap<>();
+		clientConfig.putAll(config);
 		// session timeout
 		// in case we have different timeout for the admin
 		// we have this grab for this session what the timeout value is
-		myConfiguration.put("timeout", (double) session.getMaxInactiveInterval() / 60);
+		clientConfig.put("timeout", (double) session.getMaxInactiveInterval() / 60);
 		// append values that can change without restarting the server
 		// logins allowed
-		myConfiguration.put("loginsAllowed", SocialPropertiesUtil.getInstance().getLoginsAllowed());
+		clientConfig.put("loginsAllowed", SocialPropertiesUtil.getInstance().getLoginsAllowed());
+		// connections allowed
+		clientConfig.put("connectionsAllowed", SocialPropertiesUtil.getInstance().getConnectionsAllowed());
 		// get a list of all the logins and the display name and if it is oauth
-		myConfiguration.put("availableProviders", SocialPropertiesUtil.getInstance().getAvailableProviders());
+		clientConfig.put("availableProviders", SocialPropertiesUtil.getInstance().getAvailableProviders());
+		// get a list of all the resource providers and the display name if it is oauth
+		clientConfig.put("availableResourceProviders",
+				SocialPropertiesUtil.getInstance().getAvailableResourceProviders());
 		// is native registration allowed
-		myConfiguration.put("nativeRegistration", SocialPropertiesUtil.getInstance().isNativeRegistrationAllowed());
+		clientConfig.put("nativeRegistration", SocialPropertiesUtil.getInstance().isNativeRegistrationAllowed());
 
 		// password requirements
 		try {
-			myConfiguration.put("passwordRequirements",
-					PasswordRequirements.getInstance().getAllPasswordRequirements());
+			clientConfig.put("passwordRequirements", PasswordRequirements.getInstance().getAllPasswordRequirements());
 		} catch (Exception e) {
 			classLogger.error(
 					"Failed to load password requirements; 'passwordRequirements' will be omitted from server config",
@@ -294,29 +298,32 @@ public class ServerConfigurationResource {
 		// TODO: should move away from logins cause sometimes people are using this as
 		// if the name is the ID
 		// TODO: but not sure where this is all happening, so sending both keys for now
-		myConfiguration.put("logins", User.getLoginNames(user));
-		myConfiguration.put("loginDetails", User.getLoginDetails(user));
+		clientConfig.put("logins", User.getLoginNames(user));
+		clientConfig.put("loginDetails", User.getLoginDetails(user));
+		// current resource connections
+		clientConfig.put("connections", User.getConnectionsNames(user));
+		clientConfig.put("connectionDetails", User.getConnectionDetails(user));
 		// themes
-		myConfiguration.put("theme", AdminThemeUtils.getActiveAdminTheme());
+		clientConfig.put("theme", AdminThemeUtils.getActiveAdminTheme());
 		// add if we are using csrf
-		myConfiguration.put("csrf", Boolean.parseBoolean(session.getAttribute("csrf") + ""));
+		clientConfig.put("csrf", Boolean.parseBoolean(session.getAttribute("csrf") + ""));
 		// add metakey options
-		myConfiguration.put("databaseMetaKeys", SecurityEngineUtils.getMetakeyOptions(null));
-		myConfiguration.put("engineMetaKeys", SecurityEngineUtils.getMetakeyOptions(null));
-		myConfiguration.put("projectMetaKeys", SecurityProjectUtils.getMetakeyOptions(null));
-		myConfiguration.put("insightMetaKeys", SecurityInsightUtils.getMetakeyOptions(null));
-		myConfiguration.put("userMetaKeys", SecurityUserUtils.getMetakeyOptions(null));
-		myConfiguration.put("notificationEnabled", Utility.isNotificationDatabaseEnabled());
-		myConfiguration.put("auditLogEnabled", Utility.isAuditLogsDatabaseEnabled());
+		clientConfig.put("databaseMetaKeys", SecurityEngineUtils.getMetakeyOptions(null));
+		clientConfig.put("engineMetaKeys", SecurityEngineUtils.getMetakeyOptions(null));
+		clientConfig.put("projectMetaKeys", SecurityProjectUtils.getMetakeyOptions(null));
+		clientConfig.put("insightMetaKeys", SecurityInsightUtils.getMetakeyOptions(null));
+		clientConfig.put("userMetaKeys", SecurityUserUtils.getMetakeyOptions(null));
+		clientConfig.put("notificationEnabled", Utility.isNotificationDatabaseEnabled());
+		clientConfig.put("auditLogEnabled", Utility.isAuditLogsDatabaseEnabled());
 		// current date
-		myConfiguration.put("systemDate", new SemossDate(Utility.getCurrentZonedDateTimeUTC()));
+		clientConfig.put("systemDate", new SemossDate(Utility.getCurrentZonedDateTimeUTC()));
 		// do not keep this session
 		// if no user and it is new
 		if (user == null && (session.isNew() || request.isRequestedSessionIdValid())) {
 			session.invalidate();
 		}
 
-		return myConfiguration;
+		return clientConfig;
 	}
 
 	@GET
