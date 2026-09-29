@@ -215,7 +215,7 @@ public class UserResource {
 
 				String customUrl = DBLoader.getCustomLogoutUrl();
 				if (customUrl != null && !customUrl.isEmpty()) {
-					response.setHeader("redirect", customUrl);
+					response.setHeader("redirect", WebUtility.responseHeaderValue(customUrl));
 					response.sendError(302, "Need to redirect to " + customUrl);
 				} else {
 					String redirectUrl = WebUtility.inputSanitizer(request.getHeader("referer"));
@@ -234,12 +234,12 @@ public class UserResource {
 							redirectUrl += ":" + serverPort;
 						}
 						redirectUrl += contextPath + "/logout/";
-						response.setHeader("redirect", redirectUrl);
+						response.setHeader("redirect", WebUtility.responseHeaderValue(redirectUrl));
 						response.sendError(302, "Need to redirect to " + redirectUrl);
 					} else {
 						redirectUrl = redirectUrl + WebUtility.determineLoginExtension(request);
 						String encodedRedirectUrl = Encode.forHtml(redirectUrl);
-						response.setHeader("redirect", encodedRedirectUrl);
+						response.setHeader("redirect", WebUtility.responseHeaderValue(encodedRedirectUrl));
 						response.sendError(302, "Need to redirect to " + encodedRedirectUrl);
 					}
 				}
@@ -1870,14 +1870,14 @@ public class UserResource {
 					+ ((ClusterUtil.IS_CLUSTER || secureRequest)
 							? ("; Secure; SameSite=" + Utility.getSameSiteCookieValue())
 							: "");
-			response.addHeader("Set-Cookie", setCookieString);
+			response.addHeader("Set-Cookie", WebUtility.responseHeaderValue(setCookieString));
 			if (useCustom) {
-				response.addHeader("redirect", customRedirect);
+				response.addHeader("redirect", WebUtility.responseHeaderValue(customRedirect));
 				String encodedCustomRedirect = Encode.forHtml(customRedirect);
 				response.sendError(302, "Need to redirect to " + encodedCustomRedirect);
 			} else if (endpoint) {
 				String redirectUrl = session.getAttribute(Constants.ENDPOINT_REDIRECT_KEY) + "";
-				response.addHeader("redirect", redirectUrl);
+				response.addHeader("redirect", WebUtility.responseHeaderValue(redirectUrl));
 				response.sendError(302, "Need to redirect to " + redirectUrl);
 			} else {
 				response.sendRedirect(socialData.getProperty("redirect"));

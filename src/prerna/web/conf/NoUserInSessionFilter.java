@@ -113,7 +113,7 @@ public class NoUserInSessionFilter implements Filter {
 			// are we in public home - if no, we dont include ! in the redirect
 			redirectUrl = redirectUrl + WebUtility.determineLoginExtension((HttpServletRequest) arg0);
 			String encodedRedirectUrl = Encode.forHtml(redirectUrl);
-			((HttpServletResponse) arg1).setHeader("redirect", encodedRedirectUrl);
+			((HttpServletResponse) arg1).setHeader("redirect", WebUtility.responseHeaderValue(encodedRedirectUrl));
 			((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + encodedRedirectUrl);
 
 			// invalidate the session if necessary

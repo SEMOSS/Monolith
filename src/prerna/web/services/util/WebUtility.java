@@ -262,7 +262,7 @@ public final class WebUtility {
 				if (addHeaders != null && !addHeaders.isEmpty()) {
 					for (int i = 0; i < addHeaders.size(); i++) {
 						String[] headerInfo = addHeaders.get(i);
-						builder.header(headerInfo[0], headerInfo[1]);
+						builder.header(responseHeaderValue(headerInfo[0]), responseHeaderValue(headerInfo[1]));
 					}
 				}
 				if (cookies != null && cookies.length > 0) {
@@ -272,7 +272,7 @@ public final class WebUtility {
 					for (NewCookie cookie : cookies) {
 						// add the cookie to the header
 						// with the SameSite Strict tag
-						builder.header("Set-Cookie", convertCookieToHeader(cookie));
+						builder.header("Set-Cookie", responseHeaderValue(convertCookieToHeader(cookie)));
 					}
 				}
 				return builder.build();
@@ -407,6 +407,24 @@ public final class WebUtility {
 			}
 		}
 		return null;
+	}
+
+	/**
+	 * Remove HTTP field delimiters at the output boundary without HTML-encoding
+	 * valid URLs, filenames or cookie attributes. No percent decoding is performed:
+	 * percent escapes are data at this layer, not header delimiters.
+	 */
+	public static String responseHeaderValue(String value) {
+		return value == null ? null : value.replace("\r", "").replace("\n", "").replace("\0", "");
+	}
+
+	/** Preserve cookie attributes while removing header delimiters from all fields. */
+	public static Cookie responseCookie(Cookie cookie) {
+		Cookie safe = new Cookie(
+				responseHeaderValue(cookie.getName()), responseHeaderValue(cookie.getValue()));
+		cookie.getAttributes().forEach((name, value) ->
+				safe.setAttribute(responseHeaderValue(name), responseHeaderValue(value)));
+		return safe;
 	}
 
 	/**
