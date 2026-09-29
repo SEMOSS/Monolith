@@ -214,9 +214,21 @@ tbody tr:last-child td {
 					var path = window.location.pathname;
 					var index = path.lastIndexOf('/setAdmin');
 					if (index >= 0) {
-						return path.substring(0, index + 1);
+						return window.location.origin + path.substring(0, index + 1);
 					}
-					return '/';
+					return window.location.origin + '/';
+				}
+
+				function returnToBase() {
+					var path = window.location.pathname;
+					if (path.indexOf('/setAdmin') < 0) {
+						window.location.replace('/');
+					} else if (path.endsWith('/setAdmin')) {
+						window.location.replace('./');
+					} else {
+						var trailingSlashes = path.match(/\/+$/);
+						window.location.replace('../'.repeat(trailingSlashes ? trailingSlashes[0].length : 1));
+					}
 				}
 
 				function xhr(method, url, body, headers, callback) {
@@ -281,7 +293,7 @@ tbody tr:last-child td {
 									return;
 								}
 
-								window.location.replace(getBasePrefix());
+								returnToBase();
 								return;
 							}
 

@@ -44,6 +44,7 @@ import prerna.auth.User;
 import prerna.util.Constants;
 import prerna.util.Utility;
 import prerna.web.conf.util.SSOUtil;
+import prerna.web.services.util.RedirectUtility;
 import prerna.web.services.util.WebUtility;
 
 /**
@@ -100,6 +101,7 @@ public class IdpSSOServlet extends HttpServlet {
 		if (hasRedirect) {
 			try {
 				WebUtility.checkIfValidDomain(redirect);
+				redirect = RedirectUtility.samlReturnUrl(redirect);
 			} catch (IllegalArgumentException | IllegalStateException e) {
 				response.sendError(HttpServletResponse.SC_FORBIDDEN, " Provided redirect is unauthorized");
 				return;

@@ -257,7 +257,7 @@ public class SessionResource {
 
 			String customUrl = DBLoader.getCustomLogoutUrl();
 			if (customUrl != null && !customUrl.isEmpty()) {
-				response.setHeader("redirect", customUrl);
+				response.setHeader("redirect", WebUtility.responseHeaderValue(customUrl));
 				response.sendError(302, "Need to redirect to " + customUrl);
 			} else {
 				String scheme = WebUtility.inputSQLSanitizer(request.getScheme()); // http
@@ -277,7 +277,7 @@ public class SessionResource {
 				}
 				redirectUrl += contextPath + "/logout/";
 				redirectUrl = WebUtility.cleanHttpResponse(redirectUrl);
-				response.setHeader("redirect", redirectUrl);
+				response.setHeader("redirect", WebUtility.responseHeaderValue(redirectUrl));
 				response.sendError(302, "Need to redirect to " + redirectUrl);
 			}
 		} else {
@@ -285,7 +285,7 @@ public class SessionResource {
 
 			redirectUrl = redirectUrl + WebUtility.determineLoginExtension(request);
 			String encodedRedirectUrl = Encode.forHtml(redirectUrl);
-			response.setHeader("redirect", encodedRedirectUrl);
+			response.setHeader("redirect", WebUtility.responseHeaderValue(encodedRedirectUrl));
 			response.sendError(302, "Need to redirect to " + encodedRedirectUrl);
 		}
 
