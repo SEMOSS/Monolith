@@ -54,6 +54,7 @@ import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.NewCookie;
 import jakarta.ws.rs.core.Response;
 import prerna.auth.AccessPermissionEnum;
+import prerna.auth.AuthProvider;
 import prerna.auth.PasswordRequirements;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
@@ -64,6 +65,7 @@ import prerna.auth.utils.SecurityProjectUtils;
 import prerna.auth.utils.SecurityUserUtils;
 import prerna.date.SemossDate;
 import prerna.ds.py.PyUtils;
+import prerna.io.connector.ConnectorScopeAccess;
 import prerna.reactor.cluster.VersionReactor;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.theme.AdminThemeUtils;
@@ -139,8 +141,7 @@ public class ServerConfigurationResource {
 		loadConfig.put("adminOnlyWorkspaceDelete", AbstractSecurityUtils.adminOnlyWorkspaceDelete());
 		loadConfig.put("adminOnlyWorkspaceAddAccess", AbstractSecurityUtils.adminOnlyWorkspaceAddAccess());
 		loadConfig.put("adminOnlyWorkspaceSetPublic", AbstractSecurityUtils.adminOnlyWorkspaceSetPublic());
-		loadConfig.put("adminOnlyWorkspaceSetDiscoverable",
-				AbstractSecurityUtils.adminOnlyWorkspaceSetDiscoverable());
+		loadConfig.put("adminOnlyWorkspaceSetDiscoverable", AbstractSecurityUtils.adminOnlyWorkspaceSetDiscoverable());
 		loadConfig.put("adminOnlySkillAdd", AbstractSecurityUtils.adminOnlySkillAdd());
 		loadConfig.put("adminOnlySkillDelete", AbstractSecurityUtils.adminOnlySkillDelete());
 		loadConfig.put("adminOnlySkillAddAccess", AbstractSecurityUtils.adminOnlySkillAddAccess());
@@ -255,7 +256,8 @@ public class ServerConfigurationResource {
 		loadConfig.put("pipelineLandingFilter", Utility.getApplicationPipelineLandingFilter());
 		loadConfig.put("pipelineSourceFilter", Utility.getApplicationPipelineSourceFilter());
 		loadConfig.put("widgetTabShareExportList", Utility.getApplicationWidgetTabShareExportList());
-//		loadConfig.put("widgetTabExportDashboard", Utility.getApplicationWidgetTabExportDashboard());
+		// loadConfig.put("widgetTabExportDashboard",
+		// Utility.getApplicationWidgetTabExportDashboard());
 		loadConfig.put("adminOnlyViewMenuBarFlag", Utility.getAdminOnlyViewMenuBarFlag());
 		loadConfig.put("adminOnlyNonAprrovedFlag", Utility.getAdminOnlyNonApprovedFlag());
 
@@ -296,6 +298,19 @@ public class ServerConfigurationResource {
 		// TODO: but not sure where this is all happening, so sending both keys for now
 		myConfiguration.put("logins", User.getLoginNames(user));
 		myConfiguration.put("loginDetails", User.getLoginDetails(user));
+		// the login the session belongs to. signing out of any other provider keeps
+		// the session, while signing out of this one would end or change it
+		AuthProvider primaryLogin = user == null ? null : user.getPrimaryLogin();
+		if (primaryLogin != null) {
+			myConfiguration.put("primaryLogin", primaryLogin.toString().toUpperCase());
+		}
+		// which connector apps each OAuth sign in lets the connectors use, judged here
+		// from the scopes it asks for, so a client can tell which apps can work before
+		// it calls them. only whether each app can work is sent, never the scopes, and
+		// only to a user signed in to the platform
+		if (user != null && user.isLoggedIn() && !user.isAnonymous()) {
+			myConfiguration.put("connectorAccess", ConnectorScopeAccess.getConnectorAccess());
+		}
 		// themes
 		myConfiguration.put("theme", AdminThemeUtils.getActiveAdminTheme());
 		// add if we are using csrf
