@@ -29,7 +29,6 @@ package prerna.upload;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -47,7 +46,6 @@ import javax.imageio.stream.ImageInputStream;
 import javax.imageio.stream.MemoryCacheImageInputStream;
 
 import org.apache.commons.fileupload2.core.DiskFileItem;
-import org.apache.commons.fileupload2.core.DiskFileItemFactory;
 import org.apache.commons.fileupload2.core.FileUploadException;
 import org.apache.commons.fileupload2.core.FileUploadSizeException;
 import org.apache.commons.fileupload2.jakarta.servlet6.JakartaServletDiskFileUpload;
@@ -165,12 +163,7 @@ public final class CatalogImageUploader {
 
 	private static List<DiskFileItem> parseRequest(ServletContext context, HttpServletRequest request)
 			throws IOException {
-		String configuredTemp = context.getInitParameter(Uploader.TEMP_FILE_UPLOAD_KEY);
-		Path temp = configuredTemp == null ? Path.of(System.getProperty("java.io.tmpdir")) : Path.of(configuredTemp);
-		Files.createDirectories(temp);
-		DiskFileItemFactory factory = DiskFileItemFactory.builder().setThreshold(8 * 1024).setPath(temp).get();
-		JakartaServletDiskFileUpload upload = new JakartaServletDiskFileUpload(factory);
-		upload.setHeaderCharset(StandardCharsets.UTF_8);
+		JakartaServletDiskFileUpload upload = AbstractUploader.createUploadHandler(context);
 		upload.setMaxFileSize(MAX_IMAGE_BYTES);
 		upload.setMaxSize(MAX_IMAGE_BYTES + 16 * 1024);
 		upload.setMaxFileCount(1);

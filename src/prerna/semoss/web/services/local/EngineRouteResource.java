@@ -62,7 +62,6 @@ import jakarta.ws.rs.core.EntityTag;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Request;
 import jakarta.ws.rs.core.Response;
-import jakarta.ws.rs.core.Response.ResponseBuilder;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityEngineUtils;
@@ -83,6 +82,7 @@ import prerna.util.EmailUtility;
 import prerna.util.EngineUtility;
 import prerna.util.NotificationConstants;
 import prerna.util.Utility;
+import prerna.web.services.util.CatalogImageResponse;
 import prerna.web.services.util.WebUtility;
 
 @Path("/e-{engineId}")
@@ -408,7 +408,9 @@ public class EngineRouteResource {
 	 * Download the image associated with this engine. The lookup falls through
 	 * three sources in order: CouchDB (if enabled), cloud storage (if running in
 	 * cluster mode), and finally the engine's local version folder. If no image
-	 * exists locally the shared stock image is served without copying it.
+	 * exists locally the shared stock image is served without copying it. The
+	 * optional {@code theme=light|dark} query parameter selects the stock artwork
+	 * theme.
 	 * <p>
 	 * Honors HTTP {@code If-None-Match} via an entity tag built from the file's
 	 * path, last-modified timestamp, and size, so an unchanged image returns 304.
@@ -422,7 +424,8 @@ public class EngineRouteResource {
 	 */
 	@GET
 	@Path("/image/download")
-	@Produces({ MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML })
+	@Produces({ "image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml",
+			MediaType.APPLICATION_OCTET_STREAM })
 	public Response imageDownload(@Context final Request coreRequest, @Context HttpServletRequest request,
 			@PathParam("engineId") String engineId) {
 		// not required for containment. getEngineTypeAndSubtype and
@@ -482,13 +485,15 @@ public class EngineRouteResource {
 			return WebUtility.getResponse(returnMap, 400);
 		}
 
+		String imageTheme = request.getParameter("theme");
 		File exportFile = null;
 		// is the image in couch db
 		if (CouchUtil.COUCH_ENABLED) {
 			try {
 				Map<String, String> selectors = new HashMap<>();
 				selectors.put(couchSelector, engineId);
-				return CouchUtil.download(couchSelector, selectors);
+				return CatalogImageResponse.withBrowserCache(coreRequest,
+						CouchUtil.download(couchSelector, selectors, imageTheme));
 			} catch (CouchException e) {
 				classLogger.error(
 						"Failed to download engine image from CouchDB for engine '{}' using selector '{}'; falling through to other sources",
@@ -498,7 +503,7 @@ public class EngineRouteResource {
 		// is the image in cloud storage
 		else if (ClusterUtil.IS_CLUSTER) {
 			try {
-				exportFile = ClusterUtil.getEngineAndProjectImage(engineId, engineType);
+				exportFile = ClusterUtil.getEngineAndProjectImage(engineId, engineType, imageTheme);
 			} catch (Exception e) {
 				classLogger.error("Failed to fetch engine image from cluster storage for engine '{}' (type {})",
 						engineId, engineType, e);
@@ -512,32 +517,16 @@ public class EngineRouteResource {
 			if (exportFile == null) {
 				// Resolve the shared stock file without creating an engine asset.
 				String fileLocation = engineVersionPath + "/" + "image.png";
-				exportFile = DefaultImageGeneratorUtil.getStockImageForPath(fileLocation);
+				exportFile = DefaultImageGeneratorUtil.getStockImageForPath(fileLocation, imageTheme);
 			}
 		}
 
 		if (exportFile != null && exportFile.exists()) {
 			String exportName = engineId + "_Image." + FilenameUtils.getExtension(exportFile.getAbsolutePath());
-			// want to cache this on browser if user has access
-//			CacheControl cc = new CacheControl();
-//			cc.setMaxAge(86400);
-//			cc.setPrivate(true);
-//			cc.setMustRevalidate(true);
 			EntityTag etag = new EntityTag(Integer.toHexString(exportFile.getAbsolutePath().hashCode()) + "-"
 					+ exportFile.lastModified() + "-" + exportFile.length());
-			ResponseBuilder builder = coreRequest.evaluatePreconditions(etag);
-
-			// cached resource did not change
-			if (builder != null) {
-				return builder.build();
-			}
-
-			return Response.status(200).entity(exportFile)
-					.header("Content-Disposition", "attachment; filename=" + exportName)
-//					.cacheControl(cc)
-					.tag(etag)
-//					.lastModified(new Date(exportFile.lastModified()))
-					.build();
+			return CatalogImageResponse.withBrowserCache(coreRequest, Response.ok(exportFile)
+					.header("Content-Disposition", "attachment; filename=" + exportName).tag(etag).build());
 		} else {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Error sending image file");

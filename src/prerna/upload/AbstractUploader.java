@@ -39,6 +39,7 @@ import java.io.StringWriter;
 import java.io.Writer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
@@ -61,12 +62,11 @@ import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 /**
- * Servlet implementation class Uploader
+ * Shared base for multipart file upload servlets
  */
-@SuppressWarnings("serial")
-public abstract class Uploader extends HttpServlet {
+public abstract class AbstractUploader extends HttpServlet {
 
-	private static final Logger classLogger = LogManager.getLogger(Uploader.class);
+	private static final Logger classLogger = LogManager.getLogger(AbstractUploader.class);
 
 	protected static final String DIR_SEPARATOR = java.nio.file.FileSystems.getDefault().getSeparator();
 
@@ -152,6 +152,25 @@ public abstract class Uploader extends HttpServlet {
 	}
 
 	/**
+	 * Creates the multipart parser shared by general and catalog image uploads.
+	 * Callers set their own request limits and progress listeners before parsing.
+	 *
+	 * @param context the servlet context containing the temporary upload path
+	 * @return a parser using temporary disk storage and UTF-8 headers
+	 * @throws IOException if the temporary upload directory cannot be created
+	 */
+	static JakartaServletDiskFileUpload createUploadHandler(ServletContext context) throws IOException {
+		String configuredTemp = context.getInitParameter(TEMP_FILE_UPLOAD_KEY);
+		Path temp = configuredTemp == null ? Path.of(System.getProperty("java.io.tmpdir"))
+				: Path.of(WebUtility.normalizePath(configuredTemp));
+		Files.createDirectories(temp);
+		DiskFileItemFactory factory = DiskFileItemFactory.builder().setThreshold(maxMemSize).setPath(temp).get();
+		JakartaServletDiskFileUpload upload = new JakartaServletDiskFileUpload(factory);
+		upload.setHeaderCharset(StandardCharsets.UTF_8);
+		return upload;
+	}
+
+	/**
 	 * Processes a request to upload a file.
 	 * 
 	 * @param context   The servlet context.
@@ -162,21 +181,14 @@ public abstract class Uploader extends HttpServlet {
 	 */
 	protected List<DiskFileItem> processRequest(@Context ServletContext context, @Context HttpServletRequest request,
 			String insightId) throws FileUploadException {
-		String tempFilePath = context.getInitParameter(TEMP_FILE_UPLOAD_KEY);
-		tempFilePath = normalizeAndCreatePath(tempFilePath);
-
-		List<DiskFileItem> fileItems = null;
-		DiskFileItemFactory factory = DiskFileItemFactory.builder()
-				// maximum size that will be stored in memory
-				.setThreshold(maxMemSize)
-				// Location to save data that is larger than maxMemSize.
-				.setPath(Path.of(tempFilePath)).get();
-		// Create a new file upload handler
-		JakartaServletDiskFileUpload upload = new JakartaServletDiskFileUpload(factory);
+		JakartaServletDiskFileUpload upload;
+		try {
+			upload = createUploadHandler(context);
+		} catch (IOException e) {
+			throw new FileUploadException("Unable to prepare temporary upload directory", e);
+		}
 		// maximum file size to be uploaded.
 		upload.setMaxSize(maxFileSize);
-		// set encoding as well for the request
-		upload.setHeaderCharset(StandardCharsets.UTF_8);
 		// make sure the insight id is valid if present
 		if (insightId != null) {
 			if (InsightStore.getInstance().get(insightId) == null) {
@@ -190,8 +202,7 @@ public abstract class Uploader extends HttpServlet {
 		upload.setProgressListener(progressListener);
 
 		// Parse the request to get file items
-		fileItems = upload.parseRequest(request);
-		return fileItems;
+		return upload.parseRequest(request);
 	}
 
 	/**
