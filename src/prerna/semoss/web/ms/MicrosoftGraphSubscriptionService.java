@@ -103,18 +103,20 @@ public class MicrosoftGraphSubscriptionService {
 	 * <p>
 	 * A preflight so a screen can show the real state instead of a button that
 	 * fails. Three separate things have to be true and each fails differently: the
-	 * signed in user has to have a Microsoft login, the deployment has to request
-	 * a scope that permits subscribing, and Graph has to be able to reach this
+	 * signed in user has to have a Microsoft login, the deployment has to request a
+	 * scope that permits subscribing, and Graph has to be able to reach this
 	 * deployment over public https to run its validation handshake. The last two
-	 * are the administrator's to fix, so they come back as reasons rather than as
-	 * a bare false.
+	 * are the administrator's to fix, so they come back as reasons rather than as a
+	 * bare false.
 	 * <p>
 	 * The scope answer is what this deployment <em>asks</em> for at sign in. It
 	 * cannot see what the tenant consented to, so {@code available: true} means
-	 * nothing is obviously wrong rather than that Graph will agree.
+	 * nothing is obviously wrong rather than that Graph will agree. Only whether
+	 * each resource can be subscribed to is sent, never the scopes, and only to a
+	 * user signed in to the platform.
 	 *
 	 * @param req the request, carrying the session
-	 * @return what is and is not in place
+	 * @return what is and is not in place, or 401 without a signed in user
 	 */
 	@GET
 	@Path("/available")
@@ -125,8 +127,11 @@ public class MicrosoftGraphSubscriptionService {
 		} catch (IllegalAccessException e) {
 			classLogger.debug("Microsoft Graph availability was asked for without a session.", e);
 		}
+		if (user == null || !user.isLoggedIn() || user.isAnonymous()) {
+			return WebUtility.getResponse(Map.of(STATUS, ERROR, REASON, "user session is invalid"), 401);
+		}
 
-		boolean signedIntoMicrosoft = user != null && user.getAccessToken(AuthProvider.MICROSOFT) != null;
+		boolean signedIntoMicrosoft = user.getAccessToken(AuthProvider.MICROSOFT) != null;
 		boolean reachable = MicrosoftGraphSubscriptionClient.isPubliclyReachable();
 		boolean mailScope = MicrosoftGraphSubscriptionClient.hasScopeFor("me/messages");
 		boolean eventScope = MicrosoftGraphSubscriptionClient.hasScopeFor("me/events");
@@ -140,11 +145,12 @@ public class MicrosoftGraphSubscriptionService {
 					+ "posts a validation request to a public https address, and this one answers at "
 					+ MicrosoftGraphSubscriptionClient.publicBaseUrl() + ".");
 		}
+		// which permission is missing is the administrator's to look up, so the
+		// reason names none
 		if (!mailScope && !eventScope) {
-			reasons.add("This deployment does not request a Microsoft permission that allows subscribing. An "
-					+ "administrator needs to add " + MicrosoftGraphSubscriptionClient.acceptableScopes("me/messages")
-					+ " or " + MicrosoftGraphSubscriptionClient.acceptableScopes("me/events")
-					+ " to the ms_scope property, after which everyone has to sign in to Microsoft again.");
+			reasons.add("This deployment's Microsoft sign in does not include a permission that allows subscribing "
+					+ "to mail or calendar changes. An administrator needs to add one, after which everyone has to "
+					+ "sign in to Microsoft again.");
 		}
 
 		Map<String, Object> output = new LinkedHashMap<>();
@@ -439,9 +445,8 @@ public class MicrosoftGraphSubscriptionService {
 	 * Deliberately not their primary login. Somebody can sign in natively or
 	 * through another provider and link Microsoft alongside it, and a subscription
 	 * is a Microsoft thing: it is created with their Microsoft token and rebuilt
-	 * later as a Microsoft identity. Filing it under a native id would mean
-	 * reading the row back and putting that id on a Microsoft token, which is
-	 * nobody.
+	 * later as a Microsoft identity. Filing it under a native id would mean reading
+	 * the row back and putting that id on a Microsoft token, which is nobody.
 	 * </p>
 	 *
 	 * @param user the signed in user
@@ -464,8 +469,7 @@ public class MicrosoftGraphSubscriptionService {
 	 */
 	private static Response requireMicrosoftLogin(User user) {
 		if (userId(user) == null) {
-			return WebUtility.getResponse(
-					Map.of(STATUS, ERROR, REASON, "You are not signed in to Microsoft."), 400);
+			return WebUtility.getResponse(Map.of(STATUS, ERROR, REASON, "You are not signed in to Microsoft."), 400);
 		}
 		return null;
 	}
