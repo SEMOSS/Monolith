@@ -105,6 +105,7 @@ import prerna.util.EngineUtility;
 import prerna.util.NotificationConstants;
 import prerna.util.Utility;
 import prerna.web.requests.OverrideParametersServletRequest;
+import prerna.web.services.util.CatalogImageResponse;
 import prerna.web.services.util.WebUtility;
 
 @Path("/project-{projectId}")
@@ -405,9 +406,9 @@ public class ProjectResource {
 				String html = FileUtils.readFileToString(file, "UTF-8");
 
 				// want to cache this on browser if user has access
-//				CacheControl cc = new CacheControl();
-//				cc.setMaxAge(1);
-//				cc.setPrivate(true);
+				// CacheControl cc = new CacheControl();
+				// cc.setMaxAge(1);
+				// cc.setPrivate(true);
 				EntityTag etag = new EntityTag(Integer.toString(html.hashCode()));
 				ResponseBuilder builder = coreRequest.evaluatePreconditions(etag);
 
@@ -417,9 +418,9 @@ public class ProjectResource {
 				}
 
 				return Response.status(200).entity(html)
-//						.cacheControl(cc)
+						// .cacheControl(cc)
 						.tag(etag)
-//						.lastModified(new Date(file.lastModified()))
+						// .lastModified(new Date(file.lastModified()))
 						.build();
 			} catch (IOException e) {
 				Map<String, String> errorMap = new HashMap<>();
@@ -485,9 +486,9 @@ public class ProjectResource {
 				String contents = FileUtils.readFileToString(file, "UTF-8");
 
 				// want to cache this on browser if user has access
-//				CacheControl cc = new CacheControl();
-//				cc.setMaxAge(1);
-//				cc.setPrivate(true);
+				// CacheControl cc = new CacheControl();
+				// cc.setMaxAge(1);
+				// cc.setPrivate(true);
 				EntityTag etag = new EntityTag(Integer.toString(contents.hashCode()));
 				ResponseBuilder builder = coreRequest.evaluatePreconditions(etag);
 
@@ -497,9 +498,9 @@ public class ProjectResource {
 				}
 
 				return Response.status(200).entity(contents)
-//						.cacheControl(cc)
+						// .cacheControl(cc)
 						.tag(etag)
-//						.lastModified(new Date(file.lastModified()))
+						// .lastModified(new Date(file.lastModified()))
 						.build();
 			} catch (IOException e) {
 				Map<String, String> errorMap = new HashMap<>();
@@ -554,9 +555,9 @@ public class ProjectResource {
 				String contents = new String(Files.readAllBytes(Paths.get(file.getAbsolutePath())));
 
 				// want to cache this on browser if user has access
-//				CacheControl cc = new CacheControl();
-//				cc.setMaxAge(1);
-//				cc.setPrivate(true);
+				// CacheControl cc = new CacheControl();
+				// cc.setMaxAge(1);
+				// cc.setPrivate(true);
 				EntityTag etag = new EntityTag(Integer.toString(contents.hashCode()));
 				ResponseBuilder builder = coreRequest.evaluatePreconditions(etag);
 
@@ -567,9 +568,9 @@ public class ProjectResource {
 
 				String mimeType = Files.probeContentType(file.toPath());
 				return Response.status(200).entity(contents).type(mimeType)
-//						.cacheControl(cc)
+						// .cacheControl(cc)
 						.tag(etag)
-//						.lastModified(new Date(file.lastModified()))
+						// .lastModified(new Date(file.lastModified()))
 						.build();
 			} catch (IOException e) {
 				Map<String, String> errorMap = new HashMap<>();
@@ -633,9 +634,14 @@ public class ProjectResource {
 		return uploadImage(context, request, projectId);
 	}
 
+	/**
+	 * Downloads the uploaded image or stock artwork for the optional light/dark
+	 * theme.
+	 */
 	@GET
 	@Path("/projectImage/download")
-	@Produces({ MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML })
+	@Produces({ "image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml",
+			MediaType.APPLICATION_OCTET_STREAM })
 	public Response downloadProjectImage(@Context final Request coreRequest, @Context HttpServletRequest request,
 			@PathParam("projectId") String projectId) {
 		// not required for containment. canAccessOrDiscoverableProject below resolves
@@ -664,44 +670,33 @@ public class ProjectResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		if (CouchUtil.COUCH_ENABLED) {
+		String imageTheme = request.getParameter("theme");
+		// Instance-managed projects have one consistent badge in every storage mode.
+		File exportFile = DefaultImageGeneratorUtil.getSystemProjectImage(projectId, imageTheme);
+		if (exportFile == null && CouchUtil.COUCH_ENABLED) {
 			try {
 				Map<String, String> selectors = new HashMap<>();
 				selectors.put(CouchUtil.PROJECT, projectId);
-				return CouchUtil.download(CouchUtil.PROJECT, selectors);
+				return CatalogImageResponse.withBrowserCache(coreRequest,
+						CouchUtil.download(CouchUtil.PROJECT, selectors, imageTheme));
 			} catch (CouchException e) {
 				classLogger.error("Failed to download project image from CouchDB for project {}", projectId, e);
 			}
 		}
 
-		File exportFile = null;
-		try {
-			exportFile = getProjectImageFile(projectId);
-		} catch (Exception e) {
-			classLogger.error("Failed to resolve project image file for project {}", projectId, e);
+		if (exportFile == null) {
+			try {
+				exportFile = getProjectImageFile(projectId, imageTheme);
+			} catch (Exception e) {
+				classLogger.error("Failed to resolve project image file for project {}", projectId, e);
+			}
 		}
 		if (exportFile != null && exportFile.exists()) {
 			String exportName = projectId + "_Image." + FilenameUtils.getExtension(exportFile.getAbsolutePath());
-			// want to cache this on browser if user has access
-//			CacheControl cc = new CacheControl();
-//			cc.setMaxAge(86400);
-//			cc.setPrivate(true);
-//			cc.setMustRevalidate(true);
 			EntityTag etag = new EntityTag(Integer.toHexString(exportFile.getAbsolutePath().hashCode()) + "-"
 					+ exportFile.lastModified() + "-" + exportFile.length());
-			ResponseBuilder builder = coreRequest.evaluatePreconditions(etag);
-
-			// cached resource did not change
-			if (builder != null) {
-				return builder.build();
-			}
-
-			return Response.status(200).entity(exportFile)
-					.header("Content-Disposition", "attachment; filename=" + exportName)
-//					.cacheControl(cc)
-					.tag(etag)
-//					.lastModified(new Date(exportFile.lastModified()))
-					.build();
+			return CatalogImageResponse.withBrowserCache(coreRequest, Response.ok(exportFile)
+					.header("Content-Disposition", "attachment; filename=" + exportName).tag(etag).build());
 		} else {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "error sending image file");
@@ -717,8 +712,13 @@ public class ProjectResource {
 	 * @throws Exception
 	 */
 	protected File getProjectImageFile(String projectId) throws Exception {
+		return getProjectImageFile(projectId, null);
+	}
+
+	/** Preserves uploaded images and themes only the shared stock fallback. */
+	protected File getProjectImageFile(String projectId, String theme) throws Exception {
 		if (ClusterUtil.IS_CLUSTER) {
-			return ClusterUtil.getEngineAndProjectImage(projectId, IEngine.CATALOG_TYPE.PROJECT);
+			return ClusterUtil.getEngineAndProjectImage(projectId, IEngine.CATALOG_TYPE.PROJECT, theme);
 		}
 		projectId = WebUtility.inputSanitizer(projectId);
 
@@ -731,12 +731,13 @@ public class ProjectResource {
 			return f;
 		}
 		// Resolve the shared stock file without creating a project asset.
-		return DefaultImageGeneratorUtil.getStockImageForPath(fileLocation + DIR_SEPARATOR + "image.png");
+		return DefaultImageGeneratorUtil.getStockImageForPath(fileLocation + DIR_SEPARATOR + "image.png", theme);
 	}
 
 	@GET
 	@Path("/insightImage/download")
-	@Produces({ MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML })
+	@Produces({ "image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml",
+			MediaType.APPLICATION_OCTET_STREAM })
 	public Response downloadInsightImage(@Context final Request coreRequest, @Context HttpServletRequest request,
 			@PathParam("projectId") String projectId, @QueryParam("rdbmsId") String id,
 			@QueryParam("params") String params) {
@@ -778,7 +779,7 @@ public class ProjectResource {
 				Map<String, String> selectors = new HashMap<>();
 				selectors.put(CouchUtil.INSIGHT, id);
 				selectors.put(CouchUtil.PROJECT, projectId);
-				return CouchUtil.download(CouchUtil.INSIGHT, selectors);
+				return CatalogImageResponse.withContentType(CouchUtil.download(CouchUtil.INSIGHT, selectors));
 			} catch (CouchException e) {
 				classLogger.error("Failed to download insight image from CouchDB for project {} and insight {}",
 						projectId, id, e);
@@ -790,11 +791,11 @@ public class ProjectResource {
 		if (exportFile != null && exportFile.exists()) {
 			String exportName = projectId + "_Image." + FilenameUtils.getExtension(exportFile.getAbsolutePath());
 			// want to cache this on browser if user has access
-//			CacheControl cc = new CacheControl();
-//			cc.setMaxAge(86400);
-//			cc.setPrivate(true);
-//			cc.setMustRevalidate(true);
-			EntityTag etag = new EntityTag(Long.toString(exportFile.lastModified()));
+			// CacheControl cc = new CacheControl();
+			// cc.setMaxAge(86400);
+			// cc.setPrivate(true);
+			// cc.setMustRevalidate(true);
+			EntityTag etag = new EntityTag("image-v2-" + exportFile.lastModified());
 			ResponseBuilder builder = coreRequest.evaluatePreconditions(etag);
 
 			// cached resource did not change
@@ -802,12 +803,8 @@ public class ProjectResource {
 				return builder.build();
 			}
 
-			return Response.status(200).entity(exportFile)
-					.header("Content-Disposition", "attachment; filename=" + exportName)
-//					.cacheControl(cc)
-					.tag(etag)
-//					.lastModified(new Date(exportFile.lastModified()))
-					.build();
+			return CatalogImageResponse.withContentType(Response.ok(exportFile)
+					.header("Content-Disposition", "attachment; filename=" + exportName).tag(etag).build());
 		} else {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Error sending image file");
@@ -850,20 +847,21 @@ public class ProjectResource {
 			// JK! this is super annoying when running a bunch of
 			// insights at the same time which is what happens
 			// currently on the app home page
-//			if (!ClusterUtil.IS_CLUSTER) {
-//				if(feUrl != null) {
-//					try {
-//						ImageCaptureReactor.runImageCapture(feUrl, appId, id, params, sessionId);
-//					}
-//					catch(Exception | NoSuchMethodError er) {
-//						//Image Capture will not run. No image exists nor will be made. The exception kills the rest.
-//						// return stock image
-//						er.printStackTrace();
-//						f = AbstractSecurityUtils.getStockImage(appId, id);
-//						return f;
-//					}
-//				}
-//			}
+			// if (!ClusterUtil.IS_CLUSTER) {
+			// if(feUrl != null) {
+			// try {
+			// ImageCaptureReactor.runImageCapture(feUrl, appId, id, params, sessionId);
+			// }
+			// catch(Exception | NoSuchMethodError er) {
+			// //Image Capture will not run. No image exists nor will be made. The exception
+			// kills the rest.
+			// // return stock image
+			// er.printStackTrace();
+			// f = AbstractSecurityUtils.getStockImage(appId, id);
+			// return f;
+			// }
+			// }
+			// }
 			// the image capture ran
 			// let us try to see if there is a file now...
 			f = findImageFile(fileLocation);

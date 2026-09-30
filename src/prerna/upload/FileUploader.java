@@ -87,7 +87,7 @@ import prerna.web.services.util.WebUtility;
 
 @Path("/uploadFile")
 @PermitAll
-public class FileUploader extends Uploader {
+public class FileUploader extends AbstractUploader {
 
 	private static final long serialVersionUID = 1L;
 

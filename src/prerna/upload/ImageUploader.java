@@ -71,7 +71,7 @@ import prerna.web.services.util.WebUtility;
 
 @Path("/images")
 @PermitAll
-public class ImageUploader extends Uploader {
+public class ImageUploader extends AbstractUploader {
 
 	private static final Logger classLogger = LogManager.getLogger(ImageUploader.class);
 
@@ -124,7 +124,7 @@ public class ImageUploader extends Uploader {
 		try {
 			for (DiskFileItem fi : fileItems) {
 				String fieldName = fi.getFieldName();
-				String value = WebUtility.inputSanitizer(Uploader.convertToString(fi.getReader()));
+				String value = WebUtility.inputSanitizer(AbstractUploader.convertToString(fi.getReader()));
 				if (fieldName.equals("file")) {
 					imageFile = fi;
 				}
@@ -480,7 +480,7 @@ public class ImageUploader extends Uploader {
 		try {
 			for (DiskFileItem fi : fileItems) {
 				String fieldName = fi.getFieldName();
-				String value = WebUtility.inputSanitizer(Uploader.convertToString(fi.getReader()));
+				String value = WebUtility.inputSanitizer(AbstractUploader.convertToString(fi.getReader()));
 				if (fieldName.equals("file")) {
 					imageFile = fi;
 				}
@@ -736,7 +736,7 @@ public class ImageUploader extends Uploader {
 		try {
 			for (DiskFileItem fi : fileItems) {
 				String fieldName = fi.getFieldName();
-				String value = WebUtility.inputSanitizer(Uploader.convertToString(fi.getReader()));
+				String value = WebUtility.inputSanitizer(AbstractUploader.convertToString(fi.getReader()));
 				if (fieldName.equals("file")) {
 					imageFile = fi;
 				}
