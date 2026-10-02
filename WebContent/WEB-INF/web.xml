@@ -760,4 +760,15 @@
          <secure>false</secure>
 	  </cookie-config>
    </session-config>
+
+<!-- Security constraint to restrict TRACE method for all URLs -->   
+   <security-constraint>
+      <web-resource-collection>
+         <web-resource-name>restricted methods</web-resource-name>
+         <url-pattern>/*</url-pattern>
+         <http-method>TRACE</http-method>
+      </web-resource-collection>
+      <auth-constraint />
+   </security-constraint>
+
 </web-app>
