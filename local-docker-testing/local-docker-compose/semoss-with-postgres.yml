@@ -20,9 +20,6 @@ services:
       NETTY_PYTHON: 'true'
       NATIVE_PY_SERVER: 'true'
       SMSS_PYTHONHOME: /usr/lib/python/semossvenv
-
-      NODE_HOME: /opt/node
-      AGENT_DEFAULT_TOOLS_ENABLE_NODE: 'true'
       R_ON: 'false'
       MODEL_INFERENCE_LOGS_ENABLED: 'true'
       USER_TRACKING_ENABLED: 'true'
@@ -34,6 +31,15 @@ services:
       CHROOT_DIR: /opt/chroot
       CHROOT_SYMLINK_PATHS: /usr/lib/python
       FAKECHROOT_EXCLUDE_PATH: /dev
+
+      # node agent execution environment (ExecuteNodeCode agent tool)
+      NODE_HOME: /opt/node
+      AGENT_DEFAULT_TOOLS_ENABLE_NODE: 'true'
+
+      # semoss-maintained services, run from
+      # Semoss/docker-compose-examples/engines/semoss-maintained/
+      UNOSERVER: 'http://semoss-unoserver:8080'
+      NODE_SERVER_ENDPOINT: 'http://semoss-node-builder:3000'
 
       # local master
       CUSTOM_LM_RDBMS_TYPE : "postgres"
@@ -100,7 +106,7 @@ services:
       CUSTOM_AUDITLOGS_PASSWORD: "mypassword"
       CUSTOM_AUDITLOGS_CONNECTION_URL: "jdbc:postgresql://db:5432/semoss_audit?currentSchema=public"
 
-    command: /bin/bash -c "sed -i 's@^AGENT_DEFAULT_TOOLS_ENABLE_NODE.*@AGENT_DEFAULT_TOOLS_ENABLE_NODE\ttrue@' /opt/semosshome/RDF_Map.prop && runCS.sh"
+    command: /bin/bash -c "runCS.sh"
     depends_on:
       db:
         condition: service_healthy
@@ -147,4 +153,8 @@ volumes:
   pgdata:
 
 networks:
+  # the same network as Semoss/docker-compose-examples, so this stack reaches the
+  # engines/ and engines/semoss-maintained/ services there by container name
   mynetwork:
+    external: true
+    name: semoss-net

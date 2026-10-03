@@ -44,6 +44,30 @@ All four use `image: local-monolith` and the Postgres credentials
   client (`mc`) to create the `semoss` bucket. Used by every variant except the
   basic one.
 
+## Shared network
+
+Every variant joins the external Docker network `semoss-net`, the same one the
+[SEMOSS compose examples](../../../Semoss/docker-compose-examples/) use. A
+`local-monolith` stack and a stack on the published image therefore reach the
+same supporting containers by name:
+
+- the engines in `Semoss/docker-compose-examples/engines/` (Weaviate, Chroma,
+  pgvector, ClickHouse, MinIO, SFTP, mail, ...)
+- the services in `Semoss/docker-compose-examples/engines/semoss-maintained/`.
+  Every variant sets `UNOSERVER: 'http://semoss-unoserver:8080'` and
+  `NODE_SERVER_ENDPOINT: 'http://semoss-node-builder:3000'`, so bringing those
+  up turns on document conversion and app builds.
+
+Create the network once (it persists until you delete it):
+
+```bash
+docker network create semoss-net
+```
+
+Both sets of stacks use the same container names (`semoss`, `postgres`,
+`minio`, ...), so run one SEMOSS stack at a time, local or published. The
+supporting containers can stay up across the switch.
+
 ## Usage
 
 After building `local-monolith`, from this directory choose one variant with `-f`:
@@ -101,3 +125,6 @@ ZooKeeper, `echo ruok | nc localhost 2181` should return `imok`.
   only - change the credentials and integrate an external SSO before exposing any
   of this.
 - Python is enabled (`NETTY_PYTHON` / `NATIVE_PY_SERVER`); R is off (`R_ON: 'false'`).
+- The node agent execution environment is on (`AGENT_DEFAULT_TOOLS_ENABLE_NODE: 'true'`),
+  which registers the `ExecuteNodeCode` agent tool. The image already sets
+  `NODE_HOME=/opt/node`; the compose files set it as well so the path is visible.
