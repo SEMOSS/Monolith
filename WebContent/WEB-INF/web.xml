@@ -44,7 +44,7 @@
 	  </init-param>
       <init-param>
          <param-name>randomClass</param-name>
-         <param-value>java.security.SecureRandom</param-value>
+         <param-value>prerna.security.FipsPreferredSecureRandom</param-value>
       </init-param>
       <init-param>
          <param-name>excluded-paths</param-name>
