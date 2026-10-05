@@ -46,6 +46,7 @@ import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import prerna.auth.AccessPermissionEnum;
+import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityGroupProjectUtils;
 import prerna.semoss.web.services.local.ResourceUtility;
@@ -76,7 +77,7 @@ public class GroupProjectAuthorizationResource {
 			@QueryParam("projectId") String projectId) {
 
 		projectId = WebUtility.inputSanitizer(projectId);
-		type = WebUtility.inputSanitizer(type);
+		type = AuthProvider.getProviderLabel(WebUtility.inputSanitizer(type));
 		groupId = WebUtility.inputSQLSanitizer(groupId);
 
 		Map<String, String> errorMap = new HashMap<String, String>();
@@ -141,7 +142,7 @@ public class GroupProjectAuthorizationResource {
 		}
 
 		String groupId = WebUtility.inputSQLSanitizer(form.getFirst("groupId"));
-		String type = WebUtility.inputSanitizer(form.getFirst("type"));
+		String type = AuthProvider.getProviderLabel(WebUtility.inputSanitizer(form.getFirst("type")));
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
@@ -206,7 +207,7 @@ public class GroupProjectAuthorizationResource {
 		}
 
 		String groupId = WebUtility.inputSQLSanitizer(form.getFirst("groupId"));
-		String type = WebUtility.inputSanitizer(form.getFirst("type"));
+		String type = AuthProvider.getProviderLabel(WebUtility.inputSanitizer(form.getFirst("type")));
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String newPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
@@ -272,7 +273,7 @@ public class GroupProjectAuthorizationResource {
 		}
 
 		String groupId = WebUtility.inputSQLSanitizer(form.getFirst("groupId"));
-		String type = WebUtility.inputSanitizer(form.getFirst("type"));
+		String type = AuthProvider.getProviderLabel(WebUtility.inputSanitizer(form.getFirst("type")));
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		try {
 			if (groupId == null || (groupId = groupId.trim()).isEmpty()) {

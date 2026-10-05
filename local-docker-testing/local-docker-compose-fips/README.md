@@ -5,7 +5,8 @@ Identical in every respect except:
 
 - `image: local-monolith-fips` instead of `local-monolith`
 - Compose project names are prefixed `local-monolith-fips-`, so a FIPS stack and a
-  normal stack can run side by side without sharing containers, volumes or networks
+  normal stack keep separate volumes. Both join the shared `semoss-net` network
+  (see [Shared network](../local-docker-compose/README.md#shared-network))
 - `init.sql` and `init-bucket.sh` are referenced from `../local-docker-compose/`
   rather than duplicated
 
