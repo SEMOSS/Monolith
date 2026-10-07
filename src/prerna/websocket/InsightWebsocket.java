@@ -45,7 +45,11 @@ import jakarta.websocket.Session;
 import jakarta.websocket.server.ServerEndpoint;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.StreamingOutput;
+import prerna.auth.AccessPermissionEnum;
 import prerna.auth.User;
+import prerna.auth.utils.AbstractSecurityUtils;
+import prerna.auth.utils.SecurityProjectUtils;
+import prerna.logging.AppLogManager;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.reactor.agent.ClaudeCodeTranscriptParser;
@@ -128,21 +132,43 @@ public class InsightWebsocket {
 		String insightId = (String) session.getUserProperties().get(INSIGHT_ID);
 		String type = json.optString("type", "");
 		String roomId = json.optString("roomId", "");
+		String projectId = json.optString("projectId", "");
 
 		if (type.isEmpty()) {
 			sendError(session, "watch requires a 'type' field");
 			return;
 		}
 
-		FileStreamer streamer = createStreamer(type, json, insightId);
+		// Project-scoped streams are gated here, before a streamer is ever created -
+		// the socket only proves "logged in", not "allowed to see this project's logs".
+		if ("app_logs".equals(type)) {
+			if (!AppLogManager.isEnabled()) {
+				sendError(session, "Application logging is disabled");
+				return;
+			}
+			if (projectId.isEmpty()) {
+				sendError(session, "app_logs watch requires a 'projectId' field");
+				return;
+			}
+			User user = (User) session.getUserProperties().get(Constants.SESSION_USER);
+			if (!isProjectOwner(user, projectId)) {
+				sendError(session, "Only project owners can view app logs");
+				return;
+			}
+		}
+
+		FileStreamer streamer = createStreamer(type, json, insightId, session);
 		if (streamer == null) {
 			sendError(session, "Unknown streamer type: " + type);
 			return;
 		}
 
-		String streamerKey = type + ":" + roomId;
+		// Key by whichever scope id the type uses - roomId for claude_code,
+		// projectId for app_logs - so two different watches on the same insight
+		// don't collide under an empty-string key.
+		String streamerKey = buildStreamerKey(type, roomId, projectId, session);
 		SocketSessionHandler handler = SocketSessionHandlerFactory.getHandler(insightId);
-		handler.startStreamer(streamerKey, streamer);
+		handler.startStreamer(streamerKey, streamer, "app_logs".equals(type) ? session.getId() : null);
 
 		// Acknowledge the watch start
 		JSONObject ack = new JSONObject();
@@ -151,22 +177,53 @@ public class InsightWebsocket {
 		if (!roomId.isEmpty()) {
 			ack.put("roomId", roomId);
 		}
+		if (!projectId.isEmpty()) {
+			ack.put("projectId", projectId);
+		}
 		try {
-			session.getBasicRemote().sendText(ack.toString());
+			// Same lock SocketSessionHandler uses - a streamer thread pushing a line to
+			// this session and this ack send must not race Tomcat's WS RemoteEndpoint.
+			synchronized (session) {
+				session.getBasicRemote().sendText(ack.toString());
+			}
 		} catch (IOException e) {
 			classLogger.error("Failed to send watch ack", e);
 		}
 	}
 
 	/**
+	 * Whether {@code user} is an owner of {@code projectId}. App logs can expose
+	 * request/response payloads and other users' activity, so this stays
+	 * owner-only, not owner-or-editor.
+	 */
+	private boolean isProjectOwner(User user, String projectId) {
+		if (user == null || user.getPrimaryLoginToken() == null) {
+			return false;
+		}
+		if (AbstractSecurityUtils.anonymousUsersEnabled() && user.isAnonymous()) {
+			return false;
+		}
+		String userId = user.getPrimaryLoginToken().getId();
+		Integer permissionLvl = SecurityProjectUtils.getUserProjectPermission(userId, projectId);
+		return permissionLvl != null && AccessPermissionEnum.isOwner(permissionLvl);
+	}
+
+	/**
 	 * Create the appropriate FileStreamer for the given type. Add new streamer
 	 * types here as simple cases.
 	 */
-	private FileStreamer createStreamer(String type, JSONObject json, String insightId) {
+	private FileStreamer createStreamer(String type, JSONObject json, String insightId, Session session) {
 		switch (type) {
 		case "claude_code": {
 			String roomId = json.getString("roomId");
 			return new ClaudeCodeHistoryStreamer(roomId, insightId, ClaudeCodeTranscriptParser::parse);
+		}
+		case "app_logs": {
+			String projectId = json.getString("projectId");
+			String projectName = SecurityProjectUtils.getProjectAliasForId(projectId);
+			User user = (User) session.getUserProperties().get(Constants.SESSION_USER);
+			return new AppLogStreamer(projectId, projectName, insightId, session.getId(),
+					user.getPrimaryLoginToken().getId());
 		}
 		default:
 			return null;
@@ -174,7 +231,7 @@ public class InsightWebsocket {
 	}
 
 	/**
-	 * Stop a streamer by type and roomId.
+	 * Stop a streamer by type and roomId/projectId.
 	 *
 	 * Message format: { "action": "unwatch", "type": "claude_code", "roomId":
 	 * "abc-123" }
@@ -183,10 +240,19 @@ public class InsightWebsocket {
 		String insightId = (String) session.getUserProperties().get(INSIGHT_ID);
 		String type = json.optString("type", "");
 		String roomId = json.optString("roomId", "");
-		String streamerKey = type + ":" + roomId;
+		String projectId = json.optString("projectId", "");
+		String streamerKey = buildStreamerKey(type, roomId, projectId, session);
 
 		SocketSessionHandler handler = SocketSessionHandlerFactory.getHandler(insightId);
 		handler.stopStreamer(streamerKey);
+	}
+
+	private String buildStreamerKey(String type, String roomId, String projectId, Session session) {
+		String scopeId = roomId.isEmpty() ? projectId : roomId;
+		if ("app_logs".equals(type)) {
+			return type + ":" + scopeId + ":" + session.getId();
+		}
+		return type + ":" + scopeId;
 	}
 
 	/**
@@ -234,7 +300,9 @@ public class InsightWebsocket {
 			JSONObject error = new JSONObject();
 			error.put("action", "error");
 			error.put("message", errorMessage);
-			session.getBasicRemote().sendText(error.toString());
+			synchronized (session) {
+				session.getBasicRemote().sendText(error.toString());
+			}
 		} catch (IOException e) {
 			classLogger.error("Failed to send error to client", e);
 		}
