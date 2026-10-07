@@ -46,6 +46,9 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import prerna.util.Utility;
+import prerna.web.services.util.WebUtility;
+
 /**
  * Persists Vertex/Gemini {@code thought_signature} bytes per tool_use_id in a
  * sidecar JSONL file alongside Claude Code's session transcript.
@@ -87,7 +90,17 @@ public class ThoughtSignatureSidecar {
 		if (roomFolderPath == null || roomFolderPath.isEmpty()) {
 			return null;
 		}
-		return Paths.get(roomFolderPath, FILENAME);
+		try {
+			Path roomsRoot = Paths.get(Utility.getBaseFolder(), "room").toAbsolutePath().normalize();
+			Path suppliedRoom = Paths.get(roomFolderPath).toAbsolutePath().normalize();
+			if (!suppliedRoom.startsWith(roomsRoot)) {
+				return null;
+			}
+			Path containedRoom = WebUtility.resolveWithin(roomsRoot, roomsRoot.relativize(suppliedRoom).toString());
+			return containedRoom.resolve(FILENAME);
+		} catch (IOException | IllegalArgumentException | SecurityException e) {
+			return null;
+		}
 	}
 
 	/**

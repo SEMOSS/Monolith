@@ -33,7 +33,9 @@ import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.Principal;
+import java.security.SecureRandom;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -105,6 +107,28 @@ public class UserResource {
 	private static final Logger classLogger = LogManager.getLogger(UserResource.class);
 
 	private static final String CUSTOM_REDIRECT_SESSION_KEY = "custom_redirect";
+	private static final String OAUTH_DISABLE_REDIRECT_SESSION_KEY = "oauth_disable_redirect";
+
+	private static final SecureRandom NONCE_RANDOM = new SecureRandom();
+
+	/**
+	 * What a login started with {@code disableRedirect=true} ends on instead of a
+	 * redirect: the window the sign in ran in closes itself. The FE that opened it
+	 * also closes it once it sees the login, so the page works without its script.
+	 */
+	private static final String LOGIN_COMPLETE_PAGE = """
+			<!DOCTYPE html>
+			<html lang="en">
+				<head>
+					<meta charset="utf-8">
+					<title>Signed in</title>
+				</head>
+				<body>
+					<p>You are signed in. You can close this window.</p>
+					<script nonce="%s">window.close();</script>
+				</body>
+			</html>
+			""";
 
 	private static SocialPropertiesUtil socialData = null;
 	static {
@@ -405,7 +429,8 @@ public class UserResource {
 
 	/**
 	 * Initializes an OAuth login flow session and stores a custom redirect value
-	 * when present.
+	 * when present, and whether the login should end without a redirect
+	 * ({@code disableRedirect=true}).
 	 *
 	 * @param request inbound HTTP request
 	 * @return existing or newly-created session
@@ -419,7 +444,69 @@ public class UserResource {
 			}
 			session.setAttribute(CUSTOM_REDIRECT_SESSION_KEY, customRedirect);
 		}
+
+		// the provider's callback does not carry the parameters the login started
+		// with, so disableRedirect is kept in the session until the login ends. A
+		// login that starts without it drops one an abandoned login left behind.
+		if (!isOAuthCallback(request)) {
+			if (Boolean.parseBoolean(request.getParameter("disableRedirect"))) {
+				if (session == null) {
+					session = request.getSession();
+				}
+				session.setAttribute(OAUTH_DISABLE_REDIRECT_SESSION_KEY, Boolean.TRUE);
+			} else if (session != null) {
+				session.removeAttribute(OAUTH_DISABLE_REDIRECT_SESSION_KEY);
+			}
+		}
 		return session;
+	}
+
+	/**
+	 * Whether a request to an OAuth login endpoint is the provider sending the user
+	 * back, rather than the FE starting a login.
+	 *
+	 * @param request inbound HTTP request
+	 * @return true for a provider callback
+	 */
+	private boolean isOAuthCallback(HttpServletRequest request) {
+		return request.getParameter("code") != null || request.getParameter("state") != null
+				|| request.getParameter("error") != null;
+	}
+
+	/**
+	 * Ends a successful OAuth login. A login started with
+	 * {@code disableRedirect=true}, such as one the FE opened in a popup, ends on a
+	 * page that closes its window; every other login is redirected to the main page
+	 * or its custom redirect.
+	 *
+	 * @param request  inbound HTTP request
+	 * @param response outbound HTTP response
+	 * @throws IOException when the response cannot be written
+	 */
+	private void finishOAuthLogin(HttpServletRequest request, HttpServletResponse response) throws IOException {
+		HttpSession session = request.getSession();
+		if (!Boolean.TRUE.equals(session.getAttribute(OAUTH_DISABLE_REDIRECT_SESSION_KEY))) {
+			setMainPageRedirect(request, response);
+			return;
+		}
+
+		session.removeAttribute(OAUTH_DISABLE_REDIRECT_SESSION_KEY);
+		session.removeAttribute(CUSTOM_REDIRECT_SESSION_KEY);
+		addSessionCookieHeader(request, response, session);
+
+		byte[] nonceBytes = new byte[16];
+		NONCE_RANDOM.nextBytes(nonceBytes);
+		String nonce = Base64.getEncoder().encodeToString(nonceBytes);
+
+		response.setStatus(HttpServletResponse.SC_OK);
+		response.setContentType("text/html;charset=UTF-8");
+		response.setHeader("Cache-Control", "no-store");
+		// its own policy: only this page's one script may run
+		response.setHeader("Content-Security-Policy", "default-src 'none'; script-src 'nonce-" + nonce
+				+ "'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'");
+		response.getWriter().write(LOGIN_COMPLETE_PAGE.formatted(nonce));
+		// commit it here, since the resource method returns null
+		response.flushBuffer();
 	}
 
 	/**
@@ -585,8 +672,14 @@ public class UserResource {
 					String userInfoUrl = (String) details.get("userInfoUrl");
 
 					if (clientId == null || clientSecret == null || redirectUri == null) {
+						classLogger.warn(
+								"Jira credentials unavailable for connectionId='{}'; missing clientId={}, clientSecret={}, redirectUri={}",
+								Utility.cleanLogString(connectionId), clientId == null, clientSecret == null,
+								redirectUri == null);
+						response.setContentType("text/plain; charset=UTF-8");
+						response.setHeader("X-Content-Type-Options", "nosniff");
 						response.setStatus(400);
-						response.getWriter().write("Jira credentials not found for connection id = " + connectionId);
+						response.getWriter().write("Jira credentials not found for the requested connection");
 						return null;
 					}
 
@@ -635,7 +728,7 @@ public class UserResource {
 			return null;
 		}
 
-		setMainPageRedirect(request, response);
+		finishOAuthLogin(request, response);
 		return null;
 	}
 
@@ -670,8 +763,13 @@ public class UserResource {
 		String scope = (String) details.get("scope");
 
 		if (clientId == null || scope == null || redirectUri == null) {
+			classLogger.warn(
+					"Jira credentials unavailable for connectionId='{}'; missing clientId={}, scope={}, redirectUri={}",
+					Utility.cleanLogString(connectionId), clientId == null, scope == null, redirectUri == null);
+			response.setContentType("text/plain; charset=UTF-8");
+			response.setHeader("X-Content-Type-Options", "nosniff");
 			response.setStatus(400);
-			response.getWriter().write("Jira credentials not found for connection id = " + connectionId);
+			response.getWriter().write("Jira credentials not found for the requested connection");
 			return null;
 		}
 
@@ -824,9 +922,14 @@ public class UserResource {
 					String clientSecret = details.getValue1();
 
 					if (clientId == null || clientSecret == null || redirectUri == null) {
+						classLogger.warn(
+								"Salesforce credentials unavailable for connectionId='{}'; missing clientId={}, clientSecret={}, redirectUri={}",
+								Utility.cleanLogString(connectionId), clientId == null, clientSecret == null,
+								redirectUri == null);
+						response.setContentType("text/plain; charset=UTF-8");
+						response.setHeader("X-Content-Type-Options", "nosniff");
 						response.setStatus(400);
-						response.getWriter()
-								.write("Salesforce credentials not found for connection id = " + connectionId);
+						response.getWriter().write("Salesforce credentials not found for the requested connection");
 						return null;
 					}
 
@@ -869,7 +972,7 @@ public class UserResource {
 			return null;
 		}
 
-		setMainPageRedirect(request, response);
+		finishOAuthLogin(request, response);
 		return null;
 	}
 
@@ -963,9 +1066,14 @@ public class UserResource {
 					String userInfoUrl = details.get("userProfileUrl"); // to pass to fillAccessToken method
 
 					if (instanceUrl == null || clientId == null || clientSecret == null || redirectUri == null) {
+						classLogger.warn(
+								"ServiceNow credentials unavailable for connectionId='{}'; missing instanceUrl={}, clientId={}, clientSecret={}, redirectUri={}",
+								Utility.cleanLogString(connectionId), instanceUrl == null, clientId == null,
+								clientSecret == null, redirectUri == null);
+						response.setContentType("text/plain; charset=UTF-8");
+						response.setHeader("X-Content-Type-Options", "nosniff");
 						response.setStatus(400);
-						response.getWriter()
-								.write("ServiceNow credentials not found for connection id =" + connectionId);
+						response.getWriter().write("ServiceNow credentials not found for the requested connection");
 						return null;
 					}
 
@@ -1009,7 +1117,7 @@ public class UserResource {
 			return null;
 		}
 
-		setMainPageRedirect(request, response);
+		finishOAuthLogin(request, response);
 		return null;
 	}
 
@@ -1169,7 +1277,7 @@ public class UserResource {
 			return null;
 		}
 
-		setMainPageRedirect(request, response);
+		finishOAuthLogin(request, response);
 		return null;
 	}
 
@@ -1840,21 +1948,12 @@ public class UserResource {
 		// if so, we will send them back to that URL
 		// otherwise, we send them back to the FE
 		HttpSession session = request.getSession();
-		String contextPath = request.getContextPath();
 
 		boolean useCustom = customRedirect != null && !customRedirect.isEmpty();
 		boolean endpoint = session.getAttribute(Constants.ENDPOINT_REDIRECT_KEY) != null;
 		response.setStatus(302);
 		try {
-			boolean secureRequest = "https".equalsIgnoreCase(WebUtility.getProtocol(request));
-			// add the cookie to the header directly
-			// to allow for cross site login when embedded as iframe
-			String setCookieString = DBLoader.getSessionIdKey() + "=" + session.getId() + "; Path=" + contextPath
-					+ "; HttpOnly"
-					+ ((ClusterUtil.IS_CLUSTER || secureRequest)
-							? ("; Secure; SameSite=" + Utility.getSameSiteCookieValue())
-							: "");
-			response.addHeader("Set-Cookie", setCookieString);
+			addSessionCookieHeader(request, response, session);
 			if (useCustom) {
 				response.addHeader("redirect", customRedirect);
 				String encodedCustomRedirect = Encode.forHtml(customRedirect);
@@ -1869,6 +1968,24 @@ public class UserResource {
 		} catch (IOException e) {
 			classLogger.error("Unexpected error in setMainPageRedirect", e);
 		}
+	}
+
+	/**
+	 * Adds the session cookie to the response directly, to allow for cross site
+	 * login when the app is embedded as an iframe.
+	 *
+	 * @param request  inbound HTTP request
+	 * @param response outbound HTTP response
+	 * @param session  the logged in session
+	 */
+	private void addSessionCookieHeader(HttpServletRequest request, HttpServletResponse response, HttpSession session) {
+		boolean secureRequest = "https".equalsIgnoreCase(WebUtility.getProtocol(request));
+		String setCookieString = DBLoader.getSessionIdKey() + "=" + session.getId() + "; Path="
+				+ request.getContextPath() + "; HttpOnly"
+				+ ((ClusterUtil.IS_CLUSTER || secureRequest)
+						? ("; Secure; SameSite=" + Utility.getSameSiteCookieValue())
+						: "");
+		response.addHeader("Set-Cookie", setCookieString);
 	}
 
 	//////////////////////////////////////////////////////////////////////

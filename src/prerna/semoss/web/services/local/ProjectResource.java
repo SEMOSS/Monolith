@@ -56,8 +56,10 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 import jakarta.annotation.security.PermitAll;
+import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
+import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
@@ -94,6 +96,7 @@ import prerna.sablecc2.PixelRunner;
 import prerna.sablecc2.PixelStreamUtility;
 import prerna.sablecc2.om.NounStore;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
+import prerna.upload.CatalogImageUploader;
 import prerna.util.AssetUtility;
 import prerna.util.Constants;
 import prerna.util.DefaultImageGeneratorUtil;
@@ -102,6 +105,7 @@ import prerna.util.EngineUtility;
 import prerna.util.NotificationConstants;
 import prerna.util.Utility;
 import prerna.web.requests.OverrideParametersServletRequest;
+import prerna.web.services.util.CatalogImageResponse;
 import prerna.web.services.util.WebUtility;
 
 @Path("/project-{projectId}")
@@ -152,7 +156,15 @@ public class ProjectResource {
 	@Path("/updateSmssFile")
 	@Produces("application/json;charset=utf-8")
 	public Response updateSmssFile(@Context HttpServletRequest request, @PathParam("projectId") String projectId) {
-		projectId = WebUtility.inputSanitizer(projectId);
+		// not required for containment. projectExists/userIsOwner below resolve
+		// projectId against the PROJECT table on both the admin and non-admin branch,
+		// so a traversal value is rejected before it reaches the smss file path
+		projectId = WebUtility.safePathSegment(WebUtility.inputSanitizer(projectId));
+		if (!WebUtility.isSafePathSegment(projectId)) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Invalid project id");
+			return WebUtility.getResponse(errorMap, 400);
+		}
 		User user = null;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -163,9 +175,12 @@ public class ProjectResource {
 		}
 		try {
 			boolean isAdmin = SecurityAdminUtils.userIsAdmin(user);
-			if (!isAdmin) {
-				boolean isOwner = SecurityProjectUtils.userIsOwner(user, projectId);
-				if (!isOwner) {
+			if (isAdmin) {
+				if (!SecurityProjectUtils.projectExists(projectId)) {
+					throw new IllegalAccessException("Project " + projectId + " does not exist.");
+				}
+			} else {
+				if (!SecurityProjectUtils.userIsOwner(user, projectId)) {
 					throw new IllegalAccessException("Project " + projectId
 							+ " does not exist or user does not have permissions to update the smss of the project. User must be the owner to perform this function.");
 				}
@@ -256,7 +271,8 @@ public class ProjectResource {
 		if (Utility.isNotificationDatabaseEnabled()) {
 			// Adding notification
 			NotificationDbUtils.createNotification(user, null, null, projectId, NotificationConstants.Type.SMSS_UPDATE,
-					NotificationConstants.APP_CATALOG, NotificationConstants.Priority.MEDIUM, null, null);
+					NotificationConstants.APP_CATALOG, NotificationConstants.Priority.MEDIUM, null, null,
+					NotificationConstants.DisplaySurface.BELL);
 
 			// Adding email notification
 			EmailUtility.sendSmssUpdateEmailNotification(user, projectId, EmailUtility.RESOURCE_TYPE.PROJECT);
@@ -295,13 +311,9 @@ public class ProjectResource {
 		}
 
 		try {
-			boolean isAdmin = SecurityAdminUtils.userIsAdmin(user);
-			if (!isAdmin) {
-				boolean isOwner = SecurityProjectUtils.userIsOwner(user, projectId);
-				if (!isOwner) {
-					throw new IllegalAccessException("Project " + projectId
-							+ " does not exist or user does not have permissions to update the smss of the project. User must be the owner to perform this function.");
-				}
+			if (!SecurityProjectUtils.userCanViewProject(user, projectId)) {
+				throw new IllegalAccessException("Project " + projectId
+						+ " does not exist or user does not have permissions to update the smss of the project. User must be the owner to perform this function.");
 			}
 		} catch (IllegalAccessException e) {
 			Map<String, String> errorMap = new HashMap<>();
@@ -359,7 +371,15 @@ public class ProjectResource {
 	public Response getProjectLandingPage(@Context final Request coreRequest, @Context HttpServletRequest request,
 			@PathParam("projectId") String projectId) {
 		User user = null;
-		projectId = WebUtility.inputSanitizer(projectId);
+		// not required for containment. canAccessProject below resolves projectId
+		// against the PROJECT table, so a traversal value is rejected before it reaches
+		// the landing page path
+		projectId = WebUtility.safePathSegment(WebUtility.inputSanitizer(projectId));
+		if (!WebUtility.isSafePathSegment(projectId)) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Invalid project id");
+			return WebUtility.getResponse(errorMap, 400);
+		}
 		try {
 			user = ResourceUtility.getUser(request);
 		} catch (IllegalAccessException e) {
@@ -386,9 +406,9 @@ public class ProjectResource {
 				String html = FileUtils.readFileToString(file, "UTF-8");
 
 				// want to cache this on browser if user has access
-//				CacheControl cc = new CacheControl();
-//				cc.setMaxAge(1);
-//				cc.setPrivate(true);
+				// CacheControl cc = new CacheControl();
+				// cc.setMaxAge(1);
+				// cc.setPrivate(true);
 				EntityTag etag = new EntityTag(Integer.toString(html.hashCode()));
 				ResponseBuilder builder = coreRequest.evaluatePreconditions(etag);
 
@@ -398,9 +418,9 @@ public class ProjectResource {
 				}
 
 				return Response.status(200).entity(html)
-//						.cacheControl(cc)
+						// .cacheControl(cc)
 						.tag(etag)
-//						.lastModified(new Date(file.lastModified()))
+						// .lastModified(new Date(file.lastModified()))
 						.build();
 			} catch (IOException e) {
 				Map<String, String> errorMap = new HashMap<>();
@@ -419,7 +439,16 @@ public class ProjectResource {
 	@Produces({ MediaType.TEXT_HTML, MediaType.APPLICATION_OCTET_STREAM })
 	public Response downloadProjectAsset(@Context final Request coreRequest, @Context HttpServletRequest request,
 			@PathParam("projectId") String projectId, @PathParam("relPath") String relPath) {
-		projectId = WebUtility.inputSanitizer(projectId);
+		// not required for containment. canAccessProject below resolves projectId
+		// against the PROJECT table, so a traversal value is rejected before it reaches
+		// the assets folder path. relPath has no such backing check and is contained by
+		// resolveWithin further down
+		projectId = WebUtility.safePathSegment(WebUtility.inputSanitizer(projectId));
+		if (!WebUtility.isSafePathSegment(projectId)) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Invalid project id");
+			return WebUtility.getResponse(errorMap, 400);
+		}
 
 		User user = null;
 		try {
@@ -440,17 +469,26 @@ public class ProjectResource {
 		IProject project = Utility.getProject(projectId);
 		String projectName = project.getProjectName();
 
-		String fileLocation = EngineUtility.getSpecificEngineBaseFolder(IEngine.CATALOG_TYPE.PROJECT, projectId,
-				projectName) + DIR_SEPARATOR + "app_root/version/assets/" + WebUtility.inputSanitizer(relPath);
-		File file = new File(WebUtility.normalizePath(fileLocation));
+		String assetsRoot = EngineUtility.getSpecificEngineBaseFolder(IEngine.CATALOG_TYPE.PROJECT, projectId,
+				projectName) + DIR_SEPARATOR + "app_root/version/assets";
+		File file;
+		try {
+			file = WebUtility
+					.resolveWithin(Paths.get(WebUtility.normalizePath(assetsRoot)), WebUtility.inputSanitizer(relPath))
+					.toFile();
+		} catch (IOException | IllegalArgumentException | SecurityException e) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Invalid asset path");
+			return WebUtility.getResponse(errorMap, 400);
+		}
 		if (file != null && file.exists()) {
 			try {
 				String contents = FileUtils.readFileToString(file, "UTF-8");
 
 				// want to cache this on browser if user has access
-//				CacheControl cc = new CacheControl();
-//				cc.setMaxAge(1);
-//				cc.setPrivate(true);
+				// CacheControl cc = new CacheControl();
+				// cc.setMaxAge(1);
+				// cc.setPrivate(true);
 				EntityTag etag = new EntityTag(Integer.toString(contents.hashCode()));
 				ResponseBuilder builder = coreRequest.evaluatePreconditions(etag);
 
@@ -460,9 +498,9 @@ public class ProjectResource {
 				}
 
 				return Response.status(200).entity(contents)
-//						.cacheControl(cc)
+						// .cacheControl(cc)
 						.tag(etag)
-//						.lastModified(new Date(file.lastModified()))
+						// .lastModified(new Date(file.lastModified()))
 						.build();
 			} catch (IOException e) {
 				Map<String, String> errorMap = new HashMap<>();
@@ -517,9 +555,9 @@ public class ProjectResource {
 				String contents = new String(Files.readAllBytes(Paths.get(file.getAbsolutePath())));
 
 				// want to cache this on browser if user has access
-//				CacheControl cc = new CacheControl();
-//				cc.setMaxAge(1);
-//				cc.setPrivate(true);
+				// CacheControl cc = new CacheControl();
+				// cc.setMaxAge(1);
+				// cc.setPrivate(true);
 				EntityTag etag = new EntityTag(Integer.toString(contents.hashCode()));
 				ResponseBuilder builder = coreRequest.evaluatePreconditions(etag);
 
@@ -530,9 +568,9 @@ public class ProjectResource {
 
 				String mimeType = Files.probeContentType(file.toPath());
 				return Response.status(200).entity(contents).type(mimeType)
-//						.cacheControl(cc)
+						// .cacheControl(cc)
 						.tag(etag)
-//						.lastModified(new Date(file.lastModified()))
+						// .lastModified(new Date(file.lastModified()))
 						.build();
 			} catch (IOException e) {
 				Map<String, String> errorMap = new HashMap<>();
@@ -572,12 +610,49 @@ public class ProjectResource {
 	 * Code below is around app images and insight images
 	 */
 
+	/**
+	 * Replace this project's catalog image with one multipart file named
+	 * {@code file}. Requires edit permission; accepts PNG, JPEG, or GIF up to 10
+	 * MiB.
+	 */
+	@POST
+	@Path("/image/upload")
+	@Consumes(MediaType.MULTIPART_FORM_DATA)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response uploadImage(@Context ServletContext context, @Context HttpServletRequest request,
+			@PathParam("projectId") String projectId) {
+		return CatalogImageUploader.upload(context, request, projectId, true);
+	}
+
+	/** Alias matching the existing project image download route. */
+	@POST
+	@Path("/projectImage/upload")
+	@Consumes(MediaType.MULTIPART_FORM_DATA)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response uploadProjectImage(@Context ServletContext context, @Context HttpServletRequest request,
+			@PathParam("projectId") String projectId) {
+		return uploadImage(context, request, projectId);
+	}
+
+	/**
+	 * Downloads the uploaded image or stock artwork for the optional light/dark
+	 * theme.
+	 */
 	@GET
 	@Path("/projectImage/download")
-	@Produces({ MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML })
+	@Produces({ "image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml",
+			MediaType.APPLICATION_OCTET_STREAM })
 	public Response downloadProjectImage(@Context final Request coreRequest, @Context HttpServletRequest request,
 			@PathParam("projectId") String projectId) {
-		projectId = WebUtility.inputSanitizer(projectId);
+		// not required for containment. canAccessOrDiscoverableProject below resolves
+		// projectId against the PROJECT table on both the view and discoverable branch,
+		// so a traversal value is rejected before it reaches the image path
+		projectId = WebUtility.safePathSegment(WebUtility.inputSanitizer(projectId));
+		if (!WebUtility.isSafePathSegment(projectId)) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Invalid project id");
+			return WebUtility.getResponse(errorMap, 400);
+		}
 
 		User user = null;
 		try {
@@ -595,43 +670,33 @@ public class ProjectResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		if (CouchUtil.COUCH_ENABLED) {
+		String imageTheme = request.getParameter("theme");
+		// Instance-managed projects have one consistent badge in every storage mode.
+		File exportFile = DefaultImageGeneratorUtil.getSystemProjectImage(projectId, imageTheme);
+		if (exportFile == null && CouchUtil.COUCH_ENABLED) {
 			try {
 				Map<String, String> selectors = new HashMap<>();
 				selectors.put(CouchUtil.PROJECT, projectId);
-				return CouchUtil.download(CouchUtil.PROJECT, selectors);
+				return CatalogImageResponse.withBrowserCache(coreRequest,
+						CouchUtil.download(CouchUtil.PROJECT, selectors, imageTheme));
 			} catch (CouchException e) {
 				classLogger.error("Failed to download project image from CouchDB for project {}", projectId, e);
 			}
 		}
 
-		File exportFile = null;
-		try {
-			exportFile = getProjectImageFile(projectId);
-		} catch (Exception e) {
-			classLogger.error("Failed to resolve project image file for project {}", projectId, e);
+		if (exportFile == null) {
+			try {
+				exportFile = getProjectImageFile(projectId, imageTheme);
+			} catch (Exception e) {
+				classLogger.error("Failed to resolve project image file for project {}", projectId, e);
+			}
 		}
 		if (exportFile != null && exportFile.exists()) {
 			String exportName = projectId + "_Image." + FilenameUtils.getExtension(exportFile.getAbsolutePath());
-			// want to cache this on browser if user has access
-//			CacheControl cc = new CacheControl();
-//			cc.setMaxAge(86400);
-//			cc.setPrivate(true);
-//			cc.setMustRevalidate(true);
-			EntityTag etag = new EntityTag(Long.toString(exportFile.lastModified()));
-			ResponseBuilder builder = coreRequest.evaluatePreconditions(etag);
-
-			// cached resource did not change
-			if (builder != null) {
-				return builder.build();
-			}
-
-			return Response.status(200).entity(exportFile)
-					.header("Content-Disposition", "attachment; filename=" + exportName)
-//					.cacheControl(cc)
-					.tag(etag)
-//					.lastModified(new Date(exportFile.lastModified()))
-					.build();
+			EntityTag etag = new EntityTag(Integer.toHexString(exportFile.getAbsolutePath().hashCode()) + "-"
+					+ exportFile.lastModified() + "-" + exportFile.length());
+			return CatalogImageResponse.withBrowserCache(coreRequest, Response.ok(exportFile)
+					.header("Content-Disposition", "attachment; filename=" + exportName).tag(etag).build());
 		} else {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "error sending image file");
@@ -647,45 +712,48 @@ public class ProjectResource {
 	 * @throws Exception
 	 */
 	protected File getProjectImageFile(String projectId) throws Exception {
+		return getProjectImageFile(projectId, null);
+	}
+
+	/** Preserves uploaded images and themes only the shared stock fallback. */
+	protected File getProjectImageFile(String projectId, String theme) throws Exception {
 		if (ClusterUtil.IS_CLUSTER) {
-			return ClusterUtil.getEngineAndProjectImage(projectId, IEngine.CATALOG_TYPE.PROJECT);
+			return ClusterUtil.getEngineAndProjectImage(projectId, IEngine.CATALOG_TYPE.PROJECT, theme);
 		}
 		projectId = WebUtility.inputSanitizer(projectId);
 
 		IProject project = Utility.getProject(projectId);
 		String projectName = project.getProjectName();
-		String fileLocation = AssetUtility.getProjectVersionFolder(projectName, projectId);
+		String fileLocation = EngineUtility.getSpecificEngineVersionFolder(IEngine.CATALOG_TYPE.PROJECT, projectId,
+				projectName);
 		File f = findImageFile(fileLocation);
 		if (f != null) {
 			return f;
-		} else {
-			// make the image
-			f = new File(fileLocation);
-			if (!f.exists()) {
-				Boolean success = f.mkdirs();
-				if (!success) {
-					classLogger.info("Unable to create directory at location: {}",
-							Utility.cleanLogString(fileLocation));
-				}
-			}
-			fileLocation = fileLocation + DIR_SEPARATOR + "image.png";
-
-			DefaultImageGeneratorUtil.pickRandomImage(fileLocation);
-			f = new File(fileLocation);
-			return f;
 		}
+		// Resolve the shared stock file without creating a project asset.
+		return DefaultImageGeneratorUtil.getStockImageForPath(fileLocation + DIR_SEPARATOR + "image.png", theme);
 	}
 
 	@GET
 	@Path("/insightImage/download")
-	@Produces({ MediaType.APPLICATION_OCTET_STREAM, MediaType.APPLICATION_SVG_XML })
+	@Produces({ "image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml",
+			MediaType.APPLICATION_OCTET_STREAM })
 	public Response downloadInsightImage(@Context final Request coreRequest, @Context HttpServletRequest request,
 			@PathParam("projectId") String projectId, @QueryParam("rdbmsId") String id,
 			@QueryParam("params") String params) {
 
-		projectId = WebUtility.inputSanitizer(projectId);
-		id = WebUtility.inputSanitizer(id);
+		// not required for containment. canAccessInsight below resolves projectId and
+		// id together against the INSIGHT table, so a traversal value in either is
+		// rejected before it reaches the image path. params has no such backing check
+		// and is contained by resolveWithin further down
+		projectId = WebUtility.safePathSegment(WebUtility.inputSanitizer(projectId));
+		id = WebUtility.safePathSegment(WebUtility.inputSanitizer(id));
 		params = WebUtility.inputSanitizer(params);
+		if (!WebUtility.isSafePathSegment(projectId) || !WebUtility.isSafePathSegment(id)) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Invalid project or insight id");
+			return WebUtility.getResponse(errorMap, 400);
+		}
 
 		String sessionId = null;
 		User user = null;
@@ -711,7 +779,7 @@ public class ProjectResource {
 				Map<String, String> selectors = new HashMap<>();
 				selectors.put(CouchUtil.INSIGHT, id);
 				selectors.put(CouchUtil.PROJECT, projectId);
-				return CouchUtil.download(CouchUtil.INSIGHT, selectors);
+				return CatalogImageResponse.withContentType(CouchUtil.download(CouchUtil.INSIGHT, selectors));
 			} catch (CouchException e) {
 				classLogger.error("Failed to download insight image from CouchDB for project {} and insight {}",
 						projectId, id, e);
@@ -723,11 +791,11 @@ public class ProjectResource {
 		if (exportFile != null && exportFile.exists()) {
 			String exportName = projectId + "_Image." + FilenameUtils.getExtension(exportFile.getAbsolutePath());
 			// want to cache this on browser if user has access
-//			CacheControl cc = new CacheControl();
-//			cc.setMaxAge(86400);
-//			cc.setPrivate(true);
-//			cc.setMustRevalidate(true);
-			EntityTag etag = new EntityTag(Long.toString(exportFile.lastModified()));
+			// CacheControl cc = new CacheControl();
+			// cc.setMaxAge(86400);
+			// cc.setPrivate(true);
+			// cc.setMustRevalidate(true);
+			EntityTag etag = new EntityTag("image-v2-" + exportFile.lastModified());
 			ResponseBuilder builder = coreRequest.evaluatePreconditions(etag);
 
 			// cached resource did not change
@@ -735,12 +803,8 @@ public class ProjectResource {
 				return builder.build();
 			}
 
-			return Response.status(200).entity(exportFile)
-					.header("Content-Disposition", "attachment; filename=" + exportName)
-//					.cacheControl(cc)
-					.tag(etag)
-//					.lastModified(new Date(exportFile.lastModified()))
-					.build();
+			return CatalogImageResponse.withContentType(Response.ok(exportFile)
+					.header("Content-Disposition", "attachment; filename=" + exportName).tag(etag).build());
 		} else {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Error sending image file");
@@ -759,12 +823,20 @@ public class ProjectResource {
 		IProject project = Utility.getProject(projectId);
 		String projectName = project.getProjectName();
 
-		String fileLocation = AssetUtility.getProjectVersionFolder(projectName, projectId);
-		if (params != null && !params.isEmpty() && !params.equals("undefined")) {
-			String encodedParams = Utility.encodeURIComponent(params);
-			fileLocation = fileLocation + DIR_SEPARATOR + id + DIR_SEPARATOR + "params" + DIR_SEPARATOR + encodedParams;
-		} else {
-			fileLocation = fileLocation + DIR_SEPARATOR + id;
+		String versionFolder = AssetUtility.getProjectVersionFolder(projectName, projectId);
+		String fileLocation;
+		try {
+			java.nio.file.Path versionRoot = Paths.get(WebUtility.normalizePath(versionFolder));
+			if (params != null && !params.isEmpty() && !params.equals("undefined")) {
+				String encodedParams = Utility.encodeURIComponent(params);
+				fileLocation = WebUtility
+						.resolveWithin(versionRoot, id + DIR_SEPARATOR + "params" + DIR_SEPARATOR + encodedParams)
+						.toString();
+			} else {
+				fileLocation = WebUtility.resolveWithin(versionRoot, id).toString();
+			}
+		} catch (IOException | IllegalArgumentException | SecurityException e) {
+			return null;
 		}
 		f = findImageFile(fileLocation);
 
@@ -775,20 +847,21 @@ public class ProjectResource {
 			// JK! this is super annoying when running a bunch of
 			// insights at the same time which is what happens
 			// currently on the app home page
-//			if (!ClusterUtil.IS_CLUSTER) {
-//				if(feUrl != null) {
-//					try {
-//						ImageCaptureReactor.runImageCapture(feUrl, appId, id, params, sessionId);
-//					}
-//					catch(Exception | NoSuchMethodError er) {
-//						//Image Capture will not run. No image exists nor will be made. The exception kills the rest.
-//						// return stock image
-//						er.printStackTrace();
-//						f = AbstractSecurityUtils.getStockImage(appId, id);
-//						return f;
-//					}
-//				}
-//			}
+			// if (!ClusterUtil.IS_CLUSTER) {
+			// if(feUrl != null) {
+			// try {
+			// ImageCaptureReactor.runImageCapture(feUrl, appId, id, params, sessionId);
+			// }
+			// catch(Exception | NoSuchMethodError er) {
+			// //Image Capture will not run. No image exists nor will be made. The exception
+			// kills the rest.
+			// // return stock image
+			// er.printStackTrace();
+			// f = AbstractSecurityUtils.getStockImage(appId, id);
+			// return f;
+			// }
+			// }
+			// }
 			// the image capture ran
 			// let us try to see if there is a file now...
 			f = findImageFile(fileLocation);
@@ -1154,7 +1227,14 @@ public class ProjectResource {
 			if (output == null) {
 				return WebUtility.getSO("Unable to generate output from sql: " + sql);
 			}
-			return WebUtility.getSOFile(output + "");
+			java.nio.file.Path cacheRoot = Paths.get(Utility.getInsightCacheDir()).toRealPath();
+			java.nio.file.Path outputPath = Paths.get(output.toString());
+			java.nio.file.Path csvPath = (outputPath.isAbsolute() ? outputPath : cacheRoot.resolve(outputPath))
+					.toRealPath();
+			if (!csvPath.startsWith(cacheRoot) || !Files.isRegularFile(csvPath)) {
+				return WebUtility.getSO("Unable to generate output from sql: " + sql);
+			}
+			return WebUtility.getSOFile(csvPath.toString());
 
 		} catch (Exception e) {
 			return WebUtility.getSO(ExceptionUtils.getStackFrames(e));

@@ -1,7 +1,11 @@
-name: local-monolith-with-postgres-minio-redis
+name: local-monolith-fips-with-postgres-minio-zk
 
 # shared environment for every semoss node in the cluster
 x-semoss-env: &semoss-env
+  # FIPS 140-3: pull JSESSIONID entropy from the validated module. Tomcat's
+  # default (SHA1PRNG, no provider) silently resolves to SUN.
+  SESSION_SECURE_RANDOM_PROVIDER: 'BCFIPS'
+  SESSION_SECURE_RANDOM_ALGORITHM: 'DEFAULT'
   SETSOCIAL: 'true'
   # should not use native for production use cases, instead integrate with external SSO
   ENABLE_NATIVE: 'true'
@@ -24,13 +28,22 @@ x-semoss-env: &semoss-env
   CHROOT_SYMLINK_PATHS: /usr/lib/python
   FAKECHROOT_EXCLUDE_PATH: /dev
 
+  # node agent execution environment (ExecuteNodeCode agent tool)
+  NODE_HOME: /opt/node
+  AGENT_DEFAULT_TOOLS_ENABLE_NODE: 'true'
+
+  # semoss-maintained services, run from
+  # Semoss/docker-compose-examples/engines/semoss-maintained/
+  UNOSERVER: 'http://semoss-unoserver:8080'
+  NODE_SERVER_ENDPOINT: 'http://semoss-node-builder:3000'
+
   # local master
   CUSTOM_LM_RDBMS_TYPE: "postgres"
   CUSTOM_LM_DRIVER: "org.postgresql.Driver"
   CUSTOM_LM_DATABASE: "semoss_localmaster"
   CUSTOM_LM_SCHEMA: "public"
   CUSTOM_LM_USERNAME: "myuser"
-  CUSTOM_LM_PASSWORD: "mypassword"
+  CUSTOM_LM_PASSWORD: "mylocalfipspassword"
   CUSTOM_LM_CONNECTION_URL: "jdbc:postgresql://db:5432/semoss_localmaster?currentSchema=public"
   # model inference logs
   CUSTOM_MODEL_INFERENCE_LOGS_RDBMS_TYPE: "postgres"
@@ -38,7 +51,7 @@ x-semoss-env: &semoss-env
   CUSTOM_MODEL_INFERENCE_LOGS_DATABASE: "semoss_modellogs"
   CUSTOM_MODEL_INFERENCE_LOGS_SCHEMA: "public"
   CUSTOM_MODEL_INFERENCE_LOGS_USERNAME: "myuser"
-  CUSTOM_MODEL_INFERENCE_LOGS_PASSWORD: "mypassword"
+  CUSTOM_MODEL_INFERENCE_LOGS_PASSWORD: "mylocalfipspassword"
   CUSTOM_MODEL_INFERENCE_LOGS_CONNECTION_URL: "jdbc:postgresql://db:5432/semoss_modellogs?currentSchema=public"
   # prompt db
   CUSTOM_PROMPT_RDBMS_TYPE: "postgres"
@@ -46,7 +59,7 @@ x-semoss-env: &semoss-env
   CUSTOM_PROMPT_DATABASE: "semoss_prompt"
   CUSTOM_PROMPT_SCHEMA: "public"
   CUSTOM_PROMPT_USERNAME: "myuser"
-  CUSTOM_PROMPT_PASSWORD: "mypassword"
+  CUSTOM_PROMPT_PASSWORD: "mylocalfipspassword"
   CUSTOM_PROMPT_CONNECTION_URL: "jdbc:postgresql://db:5432/semoss_prompt?currentSchema=public"
   # scheduler db
   CUSTOM_SCHEDULER_RDBMS_TYPE: "postgres"
@@ -54,7 +67,7 @@ x-semoss-env: &semoss-env
   CUSTOM_SCHEDULER_DATABASE: "semoss_scheduler"
   CUSTOM_SCHEDULER_SCHEMA: "public"
   CUSTOM_SCHEDULER_USERNAME: "myuser"
-  CUSTOM_SCHEDULER_PASSWORD: "mypassword"
+  CUSTOM_SCHEDULER_PASSWORD: "mylocalfipspassword"
   CUSTOM_SCHEDULER_CONNECTION_URL: "jdbc:postgresql://db:5432/semoss_scheduler?currentSchema=public"
   # security db
   CUSTOM_SECURITY_RDBMS_TYPE: "postgres"
@@ -62,7 +75,7 @@ x-semoss-env: &semoss-env
   CUSTOM_SECURITY_DATABASE: "semoss_security"
   CUSTOM_SECURITY_SCHEMA: "public"
   CUSTOM_SECURITY_USERNAME: "myuser"
-  CUSTOM_SECURITY_PASSWORD: "mypassword"
+  CUSTOM_SECURITY_PASSWORD: "mylocalfipspassword"
   CUSTOM_SECURITY_CONNECTION_URL: "jdbc:postgresql://db:5432/semoss_security?currentSchema=public"
   # themes db
   CUSTOM_THEMES_RDBMS_TYPE: "postgres"
@@ -70,7 +83,7 @@ x-semoss-env: &semoss-env
   CUSTOM_THEMES_DATABASE: "semoss_themes"
   CUSTOM_THEMES_SCHEMA: "public"
   CUSTOM_THEMES_USERNAME: "myuser"
-  CUSTOM_THEMES_PASSWORD: "mypassword"
+  CUSTOM_THEMES_PASSWORD: "mylocalfipspassword"
   CUSTOM_THEMES_CONNECTION_URL: "jdbc:postgresql://db:5432/semoss_themes?currentSchema=public"
   # user tracking db
   CUSTOM_USER_TRACKING_RDBMS_TYPE: "postgres"
@@ -78,7 +91,7 @@ x-semoss-env: &semoss-env
   CUSTOM_USER_TRACKING_DATABASE: "semoss_usertracking"
   CUSTOM_USER_TRACKING_SCHEMA: "public"
   CUSTOM_USER_TRACKING_USERNAME: "myuser"
-  CUSTOM_USER_TRACKING_PASSWORD: "mypassword"
+  CUSTOM_USER_TRACKING_PASSWORD: "mylocalfipspassword"
   CUSTOM_USER_TRACKING_CONNECTION_URL: "jdbc:postgresql://db:5432/semoss_usertracking?currentSchema=public"
   # audit logs
   CUSTOM_AUDITLOGS_RDBMS_TYPE: "postgres"
@@ -86,7 +99,7 @@ x-semoss-env: &semoss-env
   CUSTOM_AUDITLOGS_DATABASE: "semoss_audit"
   CUSTOM_AUDITLOGS_SCHEMA: "public"
   CUSTOM_AUDITLOGS_USERNAME: "myuser"
-  CUSTOM_AUDITLOGS_PASSWORD: "mypassword"
+  CUSTOM_AUDITLOGS_PASSWORD: "mylocalfipspassword"
   CUSTOM_AUDITLOGS_CONNECTION_URL: "jdbc:postgresql://db:5432/semoss_audit?currentSchema=public"
 
   # cloud storage - shared minio is the source of truth both nodes sync from
@@ -95,24 +108,20 @@ x-semoss-env: &semoss-env
   MINIO_REGION: 'us-east'
   MINIO_BUCKET: 'semoss'
   MINIO_ACCESS_KEY: 'minioadmin'
-  MINIO_SECRET_KEY: 'minioadmin'
+  MINIO_SECRET_KEY: 'miniolocalfipssecret'
   MINIO_ENDPOINT: 'http://minio:9000'
 
-  # redis - two independent features, each with its own flag. either flag on its
-  # own is enough for semoss to connect; set both to exercise everything.
-  #   SEMOSS_IS_CLUSTER_REDIS - cluster synchronization (RedisClusterSynchronizer)
-  #   REDIS_ENABLED           - room message caching and the agent run queue
-  SEMOSS_IS_CLUSTER_REDIS: 'true'
-  REDIS_ENABLED: 'true'
-  REDIS_HOST: 'redis'
-  REDIS_PORT: '6379'
+  # zookeeper cluster synchronization
+  SEMOSS_IS_CLUSTER_ZK: 'true'
+  ZK_SERVER: 'zookeeper:2181'
   # NOTE: HOST_IP is intentionally NOT set here - it must be UNIQUE per node so
-  # each container registers as a distinct member in the cluster. It is set on
-  # each semoss service below.
+  # each container registers as a distinct member in zookeeper. It is set on
+  # each semoss service below. (If omitted entirely, Semoss falls back to a
+  # random node id, which also stays unique - it just isn't stable across restarts.)
 
 # shared service definition for every semoss node in the cluster
 x-semoss-service: &semoss-service
-  image: local-monolith
+  image: local-monolith-fips
   user: "1001:1001"
   command: /bin/bash -c "runCS.sh"
   depends_on:
@@ -120,7 +129,7 @@ x-semoss-service: &semoss-service
       condition: service_healthy
     minio:
       condition: service_healthy
-    redis:
+    zookeeper:
       condition: service_healthy
   networks:
     - mynetwork
@@ -155,13 +164,13 @@ services:
     restart: always
     environment:
       POSTGRES_USER: myuser
-      POSTGRES_PASSWORD: mypassword
+      POSTGRES_PASSWORD: mylocalfipspassword
       POSTGRES_DB: myuser
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ../local-docker-compose/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U myuser"]
       interval: 10s
@@ -179,10 +188,10 @@ services:
       - "9001:9001"  # Web UI
     environment:
       MINIO_ROOT_USER: 'minioadmin'
-      MINIO_ROOT_PASSWORD: 'minioadmin'
+      MINIO_ROOT_PASSWORD: 'miniolocalfipssecret'
     volumes:
       - minio_data:/data
-      - ./init-bucket.sh:/usr/local/bin/init-bucket.sh
+      - ../local-docker-compose/init-bucket.sh:/usr/local/bin/init-bucket.sh
     entrypoint: >
       /bin/sh -c "
       /usr/bin/docker-entrypoint.sh minio server /data --console-address :9001 &
@@ -196,41 +205,38 @@ services:
     networks:
       - mynetwork
 
-  # redis - used by semoss for cluster synchronization (RedisClusterSynchronizer)
-  redis:
-    image: redis:7
-    container_name: redis
+  # zookeeper - used by semoss for cluster synchronization (ClusterSynchronizer)
+  zookeeper:
+    image: zookeeper:3.9
+    container_name: zookeeper
     restart: always
     ports:
-      - "6379:6379"
+      - "2181:2181"  # client port
+    environment:
+      ZOO_MY_ID: 1
+      ZOO_STANDALONE_ENABLED: 'true'
+      ZOO_4LW_COMMANDS_WHITELIST: 'ruok,srvr,stat'
     volumes:
-      - redis_data:/data
+      - zk_data:/data
+      - zk_datalog:/datalog
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      # 'ruok' returns 'imok' when the server is healthy
+      test: ["CMD-SHELL", "echo ruok | nc localhost 2181 | grep imok"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
       - mynetwork
 
-  # redisinsight - web UI for inspecting redis (http://localhost:5540)
-  # add a connection to host 'redis' port 6379 (use the service name, not localhost)
-  redis-ui:
-    image: redis/redisinsight:latest
-    container_name: redis-ui
-    restart: always
-    ports:
-      - "5540:5540"
-    depends_on:
-      redis:
-        condition: service_healthy
-    networks:
-      - mynetwork
-
 volumes:
   pgdata:
   minio_data:
-  redis_data:
+  zk_data:
+  zk_datalog:
 
 networks:
+  # the same network as Semoss/docker-compose-examples, so this stack reaches the
+  # engines/ and engines/semoss-maintained/ services there by container name
   mynetwork:
+    external: true
+    name: semoss-net

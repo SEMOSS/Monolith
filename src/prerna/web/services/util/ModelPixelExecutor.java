@@ -34,147 +34,28 @@ import java.util.Map;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.ws.rs.core.Response;
 import prerna.auth.User;
-import prerna.engine.api.IModelEngine;
-import prerna.engine.impl.model.Room;
-import prerna.engine.impl.model.responses.AskModelEngineResponse;
-import prerna.om.Insight;
-import prerna.om.ThreadStore;
-import prerna.sablecc2.PixelRunner;
-import prerna.sablecc2.comm.PixelJobManager;
-import prerna.sablecc2.comm.PixelJobRunner;
+import prerna.engine.impl.model.ModelPixelInvoker;
 import prerna.util.Constants;
 import prerna.util.Utility;
 
 /**
- * Central dispatch point for executing the {@code LLM(...)} pixel from the
- * provider-compatible web endpoints (OpenAI / Anthropic / Ollama).
+ * Servlet-side concerns shared by the provider-compatible web endpoints (OpenAI
+ * / Anthropic / Ollama): resolving the session user, applying the caller's
+ * timezone and building the common error responses.
  *
  * <p>
- * Both streaming and non-streaming requests funnel through here so the
- * server-side {@code LLMReactor} (room / parent-room resolution, image copying,
- * use_history defaulting, inference logging, etc.) always runs. Endpoints
- * should never call {@code room.ask(...)} directly - any behavior change to how
- * the model is invoked belongs here (or in {@code LLMReactor}) so it applies to
- * every code path in one place.
+ * Invoking the model itself lives in {@link ModelPixelInvoker} so that callers
+ * which have no servlet request - the {@code OpenAIPassthroughReactor}, which
+ * serves the same protocol to python processes over the insight socket - run
+ * the identical {@code LLM(...)} pixel.
  */
 public class ModelPixelExecutor {
 
 	private static final Logger classLogger = LogManager.getLogger(ModelPixelExecutor.class);
-
-	private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
-
-	/**
-	 * Build the {@code LLM(...)} pixel string. This is the single source of truth
-	 * for how the endpoints invoke the model; {@code command} is {@code 'ignore'}
-	 * because the full prompt and all parameters are carried in
-	 * {@code paramValues}.
-	 *
-	 * @param engine  the model engine being invoked
-	 * @param room    the room the message belongs to
-	 * @param dataMap the parameter map (full_prompt, tools, temperature, etc.)
-	 * @return the pixel expression to execute
-	 */
-	public static String buildModelPixel(IModelEngine engine, Room room, Map<String, Object> dataMap) {
-		return "LLM(engine='" + engine.getEngineId() + "',roomId='" + room.getId() + "',command='ignore'"
-				+ ",paramValues=[" + GSON.toJson(dataMap) + "]);";
-	}
-
-	/**
-	 * Dispatch the model pixel asynchronously on a virtual thread and return the
-	 * job id. Used by streaming endpoints, which then poll {@link PixelJobManager}
-	 * for partial stream output.
-	 *
-	 * @param engine    the model engine being invoked
-	 * @param insight   the insight context for the request
-	 * @param room      the room the message belongs to
-	 * @param dataMap   the parameter map carried in the pixel's paramValues
-	 * @param sessionId the session id for the job
-	 * @return the job id that can be polled on {@link PixelJobManager}
-	 */
-	public static String startAsyncModelRequest(IModelEngine engine, Insight insight, Room room,
-			Map<String, Object> dataMap, String sessionId) {
-		try {
-			PixelJobManager manager = PixelJobManager.getManager();
-			PixelJobRunner jobRunner = manager.makeJob(insight, sessionId, null);
-			String jobId = jobRunner.getJobId();
-
-			String modelPixel = buildModelPixel(engine, room, dataMap);
-			classLogger.info("Dispatching async model pixel: {}", modelPixel);
-			jobRunner.addPixel(modelPixel);
-			Thread.ofVirtual().start(jobRunner);
-			return jobId;
-		} catch (Exception e) {
-			classLogger.error("Failed to start async model request for engine '{}': {}",
-					engine == null ? "unknown" : engine.getEngineId(), e.getMessage(), e);
-			throw new IllegalArgumentException(e.getMessage());
-		}
-	}
-
-	/**
-	 * Dispatch the model pixel synchronously on the current thread and return the
-	 * model response. Used by non-streaming endpoints: this runs the exact same
-	 * pixel as the streaming path, but simply waits for the final payload instead
-	 * of polling for partial stream chunks.
-	 *
-	 * @param engine  the model engine being invoked
-	 * @param insight the insight context for the request
-	 * @param room    the room the message belongs to
-	 * @param dataMap the parameter map carried in the pixel's paramValues
-	 * @return the reconstructed model response
-	 */
-	public static AskModelEngineResponse<?> askModelSync(IModelEngine engine, Insight insight, Room room,
-			Map<String, Object> dataMap) {
-		String modelPixel = buildModelPixel(engine, room, dataMap);
-		classLogger.info("Dispatching sync model pixel: {}", modelPixel);
-
-		PixelRunner runner = insight.runPixel(modelPixel);
-		if (runner.getResults() == null || runner.getResults().isEmpty()) {
-			throw new IllegalStateException(
-					"Model request returned no output for engine '" + engine.getEngineId() + "'");
-		}
-
-		Object payload = runner.getResults().get(0).getValue();
-		AskModelEngineResponse<?> response = AskModelEngineResponse.fromObject(payload);
-
-		// fromObject rebuilds the response from the pixel payload but does not carry
-		// over messageId/roomId, which the response processors rely on - restore them.
-		if (payload instanceof Map) {
-			Map<?, ?> payloadMap = (Map<?, ?>) payload;
-			Object messageId = payloadMap.get(AskModelEngineResponse.MESSAGE_ID);
-			if (messageId != null) {
-				response.setMessageId(messageId.toString());
-			}
-			Object roomId = payloadMap.get(AskModelEngineResponse.ROOM_ID);
-			if (roomId != null) {
-				response.setRoomId(roomId.toString());
-			}
-		}
-
-		return response;
-	}
-
-	/**
-	 * Seed the {@link ThreadStore} for the current request thread so downstream
-	 * pixel execution (and the {@code LLMReactor}) can resolve the insight,
-	 * session, job and user without them being threaded through every call.
-	 *
-	 * @param insight   the insight context for the request
-	 * @param sessionId the session id the request belongs to
-	 * @param jobId     the job id assigned to this request
-	 */
-	public static void initializeThreadStore(Insight insight, String sessionId, String jobId) {
-		ThreadStore.setInsightId(insight.getInsightId());
-		ThreadStore.setSessionId(sessionId);
-		ThreadStore.setJobId(jobId);
-		ThreadStore.setUser(insight.getUser());
-	}
 
 	/**
 	 * Resolve and apply the caller's timezone to the {@link User}. Uses the

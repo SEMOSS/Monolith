@@ -1,4 +1,4 @@
-name: local-monolith-with-postgres-minio-zk
+name: local-monolith-with-postgres-minio-redis
 
 # shared environment for every semoss node in the cluster
 x-semoss-env: &semoss-env
@@ -23,6 +23,15 @@ x-semoss-env: &semoss-env
   CHROOT_DIR: /opt/chroot
   CHROOT_SYMLINK_PATHS: /usr/lib/python
   FAKECHROOT_EXCLUDE_PATH: /dev
+
+  # node agent execution environment (ExecuteNodeCode agent tool)
+  NODE_HOME: /opt/node
+  AGENT_DEFAULT_TOOLS_ENABLE_NODE: 'true'
+
+  # semoss-maintained services, run from
+  # Semoss/docker-compose-examples/engines/semoss-maintained/
+  UNOSERVER: 'http://semoss-unoserver:8080'
+  NODE_SERVER_ENDPOINT: 'http://semoss-node-builder:3000'
 
   # local master
   CUSTOM_LM_RDBMS_TYPE: "postgres"
@@ -98,13 +107,17 @@ x-semoss-env: &semoss-env
   MINIO_SECRET_KEY: 'minioadmin'
   MINIO_ENDPOINT: 'http://minio:9000'
 
-  # zookeeper cluster synchronization
-  SEMOSS_IS_CLUSTER_ZK: 'true'
-  ZK_SERVER: 'zookeeper:2181'
+  # redis - two independent features, each with its own flag. either flag on its
+  # own is enough for semoss to connect; set both to exercise everything.
+  #   SEMOSS_IS_CLUSTER_REDIS - cluster synchronization (RedisClusterSynchronizer)
+  #   REDIS_ENABLED           - room message caching and the agent run queue
+  SEMOSS_IS_CLUSTER_REDIS: 'true'
+  REDIS_ENABLED: 'true'
+  REDIS_HOST: 'redis'
+  REDIS_PORT: '6379'
   # NOTE: HOST_IP is intentionally NOT set here - it must be UNIQUE per node so
-  # each container registers as a distinct member in zookeeper. It is set on
-  # each semoss service below. (If omitted entirely, Semoss falls back to a
-  # random node id, which also stays unique - it just isn't stable across restarts.)
+  # each container registers as a distinct member in the cluster. It is set on
+  # each semoss service below.
 
 # shared service definition for every semoss node in the cluster
 x-semoss-service: &semoss-service
@@ -116,7 +129,7 @@ x-semoss-service: &semoss-service
       condition: service_healthy
     minio:
       condition: service_healthy
-    zookeeper:
+    redis:
       condition: service_healthy
   networks:
     - mynetwork
@@ -192,34 +205,45 @@ services:
     networks:
       - mynetwork
 
-  # zookeeper - used by semoss for cluster synchronization (ClusterSynchronizer)
-  zookeeper:
-    image: zookeeper:3.9
-    container_name: zookeeper
+  # redis - used by semoss for cluster synchronization (RedisClusterSynchronizer)
+  redis:
+    image: redis:7
+    container_name: redis
     restart: always
     ports:
-      - "2181:2181"  # client port
-    environment:
-      ZOO_MY_ID: 1
-      ZOO_STANDALONE_ENABLED: 'true'
-      ZOO_4LW_COMMANDS_WHITELIST: 'ruok,srvr,stat'
+      - "6379:6379"
     volumes:
-      - zk_data:/data
-      - zk_datalog:/datalog
+      - redis_data:/data
     healthcheck:
-      # 'ruok' returns 'imok' when the server is healthy
-      test: ["CMD-SHELL", "echo ruok | nc localhost 2181 | grep imok"]
+      test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
       - mynetwork
 
+  # redisinsight - web UI for inspecting redis (http://localhost:5540)
+  # add a connection to host 'redis' port 6379 (use the service name, not localhost)
+  redis-ui:
+    image: redis/redisinsight:latest
+    container_name: redis-ui
+    restart: always
+    ports:
+      - "5540:5540"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - mynetwork
+
 volumes:
   pgdata:
   minio_data:
-  zk_data:
-  zk_datalog:
+  redis_data:
 
 networks:
+  # the same network as Semoss/docker-compose-examples, so this stack reaches the
+  # engines/ and engines/semoss-maintained/ services there by container name
   mynetwork:
+    external: true
+    name: semoss-net

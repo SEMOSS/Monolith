@@ -706,7 +706,7 @@ public class InsightAuthorizationResource {
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
 
-		if (AbstractSecurityUtils.adminOnlyProjectAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
+		if (AbstractSecurityUtils.adminOnlyInsightAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 			classLogger.warn("User is trying to remove users from having access to insight {} but is not an admin",
 					insightId);
 			Map<String, String> errorMap = new HashMap<String, String>();

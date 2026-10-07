@@ -66,6 +66,7 @@ import prerna.auth.User;
 import prerna.auth.utils.SecurityEngineUtils;
 import prerna.engine.api.IModelEngine;
 import prerna.engine.impl.model.AbstractModelEngine;
+import prerna.engine.impl.model.ModelPixelInvoker;
 import prerna.engine.impl.model.Room;
 import prerna.engine.impl.model.RoomUtils;
 import prerna.engine.impl.model.responses.AskModelEngineResponse;
@@ -157,7 +158,7 @@ public class OllamaEndpoints {
 		String roomId = sanitize(dataMap.remove("room_id"));
 		Room room = RoomUtils.createRoomIfNotExists(roomId, insight, engine, null);
 
-		ModelPixelExecutor.initializeThreadStore(insight, SESSION_ID, JOB_ID);
+		ModelPixelInvoker.initializeThreadStore(insight, SESSION_ID, JOB_ID);
 
 		Object messagesInput = dataMap.remove("messages");
 		if (messagesInput == null) {
@@ -180,7 +181,7 @@ public class OllamaEndpoints {
 
 		if (!stream) {
 			try {
-				AskModelEngineResponse llmResponse = ModelPixelExecutor.askModelSync(engine, insight, room, dataMap);
+				AskModelEngineResponse llmResponse = ModelPixelInvoker.askModelSync(engine, insight, room, dataMap);
 				Map<String, Object> payload = OllamaResponsesHelper.processFullChatResponse(engineId, llmResponse);
 				return WebUtility.getResponse(payload, 200);
 			} catch (Exception e) {
@@ -202,7 +203,7 @@ public class OllamaEndpoints {
 
 				String jobId = null;
 				try (Writer writer = new BufferedWriter(new OutputStreamWriter(rawOutput, StandardCharsets.UTF_8))) {
-					jobId = ModelPixelExecutor.startAsyncModelRequest(engine, insight, room, dataMap, SESSION_ID);
+					jobId = ModelPixelInvoker.startAsyncModelRequest(engine, insight, room, dataMap, SESSION_ID);
 
 					boolean started = false;
 
@@ -352,7 +353,7 @@ public class OllamaEndpoints {
 
 						// small delay
 						try {
-							Thread.sleep(100);
+							Thread.sleep(ModelPixelInvoker.STREAM_POLL_INTERVAL_MS);
 						} catch (InterruptedException e) {
 							Thread.currentThread().interrupt();
 							break;
@@ -441,7 +442,7 @@ public class OllamaEndpoints {
 		String roomId = sanitize(dataMap.remove("room_id"));
 		Room room = RoomUtils.createRoomIfNotExists(roomId, insight, engine, null);
 
-		ModelPixelExecutor.initializeThreadStore(insight, SESSION_ID, JOB_ID);
+		ModelPixelInvoker.initializeThreadStore(insight, SESSION_ID, JOB_ID);
 
 		Object promptInput = dataMap.remove("prompt");
 		Object inputFallback = dataMap.remove("input");
@@ -463,7 +464,7 @@ public class OllamaEndpoints {
 
 		if (!stream) {
 			try {
-				AskModelEngineResponse llmResponse = ModelPixelExecutor.askModelSync(engine, insight, room, dataMap);
+				AskModelEngineResponse llmResponse = ModelPixelInvoker.askModelSync(engine, insight, room, dataMap);
 				Map<String, Object> payload = OllamaResponsesHelper.processFullGenerateResponse(engineId, llmResponse);
 				return WebUtility.getResponse(payload, 200);
 			} catch (Exception e) {
@@ -479,7 +480,7 @@ public class OllamaEndpoints {
 			public void write(OutputStream rawOutput) throws IOException, WebApplicationException {
 				String jobId = null;
 				try (Writer writer = new BufferedWriter(new OutputStreamWriter(rawOutput, StandardCharsets.UTF_8))) {
-					jobId = ModelPixelExecutor.startAsyncModelRequest(engine, insight, room, dataMap, SESSION_ID);
+					jobId = ModelPixelInvoker.startAsyncModelRequest(engine, insight, room, dataMap, SESSION_ID);
 
 					boolean started = false;
 
@@ -594,7 +595,7 @@ public class OllamaEndpoints {
 
 						// small delay
 						try {
-							Thread.sleep(100);
+							Thread.sleep(ModelPixelInvoker.STREAM_POLL_INTERVAL_MS);
 						} catch (InterruptedException e) {
 							Thread.currentThread().interrupt();
 							break;
@@ -669,7 +670,7 @@ public class OllamaEndpoints {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 		insight.setUser(user);
-		ModelPixelExecutor.initializeThreadStore(insight, SESSION_ID, JOB_ID);
+		ModelPixelInvoker.initializeThreadStore(insight, SESSION_ID, JOB_ID);
 
 		Object promptInput = dataMap.remove("prompt");
 		Object inputInput = dataMap.remove("input");

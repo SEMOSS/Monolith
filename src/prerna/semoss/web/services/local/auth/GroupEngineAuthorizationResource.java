@@ -46,6 +46,7 @@ import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import prerna.auth.AccessPermissionEnum;
+import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityGroupEngineUtils;
 import prerna.semoss.web.services.local.ResourceUtility;
@@ -74,7 +75,7 @@ public class GroupEngineAuthorizationResource {
 	public Response getGroupAppPermission(@Context HttpServletRequest request, @QueryParam("groupId") String groupId,
 			@QueryParam("type") String type, @QueryParam("appId") String appId) {
 
-		type = WebUtility.inputSanitizer(type);
+		type = AuthProvider.getProviderLabel(WebUtility.inputSanitizer(type));
 		appId = WebUtility.inputSanitizer(appId);
 		groupId = WebUtility.inputSQLSanitizer(groupId);
 
@@ -139,7 +140,7 @@ public class GroupEngineAuthorizationResource {
 		}
 
 		String groupId = WebUtility.inputSQLSanitizer(form.getFirst("groupId"));
-		String type = WebUtility.inputSanitizer(form.getFirst("type"));
+		String type = AuthProvider.getProviderLabel(WebUtility.inputSanitizer(form.getFirst("type")));
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
@@ -203,7 +204,7 @@ public class GroupEngineAuthorizationResource {
 		}
 
 		String groupId = WebUtility.inputSQLSanitizer(form.getFirst("groupId"));
-		String type = WebUtility.inputSanitizer(form.getFirst("type"));
+		String type = AuthProvider.getProviderLabel(WebUtility.inputSanitizer(form.getFirst("type")));
 		String appId = WebUtility.inputSanitizer(form.getFirst("appId"));
 		String newPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
@@ -267,7 +268,7 @@ public class GroupEngineAuthorizationResource {
 		}
 
 		String groupId = WebUtility.inputSQLSanitizer(form.getFirst("groupId"));
-		String type = WebUtility.inputSanitizer(form.getFirst("type"));
+		String type = AuthProvider.getProviderLabel(WebUtility.inputSanitizer(form.getFirst("type")));
 		String appId = WebUtility.inputSanitizer(form.getFirst("appId"));
 		try {
 			if (groupId == null || (groupId = groupId.trim()).isEmpty()) {
