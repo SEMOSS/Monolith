@@ -7,14 +7,28 @@ function onMessage(event) {
     displayPixelResponse(pixelResponse);
 }
 
+// function displayPixelResponse(pixelResponse) {
+//     var content = document.getElementById("content");
+//     var div = document.createElement("div");
+    
+//     var html = "<h3>New Pixel</h3>";
+//     html += "<p>" +  JSON.stringify(pixelResponse) + "</p>";
+
+//     div.innerHTML= html;
+//     content.appendChild(div);
+// }
 function displayPixelResponse(pixelResponse) {
     var content = document.getElementById("content");
     var div = document.createElement("div");
-    
-    var html = "<h3>New Pixel</h3>";
-    html += "<p>" +  JSON.stringify(pixelResponse) + "</p>";
 
-    div.innerHTML= html;
+    var title = document.createElement("h3");
+    title.textContent = "New Pixel";
+    div.appendChild(title);
+
+    var para = document.createElement("p");
+    para.textContent = JSON.stringify(pixelResponse); // Safe: textContent escapes HTML
+    div.appendChild(para);
+
     content.appendChild(div);
 }
 
