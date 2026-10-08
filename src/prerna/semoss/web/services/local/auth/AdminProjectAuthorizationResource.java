@@ -1075,7 +1075,7 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 		try {
 			// users picked from the Microsoft directory may not be in the security db yet
 			if (MicrosoftGraphUserLookup.isEnabled()) {
-				MicrosoftGraphUserLookup.addMissingUsers(permission);
+				MicrosoftGraphUserLookup.addMissingUsers(user, permission);
 			}
 			adminUtils.addProjectUserPermissions(projectId, permission, user);
 		} catch (Exception e) {

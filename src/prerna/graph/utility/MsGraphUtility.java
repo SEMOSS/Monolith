@@ -43,7 +43,6 @@ import org.apache.logging.log4j.Logger;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import prerna.auth.User;
-import prerna.auth.utils.AdminSecurityGroupUtils;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityProjectUtils;
@@ -148,22 +147,22 @@ public class MsGraphUtility {
 	/**
 	 * Directory users who are not members of a custom group yet.
 	 *
-	 * @param request    the request, whose session holds the paging state
-	 * @param user       the signed in admin
-	 * @param groupUtils the admin group utilities
-	 * @param groupId    the custom group
-	 * @param searchTerm text to search for
-	 * @param limit      the page size, or 0 or less for one Graph page
-	 * @param offset     0 to start the search, anything else to continue it
+	 * @param request        the request, whose session holds the paging state
+	 * @param user           the signed in admin or group manager
+	 * @param groupId        the custom group
+	 * @param currentMembers every member of the group, as the group member list
+	 *                       returns them
+	 * @param searchTerm     text to search for
+	 * @param limit          the page size, or 0 or less for one Graph page
+	 * @param offset         0 to start the search, anything else to continue it
 	 * @return the users, in the SEMOSS user shape
 	 * @throws IllegalAccessException when the search needs the user's Microsoft
 	 *                                login and they are not signed in to Microsoft
 	 */
-	public static List<Map<String, Object>> getGroupUsers(HttpServletRequest request, User user,
-			AdminSecurityGroupUtils groupUtils, String groupId, String searchTerm, long limit, long offset)
+	public static List<Map<String, Object>> getGroupUsers(HttpServletRequest request, User user, String groupId,
+			List<Map<String, Object>> currentMembers, String searchTerm, long limit, long offset)
 			throws IllegalAccessException {
 		// group members carry their id as userid
-		List<Map<String, Object>> currentMembers = groupUtils.getGroupMembers(groupId, searchTerm, -1, -1);
 		return nextPage(request, user, GROUP_PREFIX + groupId + "_" + searchTerm, searchTerm, limit, offset,
 				excluding(currentMembers, Constants.MAP_USERID));
 	}

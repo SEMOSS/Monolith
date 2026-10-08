@@ -36,6 +36,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -53,6 +54,7 @@ import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.StreamingOutput;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
+import prerna.auth.utils.SecurityAdminUtils;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.sablecc2.PixelRunner;
@@ -128,6 +130,148 @@ public class ResourceUtility {
 		}
 
 		return user;
+	}
+
+	/**
+	 * A call an endpoint makes for the signed in user, for
+	 * {@link ResourceUtility#respond} and {@link ResourceUtility#respondAsAdmin}.
+	 */
+	@FunctionalInterface
+	public interface UserCall {
+
+		/**
+		 * @param user the signed in user
+		 * @return the response body
+		 * @throws IllegalAccessException   when the user may not do it, answered with
+		 *                                  401
+		 * @throws IllegalArgumentException for a bad request, answered with 400
+		 * @throws Exception                for anything else, answered with 500
+		 */
+		Object call(User user) throws Exception;
+	}
+
+	/**
+	 * A call an endpoint makes for a signed in admin, for
+	 * {@link ResourceUtility#respondAsAdmin(HttpServletRequest, String, Function, AdminCall)}.
+	 *
+	 * @param <T> the admin utilities the call uses
+	 */
+	@FunctionalInterface
+	public interface AdminCall<T> {
+
+		/**
+		 * @param user       the signed in admin
+		 * @param adminUtils the admin utilities, which prove the user is an admin
+		 * @return the response body
+		 * @throws Exception as for {@link UserCall#call(User)}
+		 */
+		Object call(User user, T adminUtils) throws Exception;
+	}
+
+	/**
+	 * Runs a call for the signed in user and turns its outcome into the response:
+	 * 200 with its result, 401 for a missing or anonymous session or a user who may
+	 * not do it, 400 for a bad request and 500 for anything else. Errors carry
+	 * {@link Constants#ERROR_MESSAGE}, and unexpected ones
+	 * {@link Constants#TECH_ERROR_MESSAGE} too. Every outcome is logged with the
+	 * endpoint, such as {@code POST /Monolith/api/auth/group/addGroupMember}, the
+	 * user and the action, a success included. The query string is left out of the
+	 * logs.
+	 *
+	 * @param request the request, whose session holds the user
+	 * @param action  what the call does, for the logs, such as
+	 *                {@code "add user jdoe to group Sales"}
+	 * @param call    the call
+	 * @return the response
+	 */
+	public static Response respond(HttpServletRequest request, String action, UserCall call) {
+		String endpoint = request.getMethod() + " " + request.getRequestURI();
+		User user;
+		try {
+			user = getUser(request);
+		} catch (IllegalAccessException e) {
+			classLogger.warn("[{}] A request without a signed in user tried to {}", endpoint, action);
+			return errorResponse("User session is invalid", 401);
+		}
+		if (user.isAnonymous()) {
+			classLogger.warn("[{}] An anonymous user tried to {}", endpoint, action);
+			return errorResponse("User session is invalid", 401);
+		}
+
+		String userName = User.getSingleLogginName(user);
+		try {
+			Object result = call.call(user);
+			classLogger.info("[{}] User {} was able to {}", endpoint, userName, action);
+			return WebUtility.getResponse(result, 200);
+		} catch (IllegalAccessException e) {
+			classLogger.warn("[{}] User {} is not allowed to {}: {}", endpoint, userName, action, e.getMessage());
+			return errorResponse(e.getMessage(), 401);
+		} catch (IllegalArgumentException e) {
+			classLogger.warn("[{}] User {} could not {}: {}", endpoint, userName, action, e.getMessage());
+			return errorResponse(e.getMessage(), 400);
+		} catch (Exception e) {
+			classLogger.error("[{}] User {} failed to {}.", endpoint, userName, action, e);
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
+			errorMap.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 500);
+		}
+	}
+
+	/**
+	 * {@link #respond} for admins only, for a call that needs admin utilities. The
+	 * utilities' {@code getInstance}, such as
+	 * {@code AdminSecurityGroupUtils::getInstance}, returns null for anyone who is
+	 * not an admin, so it is the admin check: it runs once, anyone else is answered
+	 * with 401, and the call gets the utilities, without the security database
+	 * being asked again whether the user is an admin.
+	 *
+	 * @param <T>           the admin utilities
+	 * @param request       the request, whose session holds the user
+	 * @param action        what the call does, for the logs, such as "add a group"
+	 * @param adminInstance returns the admin utilities, or null when the user is
+	 *                      not an admin
+	 * @param call          the call
+	 * @return the response
+	 */
+	public static <T> Response respondAsAdmin(HttpServletRequest request, String action,
+			Function<User, T> adminInstance, AdminCall<T> call) {
+		return respond(request, action, user -> {
+			T adminUtils = adminInstance.apply(user);
+			if (adminUtils == null) {
+				throw new IllegalAccessException("This functionality is limited to only admins");
+			}
+			return call.call(user, adminUtils);
+		});
+	}
+
+	/**
+	 * {@link #respond} for admins only, for a call that needs no admin utilities:
+	 * anyone else is answered with 401 before the call runs.
+	 *
+	 * @param request the request, whose session holds the user
+	 * @param action  what the call does, for the logs, such as "add a group"
+	 * @param call    the call
+	 * @return the response
+	 */
+	public static Response respondAsAdmin(HttpServletRequest request, String action, UserCall call) {
+		return respond(request, action, user -> {
+			if (!SecurityAdminUtils.userIsAdmin(user)) {
+				throw new IllegalAccessException("This functionality is limited to only admins");
+			}
+			return call.call(user);
+		});
+	}
+
+	/**
+	 * @param message the error message
+	 * @param status  the HTTP status
+	 * @return a response carrying the message as {@link Constants#ERROR_MESSAGE}
+	 */
+	public static Response errorResponse(String message, int status) {
+		Map<String, String> errorMap = new HashMap<>();
+		errorMap.put(Constants.ERROR_MESSAGE, message);
+		return WebUtility.getResponse(errorMap, status);
 	}
 
 	/**

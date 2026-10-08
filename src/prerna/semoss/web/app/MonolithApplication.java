@@ -61,6 +61,7 @@ import prerna.semoss.web.services.local.auth.AdminInsightAuthorizationResource;
 import prerna.semoss.web.services.local.auth.AdminProjectAuthorizationResource;
 import prerna.semoss.web.services.local.auth.AdminUserAuthorizationResource;
 import prerna.semoss.web.services.local.auth.EngineAuthorizationResource;
+import prerna.semoss.web.services.local.auth.GroupAuthorizationResource;
 import prerna.semoss.web.services.local.auth.GroupEngineAuthorizationResource;
 import prerna.semoss.web.services.local.auth.GroupInsightAuthorizationResource;
 import prerna.semoss.web.services.local.auth.GroupProjectAuthorizationResource;
@@ -105,6 +106,8 @@ public class MonolithApplication extends Application {
 		singletons.add(new GroupEngineAuthorizationResource());
 		singletons.add(new GroupProjectAuthorizationResource());
 		singletons.add(new GroupInsightAuthorizationResource());
+		// group managers maintain the members of their custom groups
+		singletons.add(new GroupAuthorizationResource());
 		// group admin authorization
 		singletons.add(new AdminGroupAuthorizationResource());
 		// insight execution
