@@ -27,13 +27,6 @@
  *******************************************************************************/
 package prerna.semoss.web.services.local.auth;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import jakarta.annotation.security.PermitAll;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.GET;
@@ -44,20 +37,30 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.Response;
 import prerna.auth.AuthProvider;
-import prerna.auth.User;
 import prerna.auth.utils.AdminSecurityGroupUtils;
-import prerna.auth.utils.SecurityAdminUtils;
+import prerna.auth.utils.SecurityGroupManagerUtils;
 import prerna.graph.utility.MsGraphUtility;
 import prerna.io.connector.ms.MicrosoftGraphUserLookup;
 import prerna.semoss.web.services.local.ResourceUtility;
-import prerna.util.Constants;
+import prerna.util.ValueUtils;
 import prerna.web.services.util.WebUtility;
 
+/**
+ * Groups for admins: creating, editing and deleting them, their members and
+ * managers, and the projects and engines they can use. Each endpoint runs
+ * through {@link ResourceUtility#respondAsAdmin} with
+ * {@link AdminSecurityGroupUtils#getInstance}, which is the one admin check:
+ * anyone who is not an admin is answered with 401 before the endpoint does
+ * anything, and the endpoint gets the admin group utilities.
+ */
 @Path("/auth/admin/group")
 @PermitAll
-public class AdminGroupAuthorizationResource extends AbstractAdminResource {
+public class AdminGroupAuthorizationResource {
 
-	private static final Logger classLogger = LogManager.getLogger(AdminGroupAuthorizationResource.class);
+	private static final String GROUP_ID_REQUIRED = "Must define the group id";
+	private static final String GROUP_ID_PARAM_REQUIRED = "The group id ('groupId') cannot be null or empty";
+	private static final String USER_ID_PARAM_REQUIRED = "The user id ('userId') cannot be null or empty";
+	private static final String USER_TYPE_PARAM_REQUIRED = "The user login type ('type') cannot be null or empty";
 
 	///////////////////////////////////////////////////////////////
 
@@ -70,22 +73,9 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	public Response getGroups(@Context HttpServletRequest request, @QueryParam("searchTerm") String searchTerm,
 			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
-		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
-		AdminSecurityGroupUtils groupUtils = null;
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-			groupUtils = AdminSecurityGroupUtils.getInstance(user);
-		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to get list of groups");
-			classLogger.error("Failed to retrieve groups.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		List<Map<String, Object>> ret = groupUtils.getGroups(searchTerm, limit, offset);
-		return WebUtility.getResponse(ret, 200);
+		String term = WebUtility.inputSQLSanitizer(searchTerm);
+		return ResourceUtility.respondAsAdmin(request, "list the groups", AdminSecurityGroupUtils::getInstance,
+				(user, adminGroupUtils) -> adminGroupUtils.getGroups(term, limit, offset));
 	}
 
 	@GET
@@ -93,253 +83,71 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	public Response getGroupDetails(@Context HttpServletRequest request, @QueryParam("groupId") String groupId,
 			@QueryParam("type") String type) {
-		groupId = WebUtility.inputSQLSanitizer(groupId);
-		type = AuthProvider.getProviderLabel(WebUtility.inputSQLSanitizer(type));
-		AdminSecurityGroupUtils groupUtils = null;
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-			groupUtils = AdminSecurityGroupUtils.getInstance(user);
-			Map<String, Object> ret = groupUtils.getGroupDetails(groupId, type);
-			return WebUtility.getResponse(ret, 200);
-		} catch (Exception e) {
-			classLogger.warn("User is trying to get details about a specific group");
-			classLogger.error("Failed to retrieve group details.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 401);
-		}
+		String group = WebUtility.inputSQLSanitizer(groupId);
+		String groupType = AuthProvider.getProviderLabel(WebUtility.inputSQLSanitizer(type));
+		return ResourceUtility.respondAsAdmin(request, "read the details of group " + group,
+				AdminSecurityGroupUtils::getInstance,
+				(user, adminGroupUtils) -> adminGroupUtils.getGroupDetails(group, groupType));
 	}
 
 	@GET
 	@Path("/getNumGroups")
 	@Produces("application/json")
 	public Response getNumGroups(@Context HttpServletRequest request, @QueryParam("searchTerm") String searchTerm) {
-		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
-		AdminSecurityGroupUtils groupUtils = null;
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-			groupUtils = AdminSecurityGroupUtils.getInstance(user);
-		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to get list of groups");
-			classLogger.error("Failed to retrieve num groups.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		Long numGroups = groupUtils.getNumGroups(searchTerm);
-		if (numGroups == null) {
-			numGroups = Long.valueOf(0);
-		}
-		return WebUtility.getResponse(numGroups, 200);
+		String term = WebUtility.inputSQLSanitizer(searchTerm);
+		return ResourceUtility.respondAsAdmin(request, "count the groups", AdminSecurityGroupUtils::getInstance,
+				(user, adminGroupUtils) -> {
+					Long numGroups = adminGroupUtils.getNumGroups(term);
+					return numGroups == null ? Long.valueOf(0) : numGroups;
+				});
 	}
 
 	@POST
 	@Produces("application/json")
 	@Path("/addGroup")
 	public Response addGroup(@Context HttpServletRequest request) {
-		Map<String, String> errorRet = new HashMap<>();
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to add a group but couldn't find user session");
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		if (!SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn("User is trying to add a group but is not an admin");
-			errorRet.put(Constants.ERROR_MESSAGE, "The user doesn't have the permissions to perform this action.");
-			return WebUtility.getResponse(errorRet, 400);
-		}
-
-		boolean success = false;
-		try {
-			String newGroupId = WebUtility.inputSQLSanitizer(request.getParameter("groupId"));
-			if (newGroupId == null || (newGroupId = newGroupId.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The group id cannot be null or empty");
-			}
-			String newGroupType = AuthProvider
-					.getProviderLabel(WebUtility.inputSQLSanitizer(request.getParameter("type")));
-			String description = WebUtility.inputSanitizer(request.getParameter("description"));
-			if (description == null) {
-				description = "";
-			}
-			description = description.trim();
-			if ((newGroupType == null || (newGroupType = newGroupType.trim()).isEmpty())) {
-				throw new IllegalArgumentException("The group type cannot be null");
-			}
-			AdminSecurityGroupUtils.getInstance(user).addGroup(user, newGroupId, newGroupType, description);
-			success = true;
-		} catch (IllegalArgumentException e) {
-			classLogger.error("Failed to add group.", e);
-			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorRet, 400);
-		} catch (Exception e) {
-			classLogger.error("Failed to add group.", e);
-			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
-			errorRet.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorRet, 500);
-		}
-		return WebUtility.getResponse(success, 200);
+		String groupId = WebUtility.inputSQLSanitizer(request.getParameter("groupId"));
+		String groupType = AuthProvider.getProviderLabel(WebUtility.inputSQLSanitizer(request.getParameter("type")));
+		String description = WebUtility.inputSanitizer(request.getParameter("description"));
+		return ResourceUtility.respondAsAdmin(request, "add group " + groupId, AdminSecurityGroupUtils::getInstance,
+				(user, adminGroupUtils) -> {
+					String id = ValueUtils.requireNonBlank(groupId, "The group id cannot be null or empty");
+					String type = ValueUtils.requireNonBlank(groupType, "The group type cannot be null");
+					adminGroupUtils.addGroup(user, id, type, description == null ? "" : description.trim());
+					return true;
+				});
 	}
 
 	@POST
 	@Produces("application/json")
 	@Path("/deleteGroup")
 	public Response deleteGroup(@Context HttpServletRequest request) {
-		Map<String, String> errorRet = new HashMap<>();
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to remove a group but couldn't find user session");
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		if (!SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn("User is trying to remove a group but is not an admin");
-			errorRet.put(Constants.ERROR_MESSAGE, "The user doesn't have the permissions to perform this action.");
-			return WebUtility.getResponse(errorRet, 400);
-		}
-
-		boolean success = false;
-		try {
-			String groupId = WebUtility.inputSQLSanitizer(request.getParameter("groupId"));
-			if (groupId == null || (groupId = groupId.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The group id cannot be null or empty");
-			}
-			String groupType = AuthProvider
-					.getProviderLabel(WebUtility.inputSQLSanitizer(request.getParameter("type")));
-
-			AdminSecurityGroupUtils.getInstance(user).deleteGroupAndPropagate(groupId, groupType);
-			success = true;
-		} catch (IllegalArgumentException e) {
-			classLogger.error("Failed to delete group.", e);
-			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorRet, 400);
-		} catch (Exception e) {
-			classLogger.error("Failed to delete group.", e);
-			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
-			errorRet.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorRet, 500);
-		}
-		return WebUtility.getResponse(success, 200);
-	}
-
-	@POST
-	@Produces("application/json")
-	@Path("/editGroup")
-	@Deprecated
-	public Response editGroup(@Context HttpServletRequest request) {
-		Map<String, String> errorRet = new HashMap<>();
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to edit a group but couldn't find user session");
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		if (!SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn("User is trying to edit a group but is not an admin");
-			errorRet.put(Constants.ERROR_MESSAGE, "The user doesn't have the permissions to perform this action.");
-			return WebUtility.getResponse(errorRet, 400);
-		}
-
-		boolean success = false;
-		try {
-			String groupId = WebUtility.inputSQLSanitizer(request.getParameter("groupId"));
-			if (groupId == null || (groupId = groupId.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The group id cannot be null or empty");
-			}
-			String groupType = AuthProvider
-					.getProviderLabel(WebUtility.inputSQLSanitizer(request.getParameter("type")));
-			String newGroupId = WebUtility.inputSQLSanitizer(request.getParameter("newGroupId"));
-			if (newGroupId == null || (newGroupId = newGroupId.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The new group id cannot be null or empty");
-			}
-			String newType = AuthProvider
-					.getProviderLabel(WebUtility.inputSQLSanitizer(request.getParameter("newType")));
-			String newDescription = WebUtility.inputSanitizer(request.getParameter("newDescription"));
-			if ((newType == null || (newType = newType.trim()).isEmpty())) {
-				throw new IllegalArgumentException("The new group type cannot be null");
-			}
-
-			AdminSecurityGroupUtils.getInstance(user).editGroupAndPropagate(user, groupId, groupType, newGroupId,
-					newType, newDescription);
-			success = true;
-		} catch (IllegalArgumentException e) {
-			classLogger.error("Failed to update group.", e);
-			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorRet, 400);
-		} catch (Exception e) {
-			classLogger.error("Failed to update group.", e);
-			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
-			errorRet.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorRet, 500);
-		}
-		return WebUtility.getResponse(success, 200);
+		String groupId = WebUtility.inputSQLSanitizer(request.getParameter("groupId"));
+		String groupType = AuthProvider.getProviderLabel(WebUtility.inputSQLSanitizer(request.getParameter("type")));
+		return ResourceUtility.respondAsAdmin(request, "delete group " + groupId, AdminSecurityGroupUtils::getInstance,
+				(user, adminGroupUtils) -> {
+					adminGroupUtils.deleteGroupAndPropagate(
+							ValueUtils.requireNonBlank(groupId, "The group id cannot be null or empty"), groupType);
+					return true;
+				});
 	}
 
 	@POST
 	@Produces("application/json")
 	@Path("/editGroupDetails")
 	public Response editGroupDetails(@Context HttpServletRequest request) {
-		Map<String, String> errorRet = new HashMap<>();
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to edit a group but couldn't find user session");
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		if (!SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn("User is trying to edit a group but is not an admin");
-			errorRet.put(Constants.ERROR_MESSAGE, "The user doesn't have the permissions to perform this action.");
-			return WebUtility.getResponse(errorRet, 400);
-		}
-		boolean success = false;
-		try {
-			String groupId = WebUtility.inputSQLSanitizer(request.getParameter("groupId"));
-			if (groupId == null || (groupId = groupId.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The group id cannot be null or empty");
-			}
-			String newGroupId = WebUtility.inputSQLSanitizer(request.getParameter("newGroupId"));
-			if (newGroupId == null || (newGroupId = newGroupId.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The new group id cannot be null or empty");
-			}
-			String groupType = AuthProvider
-					.getProviderLabel(WebUtility.inputSQLSanitizer(request.getParameter("type")));
-			if ((groupType == null || (groupType = groupType.trim()).isEmpty())) {
-				throw new IllegalArgumentException("The group type cannot be null");
-			}
-			String newDescription = WebUtility.inputSanitizer(request.getParameter("newDescription"));
-			AdminSecurityGroupUtils.getInstance(user).editGroupDetailsAndPropagate(user, groupId, groupType, newGroupId,
-					newDescription);
-			success = true;
-		} catch (IllegalArgumentException e) {
-			classLogger.error("Failed to update group details.", e);
-			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorRet, 400);
-		} catch (Exception e) {
-			classLogger.error("Failed to update group details.", e);
-			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
-			errorRet.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorRet, 500);
-		}
-		return WebUtility.getResponse(success, 200);
+		String groupId = WebUtility.inputSQLSanitizer(request.getParameter("groupId"));
+		String newGroupId = WebUtility.inputSQLSanitizer(request.getParameter("newGroupId"));
+		String groupType = AuthProvider.getProviderLabel(WebUtility.inputSQLSanitizer(request.getParameter("type")));
+		String newDescription = WebUtility.inputSanitizer(request.getParameter("newDescription"));
+		return ResourceUtility.respondAsAdmin(request, "edit group " + groupId, AdminSecurityGroupUtils::getInstance,
+				(user, adminGroupUtils) -> {
+					String id = ValueUtils.requireNonBlank(groupId, "The group id cannot be null or empty");
+					String newId = ValueUtils.requireNonBlank(newGroupId, "The new group id cannot be null or empty");
+					String type = ValueUtils.requireNonBlank(groupType, "The group type cannot be null");
+					adminGroupUtils.editGroupDetailsAndPropagate(user, id, type, newId, newDescription);
+					return true;
+				});
 	}
 
 	/*
@@ -352,42 +160,11 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	public Response getGroupMembers(@Context HttpServletRequest request, @QueryParam("groupId") String groupId,
 			@QueryParam("searchTerm") String searchTerm, @QueryParam("limit") long limit,
 			@QueryParam("offset") long offset) {
-		groupId = WebUtility.inputSQLSanitizer(groupId);
-		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
-		AdminSecurityGroupUtils groupUtils = null;
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-			groupUtils = AdminSecurityGroupUtils.getInstance(user);
-		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to get users assigned to a group");
-			classLogger.error("Failed to retrieve group members.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		if (groupId == null || (groupId = groupId.trim()).isEmpty()) {
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Must define the group id");
-			return WebUtility.getResponse(errorMap, 400);
-		}
-
-		try {
-			List<Map<String, Object>> ret = groupUtils.getGroupMembers(groupId, searchTerm, limit, offset);
-			return WebUtility.getResponse(ret, 200);
-		} catch (IllegalArgumentException e) {
-			classLogger.error("Failed to retrieve group members.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		} catch (Exception e) {
-			classLogger.error("Failed to retrieve group members.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
-			errorMap.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		}
+		String group = WebUtility.inputSQLSanitizer(groupId);
+		String term = WebUtility.inputSQLSanitizer(searchTerm);
+		return ResourceUtility.respondAsAdmin(request, "list the members of group " + group,
+				AdminSecurityGroupUtils::getInstance, (user, adminGroupUtils) -> adminGroupUtils
+						.getGroupMembers(ValueUtils.requireNonBlank(group, GROUP_ID_REQUIRED), term, limit, offset));
 	}
 
 	@GET
@@ -395,42 +172,11 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	public Response getNumMembersInGroup(@Context HttpServletRequest request, @QueryParam("groupId") String groupId,
 			@QueryParam("searchTerm") String searchTerm) {
-		groupId = WebUtility.inputSQLSanitizer(groupId);
-		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
-		AdminSecurityGroupUtils groupUtils = null;
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-			groupUtils = AdminSecurityGroupUtils.getInstance(user);
-		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to the number of users assinged to a group");
-			classLogger.error("Failed to retrieve num members in group.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		if (groupId == null || (groupId = groupId.trim()).isEmpty()) {
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Must define the group id");
-			return WebUtility.getResponse(errorMap, 400);
-		}
-
-		try {
-			Long numUsers = groupUtils.getNumMembersInGroup(groupId, searchTerm);
-			return WebUtility.getResponse(numUsers, 200);
-		} catch (IllegalArgumentException e) {
-			classLogger.error("Failed to retrieve num members in group.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		} catch (Exception e) {
-			classLogger.error("Failed to retrieve num members in group.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
-			errorMap.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		}
+		String group = WebUtility.inputSQLSanitizer(groupId);
+		String term = WebUtility.inputSQLSanitizer(searchTerm);
+		return ResourceUtility.respondAsAdmin(request, "count the members of group " + group,
+				AdminSecurityGroupUtils::getInstance, (user, adminGroupUtils) -> adminGroupUtils
+						.getNumMembersInGroup(ValueUtils.requireNonBlank(group, GROUP_ID_REQUIRED), term));
 	}
 
 	@GET
@@ -440,206 +186,111 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			@QueryParam("searchTerm") String searchTerm, @QueryParam("limit") long limit,
 			@QueryParam("offset") long offset,
 			@QueryParam(MicrosoftGraphUserLookup.LOOKUP_PARAM) String msGraphLookup) {
-		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
-		groupId = WebUtility.inputSQLSanitizer(groupId);
-		AdminSecurityGroupUtils groupUtils = null;
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-			groupUtils = AdminSecurityGroupUtils.getInstance(user);
-		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to users who are not assigned to a group");
-			classLogger.error("Failed to retrieve non group members.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		if (groupId == null || (groupId = groupId.trim()).isEmpty()) {
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Must define the group id");
-			return WebUtility.getResponse(errorMap, 400);
-		}
-
-		try {
-			// when the directory is used, search it for people not in the group
-			// otherwise we will look at our security db
-			List<Map<String, Object>> ret = MicrosoftGraphUserLookup.useDirectory(msGraphLookup)
-					? MsGraphUtility.getGroupUsers(request, user, groupUtils, groupId, searchTerm, limit, offset)
-					: groupUtils.getNonGroupMembers(groupId, searchTerm, limit, offset);
-			return WebUtility.getResponse(ret, 200);
-		} catch (IllegalAccessException e) {
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		} catch (IllegalArgumentException e) {
-			classLogger.error("Failed to retrieve non group members.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		} catch (Exception e) {
-			classLogger.error("Failed to retrieve non group members.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
-			errorMap.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		}
+		String group = WebUtility.inputSQLSanitizer(groupId);
+		String term = WebUtility.inputSQLSanitizer(searchTerm);
+		return ResourceUtility.respondAsAdmin(request, "search for people to add to group " + group,
+				AdminSecurityGroupUtils::getInstance, (user, adminGroupUtils) -> {
+					String id = ValueUtils.requireNonBlank(group, GROUP_ID_REQUIRED);
+					if (!MicrosoftGraphUserLookup.useDirectory(msGraphLookup)) {
+						return adminGroupUtils.getNonGroupMembers(id, term, limit, offset);
+					}
+					// search the directory, leaving out everyone already in the group
+					return MsGraphUtility.getGroupUsers(request, user, id,
+							adminGroupUtils.getGroupMembers(id, null, -1, -1), term, limit, offset);
+				});
 	}
 
-	@GET
-	@Path("/getNumNonMembersInGroup")
-	@Produces("application/json")
-	public Response getNumNonMembersInGroup(@Context HttpServletRequest request, @QueryParam("groupId") String groupId,
-			@QueryParam("searchTerm") String searchTerm) {
-		groupId = WebUtility.inputSQLSanitizer(groupId);
-		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
-		AdminSecurityGroupUtils groupUtils = null;
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-			groupUtils = AdminSecurityGroupUtils.getInstance(user);
-		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to the number of users assinged to a group");
-			classLogger.error("Failed to retrieve num non members in group.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		if (groupId == null || (groupId = groupId.trim()).isEmpty()) {
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Must define the group id");
-			return WebUtility.getResponse(errorMap, 400);
-		}
-
-		try {
-			Long numUsers = groupUtils.getNumNonMembersInGroup(groupId, searchTerm);
-			return WebUtility.getResponse(numUsers, 200);
-		} catch (IllegalArgumentException e) {
-			classLogger.error("Failed to retrieve num non members in group.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		} catch (Exception e) {
-			classLogger.error("Failed to retrieve num non members in group.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
-			errorMap.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		}
-	}
-
+	/**
+	 * Adds a member to a custom group. A person picked from the Microsoft directory
+	 * who is not in the security database yet is added to it, with the details the
+	 * directory holds for them.
+	 */
 	@POST
 	@Produces("application/json")
 	@Path("/addGroupMember")
 	public Response addGroupMember(@Context HttpServletRequest request) {
-		Map<String, String> errorRet = new HashMap<>();
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to add a group but couldn't find user session");
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		if (!SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn("User is trying to add a group but is not an admin");
-			errorRet.put(Constants.ERROR_MESSAGE, "The user doesn't have the permissions to perform this action.");
-			return WebUtility.getResponse(errorRet, 400);
-		}
-
-		boolean success = false;
-		try {
-			String groupId = WebUtility.inputSQLSanitizer(request.getParameter("groupId"));
-			if (groupId == null || (groupId = groupId.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The group id ('groupId') cannot be null or empty");
-			}
-			String userId = WebUtility.inputSQLSanitizer(request.getParameter("userId"));
-			if (userId == null || (userId = userId.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The user id ('userId') cannot be null or empty");
-			}
-			String userLoginType = WebUtility.inputSQLSanitizer(request.getParameter("type"));
-			if (userLoginType == null || (userLoginType = userLoginType.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The user login type ('type') cannot be null or empty");
-			}
-			String endDate = WebUtility.inputSQLSanitizer(request.getParameter("endDate"));
-
-			// a person picked from the Microsoft directory may not be in the security db
-			// yet, so add them from the details sent with the request
-			if (MicrosoftGraphUserLookup.isEnabled()
-					&& AuthProvider.MICROSOFT.toString().equalsIgnoreCase(userLoginType)) {
-				MicrosoftGraphUserLookup.addMissingUser(userId,
-						WebUtility.inputSQLSanitizer(request.getParameter("name")),
-						WebUtility.inputSQLSanitizer(request.getParameter("email")),
-						WebUtility.inputSQLSanitizer(request.getParameter("username")));
-			}
-
-			AdminSecurityGroupUtils.getInstance(user).addUserToGroup(user, groupId, userId, userLoginType, endDate);
-			success = true;
-		} catch (IllegalArgumentException e) {
-			classLogger.error("Failed to add group member.", e);
-			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorRet, 400);
-		} catch (Exception e) {
-			classLogger.error("Failed to add group member.", e);
-			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
-			errorRet.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorRet, 500);
-		}
-		return WebUtility.getResponse(success, 200);
+		String groupId = WebUtility.inputSQLSanitizer(request.getParameter("groupId"));
+		String userId = WebUtility.inputSQLSanitizer(request.getParameter("userId"));
+		String userLoginType = WebUtility.inputSQLSanitizer(request.getParameter("type"));
+		String endDate = WebUtility.inputSQLSanitizer(request.getParameter("endDate"));
+		return ResourceUtility.respondAsAdmin(request, "add user " + userId + " to group " + groupId,
+				AdminSecurityGroupUtils::getInstance, (user, adminGroupUtils) -> {
+					SecurityGroupManagerUtils.addUserToGroup(adminGroupUtils, user,
+							ValueUtils.requireNonBlank(groupId, GROUP_ID_PARAM_REQUIRED),
+							ValueUtils.requireNonBlank(userId, USER_ID_PARAM_REQUIRED),
+							ValueUtils.requireNonBlank(userLoginType, USER_TYPE_PARAM_REQUIRED), endDate);
+					return true;
+				});
 	}
 
 	@POST
 	@Produces("application/json")
 	@Path("/deleteGroupMember")
 	public Response deleteGroupMember(@Context HttpServletRequest request) {
-		Map<String, String> errorRet = new HashMap<>();
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to add a group but couldn't find user session");
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
+		String groupId = WebUtility.inputSQLSanitizer(request.getParameter("groupId"));
+		String userId = WebUtility.inputSQLSanitizer(request.getParameter("userId"));
+		String userLoginType = WebUtility.inputSQLSanitizer(request.getParameter("type"));
+		return ResourceUtility.respondAsAdmin(request, "remove user " + userId + " from group " + groupId,
+				AdminSecurityGroupUtils::getInstance, (user, adminGroupUtils) -> {
+					SecurityGroupManagerUtils.removeUserFromGroup(adminGroupUtils,
+							ValueUtils.requireNonBlank(groupId, GROUP_ID_PARAM_REQUIRED),
+							ValueUtils.requireNonBlank(userId, USER_ID_PARAM_REQUIRED),
+							ValueUtils.requireNonBlank(userLoginType, USER_TYPE_PARAM_REQUIRED));
+					return true;
+				});
+	}
 
-		if (!SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn("User is trying to add a group but is not an admin");
-			errorRet.put(Constants.ERROR_MESSAGE, "The user doesn't have the permissions to perform this action.");
-			return WebUtility.getResponse(errorRet, 400);
-		}
+	/*
+	 * Group Managers For Custom Groups
+	 */
 
-		boolean success = false;
-		try {
-			String groupId = WebUtility.inputSQLSanitizer(request.getParameter("groupId"));
-			if (groupId == null || (groupId = groupId.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The group id ('groupId') cannot be null or empty");
-			}
-			String userId = WebUtility.inputSQLSanitizer(request.getParameter("userId"));
-			if (userId == null || (userId = userId.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The user id ('userId') cannot be null or empty");
-			}
-			String userLoginType = WebUtility.inputSQLSanitizer(request.getParameter("type"));
-			if (userLoginType == null || (userLoginType = userLoginType.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The user login type ('type') cannot be null or empty");
-			}
+	@GET
+	@Path("/getGroupManagers")
+	@Produces("application/json")
+	public Response getGroupManagers(@Context HttpServletRequest request, @QueryParam("groupId") String groupId) {
+		String group = WebUtility.inputSQLSanitizer(groupId);
+		return ResourceUtility.respondAsAdmin(request, "list the managers of group " + group,
+				AdminSecurityGroupUtils::getInstance, (user, adminGroupUtils) -> SecurityGroupManagerUtils
+						.getGroupManagers(adminGroupUtils, ValueUtils.requireNonBlank(group, GROUP_ID_REQUIRED)));
+	}
 
-			AdminSecurityGroupUtils.getInstance(user).removeUserFromGroup(groupId, userId, userLoginType);
-			success = true;
-		} catch (IllegalArgumentException e) {
-			classLogger.error("Failed to delete group member.", e);
-			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorRet, 400);
-		} catch (Exception e) {
-			classLogger.error("Failed to delete group member.", e);
-			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
-			errorRet.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorRet, 500);
-		}
-		return WebUtility.getResponse(success, 200);
+	/**
+	 * Makes someone a manager of a custom group. A person picked from the Microsoft
+	 * directory who is not in the security database yet is added to it, with the
+	 * details the directory holds for them.
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("/addGroupManager")
+	public Response addGroupManager(@Context HttpServletRequest request) {
+		String groupId = WebUtility.inputSQLSanitizer(request.getParameter("groupId"));
+		String userId = WebUtility.inputSQLSanitizer(request.getParameter("userId"));
+		String userLoginType = WebUtility.inputSQLSanitizer(request.getParameter("type"));
+		return ResourceUtility.respondAsAdmin(request, "make user " + userId + " a manager of group " + groupId,
+				AdminSecurityGroupUtils::getInstance, (user, adminGroupUtils) -> {
+					SecurityGroupManagerUtils.addGroupManager(adminGroupUtils, user,
+							ValueUtils.requireNonBlank(groupId, GROUP_ID_PARAM_REQUIRED),
+							ValueUtils.requireNonBlank(userId, USER_ID_PARAM_REQUIRED),
+							ValueUtils.requireNonBlank(userLoginType, USER_TYPE_PARAM_REQUIRED));
+					return true;
+				});
+	}
+
+	@POST
+	@Produces("application/json")
+	@Path("/removeGroupManager")
+	public Response removeGroupManager(@Context HttpServletRequest request) {
+		String groupId = WebUtility.inputSQLSanitizer(request.getParameter("groupId"));
+		String userId = WebUtility.inputSQLSanitizer(request.getParameter("userId"));
+		String userLoginType = WebUtility.inputSQLSanitizer(request.getParameter("type"));
+		return ResourceUtility.respondAsAdmin(request, "remove user " + userId + " as a manager of group " + groupId,
+				AdminSecurityGroupUtils::getInstance, (user, adminGroupUtils) -> {
+					SecurityGroupManagerUtils.removeGroupManager(adminGroupUtils,
+							ValueUtils.requireNonBlank(groupId, GROUP_ID_PARAM_REQUIRED),
+							ValueUtils.requireNonBlank(userId, USER_ID_PARAM_REQUIRED),
+							ValueUtils.requireNonBlank(userLoginType, USER_TYPE_PARAM_REQUIRED));
+					return true;
+				});
 	}
 
 	///////////////////////////////////////////////////////////////
@@ -652,179 +303,58 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("/addGroupProjectPermission")
 	public Response addGroupProjectPermission(@Context HttpServletRequest request) {
-		Map<String, String> errorRet = new HashMap<>();
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to add a group project permission but couldn't find user session");
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		if (!SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn("User is trying to add a group project permission but is not an admin");
-			errorRet.put(Constants.ERROR_MESSAGE, "The user doesn't have the permissions to perform this action.");
-			return WebUtility.getResponse(errorRet, 400);
-		}
-
-		boolean success = false;
-		try {
-			String groupId = WebUtility.inputSQLSanitizer(request.getParameter("groupId"));
-			if (groupId == null || (groupId = groupId.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The group id ('groupId') cannot be null or empty");
-			}
-			String projectId = WebUtility.inputSQLSanitizer(request.getParameter("projectId"));
-			if (projectId == null || (projectId = projectId.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The project id ('projectId') cannot be null or empty");
-			}
-			String permissionStr = WebUtility.inputSQLSanitizer(request.getParameter("permission"));
-			if (permissionStr == null || (permissionStr = permissionStr.trim()).isEmpty()) {
-				throw new IllegalArgumentException(
-						"The permission integer value ('permission') cannot be null or empty");
-			}
-			int permission = -1;
-			try {
-				permission = Integer.parseInt(permissionStr);
-			} catch (NumberFormatException nbe) {
-				classLogger.error("Failed to add group project permission.", nbe);
-				throw new IllegalArgumentException(
-						"Must pass a valid integer value. Received value = " + permissionStr);
-			}
-
-			String groupType = AuthProvider
-					.getProviderLabel(WebUtility.inputSQLSanitizer(request.getParameter("type")));
-			String endDate = WebUtility.inputSQLSanitizer(request.getParameter("endDate"));
-
-			AdminSecurityGroupUtils.getInstance(user).addGroupProjectPermission(user, groupId, groupType, projectId,
-					permission, endDate);
-			success = true;
-		} catch (IllegalArgumentException e) {
-			classLogger.error("Failed to add group project permission.", e);
-			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorRet, 400);
-		} catch (Exception e) {
-			classLogger.error("Failed to add group project permission.", e);
-			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
-			errorRet.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorRet, 500);
-		}
-		return WebUtility.getResponse(success, 200);
+		String groupId = WebUtility.inputSQLSanitizer(request.getParameter("groupId"));
+		String projectId = WebUtility.inputSQLSanitizer(request.getParameter("projectId"));
+		String permission = WebUtility.inputSQLSanitizer(request.getParameter("permission"));
+		String groupType = AuthProvider.getProviderLabel(WebUtility.inputSQLSanitizer(request.getParameter("type")));
+		String endDate = WebUtility.inputSQLSanitizer(request.getParameter("endDate"));
+		return ResourceUtility.respondAsAdmin(request, "give group " + groupId + " access to project " + projectId,
+				AdminSecurityGroupUtils::getInstance, (user, adminGroupUtils) -> {
+					String id = ValueUtils.requireNonBlank(groupId, GROUP_ID_PARAM_REQUIRED);
+					String project = ValueUtils.requireNonBlank(projectId,
+							"The project id ('projectId') cannot be null or empty");
+					int level = requirePermission(permission);
+					adminGroupUtils.addGroupProjectPermission(user, id, groupType, project, level, endDate);
+					return true;
+				});
 	}
 
 	@POST
 	@Produces("application/json")
 	@Path("/editGroupProjectPermission")
 	public Response editGroupProjectPermission(@Context HttpServletRequest request) {
-		Map<String, String> errorRet = new HashMap<>();
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to edit a group project permission but couldn't find user session");
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		if (!SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn("User is trying to edit a group project permission but is not an admin");
-			errorRet.put(Constants.ERROR_MESSAGE, "The user doesn't have the permissions to perform this action.");
-			return WebUtility.getResponse(errorRet, 400);
-		}
-
-		boolean success = false;
-		try {
-			String groupId = WebUtility.inputSQLSanitizer(request.getParameter("groupId"));
-			if (groupId == null || (groupId = groupId.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The group id ('groupId') cannot be null or empty");
-			}
-			String projectId = WebUtility.inputSQLSanitizer(request.getParameter("projectId"));
-			if (projectId == null || (projectId = projectId.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The project id ('projectId') cannot be null or empty");
-			}
-			String permissionStr = WebUtility.inputSQLSanitizer(request.getParameter("permission"));
-			if (permissionStr == null || (permissionStr = permissionStr.trim()).isEmpty()) {
-				throw new IllegalArgumentException(
-						"The permission integer value ('permission') cannot be null or empty");
-			}
-			int permission = -1;
-			try {
-				permission = Integer.parseInt(permissionStr);
-			} catch (NumberFormatException nbe) {
-				classLogger.error("Failed to update group project permission.", nbe);
-				throw new IllegalArgumentException(
-						"Must pass a valid integer value. Received value = " + permissionStr);
-			}
-
-			String groupType = AuthProvider
-					.getProviderLabel(WebUtility.inputSQLSanitizer(request.getParameter("type")));
-			String endDate = WebUtility.inputSQLSanitizer(request.getParameter("endDate"));
-
-			AdminSecurityGroupUtils.getInstance(user).editGroupProjectPermission(user, groupId, groupType, projectId,
-					permission, endDate);
-			success = true;
-		} catch (IllegalArgumentException e) {
-			classLogger.error("Failed to update group project permission.", e);
-			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorRet, 400);
-		} catch (Exception e) {
-			classLogger.error("Failed to update group project permission.", e);
-			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
-			errorRet.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorRet, 500);
-		}
-		return WebUtility.getResponse(success, 200);
+		String groupId = WebUtility.inputSQLSanitizer(request.getParameter("groupId"));
+		String projectId = WebUtility.inputSQLSanitizer(request.getParameter("projectId"));
+		String permission = WebUtility.inputSQLSanitizer(request.getParameter("permission"));
+		String groupType = AuthProvider.getProviderLabel(WebUtility.inputSQLSanitizer(request.getParameter("type")));
+		String endDate = WebUtility.inputSQLSanitizer(request.getParameter("endDate"));
+		return ResourceUtility.respondAsAdmin(request, "change the access group " + groupId + " has to project " + projectId,
+				AdminSecurityGroupUtils::getInstance, (user, adminGroupUtils) -> {
+					String id = ValueUtils.requireNonBlank(groupId, GROUP_ID_PARAM_REQUIRED);
+					String project = ValueUtils.requireNonBlank(projectId,
+							"The project id ('projectId') cannot be null or empty");
+					int level = requirePermission(permission);
+					adminGroupUtils.editGroupProjectPermission(user, id, groupType, project, level, endDate);
+					return true;
+				});
 	}
 
 	@POST
 	@Produces("application/json")
 	@Path("/removeGroupProjectPermission")
 	public Response removeGroupProjectPermission(@Context HttpServletRequest request) {
-		Map<String, String> errorRet = new HashMap<>();
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to remove a group project permission but couldn't find user session");
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		if (!SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn("User is trying to remove a group project permission but is not an admin");
-			errorRet.put(Constants.ERROR_MESSAGE, "The user doesn't have the permissions to perform this action.");
-			return WebUtility.getResponse(errorRet, 400);
-		}
-
-		boolean success = false;
-		try {
-			String groupId = WebUtility.inputSQLSanitizer(request.getParameter("groupId"));
-			if (groupId == null || (groupId = groupId.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The group id ('groupId') cannot be null or empty");
-			}
-			String projectId = WebUtility.inputSQLSanitizer(request.getParameter("projectId"));
-			if (projectId == null || (projectId = projectId.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The project id ('projectId') cannot be null or empty");
-			}
-			String groupType = AuthProvider
-					.getProviderLabel(WebUtility.inputSQLSanitizer(request.getParameter("type")));
-
-			AdminSecurityGroupUtils.getInstance(user).removeGroupProjectPermission(user, groupId, groupType, projectId);
-			success = true;
-		} catch (IllegalArgumentException e) {
-			classLogger.error("Failed to remove group project permission.", e);
-			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorRet, 400);
-		} catch (Exception e) {
-			classLogger.error("Failed to remove group project permission.", e);
-			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
-			errorRet.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorRet, 500);
-		}
-		return WebUtility.getResponse(success, 200);
+		String groupId = WebUtility.inputSQLSanitizer(request.getParameter("groupId"));
+		String projectId = WebUtility.inputSQLSanitizer(request.getParameter("projectId"));
+		String groupType = AuthProvider.getProviderLabel(WebUtility.inputSQLSanitizer(request.getParameter("type")));
+		return ResourceUtility.respondAsAdmin(request,
+				"take away the access group " + groupId + " has to project " + projectId,
+				AdminSecurityGroupUtils::getInstance, (user, adminGroupUtils) -> {
+					String id = ValueUtils.requireNonBlank(groupId, GROUP_ID_PARAM_REQUIRED);
+					String project = ValueUtils.requireNonBlank(projectId,
+							"The project id ('projectId') cannot be null or empty");
+					adminGroupUtils.removeGroupProjectPermission(user, id, groupType, project);
+					return true;
+				});
 	}
 
 	@GET
@@ -834,44 +364,14 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			@QueryParam("groupType") String groupType, @QueryParam("searchTerm") String searchTerm,
 			@QueryParam("limit") long limit, @QueryParam("offset") long offset,
 			@QueryParam("onlyApps") boolean onlyApps) {
-		groupType = AuthProvider.getProviderLabel(WebUtility.inputSQLSanitizer(groupType));
-		groupId = WebUtility.inputSQLSanitizer(groupId);
-		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
-		AdminSecurityGroupUtils groupUtils = null;
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-			groupUtils = AdminSecurityGroupUtils.getInstance(user);
-		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to get projects assinged to a group");
-			classLogger.error("Failed to retrieve projects for group.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		if (groupId == null || (groupId = groupId.trim()).isEmpty()) {
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Must define the group id");
-			return WebUtility.getResponse(errorMap, 400);
-		}
-
-		try {
-			List<Map<String, Object>> ret = groupUtils.getProjectsForGroup(groupId, groupType, searchTerm, limit,
-					offset, onlyApps);
-			return WebUtility.getResponse(ret, 200);
-		} catch (IllegalArgumentException e) {
-			classLogger.error("Failed to retrieve projects for group.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		} catch (Exception e) {
-			classLogger.error("Failed to retrieve projects for group.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
-			errorMap.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		}
+		String group = WebUtility.inputSQLSanitizer(groupId);
+		String type = AuthProvider.getProviderLabel(WebUtility.inputSQLSanitizer(groupType));
+		String term = WebUtility.inputSQLSanitizer(searchTerm);
+		return ResourceUtility
+				.respondAsAdmin(request, "list the projects of group " + group, AdminSecurityGroupUtils::getInstance,
+						(user, adminGroupUtils) -> adminGroupUtils.getProjectsForGroup(
+								ValueUtils.requireNonBlank(group, GROUP_ID_REQUIRED), type, term, limit, offset,
+								onlyApps));
 	}
 
 	@GET
@@ -880,43 +380,12 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	public Response getNumProjectsForGroup(@Context HttpServletRequest request, @QueryParam("groupId") String groupId,
 			@QueryParam("groupType") String groupType, @QueryParam("searchTerm") String searchTerm,
 			@QueryParam("onlyApps") boolean onlyApps) {
-		groupType = AuthProvider.getProviderLabel(WebUtility.inputSQLSanitizer(groupType));
-		groupId = WebUtility.inputSQLSanitizer(groupId);
-		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
-		AdminSecurityGroupUtils groupUtils = null;
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-			groupUtils = AdminSecurityGroupUtils.getInstance(user);
-		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to get projects assinged to a group");
-			classLogger.error("Failed to retrieve num projects for group.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		if (groupId == null || (groupId = groupId.trim()).isEmpty()) {
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Must define the group id");
-			return WebUtility.getResponse(errorMap, 400);
-		}
-
-		try {
-			Long numProjects = groupUtils.getNumProjectsForGroup(groupId, groupType, searchTerm, onlyApps);
-			return WebUtility.getResponse(numProjects, 200);
-		} catch (IllegalArgumentException e) {
-			classLogger.error("Failed to retrieve num projects for group.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		} catch (Exception e) {
-			classLogger.error("Failed to retrieve num projects for group.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
-			errorMap.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		}
+		String group = WebUtility.inputSQLSanitizer(groupId);
+		String type = AuthProvider.getProviderLabel(WebUtility.inputSQLSanitizer(groupType));
+		String term = WebUtility.inputSQLSanitizer(searchTerm);
+		return ResourceUtility.respondAsAdmin(request, "count the projects of group " + group,
+				AdminSecurityGroupUtils::getInstance, (user, adminGroupUtils) -> adminGroupUtils.getNumProjectsForGroup(
+						ValueUtils.requireNonBlank(group, GROUP_ID_REQUIRED), type, term, onlyApps));
 	}
 
 	@GET
@@ -926,89 +395,15 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			@QueryParam("groupId") String groupId, @QueryParam("groupType") String groupType,
 			@QueryParam("searchTerm") String searchTerm, @QueryParam("limit") long limit,
 			@QueryParam("offset") long offset, @QueryParam("onlyApps") boolean onlyApps) {
-		groupType = AuthProvider.getProviderLabel(WebUtility.inputSQLSanitizer(groupType));
-		groupId = WebUtility.inputSQLSanitizer(groupId);
-		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
-		AdminSecurityGroupUtils groupUtils = null;
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-			groupUtils = AdminSecurityGroupUtils.getInstance(user);
-		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to get projects assinged to a group");
-			classLogger.error("Failed to retrieve available projects for group.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		if (groupId == null || (groupId = groupId.trim()).isEmpty()) {
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Must define the group id");
-			return WebUtility.getResponse(errorMap, 400);
-		}
-
-		try {
-			List<Map<String, Object>> ret = groupUtils.getAvailableProjectsForGroup(groupId, groupType, searchTerm,
-					limit, offset, onlyApps);
-			return WebUtility.getResponse(ret, 200);
-		} catch (IllegalArgumentException e) {
-			classLogger.error("Failed to retrieve available projects for group.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		} catch (Exception e) {
-			classLogger.error("Failed to retrieve available projects for group.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
-			errorMap.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		}
-	}
-
-	@GET
-	@Path("/getNumAvailableProjectsForGroup")
-	@Produces("application/json")
-	public Response getNumAvailableProjectsForGroup(@Context HttpServletRequest request,
-			@QueryParam("groupId") String groupId, @QueryParam("groupType") String groupType,
-			@QueryParam("searchTerm") String searchTerm, @QueryParam("onlyApps") boolean onlyApps) {
-		groupType = AuthProvider.getProviderLabel(WebUtility.inputSQLSanitizer(groupType));
-		groupId = WebUtility.inputSQLSanitizer(groupId);
-		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
-		AdminSecurityGroupUtils groupUtils = null;
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-			groupUtils = AdminSecurityGroupUtils.getInstance(user);
-		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to get projects assinged to a group");
-			classLogger.error("Failed to retrieve num available projects for group.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		if (groupId == null || (groupId = groupId.trim()).isEmpty()) {
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Must define the group id");
-			return WebUtility.getResponse(errorMap, 400);
-		}
-
-		try {
-			Long numProjects = groupUtils.getNumAvailableProjectsForGroup(groupId, groupType, searchTerm, onlyApps);
-			return WebUtility.getResponse(numProjects, 200);
-		} catch (IllegalArgumentException e) {
-			classLogger.error("Failed to retrieve num available projects for group.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		} catch (Exception e) {
-			classLogger.error("Failed to retrieve num available projects for group.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
-			errorMap.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		}
+		String group = WebUtility.inputSQLSanitizer(groupId);
+		String type = AuthProvider.getProviderLabel(WebUtility.inputSQLSanitizer(groupType));
+		String term = WebUtility.inputSQLSanitizer(searchTerm);
+		return ResourceUtility
+				.respondAsAdmin(request, "list the projects group " + group + " can be given",
+						AdminSecurityGroupUtils::getInstance,
+						(user, adminGroupUtils) -> adminGroupUtils.getAvailableProjectsForGroup(
+								ValueUtils.requireNonBlank(group, GROUP_ID_REQUIRED), type, term, limit, offset,
+								onlyApps));
 	}
 
 	///////////////////////////////////////////////////////////////
@@ -1021,179 +416,57 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	@Path("/addGroupEnginePermission")
 	public Response addGroupEnginePermission(@Context HttpServletRequest request) {
-		Map<String, String> errorRet = new HashMap<>();
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to add a group engine permission but couldn't find user session");
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		if (!SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn("User is trying to add a group engine permission but is not an admin");
-			errorRet.put(Constants.ERROR_MESSAGE, "The user doesn't have the permissions to perform this action.");
-			return WebUtility.getResponse(errorRet, 400);
-		}
-
-		boolean success = false;
-		try {
-			String groupId = WebUtility.inputSQLSanitizer(request.getParameter("groupId"));
-			if (groupId == null || (groupId = groupId.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The group id ('groupId') cannot be null or empty");
-			}
-			String engineId = WebUtility.inputSQLSanitizer(request.getParameter("engineId"));
-			if (engineId == null || (engineId = engineId.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The engine id ('engineId') cannot be null or empty");
-			}
-			String permissionStr = WebUtility.inputSQLSanitizer(request.getParameter("permission"));
-			if (permissionStr == null || (permissionStr = permissionStr.trim()).isEmpty()) {
-				throw new IllegalArgumentException(
-						"The permission integer value ('permission') cannot be null or empty");
-			}
-			int permission = -1;
-			try {
-				permission = Integer.parseInt(permissionStr);
-			} catch (NumberFormatException nbe) {
-				classLogger.error("Failed to add group engine permission.", nbe);
-				throw new IllegalArgumentException(
-						"Must pass a valid integer value. Received value = " + permissionStr);
-			}
-
-			String groupType = AuthProvider
-					.getProviderLabel(WebUtility.inputSQLSanitizer(request.getParameter("type")));
-			String endDate = WebUtility.inputSQLSanitizer(request.getParameter("endDate"));
-
-			AdminSecurityGroupUtils.getInstance(user).addGroupEnginePermission(user, groupId, groupType, engineId,
-					permission, endDate);
-			success = true;
-		} catch (IllegalArgumentException e) {
-			classLogger.error("Failed to add group engine permission.", e);
-			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorRet, 400);
-		} catch (Exception e) {
-			classLogger.error("Failed to add group engine permission.", e);
-			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
-			errorRet.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorRet, 500);
-		}
-		return WebUtility.getResponse(success, 200);
+		String groupId = WebUtility.inputSQLSanitizer(request.getParameter("groupId"));
+		String engineId = WebUtility.inputSQLSanitizer(request.getParameter("engineId"));
+		String permission = WebUtility.inputSQLSanitizer(request.getParameter("permission"));
+		String groupType = AuthProvider.getProviderLabel(WebUtility.inputSQLSanitizer(request.getParameter("type")));
+		String endDate = WebUtility.inputSQLSanitizer(request.getParameter("endDate"));
+		return ResourceUtility.respondAsAdmin(request, "give group " + groupId + " access to engine " + engineId,
+				AdminSecurityGroupUtils::getInstance, (user, adminGroupUtils) -> {
+					String id = ValueUtils.requireNonBlank(groupId, GROUP_ID_PARAM_REQUIRED);
+					String engine = ValueUtils.requireNonBlank(engineId,
+							"The engine id ('engineId') cannot be null or empty");
+					int level = requirePermission(permission);
+					adminGroupUtils.addGroupEnginePermission(user, id, groupType, engine, level, endDate);
+					return true;
+				});
 	}
 
 	@POST
 	@Produces("application/json")
 	@Path("/editGroupEnginePermission")
 	public Response editGroupEnginePermission(@Context HttpServletRequest request) {
-		Map<String, String> errorRet = new HashMap<>();
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to edit a group engine permission but couldn't find user session");
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		if (!SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn("User is trying to edit a group engine permission but is not an admin");
-			errorRet.put(Constants.ERROR_MESSAGE, "The user doesn't have the permissions to perform this action.");
-			return WebUtility.getResponse(errorRet, 400);
-		}
-
-		boolean success = false;
-		try {
-			String groupId = WebUtility.inputSQLSanitizer(request.getParameter("groupId"));
-			if (groupId == null || (groupId = groupId.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The group id ('groupId') cannot be null or empty");
-			}
-			String engineId = WebUtility.inputSQLSanitizer(request.getParameter("engineId"));
-			if (engineId == null || (engineId = engineId.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The engine id ('engineId') cannot be null or empty");
-			}
-			String permissionStr = WebUtility.inputSQLSanitizer(request.getParameter("permission"));
-			if (permissionStr == null || (permissionStr = permissionStr.trim()).isEmpty()) {
-				throw new IllegalArgumentException(
-						"The permission integer value ('permission') cannot be null or empty");
-			}
-			int permission = -1;
-			try {
-				permission = Integer.parseInt(permissionStr);
-			} catch (NumberFormatException nbe) {
-				classLogger.error("Failed to update group engine permission.", nbe);
-				throw new IllegalArgumentException(
-						"Must pass a valid integer value. Received value = " + permissionStr);
-			}
-
-			String groupType = AuthProvider
-					.getProviderLabel(WebUtility.inputSQLSanitizer(request.getParameter("type")));
-			String endDate = WebUtility.inputSQLSanitizer(request.getParameter("endDate"));
-
-			AdminSecurityGroupUtils.getInstance(user).editGroupEnginePermission(user, groupId, groupType, engineId,
-					permission, endDate);
-			success = true;
-		} catch (IllegalArgumentException e) {
-			classLogger.error("Failed to update group engine permission.", e);
-			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorRet, 400);
-		} catch (Exception e) {
-			classLogger.error("Failed to update group engine permission.", e);
-			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
-			errorRet.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorRet, 500);
-		}
-		return WebUtility.getResponse(success, 200);
+		String groupId = WebUtility.inputSQLSanitizer(request.getParameter("groupId"));
+		String engineId = WebUtility.inputSQLSanitizer(request.getParameter("engineId"));
+		String permission = WebUtility.inputSQLSanitizer(request.getParameter("permission"));
+		String groupType = AuthProvider.getProviderLabel(WebUtility.inputSQLSanitizer(request.getParameter("type")));
+		String endDate = WebUtility.inputSQLSanitizer(request.getParameter("endDate"));
+		return ResourceUtility.respondAsAdmin(request, "change the access group " + groupId + " has to engine " + engineId,
+				AdminSecurityGroupUtils::getInstance, (user, adminGroupUtils) -> {
+					String id = ValueUtils.requireNonBlank(groupId, GROUP_ID_PARAM_REQUIRED);
+					String engine = ValueUtils.requireNonBlank(engineId,
+							"The engine id ('engineId') cannot be null or empty");
+					int level = requirePermission(permission);
+					adminGroupUtils.editGroupEnginePermission(user, id, groupType, engine, level, endDate);
+					return true;
+				});
 	}
 
 	@POST
 	@Produces("application/json")
 	@Path("/removeGroupEnginePermission")
 	public Response removeGroupEnginePermission(@Context HttpServletRequest request) {
-		Map<String, String> errorRet = new HashMap<>();
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to remove a group engine permission but couldn't find user session");
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		if (!SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn("User is trying to remove a group engine permission but is not an admin");
-			errorRet.put(Constants.ERROR_MESSAGE, "The user doesn't have the permissions to perform this action.");
-			return WebUtility.getResponse(errorRet, 400);
-		}
-
-		boolean success = false;
-		try {
-			String groupId = WebUtility.inputSQLSanitizer(request.getParameter("groupId"));
-			if (groupId == null || (groupId = groupId.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The group id ('groupId') cannot be null or empty");
-			}
-			String engineId = WebUtility.inputSQLSanitizer(request.getParameter("engineId"));
-			if (engineId == null || (engineId = engineId.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The project id ('projectId') cannot be null or empty");
-			}
-			String groupType = AuthProvider
-					.getProviderLabel(WebUtility.inputSQLSanitizer(request.getParameter("type")));
-
-			AdminSecurityGroupUtils.getInstance(user).removeGroupEnginePermission(user, groupId, groupType, engineId);
-			success = true;
-		} catch (IllegalArgumentException e) {
-			classLogger.error("Failed to remove group engine permission.", e);
-			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorRet, 400);
-		} catch (Exception e) {
-			classLogger.error("Failed to remove group engine permission.", e);
-			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
-			errorRet.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorRet, 500);
-		}
-		return WebUtility.getResponse(success, 200);
+		String groupId = WebUtility.inputSQLSanitizer(request.getParameter("groupId"));
+		String engineId = WebUtility.inputSQLSanitizer(request.getParameter("engineId"));
+		String groupType = AuthProvider.getProviderLabel(WebUtility.inputSQLSanitizer(request.getParameter("type")));
+		return ResourceUtility.respondAsAdmin(request, "take away the access group " + groupId + " has to engine " + engineId,
+				AdminSecurityGroupUtils::getInstance, (user, adminGroupUtils) -> {
+					String id = ValueUtils.requireNonBlank(groupId, GROUP_ID_PARAM_REQUIRED);
+					String engine = ValueUtils.requireNonBlank(engineId,
+							"The engine id ('engineId') cannot be null or empty");
+					adminGroupUtils.removeGroupEnginePermission(user, id, groupType, engine);
+					return true;
+				});
 	}
 
 	@GET
@@ -1202,44 +475,12 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	public Response getEnginesForGroup(@Context HttpServletRequest request, @QueryParam("groupId") String groupId,
 			@QueryParam("groupType") String groupType, @QueryParam("searchTerm") String searchTerm,
 			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
-		groupType = AuthProvider.getProviderLabel(WebUtility.inputSQLSanitizer(groupType));
-		groupId = WebUtility.inputSQLSanitizer(groupId);
-		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
-		AdminSecurityGroupUtils groupUtils = null;
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-			groupUtils = AdminSecurityGroupUtils.getInstance(user);
-		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to get engines assinged to a group");
-			classLogger.error("Failed to retrieve engines for group.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		if (groupId == null || (groupId = groupId.trim()).isEmpty()) {
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Must define the group id");
-			return WebUtility.getResponse(errorMap, 400);
-		}
-
-		try {
-			List<Map<String, Object>> ret = groupUtils.getEnginesForGroup(groupId, groupType, searchTerm, limit,
-					offset);
-			return WebUtility.getResponse(ret, 200);
-		} catch (IllegalArgumentException e) {
-			classLogger.error("Failed to retrieve engines for group.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		} catch (Exception e) {
-			classLogger.error("Failed to retrieve engines for group.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
-			errorMap.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		}
+		String group = WebUtility.inputSQLSanitizer(groupId);
+		String type = AuthProvider.getProviderLabel(WebUtility.inputSQLSanitizer(groupType));
+		String term = WebUtility.inputSQLSanitizer(searchTerm);
+		return ResourceUtility.respondAsAdmin(request, "list the engines of group " + group,
+				AdminSecurityGroupUtils::getInstance, (user, adminGroupUtils) -> adminGroupUtils.getEnginesForGroup(
+						ValueUtils.requireNonBlank(group, GROUP_ID_REQUIRED), type, term, limit, offset));
 	}
 
 	@GET
@@ -1247,43 +488,12 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	public Response getNumEnginesForGroup(@Context HttpServletRequest request, @QueryParam("groupId") String groupId,
 			@QueryParam("groupType") String groupType, @QueryParam("searchTerm") String searchTerm) {
-		groupType = AuthProvider.getProviderLabel(WebUtility.inputSQLSanitizer(groupType));
-		groupId = WebUtility.inputSQLSanitizer(groupId);
-		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
-		AdminSecurityGroupUtils groupUtils = null;
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-			groupUtils = AdminSecurityGroupUtils.getInstance(user);
-		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to get engines assinged to a group");
-			classLogger.error("Failed to retrieve num engines for group.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		if (groupId == null || (groupId = groupId.trim()).isEmpty()) {
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Must define the group id");
-			return WebUtility.getResponse(errorMap, 400);
-		}
-
-		try {
-			Long numEngines = groupUtils.getNumEnginesForGroup(groupId, groupType, searchTerm);
-			return WebUtility.getResponse(numEngines, 200);
-		} catch (IllegalArgumentException e) {
-			classLogger.error("Failed to retrieve num engines for group.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		} catch (Exception e) {
-			classLogger.error("Failed to retrieve num engines for group.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
-			errorMap.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		}
+		String group = WebUtility.inputSQLSanitizer(groupId);
+		String type = AuthProvider.getProviderLabel(WebUtility.inputSQLSanitizer(groupType));
+		String term = WebUtility.inputSQLSanitizer(searchTerm);
+		return ResourceUtility.respondAsAdmin(request, "count the engines of group " + group,
+				AdminSecurityGroupUtils::getInstance, (user, adminGroupUtils) -> adminGroupUtils
+						.getNumEnginesForGroup(ValueUtils.requireNonBlank(group, GROUP_ID_REQUIRED), type, term));
 	}
 
 	@GET
@@ -1293,88 +503,31 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 			@QueryParam("groupId") String groupId, @QueryParam("groupType") String groupType,
 			@QueryParam("searchTerm") String searchTerm, @QueryParam("limit") long limit,
 			@QueryParam("offset") long offset) {
-		groupType = AuthProvider.getProviderLabel(WebUtility.inputSQLSanitizer(groupType));
-		groupId = WebUtility.inputSQLSanitizer(groupId);
-		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
-		AdminSecurityGroupUtils groupUtils = null;
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-			groupUtils = AdminSecurityGroupUtils.getInstance(user);
-		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to get engines assinged to a group");
-			classLogger.error("Failed to retrieve available engines for group.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		if (groupId == null || (groupId = groupId.trim()).isEmpty()) {
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Must define the group id");
-			return WebUtility.getResponse(errorMap, 400);
-		}
-
-		try {
-			List<Map<String, Object>> ret = groupUtils.getAvailableEnginesForGroup(groupId, groupType, searchTerm,
-					limit, offset);
-			return WebUtility.getResponse(ret, 200);
-		} catch (IllegalArgumentException e) {
-			classLogger.error("Failed to retrieve available engines for group.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		} catch (Exception e) {
-			classLogger.error("Failed to retrieve available engines for group.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
-			errorMap.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		}
+		String group = WebUtility.inputSQLSanitizer(groupId);
+		String type = AuthProvider.getProviderLabel(WebUtility.inputSQLSanitizer(groupType));
+		String term = WebUtility.inputSQLSanitizer(searchTerm);
+		return ResourceUtility.respondAsAdmin(request, "list the engines group " + group + " can be given",
+				AdminSecurityGroupUtils::getInstance,
+				(user, adminGroupUtils) -> adminGroupUtils.getAvailableEnginesForGroup(
+						ValueUtils.requireNonBlank(group, GROUP_ID_REQUIRED), type, term, limit, offset));
 	}
 
-	@GET
-	@Path("/getNumAvailableEnginesForGroup")
-	@Produces("application/json")
-	public Response getNumAvailableEnginesForGroup(@Context HttpServletRequest request,
-			@QueryParam("groupId") String groupId, @QueryParam("groupType") String groupType,
-			@QueryParam("searchTerm") String searchTerm) {
-		groupType = AuthProvider.getProviderLabel(WebUtility.inputSQLSanitizer(groupType));
-		groupId = WebUtility.inputSQLSanitizer(groupId);
-		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
-		AdminSecurityGroupUtils groupUtils = null;
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-			groupUtils = AdminSecurityGroupUtils.getInstance(user);
-		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to get engines assinged to a group");
-			classLogger.error("Failed to retrieve num available engines for group.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 401);
-		}
+	///////////////////////////////////////////////////////////////
 
-		if (groupId == null || (groupId = groupId.trim()).isEmpty()) {
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Must define the group id");
-			return WebUtility.getResponse(errorMap, 400);
-		}
-
+	/**
+	 * Reads the required {@code permission} parameter: 1 owner, 2 editor or 3
+	 * read only.
+	 *
+	 * @param permission the sanitized parameter
+	 * @throws IllegalArgumentException when it is missing or not a whole number
+	 */
+	private static int requirePermission(String permission) {
+		String value = ValueUtils.requireNonBlank(permission,
+				"The permission integer value ('permission') cannot be null or empty");
 		try {
-			Long numEngines = groupUtils.getNumAvailableEnginesForGroup(groupId, groupType, searchTerm);
-			return WebUtility.getResponse(numEngines, 200);
-		} catch (IllegalArgumentException e) {
-			classLogger.error("Failed to retrieve num available engines for group.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		} catch (Exception e) {
-			classLogger.error("Failed to retrieve num available engines for group.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
-			errorMap.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
+			return Integer.parseInt(value);
+		} catch (NumberFormatException e) {
+			throw new IllegalArgumentException("Must pass a valid integer value. Received value = " + value);
 		}
 	}
 }
