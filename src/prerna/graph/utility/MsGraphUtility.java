@@ -27,418 +27,244 @@
  *******************************************************************************/
 package prerna.graph.utility;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.Set;
+import java.util.function.Predicate;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.json.JSONArray;
-import org.json.JSONObject;
-
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
-import prerna.auth.AccessToken;
-import prerna.auth.AuthProvider;
 import prerna.auth.User;
+import prerna.auth.utils.AdminSecurityGroupUtils;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityProjectUtils;
-import prerna.io.connector.ms.MicrosoftGraphUserSearchClient;
+import prerna.io.connector.ms.MicrosoftGraphUserLookup;
 import prerna.util.Constants;
-import prerna.util.SocialPropertiesUtil;
+import prerna.util.ValueUtils;
 
+/**
+ * Pages Microsoft Graph directory searches for the user search and sharing
+ * endpoints.
+ *
+ * <p>
+ * Graph pages are larger than the pages the endpoints return, so each search
+ * keeps the users it has fetched but not returned, and the link to the next
+ * Graph page, in the session. A request with offset 0 starts the search over;
+ * any other offset continues it.
+ * </p>
+ */
 public class MsGraphUtility {
 
 	private static final Logger classLogger = LogManager.getLogger(MsGraphUtility.class);
 
-	private static final Gson GSON = new Gson();
-
-	private static String prefix = "nld_"; // for next link data
-	private static String projectPrefix = prefix + "p_";
-	private static String enginePrefix = prefix + "e_";
+	private static final String SESSION_PREFIX = "nld_";
+	private static final String PROJECT_PREFIX = SESSION_PREFIX + "p_";
+	private static final String ENGINE_PREFIX = SESSION_PREFIX + "e_";
+	private static final String GROUP_PREFIX = SESSION_PREFIX + "g_";
+	private static final String DIRECTORY_PREFIX = SESSION_PREFIX + "u_";
 
 	/**
-	 * 
-	 * @param request
-	 * @param user
-	 * @param projectId
-	 * @param searchTerm
-	 * @param limit
-	 * @param offset
-	 * @return
-	 * @throws IllegalAccessException
+	 * Key on each directory search result: whether the user already has an account
+	 * in the security database.
+	 */
+	public static final String HAS_ACCOUNT_KEY = "hasAccount";
+
+	private static final String SEARCH_FAILED_MESSAGE = "Could not search your organization's directory. Try again.";
+
+	private MsGraphUtility() {
+
+	}
+
+	/**
+	 * Paging state for one search.
+	 */
+	private static class SearchState implements Serializable {
+		private static final long serialVersionUID = 1L;
+
+		private final ArrayList<Map<String, Object>> pending = new ArrayList<>();
+		private String nextLink;
+		private boolean started;
+
+		private boolean isComplete() {
+			return started && nextLink == null;
+		}
+	}
+
+	/**
+	 * Directory users who do not have access to a project yet.
+	 *
+	 * @param request    the request, whose session holds the paging state
+	 * @param user       the signed in user
+	 * @param projectId  the project
+	 * @param searchTerm text to search for
+	 * @param limit      the page size, or 0 or less for one Graph page
+	 * @param offset     0 to start the search, anything else to continue it
+	 * @param isAdmin    whether the caller is using the admin endpoints
+	 * @return the users, in the SEMOSS user shape
+	 * @throws IllegalAccessException when the search needs the user's Microsoft
+	 *                                login and they are not signed in to Microsoft
 	 */
 	public static List<Map<String, Object>> getProjectUsers(HttpServletRequest request, User user, String projectId,
-			String searchTerm, String groupId, long limit, long offset, boolean isAdmin) throws IllegalAccessException {
-
-		boolean graphApiUsingSystemCredentials = Boolean.parseBoolean(
-				"" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_application_credentials"));
-
-		if (!graphApiUsingSystemCredentials && user.getAccessToken(AuthProvider.MICROSOFT) == null) {
-			throw new IllegalAccessException("Must be logged into your microsoft login to search for users");
-		}
-
-		HttpSession session = request.getSession(false);
-		String sessionKey = MsGraphUtility.projectPrefix + projectId + "_" + searchTerm;
-
-		// Initialize or retrieve session data
-		Map<String, Object> sessionData = (Map<String, Object>) session.getAttribute(sessionKey);
-		// New search if:
-		// 1. No session data exists (first time searching this term), OR
-		// 2. Offset is 0 (user is restarting the search)
-		if (sessionData == null || offset == 0) {
-			// Clear any existing data and start fresh
-			sessionData = new HashMap<>();
-			session.setAttribute(sessionKey, sessionData);
-		}
-
-		// Step 1: get the list of current users
-		List<Map<String, Object>> currentUsers = null;
-		if (isAdmin) {
-			currentUsers = SecurityAdminUtils.getInstance(user).getProjectUsers(projectId, searchTerm, "", -1, -1);
-		} else {
-			currentUsers = SecurityProjectUtils.getProjectUsers(user, projectId, searchTerm, "", -1, -1);
-		}
-
-		final List<Map<String, Object>> finalDbUsers = currentUsers;
-		String nextLink = (String) sessionData.get("nextLinkData");
-		List<Map<String, Object>> msGraphUsers = new ArrayList<>();
-		List<Map<String, Object>> filteredUsers = new ArrayList<>();
-
-		try {
-			MicrosoftGraphUserSearchClient msGraphApi = new MicrosoftGraphUserSearchClient();
-
-			// Step 3: Fetch more data if nextLink is in the session, else make a fresh call
-			// to Graph API
-			if (nextLink == null || offset == 0) {
-				// Make a new API call to GraphAPI if nextLink is not in the session
-				String msUsers = fetchMsUsers(msGraphApi, user, groupId, searchTerm, null,
-						graphApiUsingSystemCredentials);
-				JSONObject jsonObject = new JSONObject(msUsers);
-				JSONArray jsonArray = jsonObject.getJSONArray(Constants.MS_GRAPH_VALUE);
-				msGraphUsers = GSON.fromJson(jsonArray.toString(), List.class);
-
-				// Store new nextLink for pagination if available
-				nextLink = jsonObject.optString("@odata.nextLink", null);
-				if (nextLink != null) {
-					sessionData.put("nextLinkData", nextLink); // Store the nextLink in the same session attribute
-				}
-			} else {
-				// Fetch data from GraphAPI using nextLink
-				String msUsers = fetchMsUsers(msGraphApi, user, groupId, searchTerm, nextLink,
-						graphApiUsingSystemCredentials);
-				JSONObject jsonObject = new JSONObject(msUsers);
-				JSONArray jsonArray = jsonObject.getJSONArray(Constants.MS_GRAPH_VALUE);
-				msGraphUsers = GSON.fromJson(jsonArray.toString(), List.class);
-
-				// Update or clear nextLink based on the response
-				nextLink = jsonObject.optString("@odata.nextLink", null);
-				if (nextLink != null) {
-					sessionData.put("nextLinkData", nextLink); // Update nextLink in the same session attribute
-				} else {
-					sessionData.remove("nextLinkData"); // Remove nextLink from session if no more data
-				}
-			}
-
-			// Load the JSON pattern from the properties file if we want custom mapping
-			String jsonPattern = SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_jsonPattern");
-			final Map<String, String> mapping;
-			if (jsonPattern != null && !jsonPattern.isEmpty()) {
-				mapping = GSON.fromJson(jsonPattern, new TypeToken<Map<String, String>>() {
-				}.getType());
-			} else {
-				mapping = null;
-			}
-
-			do {
-				// Step 4: Compare database users with GraphAPI users and apply necessary
-				// filters
-				filteredUsers = msGraphUsers.stream().filter(msUser -> finalDbUsers.stream().noneMatch(dbUser -> dbUser
-						.get(Constants.SMSS_USER_EMAIL).equals(msUser.get(Constants.MS_GRAPH_EMAIL))
-						|| dbUser.get(Constants.SMSS_USER_NAME).equals(msUser.get(Constants.MS_GRAPH_DISPLAY_NAME))))
-						.map(msUser -> {
-
-							Map<String, Object> userMap = new HashMap<>();
-
-							// Use the mapping pattern if it exists, otherwise use default mapping
-							if (mapping != null && !mapping.isEmpty()) {
-								mapping.forEach((userMapKey, msGraphKey) -> {
-									userMap.put(userMapKey, msUser.get(msGraphKey));
-									userMap.put(Constants.USER_MAP_TYPE, AuthProvider.MICROSOFT);
-								});
-							} else {
-								// Default mapping if no pattern exists
-								userMap.put(Constants.USER_MAP_NAME, msUser.get(Constants.MS_GRAPH_DISPLAY_NAME));
-								userMap.put(Constants.USER_MAP_ID, msUser.get(Constants.MS_GRAPH_ID));
-								userMap.put(Constants.USER_MAP_TYPE, AuthProvider.MICROSOFT);
-								userMap.put(Constants.USER_MAP_EMAIL, msUser.get(Constants.MS_GRAPH_EMAIL));
-								userMap.put(Constants.USER_MAP_USERNAME,
-										msUser.get(Constants.MS_GRAPH_USER_PRINCIPAL_NAME));
-							}
-
-							return userMap;
-						}).collect(Collectors.toList());
-
-				long currentCount = filteredUsers.size();
-				if (currentCount < limit && nextLink != null) {
-					List<Map<String, Object>> moreUsers = fetchMsGraphUsers(user, searchTerm, groupId, sessionData,
-							graphApiUsingSystemCredentials);
-					filteredUsers.addAll(moreUsers);
-				}
-
-				if (filteredUsers.size() >= limit || nextLink == null) {
-					return filteredUsers.subList(0, (int) Math.min(limit, filteredUsers.size()));
-				}
-
-				if (filteredUsers.size() < limit && nextLink != null) {
-					long limitCount = limit - filteredUsers.size();
-					List<Map<String, Object>> moreUsers = SecurityProjectUtils.getProjectUsers(user, projectId,
-							searchTerm, "", limitCount, offset);
-					filteredUsers.addAll(moreUsers);
-				}
-
-			} while (filteredUsers.size() < limit && nextLink != null);
-
-		} catch (Exception e) {
-			classLogger.error("Failed to fetch Microsoft Graph project users for projectId={} searchTerm={}", projectId,
-					searchTerm, e);
-			throw new IllegalArgumentException("An error occurred while fetching users");
-		}
-
-		return filteredUsers;
+			String searchTerm, long limit, long offset, boolean isAdmin) throws IllegalAccessException {
+		List<Map<String, Object>> currentUsers = isAdmin
+				? SecurityAdminUtils.getInstance(user).getProjectUsers(projectId, searchTerm, "", -1, -1)
+				: SecurityProjectUtils.getProjectUsers(user, projectId, searchTerm, "", -1, -1);
+		return nextPage(request, user, PROJECT_PREFIX + projectId + "_" + searchTerm, searchTerm, limit, offset,
+				excluding(currentUsers, Constants.USER_MAP_ID));
 	}
 
 	/**
-	 * 
-	 * @param request
-	 * @param user
-	 * @param engineId
-	 * @param searchTerm
-	 * @param limit
-	 * @param offset
-	 * @return
-	 * @throws IllegalAccessException
+	 * Directory users who do not have access to an engine yet.
+	 *
+	 * @param request    the request, whose session holds the paging state
+	 * @param user       the signed in user
+	 * @param engineId   the engine
+	 * @param searchTerm text to search for
+	 * @param limit      the page size, or 0 or less for one Graph page
+	 * @param offset     0 to start the search, anything else to continue it
+	 * @param isAdmin    whether the caller is using the admin endpoints
+	 * @return the users, in the SEMOSS user shape
+	 * @throws IllegalAccessException when the search needs the user's Microsoft
+	 *                                login and they are not signed in to Microsoft
 	 */
 	public static List<Map<String, Object>> getEngineUsers(HttpServletRequest request, User user, String engineId,
-			String searchTerm, String groupId, long limit, long offset, boolean isAdmin) throws IllegalAccessException {
+			String searchTerm, long limit, long offset, boolean isAdmin) throws IllegalAccessException {
+		List<Map<String, Object>> currentUsers = isAdmin
+				? SecurityAdminUtils.getInstance(user).getEngineUsers(engineId, searchTerm, "", -1, -1)
+				: SecurityEngineUtils.getEngineUsers(user, engineId, searchTerm, "", -1, -1);
+		return nextPage(request, user, ENGINE_PREFIX + engineId + "_" + searchTerm, searchTerm, limit, offset,
+				excluding(currentUsers, Constants.USER_MAP_ID));
+	}
 
-		boolean graphApiUsingSystemCredentials = Boolean.parseBoolean(
-				"" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_application_credentials"));
+	/**
+	 * Directory users who are not members of a custom group yet.
+	 *
+	 * @param request    the request, whose session holds the paging state
+	 * @param user       the signed in admin
+	 * @param groupUtils the admin group utilities
+	 * @param groupId    the custom group
+	 * @param searchTerm text to search for
+	 * @param limit      the page size, or 0 or less for one Graph page
+	 * @param offset     0 to start the search, anything else to continue it
+	 * @return the users, in the SEMOSS user shape
+	 * @throws IllegalAccessException when the search needs the user's Microsoft
+	 *                                login and they are not signed in to Microsoft
+	 */
+	public static List<Map<String, Object>> getGroupUsers(HttpServletRequest request, User user,
+			AdminSecurityGroupUtils groupUtils, String groupId, String searchTerm, long limit, long offset)
+			throws IllegalAccessException {
+		// group members carry their id as userid
+		List<Map<String, Object>> currentMembers = groupUtils.getGroupMembers(groupId, searchTerm, -1, -1);
+		return nextPage(request, user, GROUP_PREFIX + groupId + "_" + searchTerm, searchTerm, limit, offset,
+				excluding(currentMembers, Constants.MAP_USERID));
+	}
 
-		if (!graphApiUsingSystemCredentials && user.getAccessToken(AuthProvider.MICROSOFT) == null) {
-			throw new IllegalAccessException("Must be logged into your microsoft login to search for users");
+	/**
+	 * Searches the whole directory. Each result carries the Graph fields, the
+	 * SEMOSS user shape, and {@link #HAS_ACCOUNT_KEY}.
+	 *
+	 * @param request    the request, whose session holds the paging state
+	 * @param user       the signed in user
+	 * @param searchTerm text to search for
+	 * @param limit      the page size, or 0 or less for one Graph page
+	 * @param offset     0 to start the search, anything else to continue it
+	 * @return the users
+	 * @throws IllegalAccessException when the search needs the user's Microsoft
+	 *                                login and they are not signed in to Microsoft
+	 */
+	public static List<Map<String, Object>> searchDirectory(HttpServletRequest request, User user, String searchTerm,
+			long limit, long offset) throws IllegalAccessException {
+		String sessionKey = DIRECTORY_PREFIX + User.getSingleLogginName(user) + "_" + searchTerm;
+		List<Map<String, Object>> users = nextPage(request, user, sessionKey, searchTerm, limit, offset,
+				graphUser -> true);
+		Set<String> existingIds = MicrosoftGraphUserLookup.findExistingUserIds(users);
+		for (Map<String, Object> directoryUser : users) {
+			String id = ValueUtils.trimToNull(directoryUser.get(Constants.USER_MAP_ID));
+			directoryUser.put(HAS_ACCOUNT_KEY, id != null && existingIds.contains(id));
 		}
+		return users;
+	}
 
-		// Create a session and define a single session key to store everything
-		HttpSession session = request.getSession(false);
-		String sessionKey = enginePrefix + engineId + "_" + searchTerm;
-
-		// Initialize or retrieve session data
-		Map<String, Object> sessionData = (Map<String, Object>) session.getAttribute(sessionKey);
-		// New search if:
-		// 1. No session data exists (first time searching this term), OR
-		// 2. Offset is 0 (user is restarting the search)
-		if (sessionData == null || offset == 0) {
-			// Clear any existing data and start fresh
-			sessionData = new HashMap<>();
-			session.setAttribute(sessionKey, sessionData);
-		}
-
-		// Step 1: Retrieve database users from session or load from DB if not available
-		List<Map<String, Object>> currentUsers = null;
-		if (isAdmin) {
-			currentUsers = SecurityAdminUtils.getInstance(user).getEngineUsers(engineId, searchTerm, "", -1, -1);
-		} else {
-			currentUsers = SecurityEngineUtils.getEngineUsers(user, engineId, searchTerm, "", -1, -1);
-		}
-
-		final List<Map<String, Object>> finalDbUsers = currentUsers;
-		String nextLink = (String) sessionData.get("nextLinkData");
-		List<Map<String, Object>> msGraphUsers = new ArrayList<>();
-		List<Map<String, Object>> filteredUsers = new ArrayList<>();
+	/**
+	 * Returns the next page of a search, fetching Graph pages until the page is
+	 * full or the directory has no more matches. Without a limit, the page is
+	 * whatever the next Graph page with any matches holds.
+	 */
+	private static List<Map<String, Object>> nextPage(HttpServletRequest request, User user, String sessionKey,
+			String searchTerm, long limit, long offset, Predicate<Map<String, Object>> include)
+			throws IllegalAccessException {
+		HttpSession session = request.getSession();
+		Object stored = offset > 0 ? session.getAttribute(sessionKey) : null;
+		SearchState state = stored instanceof SearchState ? (SearchState) stored : new SearchState();
 
 		try {
-			MicrosoftGraphUserSearchClient msGraphApi = new MicrosoftGraphUserSearchClient();
-
-			// Step 3: Fetch more data if nextLink is in the session, else make a fresh call
-			// to Graph API
-			if (nextLink == null || offset == 0) {
-				// Make a new API call to GraphAPI if nextLink is not in the session
-				String msUsers = fetchMsUsers(msGraphApi, user, groupId, searchTerm, null,
-						graphApiUsingSystemCredentials);
-				JSONObject jsonObject = new JSONObject(msUsers);
-				JSONArray jsonArray = jsonObject.getJSONArray(Constants.MS_GRAPH_VALUE);
-				msGraphUsers = GSON.fromJson(jsonArray.toString(), List.class);
-
-				// Store new nextLink for pagination if available
-				nextLink = jsonObject.optString("@odata.nextLink", null);
-				if (nextLink != null) {
-					sessionData.put("nextLinkData", nextLink); // Store the nextLink in the same session attribute
+			while (!state.isComplete() && (limit <= 0 ? state.pending.isEmpty() : state.pending.size() < limit)) {
+				MicrosoftGraphUserLookup.UserPage page = MicrosoftGraphUserLookup.searchUsers(user, searchTerm,
+						state.nextLink);
+				List<Map<String, Object>> graphUsers = page.getGraphUsers();
+				List<Map<String, Object>> users = page.getUsers();
+				for (int i = 0; i < users.size(); i++) {
+					if (include.test(users.get(i))) {
+						// keep the Graph fields alongside the SEMOSS shape
+						Map<String, Object> merged = new HashMap<>(graphUsers.get(i));
+						merged.putAll(users.get(i));
+						state.pending.add(merged);
+					}
 				}
-			} else {
-				// Fetch data from GraphAPI using nextLink
-				String msUsers = fetchMsUsers(msGraphApi, user, groupId, searchTerm, nextLink,
-						graphApiUsingSystemCredentials);
-				JSONObject jsonObject = new JSONObject(msUsers);
-				JSONArray jsonArray = jsonObject.getJSONArray(Constants.MS_GRAPH_VALUE);
-				msGraphUsers = GSON.fromJson(jsonArray.toString(), List.class);
-
-				// Update or clear nextLink based on the response
-				nextLink = jsonObject.optString("@odata.nextLink", null);
-				if (nextLink != null) {
-					sessionData.put("nextLinkData", nextLink); // Update nextLink in the same session attribute
-				} else {
-					sessionData.remove("nextLinkData"); // Remove nextLink from session if no more data
-				}
+				state.nextLink = page.getNextLink();
+				state.started = true;
 			}
-
-			// Load the JSON pattern from the properties file if we want custom mapping
-			String jsonPattern = SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_jsonPattern");
-			final Map<String, String> mapping;
-			if (jsonPattern != null && !jsonPattern.isEmpty()) {
-				mapping = GSON.fromJson(jsonPattern, new TypeToken<Map<String, String>>() {
-				}.getType());
-			} else {
-				mapping = null;
-			}
-
-			do {
-				// Step 4: Compare database users with GraphAPI users and apply necessary
-				// filters
-				filteredUsers = msGraphUsers.stream().filter(msUser -> finalDbUsers.stream().noneMatch(dbUser -> dbUser
-						.get(Constants.SMSS_USER_EMAIL).equals(msUser.get(Constants.MS_GRAPH_EMAIL))
-						|| dbUser.get(Constants.SMSS_USER_NAME).equals(msUser.get(Constants.MS_GRAPH_DISPLAY_NAME))))
-						.map(msUser -> {
-
-							Map<String, Object> userMap = new HashMap<>();
-
-							// Use the mapping pattern if it exists, otherwise use default mapping
-							// Use the mapping pattern if it exists, otherwise use default mapping
-							if (mapping != null && !mapping.isEmpty()) {
-								mapping.forEach((userMapKey, msGraphKey) -> {
-									userMap.put(userMapKey, msUser.get(msGraphKey));
-								});
-								userMap.put(Constants.USER_MAP_TYPE, AuthProvider.MICROSOFT);
-							} else {
-								// Default mapping if no pattern exists
-								userMap.put(Constants.USER_MAP_NAME, msUser.get(Constants.MS_GRAPH_DISPLAY_NAME));
-								userMap.put(Constants.USER_MAP_ID, msUser.get(Constants.MS_GRAPH_ID));
-								userMap.put(Constants.USER_MAP_TYPE, AuthProvider.MICROSOFT);
-								userMap.put(Constants.USER_MAP_EMAIL, msUser.get(Constants.MS_GRAPH_EMAIL));
-								userMap.put(Constants.USER_MAP_USERNAME,
-										msUser.get(Constants.MS_GRAPH_USER_PRINCIPAL_NAME));
-							}
-
-							return userMap;
-						}).collect(Collectors.toList());
-				// step 5: If nextLink was used and limitCount > 0, append the specified
-				// limitCount data
-				long currentCount = filteredUsers.size();
-				if (currentCount < limit && nextLink != null) {
-					List<Map<String, Object>> moreUsers = fetchMsGraphUsers(user, searchTerm, groupId, sessionData,
-							graphApiUsingSystemCredentials);
-					filteredUsers.addAll(moreUsers);
-				}
-				// Step 6: Return the data if the limit is reached or no more nextLink data
-				if (filteredUsers.size() >= limit || nextLink == null) {
-					return filteredUsers.subList(0, (int) Math.min(limit, filteredUsers.size()));
-				}
-				// Step 7: If the limit is not reached, calculate difference and use nextLink to
-				// get more data
-				if (filteredUsers.size() < limit && nextLink != null) {
-					long limitCount = limit - filteredUsers.size();
-					List<Map<String, Object>> moreUsers = SecurityEngineUtils.getEngineUsers(user, engineId, searchTerm,
-							"", limitCount, offset);
-					filteredUsers.addAll(moreUsers);
-				}
-
-			} while (filteredUsers.size() < limit && nextLink != null);
-
+		} catch (IllegalAccessException e) {
+			throw e;
 		} catch (Exception e) {
-			classLogger.error("Failed to fetch Microsoft Graph engine users for engineId={} searchTerm={}", engineId,
-					searchTerm, e);
-			throw new IllegalArgumentException("An error occurred while fetching users");
+			classLogger.error("Failed to search the Microsoft Graph directory for {}", sessionKey, e);
+			throw new IllegalArgumentException(SEARCH_FAILED_MESSAGE);
 		}
 
-		return filteredUsers;
+		int count = limit <= 0 ? state.pending.size() : (int) Math.min(limit, state.pending.size());
+		List<Map<String, Object>> result = new ArrayList<>(state.pending.subList(0, count));
+		state.pending.subList(0, count).clear();
+		// set it again so a replicated session stores the change
+		session.setAttribute(sessionKey, state);
+		return result;
 	}
 
 	/**
-	 * 
-	 * @param user
-	 * @param searchTerm
-	 * @param sessionData
-	 * @return
-	 * @throws Exception
+	 * Matches directory users who are not in the given list, comparing ids and
+	 * emails. {@code idKey} names the key that holds each listed user's id.
 	 */
-	public static List<Map<String, Object>> fetchMsGraphUsers(User user, String searchTerm, String groupId,
-			Map<String, Object> sessionData) throws Exception {
-		boolean graphApiUsingSystemCredentials = Boolean.parseBoolean(
-				"" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_application_credentials"));
-		return fetchMsGraphUsers(user, searchTerm, groupId, sessionData, graphApiUsingSystemCredentials);
+	private static Predicate<Map<String, Object>> excluding(List<Map<String, Object>> users, String idKey) {
+		Set<String> ids = new HashSet<>();
+		Set<String> emails = new HashSet<>();
+		for (Map<String, Object> user : users) {
+			String id = ValueUtils.trimToNull(user.get(idKey));
+			if (id != null) {
+				ids.add(id);
+			}
+			String email = normalizeEmail(user.get(Constants.SMSS_USER_EMAIL));
+			if (email != null) {
+				emails.add(email);
+			}
+		}
+		return graphUser -> {
+			String id = ValueUtils.trimToNull(graphUser.get(Constants.USER_MAP_ID));
+			String email = normalizeEmail(graphUser.get(Constants.USER_MAP_EMAIL));
+			return (id == null || !ids.contains(id)) && (email == null || !emails.contains(email));
+		};
 	}
 
-	/**
-	 * 
-	 * @param user
-	 * @param searchTerm
-	 * @param groupId
-	 * @param sessionData
-	 * @param graphApiUsingSystemCredentials
-	 * @return
-	 * @throws Exception
-	 */
-	public static List<Map<String, Object>> fetchMsGraphUsers(User user, String searchTerm, String groupId,
-			Map<String, Object> sessionData, boolean graphApiUsingSystemCredentials) throws Exception {
-		String nextLink = (String) sessionData.get("nextLinkData");
-		List<Map<String, Object>> msGraphUsers = new ArrayList<>();
-		MicrosoftGraphUserSearchClient msGraphApi = new MicrosoftGraphUserSearchClient();
-
-		// Make API call to GraphAPI
-		String msUsers;
-		if (nextLink == null) {
-			// First call to fetch users
-			msUsers = fetchMsUsers(msGraphApi, user, groupId, searchTerm, null, graphApiUsingSystemCredentials);
-		} else {
-			// Subsequent call using nextLink
-			msUsers = fetchMsUsers(msGraphApi, user, groupId, searchTerm, nextLink, graphApiUsingSystemCredentials);
-		}
-
-		// Parse the response
-		JSONObject jsonObject = new JSONObject(msUsers);
-		JSONArray jsonArray = jsonObject.getJSONArray(Constants.MS_GRAPH_VALUE);
-		msGraphUsers = GSON.fromJson(jsonArray.toString(), List.class);
-
-		// Update nextLink for pagination
-		nextLink = jsonObject.optString("@odata.nextLink", null);
-		if (nextLink != null) {
-			sessionData.put("nextLinkData", nextLink);
-		} else {
-			sessionData.remove("nextLinkData"); // Remove nextLink if no more data
-		}
-
-		return msGraphUsers;
-	}
-
-	private static String fetchMsUsers(MicrosoftGraphUserSearchClient msGraphApi, User user, String groupId,
-			String searchTerm, String nextLink, boolean graphApiUsingSystemCredentials) throws Exception {
-		AccessToken requestedAccessToken = graphApiUsingSystemCredentials ? null
-				: user.getAccessToken(AuthProvider.MICROSOFT);
-		MicrosoftGraphUserSearchClient.GraphApiResponse graphApiResponse = msGraphApi
-				.getUserDetails(requestedAccessToken, groupId, searchTerm, nextLink);
-
-		// Persist refreshed delegated token in the user session so subsequent calls use
-		// the latest token/refresh token pair.
-		if (!graphApiUsingSystemCredentials && graphApiResponse.getAccessToken() != null) {
-			user.setAccessToken(graphApiResponse.getAccessToken());
-		}
-		return graphApiResponse.getResponseBody();
+	private static String normalizeEmail(Object email) {
+		String trimmed = ValueUtils.trimToNull(email);
+		return trimmed == null ? null : trimmed.toLowerCase(Locale.ROOT);
 	}
 
 }
