@@ -103,6 +103,7 @@ import prerna.reactor.agent.run.AgentRunRequest;
 import prerna.reactor.agent.run.AgentRunService;
 import prerna.util.Constants;
 import prerna.util.Utility;
+import prerna.util.ValueUtils;
 import prerna.web.services.util.WebUtility;
 
 @Singleton
@@ -530,25 +531,25 @@ public class A2AResource {
 	}
 
 	private static Task taskFromRun(Map<String, Object> run) {
-		String runId = stringValue(run.get("runId"));
+		String runId = ValueUtils.trimToNull(run.get("runId"));
 		if (runId == null) {
-			runId = stringValue(run.get("id"));
+			runId = ValueUtils.trimToNull(run.get("id"));
 		}
-		String roomId = stringValue(run.get("roomId"));
+		String roomId = ValueUtils.trimToNull(run.get("roomId"));
 		if (roomId == null) {
 			roomId = runId;
 		}
-		String finalText = stringValue(run.get("finalText"));
+		String finalText = ValueUtils.trimToNull(run.get("finalText"));
 
 		Message statusMessage = null;
 		if (finalText != null) {
 			statusMessage = Message.builder()
-					.messageId(firstNonBlank(stringValue(run.get("finalOutputMessageId")), runId + "-final"))
+					.messageId(firstNonBlank(ValueUtils.trimToNull(run.get("finalOutputMessageId")), runId + "-final"))
 					.contextId(roomId).taskId(runId).role(Message.Role.ROLE_AGENT).parts(new TextPart(finalText, null))
 					.build();
 		}
 
-		TaskStatus status = new TaskStatus(toTaskState(stringValue(run.get("status"))), statusMessage,
+		TaskStatus status = new TaskStatus(toTaskState(ValueUtils.trimToNull(run.get("status"))), statusMessage,
 				toOffsetDateTime(firstNonNull(run.get("completedAt"), run.get("startedAt"), run.get("dateCreated"))));
 
 		return Task.builder().id(runId).contextId(roomId).status(status)
@@ -692,7 +693,7 @@ public class A2AResource {
 		}
 		try {
 			Object value = object.getClass().getMethod(accessor).invoke(object);
-			return stringValue(value);
+			return ValueUtils.trimToNull(value);
 		} catch (Exception e) {
 			return null;
 		}
@@ -979,13 +980,6 @@ public class A2AResource {
 			return defaultValue;
 		}
 		return firstNonBlank(String.valueOf(map.get(key)), defaultValue);
-	}
-
-	private static String stringValue(Object value) {
-		if (value == null) {
-			return null;
-		}
-		return StringUtils.trimToNull(String.valueOf(value));
 	}
 
 	private static String firstNonBlank(String... values) {
