@@ -43,6 +43,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import prerna.auth.AccessToken;
 import prerna.auth.User;
+import prerna.usertracking.UserAuditTrailUtils;
 import prerna.util.Constants;
 import prerna.web.services.util.WebUtility;
 
@@ -66,6 +67,8 @@ public class AccountLockedFilter implements Filter {
 			boolean isLocked = token.isLocked();
 			if (isLocked) {
 				classLogger.info("User {} is locked and being redirected", token.getId());
+				UserAuditTrailUtils.recordHttpDenial(UserAuditTrailUtils.ERROR_ACCOUNT_LOCKED,
+						"User account is locked", 302);
 				// this will be the deployment name of the app
 				String contextPath = arg0.getServletContext().getContextPath();
 				String fullUrl = WebUtility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
