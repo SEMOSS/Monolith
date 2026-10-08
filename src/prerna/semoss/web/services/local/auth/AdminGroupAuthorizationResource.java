@@ -47,6 +47,8 @@ import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.AdminSecurityGroupUtils;
 import prerna.auth.utils.SecurityAdminUtils;
+import prerna.graph.utility.MsGraphUtility;
+import prerna.io.connector.ms.MicrosoftGraphUserLookup;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
 import prerna.web.services.util.WebUtility;
@@ -436,7 +438,8 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 	@Produces("application/json")
 	public Response getNonGroupMembers(@Context HttpServletRequest request, @QueryParam("groupId") String groupId,
 			@QueryParam("searchTerm") String searchTerm, @QueryParam("limit") long limit,
-			@QueryParam("offset") long offset) {
+			@QueryParam("offset") long offset,
+			@QueryParam(MicrosoftGraphUserLookup.LOOKUP_PARAM) String msGraphLookup) {
 		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
 		groupId = WebUtility.inputSQLSanitizer(groupId);
 		AdminSecurityGroupUtils groupUtils = null;
@@ -459,8 +462,16 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 		}
 
 		try {
-			List<Map<String, Object>> ret = groupUtils.getNonGroupMembers(groupId, searchTerm, limit, offset);
+			// when the directory is used, search it for people not in the group
+			// otherwise we will look at our security db
+			List<Map<String, Object>> ret = MicrosoftGraphUserLookup.useDirectory(msGraphLookup)
+					? MsGraphUtility.getGroupUsers(request, user, groupUtils, groupId, searchTerm, limit, offset)
+					: groupUtils.getNonGroupMembers(groupId, searchTerm, limit, offset);
 			return WebUtility.getResponse(ret, 200);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
 		} catch (IllegalArgumentException e) {
 			classLogger.error("Failed to retrieve non group members.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -554,6 +565,16 @@ public class AdminGroupAuthorizationResource extends AbstractAdminResource {
 				throw new IllegalArgumentException("The user login type ('type') cannot be null or empty");
 			}
 			String endDate = WebUtility.inputSQLSanitizer(request.getParameter("endDate"));
+
+			// a person picked from the Microsoft directory may not be in the security db
+			// yet, so add them from the details sent with the request
+			if (MicrosoftGraphUserLookup.isEnabled()
+					&& AuthProvider.MICROSOFT.toString().equalsIgnoreCase(userLoginType)) {
+				MicrosoftGraphUserLookup.addMissingUser(userId,
+						WebUtility.inputSQLSanitizer(request.getParameter("name")),
+						WebUtility.inputSQLSanitizer(request.getParameter("email")),
+						WebUtility.inputSQLSanitizer(request.getParameter("username")));
+			}
 
 			AdminSecurityGroupUtils.getInstance(user).addUserToGroup(user, groupId, userId, userLoginType, endDate);
 			success = true;
