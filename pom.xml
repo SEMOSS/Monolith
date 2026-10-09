@@ -41,15 +41,15 @@
 		<!-- Multi-artifact families that must move together. Each version below is
 		     shared by two or more declared dependencies; bump the property, not the
 		     individual <version> elements. -->
-		<resteasy.version>7.0.4.Final</resteasy.version>
+		<resteasy.version>7.0.5.Final</resteasy.version>
 		<jakarta.websocket.version>2.2.0</jakarta.websocket.version>
 		<!-- Pins that Semoss/pom.xml also carries at the same value. Its
 		     dependencyManagement is not inherited here, so each pom needs its own
 		     copy and the two have to be bumped together. -->
 		<!-- Version 1.85 addresses vulnerabilities inherited through SSHJ. -->
 		<bc.jdk18on.version>1.85</bc.jdk18on.version>
-		<netty.version>4.1.137.Final</netty.version>
-		<jackson3.version>3.1.5</jackson3.version>
+		<netty.version>4.1.138.Final</netty.version>
+		<jackson3.version>3.1.7</jackson3.version>
 		<!-- BouncyCastle FIPS, consumed only by the fips profile below. Keep in sync
 		     with the properties of the same name in Semoss/pom.xml and the
 		     BC_*_VERSION build args in Semoss/docker/Dockerfile.tomcat. -->

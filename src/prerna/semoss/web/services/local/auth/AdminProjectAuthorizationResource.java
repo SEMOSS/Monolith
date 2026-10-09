@@ -30,7 +30,6 @@ package prerna.semoss.web.services.local.auth;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -49,13 +48,11 @@ import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import prerna.auth.AccessToken;
-import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityAdminUtils;
-import prerna.auth.utils.SecurityQueryUtils;
-import prerna.auth.utils.SecurityUpdateUtils;
 import prerna.auth.utils.reactors.admin.AdminMyProjectsReactor;
 import prerna.graph.utility.MsGraphUtility;
+import prerna.io.connector.ms.MicrosoftGraphUserLookup;
 import prerna.om.Insight;
 import prerna.sablecc2.om.GenRowStruct;
 import prerna.sablecc2.om.PixelDataType;
@@ -63,7 +60,6 @@ import prerna.sablecc2.om.ReactorKeysEnum;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
-import prerna.util.SocialPropertiesUtil;
 import prerna.web.services.util.WebUtility;
 
 @Path("/auth/admin/project")
@@ -905,7 +901,8 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 	@Path("getProjectUsersNoCredentials")
 	public Response getProjectUsersNoCredentials(@Context HttpServletRequest request,
 			@QueryParam("projectId") String projectId, @QueryParam("searchTerm") String searchTerm,
-			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+			@QueryParam("limit") long limit, @QueryParam("offset") long offset,
+			@QueryParam(MicrosoftGraphUserLookup.LOOKUP_PARAM) String msGraphLookup) {
 		projectId = WebUtility.inputSQLSanitizer(projectId);
 		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
 
@@ -922,23 +919,22 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		boolean graphApi = Boolean
-				.parseBoolean("" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_lookup"));
-
-		// if not graph api
+		// when the directory is not used
 		// then we will look at our security db
-		if (!graphApi) {
+		if (!MicrosoftGraphUserLookup.useDirectory(msGraphLookup)) {
 			List<Map<String, Object>> ret = adminUtils.getProjectUsersNoCredentials(projectId, searchTerm, limit,
 					offset);
 			return WebUtility.getResponse(ret, 200);
 		}
 
-		String graphApiGroupId = SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_groupId");
-
 		try {
 			List<Map<String, Object>> filteredUsers = MsGraphUtility.getProjectUsers(request, user, projectId,
-					searchTerm, graphApiGroupId, limit, offset, true);
+					searchTerm, limit, offset, true);
 			return WebUtility.getResponse(filteredUsers, 200);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
 			classLogger.error("Failed to retrieve project users no credentials.", e);
 			Map<String, String> errorMap = new HashMap<>();
@@ -1074,32 +1070,12 @@ public class AdminProjectAuthorizationResource extends AbstractAdminResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		boolean graphApi = Boolean
-				.parseBoolean("" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_lookup"));
-
 		// adding user permissions in bulk
 		List<Map<String, String>> permission = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
-			// if we are doing the grpah api
-			// then the users might not already exist in the security db
-			if (graphApi) {
-				// filter out users that already exist
-				List<Map<String, String>> filteredUsers = permission.stream()
-						.filter(map -> !SecurityQueryUtils.checkUserExist(map.get(Constants.MAP_USERID)))
-						.collect(Collectors.toList());
-				if (filteredUsers != null && !filteredUsers.isEmpty()) {
-					AccessToken token = null;
-					// Add new users to OAuth if they don't exist
-					for (Map<String, String> map : filteredUsers) {
-						token = new AccessToken();
-						token.setId(map.get(Constants.MAP_USERID));
-						token.setEmail(map.get(Constants.MAP_EMAIL));
-						token.setName(map.get(Constants.MAP_NAME));
-						token.setProvider(AuthProvider.getProviderFromString(map.get(AuthProvider.MICROSOFT.name())));
-						token.setUsername(map.get(Constants.MAP_USERNAME));
-						SecurityUpdateUtils.addOAuthUser(token);
-					}
-				}
+			// users picked from the Microsoft directory may not be in the security db yet
+			if (MicrosoftGraphUserLookup.isEnabled()) {
+				MicrosoftGraphUserLookup.addMissingUsers(user, permission);
 			}
 			adminUtils.addProjectUserPermissions(projectId, permission, user);
 		} catch (Exception e) {

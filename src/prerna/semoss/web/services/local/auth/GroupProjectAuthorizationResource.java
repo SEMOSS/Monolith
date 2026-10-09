@@ -355,4 +355,55 @@ public class GroupProjectAuthorizationResource {
 		}
 	}
 
+	/**
+	 * Groups that do not have access to a project yet, for its owners to choose
+	 * from
+	 *
+	 * @param request
+	 * @param projectId
+	 * @param searchTerm
+	 * @param limit
+	 * @param offset
+	 * @return
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("getAvailableGroupsForProject")
+	public Response getAvailableGroupsForProject(@Context HttpServletRequest request,
+			@QueryParam("projectId") String projectId, @QueryParam("searchTerm") String searchTerm,
+			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+		projectId = WebUtility.inputSanitizer(projectId);
+		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
+		if (projectId == null || projectId.isEmpty()) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Must define the projectId");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		User user = null;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
+			return WebUtility.getResponse(errorMap, 401);
+		}
+
+		try {
+			List<Map<String, Object>> groups = SecurityGroupProjectUtils.getAvailableGroupsForProject(user, projectId,
+					searchTerm, limit, offset);
+			return WebUtility.getResponse(groups, 200);
+		} catch (IllegalAccessException e) {
+			classLogger.warn("User is trying to list groups to add to project {} without owning it", projectId);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 401);
+		} catch (Exception e) {
+			classLogger.error("Failed to list the groups that can be given access to project {}.", projectId, e);
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
+			errorMap.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 500);
+		}
+	}
+
 }
