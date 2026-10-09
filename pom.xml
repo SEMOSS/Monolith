@@ -49,7 +49,12 @@
 		<!-- Version 1.85 addresses vulnerabilities inherited through SSHJ. -->
 		<bc.jdk18on.version>1.85</bc.jdk18on.version>
 		<netty.version>4.1.137.Final</netty.version>
-		<jackson3.version>3.1.5</jackson3.version>
+		<!-- 3.1.5->3.2.3 closes CVE-2026-91776/89425/68497/89407/91777 against the
+		     real jackson-core/jackson-databind/jackson-dataformat-yaml jars
+		     (WEB-INF/lib). Shaded 2.x copies of the same CVEs embedded in
+		     gremlin-shaded/databricks-jdbc are untouched by this bump; those are
+		     not independently patchable. -->
+		<jackson3.version>3.2.3</jackson3.version>
 		<!-- BouncyCastle FIPS, consumed only by the fips profile below. Keep in sync
 		     with the properties of the same name in Semoss/pom.xml and the
 		     BC_*_VERSION build args in Semoss/docker/Dockerfile.tomcat. -->
