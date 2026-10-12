@@ -48,9 +48,10 @@ import prerna.web.services.util.WebUtility;
 /**
  * Custom groups for their managers. A manager lists the groups they manage,
  * sees the projects and engines each can use, and adds or removes their members
- * and managers; admins can do the same for every custom group here, and
- * everything else under {@code /auth/admin/group}. The owner of a project or
- * engine can see who manages a custom group before they give it access.
+ * and managers. Being an admin counts for nothing here, since an admin can also
+ * act as an ordinary user; admins manage every custom group under
+ * {@code /auth/admin/group}. The owner of a project or engine can see who
+ * manages a custom group before they give it access.
  * {@link SecurityGroupManagerUtils} checks who may do what; anonymous sessions
  * can do nothing here.
  */
@@ -87,9 +88,9 @@ public class GroupAuthorizationResource {
 	}
 
 	/**
-	 * The managers of a custom group. Its managers and admins can always see them;
-	 * the owner of a project or engine passes its id to see them before giving the
-	 * group access to it.
+	 * The managers of a custom group. Its managers can always see them; the owner
+	 * of a project or engine passes its id to see them before giving the group
+	 * access to it.
 	 */
 	@GET
 	@Path("/getGroupManagers")
@@ -103,27 +104,40 @@ public class GroupAuthorizationResource {
 				user -> SecurityGroupManagerUtils.getGroupManagers(user, group, project, engine));
 	}
 
+	/**
+	 * The members of a custom group. Its managers can always see them; the owners
+	 * and editors of a project or engine the group can use pass its id to see them.
+	 */
 	@GET
 	@Path("/getGroupMembers")
 	@Produces("application/json")
 	public Response getGroupMembers(@Context HttpServletRequest request, @QueryParam("groupId") String groupId,
+			@QueryParam("projectId") String projectId, @QueryParam("engineId") String engineId,
 			@QueryParam("searchTerm") String searchTerm, @QueryParam("limit") long limit,
 			@QueryParam("offset") long offset) {
 		String group = WebUtility.inputSQLSanitizer(groupId);
+		String project = WebUtility.inputSQLSanitizer(projectId);
+		String engine = WebUtility.inputSQLSanitizer(engineId);
 		String term = WebUtility.inputSQLSanitizer(searchTerm);
 		return ResourceUtility.respond(request, "list the members of group " + group,
-				user -> SecurityGroupManagerUtils.getGroupMembers(user, group, term, limit, offset));
+				user -> SecurityGroupManagerUtils.getGroupMembers(user, group, project, engine, term, limit, offset));
 	}
 
+	/**
+	 * How many members a custom group has, for the same people who can list them.
+	 */
 	@GET
 	@Path("/getNumMembersInGroup")
 	@Produces("application/json")
 	public Response getNumMembersInGroup(@Context HttpServletRequest request, @QueryParam("groupId") String groupId,
+			@QueryParam("projectId") String projectId, @QueryParam("engineId") String engineId,
 			@QueryParam("searchTerm") String searchTerm) {
 		String group = WebUtility.inputSQLSanitizer(groupId);
+		String project = WebUtility.inputSQLSanitizer(projectId);
+		String engine = WebUtility.inputSQLSanitizer(engineId);
 		String term = WebUtility.inputSQLSanitizer(searchTerm);
 		return ResourceUtility.respond(request, "count the members of group " + group,
-				user -> SecurityGroupManagerUtils.getNumMembersInGroup(user, group, term));
+				user -> SecurityGroupManagerUtils.getNumMembersInGroup(user, group, project, engine, term));
 	}
 
 	@GET

@@ -58,6 +58,7 @@ import prerna.semoss.web.services.local.VectorEngineResource;
 import prerna.semoss.web.services.local.auth.AdminEngineAuthorizationResource;
 import prerna.semoss.web.services.local.auth.AdminGroupAuthorizationResource;
 import prerna.semoss.web.services.local.auth.AdminInsightAuthorizationResource;
+import prerna.semoss.web.services.local.auth.AdminPermissionBatchResource;
 import prerna.semoss.web.services.local.auth.AdminProjectAuthorizationResource;
 import prerna.semoss.web.services.local.auth.AdminUserAuthorizationResource;
 import prerna.semoss.web.services.local.auth.EngineAuthorizationResource;
@@ -66,6 +67,7 @@ import prerna.semoss.web.services.local.auth.GroupEngineAuthorizationResource;
 import prerna.semoss.web.services.local.auth.GroupInsightAuthorizationResource;
 import prerna.semoss.web.services.local.auth.GroupProjectAuthorizationResource;
 import prerna.semoss.web.services.local.auth.InsightAuthorizationResource;
+import prerna.semoss.web.services.local.auth.PermissionBatchResource;
 import prerna.semoss.web.services.local.auth.ProjectAuthorizationResource;
 import prerna.semoss.web.services.local.auth.UserAuthorizationResource;
 import prerna.upload.FileUploader;
@@ -108,6 +110,9 @@ public class MonolithApplication extends Application {
 		singletons.add(new GroupInsightAuthorizationResource());
 		// group managers maintain the members of their custom groups
 		singletons.add(new GroupAuthorizationResource());
+		// Bulk Access Management validates and saves many access changes together
+		singletons.add(new PermissionBatchResource());
+		singletons.add(new AdminPermissionBatchResource());
 		// group admin authorization
 		singletons.add(new AdminGroupAuthorizationResource());
 		// insight execution

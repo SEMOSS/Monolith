@@ -31,9 +31,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import com.google.gson.Gson;
 
 import jakarta.annotation.security.PermitAll;
@@ -47,7 +44,6 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
-import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityProjectUtils;
@@ -60,14 +56,14 @@ import prerna.sablecc2.om.PixelDataType;
 import prerna.sablecc2.om.ReactorKeysEnum;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.semoss.web.services.local.ResourceUtility;
-import prerna.util.Constants;
+import prerna.util.ValueUtils;
 import prerna.web.services.util.WebUtility;
 
 @Path("/auth/project")
 @PermitAll
 public class ProjectAuthorizationResource {
 
-	private static final Logger classLogger = LogManager.getLogger(ProjectAuthorizationResource.class);
+	private static final String ADMINS_ONLY = "This functionality is limited to only admins";
 
 	@Context
 	protected ServletContext context;
@@ -87,163 +83,142 @@ public class ProjectAuthorizationResource {
 			@QueryParam("onlyFavorites") Boolean favoritesOnly, @QueryParam("metaKeys") List<String> metaKeys,
 			// @QueryParam("metaFilters") Map<String, Object> metaFilters,
 			@QueryParam("noMeta") Boolean noMeta, @QueryParam("userT") Boolean includeUserTracking) {
-
-		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
-		projectFilter = WebUtility.inputSanitizer(projectFilter);
-		metaKeys = WebUtility.inputSanitizer(metaKeys);
-
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			classLogger.error("Invalid user session trying to access authorization resources", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		MyProjectsReactor reactor = new MyProjectsReactor();
-		reactor.In();
-		Insight temp = new Insight();
-		temp.setUser(user);
-		reactor.setInsight(temp);
-		if (searchTerm != null) {
-			GenRowStruct struct = new GenRowStruct();
-			struct.add(new NounMetadata(searchTerm, PixelDataType.CONST_STRING));
-			reactor.getNounStore().addNoun(ReactorKeysEnum.FILTER_WORD.getKey(), struct);
-		}
-		if (limit != null) {
-			GenRowStruct struct = new GenRowStruct();
-			struct.add(new NounMetadata(limit, PixelDataType.CONST_INT));
-			reactor.getNounStore().addNoun(ReactorKeysEnum.LIMIT.getKey(), struct);
-		}
-		if (offset != null) {
-			GenRowStruct struct = new GenRowStruct();
-			struct.add(new NounMetadata(offset, PixelDataType.CONST_INT));
-			reactor.getNounStore().addNoun(ReactorKeysEnum.OFFSET.getKey(), struct);
-		}
-		if (favoritesOnly != null) {
-			GenRowStruct struct = new GenRowStruct();
-			struct.add(new NounMetadata(favoritesOnly, PixelDataType.BOOLEAN));
-			reactor.getNounStore().addNoun(ReactorKeysEnum.ONLY_FAVORITES.getKey(), struct);
-		}
-		if (projectFilter != null && !projectFilter.isEmpty()) {
-			GenRowStruct struct = new GenRowStruct();
-			for (String project : projectFilter) {
-				struct.add(new NounMetadata(project, PixelDataType.CONST_STRING));
+		String term = WebUtility.inputSQLSanitizer(searchTerm);
+		List<String> projects = WebUtility.inputSanitizer(projectFilter);
+		List<String> keys = WebUtility.inputSanitizer(metaKeys);
+		return ResourceUtility.respondAllowingAnonymous(request, "list the projects they can access", user -> {
+			MyProjectsReactor reactor = new MyProjectsReactor();
+			reactor.In();
+			Insight temp = new Insight();
+			temp.setUser(user);
+			reactor.setInsight(temp);
+			if (term != null) {
+				GenRowStruct struct = new GenRowStruct();
+				struct.add(new NounMetadata(term, PixelDataType.CONST_STRING));
+				reactor.getNounStore().addNoun(ReactorKeysEnum.FILTER_WORD.getKey(), struct);
 			}
-			reactor.getNounStore().addNoun(ReactorKeysEnum.PROJECT.getKey(), struct);
-		}
-		if (metaKeys != null && !metaKeys.isEmpty()) {
-			GenRowStruct struct = new GenRowStruct();
-			for (String metaK : metaKeys) {
-				struct.add(new NounMetadata(metaK, PixelDataType.CONST_STRING));
+			if (limit != null) {
+				GenRowStruct struct = new GenRowStruct();
+				struct.add(new NounMetadata(limit, PixelDataType.CONST_INT));
+				reactor.getNounStore().addNoun(ReactorKeysEnum.LIMIT.getKey(), struct);
 			}
-			reactor.getNounStore().addNoun(ReactorKeysEnum.META_KEYS.getKey(), struct);
-		}
-		// if(metaFilters != null) {
-		// GenRowStruct struct = new GenRowStruct();
-		// struct.add(new NounMetadata(metaFilters, PixelDataType.MAP));
-		// reactor.getNounStore().addNoun(ReactorKeysEnum.META_FILTERS.getKey(),
-		// struct);
-		// }
-		if (noMeta != null) {
-			GenRowStruct struct = new GenRowStruct();
-			struct.add(new NounMetadata(noMeta, PixelDataType.BOOLEAN));
-			reactor.getNounStore().addNoun(ReactorKeysEnum.NO_META.getKey(), struct);
-		}
-		if (includeUserTracking != null) {
-			GenRowStruct struct = new GenRowStruct();
-			struct.add(new NounMetadata(includeUserTracking, PixelDataType.BOOLEAN));
-			reactor.getNounStore().addNoun(ReactorKeysEnum.INCLUDE_USERTRACKING_KEY.getKey(), struct);
-		}
+			if (offset != null) {
+				GenRowStruct struct = new GenRowStruct();
+				struct.add(new NounMetadata(offset, PixelDataType.CONST_INT));
+				reactor.getNounStore().addNoun(ReactorKeysEnum.OFFSET.getKey(), struct);
+			}
+			if (favoritesOnly != null) {
+				GenRowStruct struct = new GenRowStruct();
+				struct.add(new NounMetadata(favoritesOnly, PixelDataType.BOOLEAN));
+				reactor.getNounStore().addNoun(ReactorKeysEnum.ONLY_FAVORITES.getKey(), struct);
+			}
+			if (projects != null && !projects.isEmpty()) {
+				GenRowStruct struct = new GenRowStruct();
+				for (String project : projects) {
+					struct.add(new NounMetadata(project, PixelDataType.CONST_STRING));
+				}
+				reactor.getNounStore().addNoun(ReactorKeysEnum.PROJECT.getKey(), struct);
+			}
+			if (keys != null && !keys.isEmpty()) {
+				GenRowStruct struct = new GenRowStruct();
+				for (String metaK : keys) {
+					struct.add(new NounMetadata(metaK, PixelDataType.CONST_STRING));
+				}
+				reactor.getNounStore().addNoun(ReactorKeysEnum.META_KEYS.getKey(), struct);
+			}
+			// if(metaFilters != null) {
+			// GenRowStruct struct = new GenRowStruct();
+			// struct.add(new NounMetadata(metaFilters, PixelDataType.MAP));
+			// reactor.getNounStore().addNoun(ReactorKeysEnum.META_FILTERS.getKey(),
+			// struct);
+			// }
+			if (noMeta != null) {
+				GenRowStruct struct = new GenRowStruct();
+				struct.add(new NounMetadata(noMeta, PixelDataType.BOOLEAN));
+				reactor.getNounStore().addNoun(ReactorKeysEnum.NO_META.getKey(), struct);
+			}
+			if (includeUserTracking != null) {
+				GenRowStruct struct = new GenRowStruct();
+				struct.add(new NounMetadata(includeUserTracking, PixelDataType.BOOLEAN));
+				reactor.getNounStore().addNoun(ReactorKeysEnum.INCLUDE_USERTRACKING_KEY.getKey(), struct);
+			}
 
-		NounMetadata outputNoun = reactor.execute();
-		return WebUtility.getResponse(outputNoun.getValue(), 200);
+			return reactor.execute().getValue();
+		});
 	}
 
 	@POST
 	@Produces("application/json")
 	@Path("getProjects")
 	public Response getProjectsPOST(@Context HttpServletRequest request) {
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			classLogger.error("Failed to resolve authenticated user while retrieving accessible projects from POST.",
-					e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
+		return ResourceUtility.respondAllowingAnonymous(request, "list the projects they can access", user -> {
+			MyProjectsReactor reactor = new MyProjectsReactor();
+			reactor.In();
+			Insight temp = new Insight();
+			temp.setUser(user);
+			reactor.setInsight(temp);
 
-		MyProjectsReactor reactor = new MyProjectsReactor();
-		reactor.In();
-		Insight temp = new Insight();
-		temp.setUser(user);
-		reactor.setInsight(temp);
+			Map<String, String[]> parameterMap = request.getParameterMap();
 
-		Map<String, String[]> parameterMap = request.getParameterMap();
-
-		if (parameterMap.containsKey("filterWord") && parameterMap.get("filterWord") != null
-				&& parameterMap.get("filterWord").length > 0) {
-			GenRowStruct struct = new GenRowStruct();
-			struct.add(new NounMetadata(parameterMap.get("filterWord")[0], PixelDataType.CONST_STRING));
-			reactor.getNounStore().addNoun(ReactorKeysEnum.FILTER_WORD.getKey(), struct);
-		}
-		if (parameterMap.containsKey("limit") && parameterMap.get("limit") != null
-				&& parameterMap.get("limit").length > 0) {
-			GenRowStruct struct = new GenRowStruct();
-			struct.add(new NounMetadata(parameterMap.get("limit")[0], PixelDataType.CONST_INT));
-			reactor.getNounStore().addNoun(ReactorKeysEnum.LIMIT.getKey(), struct);
-		}
-		if (parameterMap.containsKey("offset") && parameterMap.get("offset") != null
-				&& parameterMap.get("offset").length > 0) {
-			GenRowStruct struct = new GenRowStruct();
-			struct.add(new NounMetadata(parameterMap.get("offset")[0], PixelDataType.CONST_INT));
-			reactor.getNounStore().addNoun(ReactorKeysEnum.OFFSET.getKey(), struct);
-		}
-		if (parameterMap.containsKey("projectId") && parameterMap.get("projectId") != null
-				&& parameterMap.get("projectId").length > 0) {
-			GenRowStruct struct = new GenRowStruct();
-			String[] projectFilter = parameterMap.get("projectId");
-			for (String project : projectFilter) {
-				struct.add(new NounMetadata(project, PixelDataType.CONST_STRING));
+			if (parameterMap.containsKey("filterWord") && parameterMap.get("filterWord") != null
+					&& parameterMap.get("filterWord").length > 0) {
+				GenRowStruct struct = new GenRowStruct();
+				struct.add(new NounMetadata(parameterMap.get("filterWord")[0], PixelDataType.CONST_STRING));
+				reactor.getNounStore().addNoun(ReactorKeysEnum.FILTER_WORD.getKey(), struct);
 			}
-			reactor.getNounStore().addNoun(ReactorKeysEnum.PROJECT.getKey(), struct);
-		}
-		if (parameterMap.containsKey("metaKeys") && parameterMap.get("metaKeys") != null
-				&& parameterMap.get("metaKeys").length > 0) {
-			GenRowStruct struct = new GenRowStruct();
-			String[] metaKeys = parameterMap.get("metaKeys");
-			for (String metaK : metaKeys) {
-				struct.add(new NounMetadata(metaK, PixelDataType.CONST_STRING));
+			if (parameterMap.containsKey("limit") && parameterMap.get("limit") != null
+					&& parameterMap.get("limit").length > 0) {
+				GenRowStruct struct = new GenRowStruct();
+				struct.add(new NounMetadata(parameterMap.get("limit")[0], PixelDataType.CONST_INT));
+				reactor.getNounStore().addNoun(ReactorKeysEnum.LIMIT.getKey(), struct);
 			}
-			reactor.getNounStore().addNoun(ReactorKeysEnum.META_KEYS.getKey(), struct);
-		}
-		if (parameterMap.containsKey("metaFilters") && parameterMap.get("metaFilters") != null
-				&& parameterMap.get("metaFilters").length > 0) {
-			Map<String, Object> metaFilters = new Gson()
-					.fromJson(WebUtility.jsonSanitizer(parameterMap.get("metaFilters")[0]), Map.class);
-			GenRowStruct struct = new GenRowStruct();
-			struct.add(new NounMetadata(metaFilters, PixelDataType.MAP));
-			reactor.getNounStore().addNoun(ReactorKeysEnum.META_FILTERS.getKey(), struct);
-		}
-		if (parameterMap.containsKey("noMeta") && parameterMap.get("noMeta") != null
-				&& parameterMap.get("noMeta").length > 0) {
-			GenRowStruct struct = new GenRowStruct();
-			struct.add(new NounMetadata(parameterMap.get("noMeta")[0], PixelDataType.BOOLEAN));
-			reactor.getNounStore().addNoun(ReactorKeysEnum.NO_META.getKey(), struct);
-		}
-		if (parameterMap.containsKey("userT") && parameterMap.get("userT") != null
-				&& parameterMap.get("userT").length > 0) {
-			GenRowStruct struct = new GenRowStruct();
-			struct.add(new NounMetadata(parameterMap.get("userT")[0], PixelDataType.BOOLEAN));
-			reactor.getNounStore().addNoun(ReactorKeysEnum.INCLUDE_USERTRACKING_KEY.getKey(), struct);
-		}
+			if (parameterMap.containsKey("offset") && parameterMap.get("offset") != null
+					&& parameterMap.get("offset").length > 0) {
+				GenRowStruct struct = new GenRowStruct();
+				struct.add(new NounMetadata(parameterMap.get("offset")[0], PixelDataType.CONST_INT));
+				reactor.getNounStore().addNoun(ReactorKeysEnum.OFFSET.getKey(), struct);
+			}
+			if (parameterMap.containsKey("projectId") && parameterMap.get("projectId") != null
+					&& parameterMap.get("projectId").length > 0) {
+				GenRowStruct struct = new GenRowStruct();
+				String[] projectFilter = parameterMap.get("projectId");
+				for (String project : projectFilter) {
+					struct.add(new NounMetadata(project, PixelDataType.CONST_STRING));
+				}
+				reactor.getNounStore().addNoun(ReactorKeysEnum.PROJECT.getKey(), struct);
+			}
+			if (parameterMap.containsKey("metaKeys") && parameterMap.get("metaKeys") != null
+					&& parameterMap.get("metaKeys").length > 0) {
+				GenRowStruct struct = new GenRowStruct();
+				String[] metaKeys = parameterMap.get("metaKeys");
+				for (String metaK : metaKeys) {
+					struct.add(new NounMetadata(metaK, PixelDataType.CONST_STRING));
+				}
+				reactor.getNounStore().addNoun(ReactorKeysEnum.META_KEYS.getKey(), struct);
+			}
+			if (parameterMap.containsKey("metaFilters") && parameterMap.get("metaFilters") != null
+					&& parameterMap.get("metaFilters").length > 0) {
+				Map<String, Object> metaFilters = new Gson()
+						.fromJson(WebUtility.jsonSanitizer(parameterMap.get("metaFilters")[0]), Map.class);
+				GenRowStruct struct = new GenRowStruct();
+				struct.add(new NounMetadata(metaFilters, PixelDataType.MAP));
+				reactor.getNounStore().addNoun(ReactorKeysEnum.META_FILTERS.getKey(), struct);
+			}
+			if (parameterMap.containsKey("noMeta") && parameterMap.get("noMeta") != null
+					&& parameterMap.get("noMeta").length > 0) {
+				GenRowStruct struct = new GenRowStruct();
+				struct.add(new NounMetadata(parameterMap.get("noMeta")[0], PixelDataType.BOOLEAN));
+				reactor.getNounStore().addNoun(ReactorKeysEnum.NO_META.getKey(), struct);
+			}
+			if (parameterMap.containsKey("userT") && parameterMap.get("userT") != null
+					&& parameterMap.get("userT").length > 0) {
+				GenRowStruct struct = new GenRowStruct();
+				struct.add(new NounMetadata(parameterMap.get("userT")[0], PixelDataType.BOOLEAN));
+				reactor.getNounStore().addNoun(ReactorKeysEnum.INCLUDE_USERTRACKING_KEY.getKey(), struct);
+			}
 
-		NounMetadata outputNoun = reactor.execute();
-		return WebUtility.getResponse(outputNoun.getValue(), 200);
+			return reactor.execute().getValue();
+		});
 	}
 
 	/**
@@ -258,38 +233,23 @@ public class ProjectAuthorizationResource {
 	@Path("getUserProjectPermission")
 	public Response getUserProjectPermission(@Context HttpServletRequest request,
 			@QueryParam("projectId") String projectId, @QueryParam("searchTerm") String searchTerm) {
-
-		projectId = WebUtility.inputSanitizer(projectId);
-		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
-
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			classLogger.error("Invalid user session trying to access authorization resources", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		String permission = SecurityProjectUtils.getActualUserProjectPermission(user, projectId);
-		if (permission == null) {
-			// are you discoverable?
-			if (SecurityProjectUtils.projectIsDiscoverable(projectId)) {
-				permission = "DISCOVERABLE";
-			} else {
-				classLogger.warn(
-						"User is trying to pull permission details for project {} without having proper access",
-						projectId);
-				Map<String, String> errorMap = new HashMap<String, String>();
-				errorMap.put(Constants.ERROR_MESSAGE, "User does not have access to this project");
-				return WebUtility.getResponse(errorMap, 401);
+		String project = WebUtility.inputSanitizer(projectId);
+		String action = "read their permission on project " + project;
+		return ResourceUtility.respondAllowingAnonymous(request, action, user -> {
+			String permission = SecurityProjectUtils.getActualUserProjectPermission(user, project);
+			if (permission == null) {
+				// are you discoverable?
+				if (SecurityProjectUtils.projectIsDiscoverable(project)) {
+					permission = "DISCOVERABLE";
+				} else {
+					throw new IllegalAccessException("User does not have access to this project");
+				}
 			}
-		}
 
-		Map<String, String> ret = new HashMap<String, String>();
-		ret.put("permission", permission);
-		return WebUtility.getResponse(ret, 200);
+			Map<String, String> ret = new HashMap<>();
+			ret.put("permission", permission);
+			return ret;
+		});
 	}
 
 	/**
@@ -306,40 +266,20 @@ public class ProjectAuthorizationResource {
 			@QueryParam("userId") String userId, @QueryParam("searchTerm") String searchTerm,
 			@QueryParam("permission") String permission, @QueryParam("limit") long limit,
 			@QueryParam("offset") long offset) {
-		projectId = WebUtility.inputSanitizer(projectId);
-		userId = WebUtility.inputSQLSanitizer(userId);
-		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
-		permission = WebUtility.inputSanitizer(permission);
-
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			classLogger.error("Invalid user session trying to access authorization resources", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		Map<String, Object> ret = new HashMap<String, Object>();
-		try {
-			String searchParam = searchTerm != null ? searchTerm : userId;
-			List<Map<String, Object>> members = SecurityProjectUtils.getProjectUsers(user, projectId, searchParam,
-					permission, limit, offset);
-			long totalMembers = SecurityProjectUtils.getProjectUsersCount(user, projectId, searchParam, permission);
+		String project = WebUtility.inputSanitizer(projectId);
+		String member = WebUtility.inputSQLSanitizer(userId);
+		String term = WebUtility.inputSQLSanitizer(searchTerm);
+		String level = WebUtility.inputSanitizer(permission);
+		String searchParam = term != null ? term : member;
+		return ResourceUtility.respondAllowingAnonymous(request, "list the users of project " + project, user -> {
+			List<Map<String, Object>> members = SecurityProjectUtils.getProjectUsers(user, project, searchParam, level,
+					limit, offset);
+			long totalMembers = SecurityProjectUtils.getProjectUsersCount(user, project, searchParam, level);
+			Map<String, Object> ret = new HashMap<>();
 			ret.put("totalMembers", totalMembers);
 			ret.put("members", members);
-		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to pull users for project {} without having proper access", projectId);
-			classLogger.error(
-					"Failed to retrieve users for project {} because access validation failed for the requester.",
-					projectId, e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		return WebUtility.getResponse(ret, 200);
+			return ret;
+		});
 	}
 
 	/**
@@ -353,45 +293,19 @@ public class ProjectAuthorizationResource {
 	@Produces("application/json")
 	@Path("addProjectUserPermission")
 	public Response addProjectUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			classLogger.error("Invalid user session trying to access authorization resources", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
 		String newUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
-
-		if (AbstractSecurityUtils.adminOnlyProjectAddAccess(projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn("User is trying to add a user for project {} but is not an admin", projectId);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		try {
+		return ResourceUtility.respond(request, "add user " + newUserId + " to project " + projectId, user -> {
+			if (AbstractSecurityUtils.adminOnlyProjectAddAccess(projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
+				throw new IllegalAccessException(ADMINS_ONLY);
+			}
 			SecurityProjectUtils.addProjectUser(user, newUserId, projectId, permission, endDate);
-		} catch (Exception e) {
-			classLogger.warn("User is trying to add a user for project {} without having proper access", projectId);
-			classLogger.error("Failed to add user {} to project {} with permission {}.", newUserId, projectId,
-					permission, e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		}
-
-		// log the operation
-		classLogger.info("User has added user {} to project {} with permission {}", newUserId, projectId, permission);
-
-		Map<String, Object> ret = new HashMap<String, Object>();
-		ret.put("success", true);
-		return WebUtility.getResponse(ret, 200);
+			Map<String, Object> ret = new HashMap<>();
+			ret.put("success", true);
+			return ret;
+		});
 	}
 
 	/**
@@ -406,21 +320,6 @@ public class ProjectAuthorizationResource {
 	@Path("propagateProjectDependencyPermission")
 	public Response propagateProjectDependencyPermission(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
-		Map<String, Object> ret = new HashMap<String, Object>();
-
-		User requester = null;
-		try {
-			requester = ResourceUtility.getUser(request);
-			classLogger.info("User is attempting to modify engine permissions.");
-		} catch (IllegalAccessException e) {
-			classLogger.error("Failed to resolve authenticated user while propagating project dependency permission.",
-					e);
-			ret.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(ret, 401);
-		}
-
-		// Get form info
-
 		String newUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
 		String newUserType = WebUtility.inputSanitizer(form.getFirst("type"));
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
@@ -433,49 +332,21 @@ public class ProjectAuthorizationResource {
 		String usageFrequency = form.containsKey("usageFrequency")
 				? WebUtility.inputSQLSanitizer(form.getFirst("usageFrequency"))
 				: null;
-		int maxTokens = 0;
 		String maxTokensStr = WebUtility.inputSanitizer(request.getParameter("maxTokens"));
-		if (maxTokensStr != null && !(maxTokensStr = maxTokensStr.trim()).isEmpty()) {
-			// must be a valid integer
-			try {
-				maxTokens = Integer.parseInt(maxTokensStr);
-			} catch (NumberFormatException e) {
-				classLogger.error(
-						"Failed to parse maxTokens value '{}' while propagating project dependency permission.",
-						maxTokensStr, e);
-				ret.put(Constants.ERROR_MESSAGE, "maxTokens must be a valid integer value");
-				return WebUtility.getResponse(ret, 400);
-			}
-		}
-		double maxResponseTime = 0.0;
 		String maxResponseTimeStr = WebUtility.inputSanitizer(request.getParameter("maxResponseTime"));
-		if (maxResponseTimeStr != null && !(maxResponseTimeStr = maxResponseTimeStr.trim()).isEmpty()) {
-			// must be a valid double
-			try {
-				maxResponseTime = Double.parseDouble(maxResponseTimeStr);
-			} catch (NumberFormatException e) {
-				classLogger.error(
-						"Failed to parse maxResponseTime value '{}' while propagating project dependency permission.",
-						maxResponseTimeStr, e);
-				ret.put(Constants.ERROR_MESSAGE, "maxResponseTime must be a valid double value");
-				return WebUtility.getResponse(ret, 400);
+		return ResourceUtility.respond(request, "give user " + newUserId + " access to project " + projectId, user -> {
+			int maxTokens = readMaxTokens(maxTokensStr);
+			double maxResponseTime = readMaxResponseTime(maxResponseTimeStr);
+
+			// Determine if admin right are required to add users and, if so, if requester
+			// has those rights.
+			if (AbstractSecurityUtils.adminOnlyProjectAddAccess(projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
+				throw new IllegalAccessException(ADMINS_ONLY);
 			}
-		}
 
-		// Determine if admin right are required to add users and, if so, if requester
-		// has those rights.
-		if (AbstractSecurityUtils.adminOnlyProjectAddAccess(projectId) && !SecurityAdminUtils.userIsAdmin(requester)) {
-			classLogger.warn("User is trying to add a user for project {} but is not an admin", projectId);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		Map<String, Object> responses = SecurityProjectUtils.propagateProjectPermission(requester, projectId, newUserId,
-				newUserType, requestedPermission, endDate, usageRestriction, usageFrequency, maxTokens,
-				maxResponseTime);
-
-		return WebUtility.getResponse(responses, 200);
+			return SecurityProjectUtils.propagateProjectPermission(user, projectId, newUserId, newUserType,
+					requestedPermission, endDate, usageRestriction, usageFrequency, maxTokens, maxResponseTime);
+		});
 	}
 
 	/**
@@ -490,87 +361,37 @@ public class ProjectAuthorizationResource {
 	@Path("propagateProjectDependencyPermissions")
 	public Response propagateProjectDependencyPermissions(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
-		Map<String, Object> ret = new HashMap<String, Object>();
-
-		User requester = null;
-		try {
-			requester = ResourceUtility.getUser(request);
-			classLogger.info("User is attempting to modify engine permissions.");
-		} catch (IllegalAccessException e) {
-			classLogger.error(
-					"Failed to resolve authenticated user while propagating project dependency permissions in bulk.",
-					e);
-			ret.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(ret, 401);
-		}
-
-		// Get form info
-
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
+		return ResourceUtility.respond(request, "give users access to project " + projectId, user -> {
+			List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 
-		List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
-
-		// Determine if admin right are required to add users and, if so, if requester
-		// has those rights.
-		if (AbstractSecurityUtils.adminOnlyProjectAddAccess(projectId) && !SecurityAdminUtils.userIsAdmin(requester)) {
-			classLogger.warn("User is trying to add a user for project {} but is not an admin", projectId);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		Map<String, Object> userRet = new HashMap<String, Object>();
-
-		for (Map<String, String> userRequest : requests) {
-			String newUserId = userRequest.get("userid");
-			String newUserType = userRequest.get("type");
-			String requestedPermission = userRequest.get("permission");
-			String usageRestriction = userRequest.containsKey("usageRestriction") ? userRequest.get("usageRestriction")
-					: null;
-			String usageFrequency = userRequest.containsKey("usageFrequency") ? userRequest.get("usageFrequency")
-					: null;
-			int maxTokens = 0;
-
-			String maxTokensStr = userRequest.containsKey("maxTokens") ? userRequest.get("maxTokens") : null;
-
-			if (maxTokensStr != null && !(maxTokensStr = maxTokensStr.trim()).isEmpty()) {
-				// must be a valid integer
-				try {
-					maxTokens = Integer.parseInt(maxTokensStr);
-				} catch (NumberFormatException e) {
-					classLogger.error(
-							"Failed to parse maxTokens value '{}' for user {} while propagating project dependency permissions in bulk.",
-							maxTokensStr, newUserId, e);
-					ret.put(Constants.ERROR_MESSAGE, "maxTokens must be a valid integer value");
-					return WebUtility.getResponse(ret, 400);
-				}
+			// Determine if admin right are required to add users and, if so, if requester
+			// has those rights.
+			if (AbstractSecurityUtils.adminOnlyProjectAddAccess(projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
+				throw new IllegalAccessException(ADMINS_ONLY);
 			}
-			double maxResponseTime = 0.0;
-			String maxResponseTimeStr = userRequest.containsKey("maxResponseTime") ? userRequest.get("maxResponseTime")
-					: null;
-			if (maxResponseTimeStr != null && !(maxResponseTimeStr = maxResponseTimeStr.trim()).isEmpty()) {
-				// must be a valid double
-				try {
-					maxResponseTime = Double.parseDouble(maxResponseTimeStr);
-				} catch (NumberFormatException e) {
-					classLogger.error(
-							"Failed to parse maxResponseTime value '{}' for user {} while propagating project dependency permissions in bulk.",
-							maxResponseTimeStr, newUserId, e);
-					ret.put(Constants.ERROR_MESSAGE, "maxResponseTime must be a valid double value");
-					return WebUtility.getResponse(ret, 400);
-				}
+
+			Map<String, Object> userRet = new HashMap<>();
+			for (Map<String, String> userRequest : requests) {
+				String newUserId = userRequest.get("userid");
+				String newUserType = userRequest.get("type");
+				String requestedPermission = userRequest.get("permission");
+				String usageRestriction = userRequest.get("usageRestriction");
+				String usageFrequency = userRequest.get("usageFrequency");
+				int maxTokens = readMaxTokens(userRequest.get("maxTokens"));
+				double maxResponseTime = readMaxResponseTime(userRequest.get("maxResponseTime"));
+				Map<String, Object> responses = SecurityProjectUtils.propagateProjectPermission(user, projectId,
+						newUserId, newUserType, requestedPermission, endDate, usageRestriction, usageFrequency,
+						maxTokens, maxResponseTime);
+				userRet.put(newUserId, responses);
 			}
-			Map<String, Object> responses = SecurityProjectUtils.propagateProjectPermission(requester, projectId,
-					newUserId, newUserType, requestedPermission, endDate, usageRestriction, usageFrequency, maxTokens,
-					maxResponseTime);
-			userRet.put(newUserId, responses);
-		}
 
-		ret.put("success", true);
-		ret.put("users", userRet);
-
-		return WebUtility.getResponse(ret, 200);
+			Map<String, Object> ret = new HashMap<>();
+			ret.put("success", true);
+			ret.put("users", userRet);
+			return ret;
+		});
 	}
 
 	/**
@@ -585,55 +406,21 @@ public class ProjectAuthorizationResource {
 	@Path("editProjectUserPermission")
 	public Response editProjectUserPermission(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			classLogger.error("Invalid user session trying to access authorization resources", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
 		String existingUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
 		String existingUserType = WebUtility.inputSQLSanitizer(form.getFirst("type"));
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String newPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
-
-		if (AbstractSecurityUtils.adminOnlyProjectAddAccess(projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn("User is trying to edit user {} permissions for project {} but is not an admin",
-					existingUserId, projectId);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		try {
+		return ResourceUtility.respond(request, "edit user " + existingUserId + " on project " + projectId, user -> {
+			if (AbstractSecurityUtils.adminOnlyProjectAddAccess(projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
+				throw new IllegalAccessException(ADMINS_ONLY);
+			}
 			SecurityProjectUtils.editProjectUserPermission(user, existingUserId, existingUserType, projectId,
 					newPermission, endDate);
-		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to edit user {} permissions for project {} without having proper access",
-					existingUserId, projectId);
-			classLogger.error("Failed to update permission for user {} in project {} because access validation failed.",
-					existingUserId, projectId, e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		} catch (Exception e) {
-			classLogger.error("Failed to update permission for user {} in project {}.", existingUserId, projectId, e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		}
-
-		// log the operation
-		classLogger.info("User has edited user {} permission to project {} with level {}", existingUserId, projectId,
-				newPermission);
-
-		Map<String, Object> ret = new HashMap<String, Object>();
-		ret.put("success", true);
-		return WebUtility.getResponse(ret, 200);
+			Map<String, Object> ret = new HashMap<>();
+			ret.put("success", true);
+			return ret;
+		});
 	}
 
 	/**
@@ -648,52 +435,18 @@ public class ProjectAuthorizationResource {
 	@Path("editProjectUserPermissions")
 	public Response editProjectUserPermissions(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			classLogger.error("Failed to resolve authenticated user while editing project user permissions in bulk.",
-					e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
-
-		if (AbstractSecurityUtils.adminOnlyProjectAddAccess(projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn("User is trying to edit user permissions for project {} but is not an admin", projectId);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
-		try {
+		return ResourceUtility.respond(request, "edit user permissions on project " + projectId, user -> {
+			if (AbstractSecurityUtils.adminOnlyProjectAddAccess(projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
+				throw new IllegalAccessException(ADMINS_ONLY);
+			}
+			List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 			SecurityProjectUtils.editProjectUserPermissions(user, projectId, requests, endDate);
-		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to edit user permissions for project {} without having proper access",
-					projectId);
-			classLogger.error(
-					"Failed to update project user permissions in bulk for project {} because access validation failed.",
-					projectId, e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		} catch (Exception e) {
-			classLogger.error("Failed to update project user permissions in bulk for project {}.", projectId, e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		}
-
-		// log the operation
-		classLogger.info("User has edited user permission to project {}", projectId);
-
-		Map<String, Object> ret = new HashMap<String, Object>();
-		ret.put("success", true);
-		return WebUtility.getResponse(ret, 200);
+			Map<String, Object> ret = new HashMap<>();
+			ret.put("success", true);
+			return ret;
+		});
 	}
 
 	/**
@@ -708,51 +461,18 @@ public class ProjectAuthorizationResource {
 	@Path("removeProjectUserPermission")
 	public Response removeProjectUserPermission(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			classLogger.error("Invalid user session trying to access authorization resources", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
 		String existingUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
-
-		if (AbstractSecurityUtils.adminOnlyProjectAddAccess(projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn("User is trying to remove user {} from having access to project {} but is not an admin",
-					existingUserId, projectId);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		try {
+		String action = "remove user " + existingUserId + " from project " + projectId;
+		return ResourceUtility.respond(request, action, user -> {
+			if (AbstractSecurityUtils.adminOnlyProjectAddAccess(projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
+				throw new IllegalAccessException(ADMINS_ONLY);
+			}
 			SecurityProjectUtils.removeProjectUser(user, existingUserId, projectId);
-		} catch (IllegalAccessException e) {
-			classLogger.warn(
-					"User is trying to remove user {} from having access to project {} without having proper access",
-					existingUserId, projectId);
-			classLogger.error("Failed to remove user {} from project {} because access validation failed.",
-					existingUserId, projectId, e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		} catch (Exception e) {
-			classLogger.error("Failed to remove user {} from project {}.", existingUserId, projectId, e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		}
-
-		// log the operation
-		classLogger.info("User has removed user {} from having access to project {}", existingUserId, projectId);
-
-		Map<String, Object> ret = new HashMap<String, Object>();
-		ret.put("success", true);
-		return WebUtility.getResponse(ret, 200);
+			Map<String, Object> ret = new HashMap<>();
+			ret.put("success", true);
+			return ret;
+		});
 	}
 
 	/**
@@ -766,50 +486,20 @@ public class ProjectAuthorizationResource {
 	@Produces("application/json")
 	@Path("setProjectTemplate")
 	public Response setProjectTemplate(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		User user;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			classLogger.error("Invalid user session trying to update a project template setting", e);
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
 		String projectIdInput = form.getFirst("projectId");
 		String templateInput = form.getFirst("template");
-		if (projectIdInput == null || projectIdInput.trim().isEmpty() || templateInput == null
-				|| !("true".equalsIgnoreCase(templateInput) || "false".equalsIgnoreCase(templateInput))) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "projectId and a true or false template value are required");
-			return WebUtility.getResponse(errorMap, 400);
-		}
-
 		String projectId = WebUtility.inputSanitizer(projectIdInput);
 		boolean isTemplate = Boolean.parseBoolean(templateInput);
-		try {
+		return ResourceUtility.respond(request, "set whether project " + projectId + " is a template", user -> {
+			if (projectIdInput == null || projectIdInput.trim().isEmpty() || templateInput == null
+					|| !("true".equalsIgnoreCase(templateInput) || "false".equalsIgnoreCase(templateInput))) {
+				throw new IllegalArgumentException("projectId and a true or false template value are required");
+			}
 			SecurityProjectUtils.setProjectTemplate(user, projectId, isTemplate);
-		} catch (IllegalAccessException e) {
-			classLogger.warn("User attempted to update project {} template status without owner access", projectId);
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		} catch (IllegalArgumentException e) {
-			classLogger.error("Failed to update template status for project {}", projectId, e);
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		} catch (Exception e) {
-			classLogger.error("Unexpected failure updating template status for project {}", projectId, e);
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
-			return WebUtility.getResponse(errorMap, 500);
-		}
-
-		classLogger.info("User has set project {} template status to {}", projectId, isTemplate);
-		Map<String, Object> ret = new HashMap<>();
-		ret.put("success", true);
-		return WebUtility.getResponse(ret, 200);
+			Map<String, Object> ret = new HashMap<>();
+			ret.put("success", true);
+			return ret;
+		});
 	}
 
 	/**
@@ -823,50 +513,18 @@ public class ProjectAuthorizationResource {
 	@Produces("application/json")
 	@Path("setProjectGlobal")
 	public Response setProjectGlobal(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			classLogger.error("Invalid user session trying to access authorization resources", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		boolean isPublic = Boolean.parseBoolean(form.getFirst("public"));
-		String logPublic = isPublic ? " public " : " private";
-
-		if (AbstractSecurityUtils.adminOnlyProjectSetPublic(projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn("User is trying to set the project {}{} but is not an admin", projectId, logPublic);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		try {
+		String action = "make project " + projectId + (isPublic ? " public" : " private");
+		return ResourceUtility.respond(request, action, user -> {
+			if (AbstractSecurityUtils.adminOnlyProjectSetPublic(projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
+				throw new IllegalAccessException(ADMINS_ONLY);
+			}
 			SecurityProjectUtils.setProjectGlobal(user, projectId, isPublic);
-		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to set the project {}{} without having proper access", projectId,
-					logPublic);
-			classLogger.error("Failed to update global visibility for project {} because access validation failed.",
-					projectId, e);
-			Map<String, String> errorRet = new HashMap<String, String>();
-			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorRet, 400);
-		} catch (Exception e) {
-			classLogger.error("Failed to update global visibility for project {}.", projectId, e);
-			Map<String, String> errorRet = new HashMap<String, String>();
-			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
-			return WebUtility.getResponse(errorRet, 500);
-		}
-
-		// log the operation
-		classLogger.info("User has set the project {} {}", projectId, logPublic.trim());
-
-		Map<String, Object> ret = new HashMap<String, Object>();
-		ret.put("success", true);
-		return WebUtility.getResponse(ret, 200);
+			Map<String, Object> ret = new HashMap<>();
+			ret.put("success", true);
+			return ret;
+		});
 	}
 
 	/**
@@ -880,51 +538,19 @@ public class ProjectAuthorizationResource {
 	@Produces("application/json")
 	@Path("setProjectDiscoverable")
 	public Response setProjectDiscoverable(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		classLogger.info("THIS IS CALLED HERE: {}", request);
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			classLogger.error("Invalid user session trying to access authorization resources", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		boolean isDiscoverable = Boolean.parseBoolean(form.getFirst("discoverable"));
-		String logDiscoverable = isDiscoverable ? " discoverable " : " not discoverable";
-
-		if (AbstractSecurityUtils.adminOnlyProjectSetDiscoverable(projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn("User is trying to set the project {}{} but is not an admin", projectId, logDiscoverable);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		try {
+		String action = "make project " + projectId + (isDiscoverable ? " discoverable" : " not discoverable");
+		return ResourceUtility.respond(request, action, user -> {
+			if (AbstractSecurityUtils.adminOnlyProjectSetDiscoverable(projectId)
+					&& !SecurityAdminUtils.userIsAdmin(user)) {
+				throw new IllegalAccessException(ADMINS_ONLY);
+			}
 			SecurityProjectUtils.setProjectDiscoverable(user, projectId, isDiscoverable);
-		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to set the project {}{} without having proper access", projectId,
-					logDiscoverable);
-			classLogger.error("Failed to update discoverability for project {} because access validation failed.",
-					projectId, e);
-			Map<String, String> errorRet = new HashMap<String, String>();
-			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorRet, 400);
-		} catch (Exception e) {
-			classLogger.error("Failed to update discoverability for project {}.", projectId, e);
-			Map<String, String> errorRet = new HashMap<String, String>();
-			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
-			return WebUtility.getResponse(errorRet, 500);
-		}
-
-		// log the operation
-		classLogger.info("User has set the project {} {}", projectId, logDiscoverable.trim());
-
-		Map<String, Object> ret = new HashMap<String, Object>();
-		ret.put("success", true);
-		return WebUtility.getResponse(ret, 200);
+			Map<String, Object> ret = new HashMap<>();
+			ret.put("success", true);
+			return ret;
+		});
 	}
 
 	/**
@@ -938,41 +564,13 @@ public class ProjectAuthorizationResource {
 	@Produces("application/json")
 	@Path("setProjectVisibility")
 	public Response setProjectVisibility(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			classLogger.error("Invalid user session trying to access authorization resources", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		boolean visible = Boolean.parseBoolean(form.getFirst("visibility"));
-		String logVisible = visible ? " visible " : " not visible";
-
-		try {
+		String action = (visible ? "show" : "hide") + " project " + projectId;
+		return ResourceUtility.respond(request, action, user -> {
 			SecurityProjectUtils.setProjectVisibility(user, projectId, visible);
-		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to set the project {}{} without having proper access", projectId,
-					logVisible);
-			classLogger.error("Failed to update visibility for project {} because access validation failed.", projectId,
-					e);
-			Map<String, String> errorRet = new HashMap<String, String>();
-			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorRet, 400);
-		} catch (Exception e) {
-			classLogger.error("Failed to update visibility for project {}.", projectId, e);
-			Map<String, String> errorRet = new HashMap<String, String>();
-			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
-			return WebUtility.getResponse(errorRet, 500);
-		}
-
-		// log the operation
-		classLogger.info("User has set the project {} {}", projectId, logVisible.trim());
-
-		return WebUtility.getResponse(true, 200);
+			return true;
+		});
 	}
 
 	/**
@@ -986,41 +584,13 @@ public class ProjectAuthorizationResource {
 	@Produces("application/json")
 	@Path("setProjectFavorite")
 	public Response setProjectFavorite(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			classLogger.error("Invalid user session trying to access authorization resources", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		boolean isFavorite = Boolean.parseBoolean(form.getFirst("isFavorite"));
-		String logFavorited = isFavorite ? " favorited " : " not favorited";
-
-		try {
+		String action = (isFavorite ? "favorite" : "unfavorite") + " project " + projectId;
+		return ResourceUtility.respond(request, action, user -> {
 			SecurityProjectUtils.setProjectFavorite(user, projectId, isFavorite);
-		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to set the project {}{} without having proper access", projectId,
-					logFavorited);
-			classLogger.error("Failed to update favorite status for project {} because access validation failed.",
-					projectId, e);
-			Map<String, String> errorRet = new HashMap<String, String>();
-			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorRet, 400);
-		} catch (Exception e) {
-			classLogger.error("Failed to update favorite status for project {}.", projectId, e);
-			Map<String, String> errorRet = new HashMap<String, String>();
-			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
-			return WebUtility.getResponse(errorRet, 500);
-		}
-
-		// log the operation
-		classLogger.info("User has set the project {} {}", projectId, logFavorited.trim());
-
-		return WebUtility.getResponse(true, 200);
+			return true;
+		});
 	}
 
 	/**
@@ -1037,55 +607,16 @@ public class ProjectAuthorizationResource {
 			@QueryParam("projectId") String projectId, @QueryParam("searchTerm") String searchTerm,
 			@QueryParam("limit") long limit, @QueryParam("offset") long offset,
 			@QueryParam(MicrosoftGraphUserLookup.LOOKUP_PARAM) String msGraphLookup) {
-		projectId = WebUtility.inputSanitizer(projectId);
-		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
-
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			classLogger.error(
-					"Failed to resolve authenticated user while retrieving users without project credentials.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		// when the directory is not used
-		// then we will look at our security db
-		if (!MicrosoftGraphUserLookup.useDirectory(msGraphLookup)) {
-			List<Map<String, Object>> ret = null;
-			try {
-				ret = SecurityProjectUtils.getProjectUsersNoCredentials(user, projectId, searchTerm, limit, offset);
-				return WebUtility.getResponse(ret, 200);
-			} catch (IllegalAccessException e) {
-				classLogger.warn(
-						"User  is trying to pull users for {} that do not have credentials without having proper access",
-						projectId);
-				classLogger.error(
-						"Failed to retrieve users without credentials for project {} because access validation failed.",
-						projectId, e);
-				Map<String, String> errorMap = new HashMap<String, String>();
-				errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-				return WebUtility.getResponse(errorMap, 401);
+		String project = WebUtility.inputSanitizer(projectId);
+		String term = WebUtility.inputSQLSanitizer(searchTerm);
+		return ResourceUtility.respondAllowingAnonymous(request, "find people to add to project " + project, user -> {
+			// when the directory is not used
+			// then we will look at our security db
+			if (!MicrosoftGraphUserLookup.useDirectory(msGraphLookup)) {
+				return SecurityProjectUtils.getProjectUsersNoCredentials(user, project, term, limit, offset);
 			}
-		}
-
-		try {
-			List<Map<String, Object>> filteredUsers = MsGraphUtility.getProjectUsers(request, user, projectId,
-					searchTerm, limit, offset, false);
-			return WebUtility.getResponse(filteredUsers, 200);
-		} catch (IllegalAccessException e) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		} catch (Exception e) {
-			classLogger.error("Failed to retrieve users without credentials from Microsoft Graph for project {}.",
-					projectId, e);
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 500);
-		}
+			return MsGraphUtility.getProjectUsers(request, user, project, term, limit, offset, false);
+		});
 	}
 
 	/**
@@ -1100,51 +631,19 @@ public class ProjectAuthorizationResource {
 	@Path("approveProjectUserAccessRequest")
 	public Response approveProjectUserAccessRequest(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			classLogger.error("Invalid user session trying to access authorization resources", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
-
-		if (AbstractSecurityUtils.adminOnlyProjectAddAccess(projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn("User is trying to approve user access to project {} but is not an admin", projectId);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		// adding user permissions and updating user access requests in bulk
-		List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("requests"), List.class);
-		try {
+		return ResourceUtility.respond(request, "approve access requests for project " + projectId, user -> {
+			if (AbstractSecurityUtils.adminOnlyProjectAddAccess(projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
+				throw new IllegalAccessException(ADMINS_ONLY);
+			}
+			// adding user permissions and updating user access requests in bulk
+			List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("requests"), List.class);
 			SecurityProjectUtils.approveProjectUserAccessRequests(user, projectId, requests, endDate);
-		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to grant user access to project {} without having proper access",
-					projectId);
-			classLogger.error("Failed to approve access requests for project {} because access validation failed.",
-					projectId, e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		} catch (Exception e) {
-			classLogger.error("Failed to approve access requests for project {}.", projectId, e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		}
-
-		// log the operation
-		classLogger.info("User has approved user access and added user permissions to project {}", projectId);
-
-		Map<String, Object> ret = new HashMap<String, Object>();
-		ret.put("success", true);
-		return WebUtility.getResponse(ret, 200);
+			Map<String, Object> ret = new HashMap<>();
+			ret.put("success", true);
+			return ret;
+		});
 	}
 
 	/**
@@ -1159,43 +658,19 @@ public class ProjectAuthorizationResource {
 	@Path("denyProjectUserAccessRequest")
 	public Response denyProjectUserAccessRequest(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			classLogger.error("Invalid user session trying to access authorization resources", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
-
-		if (AbstractSecurityUtils.adminOnlyProjectAddAccess(projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn("User is trying to deny user access to project {} but is not an admin", projectId);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		// updating user access requests in bulk
-		List<String> requestids = new Gson().fromJson(form.getFirst("requestids"), List.class);
-		requestids = WebUtility.inputSQLSanitizer(requestids);
-		try {
+		return ResourceUtility.respond(request, "deny access requests for project " + projectId, user -> {
+			if (AbstractSecurityUtils.adminOnlyProjectAddAccess(projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
+				throw new IllegalAccessException(ADMINS_ONLY);
+			}
+			// updating user access requests in bulk
+			List<String> requestids = new Gson().fromJson(form.getFirst("requestids"), List.class);
+			requestids = WebUtility.inputSQLSanitizer(requestids);
 			SecurityProjectUtils.denyProjectUserAccessRequests(user, projectId, requestids);
-		} catch (Exception e) {
-			classLogger.error("Failed to deny access requests for project {}.", projectId, e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		}
-
-		// log the operation
-		classLogger.info("User has denied user access requests to project {}", projectId);
-
-		Map<String, Object> ret = new HashMap<String, Object>();
-		ret.put("success", true);
-		return WebUtility.getResponse(ret, 200);
+			Map<String, Object> ret = new HashMap<>();
+			ret.put("success", true);
+			return ret;
+		});
 	}
 
 	/**
@@ -1210,47 +685,24 @@ public class ProjectAuthorizationResource {
 	@Path("addProjectUserPermissions")
 	public Response addProjectUserPermissions(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			classLogger.error("Invalid user session trying to access authorization resources", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
-		if (AbstractSecurityUtils.adminOnlyProjectAddAccess(projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn("User is trying to add user permissions to project {} but is not an admin", projectId);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		// adding user permissions in bulk
-		List<Map<String, String>> permission = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
-		try {
+		return ResourceUtility.respond(request, "add users to project " + projectId, user -> {
+			if (AbstractSecurityUtils.adminOnlyProjectAddAccess(projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
+				throw new IllegalAccessException(ADMINS_ONLY);
+			}
+			// adding user permissions in bulk
+			List<Map<String, String>> permission = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 			// users picked from the Microsoft directory may not be in the security db yet
 			if (MicrosoftGraphUserLookup.isEnabled()) {
 				MicrosoftGraphUserLookup.addMissingUsers(user, permission);
 			}
 
 			SecurityProjectUtils.addProjectUserPermissions(user, projectId, permission, endDate);
-		} catch (Exception e) {
-			classLogger.error("Failed to add project user permissions in bulk for project {}.", projectId, e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		}
-
-		// log the operation
-		classLogger.info("User has added user permissions to project {}", projectId);
-
-		Map<String, Object> ret = new HashMap<String, Object>();
-		ret.put("success", true);
-		return WebUtility.getResponse(ret, 200);
+			Map<String, Object> ret = new HashMap<>();
+			ret.put("success", true);
+			return ret;
+		});
 	}
 
 	/**
@@ -1265,52 +717,55 @@ public class ProjectAuthorizationResource {
 	@Path("removeProjectUserPermissions")
 	public Response removeProjectUserPermissions(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			classLogger.error("Invalid user session trying to access authorization resources", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		Gson gson = new Gson();
-		List<String> ids = gson.fromJson(form.getFirst("ids"), List.class);
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
-
-		if (AbstractSecurityUtils.adminOnlyProjectAddAccess(projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
-			classLogger.warn("User is trying to remove users from having access to project {} but is not an admin",
-					projectId);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "This functionality is limited to only admins");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		try {
+		return ResourceUtility.respond(request, "remove users from project " + projectId, user -> {
+			List<String> ids = new Gson().fromJson(form.getFirst("ids"), List.class);
+			if (AbstractSecurityUtils.adminOnlyProjectAddAccess(projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
+				throw new IllegalAccessException(ADMINS_ONLY);
+			}
 			SecurityProjectUtils.removeProjectUsers(user, ids, projectId);
-		} catch (IllegalAccessException e) {
-			classLogger.warn(
-					"User is trying to remove users from having access to project {} without having proper access",
-					projectId);
-			classLogger.error("Failed to remove project users in bulk for project {} because access validation failed.",
-					projectId, e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		} catch (Exception e) {
-			classLogger.error("Failed to remove project users in bulk for project {}.", projectId, e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
+			Map<String, Object> ret = new HashMap<>();
+			ret.put("success", true);
+			return ret;
+		});
+	}
+
+	/**
+	 * Reads the {@code maxTokens} limit sent for a permission.
+	 *
+	 * @param value the value sent, which may be null or blank
+	 * @return the limit, or 0 when none is sent
+	 * @throws IllegalArgumentException when the value is not an integer
+	 */
+	private static int readMaxTokens(String value) {
+		String trimmed = ValueUtils.trimToNull(value);
+		if (trimmed == null) {
+			return 0;
 		}
+		try {
+			return Integer.parseInt(trimmed);
+		} catch (NumberFormatException e) {
+			throw new IllegalArgumentException("maxTokens must be a valid integer value");
+		}
+	}
 
-		// log the operation
-		classLogger.info("User has removed users from having access to project {}", projectId);
-
-		Map<String, Object> ret = new HashMap<String, Object>();
-		ret.put("success", true);
-		return WebUtility.getResponse(ret, 200);
+	/**
+	 * Reads the {@code maxResponseTime} limit sent for a permission.
+	 *
+	 * @param value the value sent, which may be null or blank
+	 * @return the limit, or 0 when none is sent
+	 * @throws IllegalArgumentException when the value is not a number
+	 */
+	private static double readMaxResponseTime(String value) {
+		String trimmed = ValueUtils.trimToNull(value);
+		if (trimmed == null) {
+			return 0.0;
+		}
+		try {
+			return Double.parseDouble(trimmed);
+		} catch (NumberFormatException e) {
+			throw new IllegalArgumentException("maxResponseTime must be a valid double value");
+		}
 	}
 
 }
