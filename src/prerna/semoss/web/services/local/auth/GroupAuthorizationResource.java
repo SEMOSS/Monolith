@@ -105,8 +105,9 @@ public class GroupAuthorizationResource {
 	}
 
 	/**
-	 * The members of a custom group. Its managers can always see them; the owners
-	 * and editors of a project or engine the group can use pass its id to see them.
+	 * The members of a custom group. Its managers can always see them. The owners
+	 * of a project or engine pass its id to see them, also before giving the group
+	 * access; its editors do once the group can use it.
 	 */
 	@GET
 	@Path("/getGroupMembers")
