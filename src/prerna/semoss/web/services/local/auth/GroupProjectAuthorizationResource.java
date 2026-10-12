@@ -31,9 +31,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import jakarta.annotation.security.PermitAll;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.HttpServletRequest;
@@ -47,17 +44,19 @@ import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import prerna.auth.AccessPermissionEnum;
 import prerna.auth.AuthProvider;
-import prerna.auth.User;
 import prerna.auth.utils.SecurityGroupProjectUtils;
 import prerna.semoss.web.services.local.ResourceUtility;
-import prerna.util.Constants;
+import prerna.util.ValueUtils;
 import prerna.web.services.util.WebUtility;
 
 @Path("/auth/group/project")
 @PermitAll
 public class GroupProjectAuthorizationResource {
 
-	private static final Logger classLogger = LogManager.getLogger(GroupProjectAuthorizationResource.class);
+	private static final String GROUP_ID_REQUIRED = "The group id cannot be null or empty";
+	private static final String GROUP_TYPE_REQUIRED = "The group type cannot be null or empty";
+	private static final String PROJECT_ID_REQUIRED = "The projectId cannot be null or empty";
+	private static final String PERMISSION_REQUIRED = "The permission cannot be null or empty";
 
 	@Context
 	protected ServletContext context;
@@ -75,48 +74,22 @@ public class GroupProjectAuthorizationResource {
 	public Response getGroupProjectPermission(@Context HttpServletRequest request,
 			@QueryParam("groupId") String groupId, @QueryParam("type") String type,
 			@QueryParam("projectId") String projectId) {
+		String project = WebUtility.inputSanitizer(projectId);
+		String groupType = AuthProvider.getProviderLabel(WebUtility.inputSanitizer(type));
+		String group = WebUtility.inputSQLSanitizer(groupId);
+		return ResourceUtility.respondAllowingAnonymous(request,
+				"read the permission of group " + group + " on project " + project, user -> {
+					Integer permissionCode = SecurityGroupProjectUtils.getGroupProjectPermission(
+							ValueUtils.requireNonBlank(group, GROUP_ID_REQUIRED),
+							ValueUtils.requireNonBlank(groupType, GROUP_TYPE_REQUIRED),
+							ValueUtils.requireNonBlank(project, PROJECT_ID_REQUIRED));
+					String permission = permissionCode == null ? null
+							: AccessPermissionEnum.getPermissionValueById(permissionCode);
 
-		projectId = WebUtility.inputSanitizer(projectId);
-		type = AuthProvider.getProviderLabel(WebUtility.inputSanitizer(type));
-		groupId = WebUtility.inputSQLSanitizer(groupId);
-
-		Map<String, String> errorMap = new HashMap<String, String>();
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			classLogger.error("Invalid user session trying to access authorization resources", e);
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		try {
-			if (groupId == null || (groupId = groupId.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The group id cannot be null or empty");
-			}
-			if (type == null || (type = type.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The group type cannot be null or empty");
-			}
-			if (projectId == null || (projectId = projectId.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The projectId cannot be null or empty");
-			}
-
-			Integer permissionCode = SecurityGroupProjectUtils.getGroupProjectPermission(groupId, type, projectId);
-			String permission = permissionCode == null ? null
-					: AccessPermissionEnum.getPermissionValueById(permissionCode);
-
-			Map<String, String> ret = new HashMap<String, String>();
-			ret.put("permission", permission);
-			return WebUtility.getResponse(ret, 200);
-		} catch (IllegalArgumentException e) {
-			classLogger.error("Failed to retrieve group project permission.", e);
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		} catch (Exception e) {
-			classLogger.error("Failed to retrieve group project permission.", e);
-			errorMap.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
-			return WebUtility.getResponse(errorMap, 500);
-		}
+					Map<String, String> ret = new HashMap<>();
+					ret.put("permission", permission);
+					return ret;
+				});
 	}
 
 	/**
@@ -131,57 +104,22 @@ public class GroupProjectAuthorizationResource {
 	@Path("addGroupProjectPermission")
 	public Response addGroupProjectPermission(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			classLogger.error("Invalid user session trying to access authorization resources", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
 		String groupId = WebUtility.inputSQLSanitizer(form.getFirst("groupId"));
 		String type = AuthProvider.getProviderLabel(WebUtility.inputSanitizer(form.getFirst("type")));
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
+		return ResourceUtility.respond(request, "add group " + groupId + " to project " + projectId, user -> {
+			SecurityGroupProjectUtils.addProjectGroupPermission(user,
+					ValueUtils.requireNonBlank(groupId, GROUP_ID_REQUIRED),
+					ValueUtils.requireNonBlank(type, GROUP_TYPE_REQUIRED),
+					ValueUtils.requireNonBlank(projectId, PROJECT_ID_REQUIRED),
+					ValueUtils.requireNonBlank(permission, PERMISSION_REQUIRED), endDate);
 
-		try {
-			if (groupId == null || (groupId = groupId.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The group id cannot be null or empty");
-			}
-			if (type == null || (type = type.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The group type cannot be null or empty");
-			}
-			if (projectId == null || (projectId = projectId.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The projectId cannot be null or empty");
-			}
-			if (permission == null || (permission = permission.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The permission cannot be null or empty");
-			}
-
-			SecurityGroupProjectUtils.addProjectGroupPermission(user, groupId, type, projectId, permission, endDate);
-		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to add groups to project {} without having proper access", projectId);
-			classLogger.error("Failed to add group project permission.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		} catch (Exception e) {
-			classLogger.error("Failed to add group project permission.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		}
-
-		// log the operation
-		classLogger.info("User has added group {} and type {} to project {} with permission {}", groupId, type,
-				projectId, permission);
-
-		Map<String, Object> ret = new HashMap<String, Object>();
-		ret.put("success", true);
-		return WebUtility.getResponse(ret, 200);
+			Map<String, Object> ret = new HashMap<>();
+			ret.put("success", true);
+			return ret;
+		});
 	}
 
 	/**
@@ -196,58 +134,23 @@ public class GroupProjectAuthorizationResource {
 	@Path("editGroupProjectPermission")
 	public Response editGroupProjectPermission(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			classLogger.error("Invalid user session trying to access authorization resources", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
 		String groupId = WebUtility.inputSQLSanitizer(form.getFirst("groupId"));
 		String type = AuthProvider.getProviderLabel(WebUtility.inputSanitizer(form.getFirst("type")));
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String newPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
-		try {
-			if (groupId == null || (groupId = groupId.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The group id cannot be null or empty");
-			}
-			if (type == null || (type = type.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The group type cannot be null or empty");
-			}
-			if (projectId == null || (projectId = projectId.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The projectId cannot be null or empty");
-			}
-			if (newPermission == null || (newPermission = newPermission.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The permission cannot be null or empty");
-			}
-			SecurityGroupProjectUtils.editProjectGroupPermission(user, groupId, type, projectId, newPermission,
-					endDate);
-		} catch (IllegalAccessException e) {
-			classLogger.warn(
-					"User is trying to edit group {} and type {} permissions for project {} without having proper access",
-					groupId, type, projectId);
-			classLogger.error("Failed to update group project permission.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		} catch (Exception e) {
-			classLogger.error("Failed to update group project permission.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		}
+		return ResourceUtility.respond(request, "edit the permission of group " + groupId + " on project " + projectId,
+				user -> {
+					SecurityGroupProjectUtils.editProjectGroupPermission(user,
+							ValueUtils.requireNonBlank(groupId, GROUP_ID_REQUIRED),
+							ValueUtils.requireNonBlank(type, GROUP_TYPE_REQUIRED),
+							ValueUtils.requireNonBlank(projectId, PROJECT_ID_REQUIRED),
+							ValueUtils.requireNonBlank(newPermission, PERMISSION_REQUIRED), endDate);
 
-		// log the operation
-		classLogger.info("User has edited group {} and type {} permission to project {} with level {}", groupId, type,
-				projectId, newPermission);
-
-		Map<String, Object> ret = new HashMap<String, Object>();
-		ret.put("success", true);
-		return WebUtility.getResponse(ret, 200);
+					Map<String, Object> ret = new HashMap<>();
+					ret.put("success", true);
+					return ret;
+				});
 	}
 
 	/**
@@ -262,53 +165,19 @@ public class GroupProjectAuthorizationResource {
 	@Path("removeGroupProjectPermission")
 	public Response removeGroupProjectPermission(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			classLogger.error("Invalid user session trying to access authorization resources", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
 		String groupId = WebUtility.inputSQLSanitizer(form.getFirst("groupId"));
 		String type = AuthProvider.getProviderLabel(WebUtility.inputSanitizer(form.getFirst("type")));
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
-		try {
-			if (groupId == null || (groupId = groupId.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The group id cannot be null or empty");
-			}
-			if (type == null || (type = type.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The group type cannot be null or empty");
-			}
-			if (projectId == null || (projectId = projectId.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The projectId cannot be null or empty");
-			}
+		return ResourceUtility.respond(request, "remove group " + groupId + " from project " + projectId, user -> {
+			SecurityGroupProjectUtils.removeProjectGroupPermission(user,
+					ValueUtils.requireNonBlank(groupId, GROUP_ID_REQUIRED),
+					ValueUtils.requireNonBlank(type, GROUP_TYPE_REQUIRED),
+					ValueUtils.requireNonBlank(projectId, PROJECT_ID_REQUIRED));
 
-			SecurityGroupProjectUtils.removeProjectGroupPermission(user, groupId, type, projectId);
-		} catch (IllegalAccessException e) {
-			classLogger.warn(
-					"User is trying to remove group {} and type {} from having access to project {} without having proper access",
-					groupId, type, projectId);
-			classLogger.error("Failed to remove group project permission.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		} catch (Exception e) {
-			classLogger.error("Failed to remove group project permission.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		}
-
-		// log the operation
-		classLogger.info("User has removed group {} and type {} from having access to project {}", groupId, type,
-				projectId);
-
-		Map<String, Object> ret = new HashMap<String, Object>();
-		ret.put("success", true);
-		return WebUtility.getResponse(ret, 200);
+			Map<String, Object> ret = new HashMap<>();
+			ret.put("success", true);
+			return ret;
+		});
 	}
 
 	@GET
@@ -317,42 +186,20 @@ public class GroupProjectAuthorizationResource {
 	public Response getAllGroupsWithAccessToProject(@Context HttpServletRequest request,
 			@QueryParam("projectId") String projectId, @QueryParam("limit") long limit,
 			@QueryParam("offset") long offset) {
-		projectId = WebUtility.inputSanitizer(projectId);
-		if (projectId == null || projectId.isEmpty()) {
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Must define the projectId");
-			return WebUtility.getResponse(errorMap, 400);
-		}
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			classLogger.error("Invalid user session trying to access authorization resources", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		Map<String, Object> ret = new HashMap<String, Object>();
-		try {
-			List<Map<String, Object>> groups = SecurityGroupProjectUtils.getGroupsWithAccessToProject(user, projectId,
-					limit, offset);
-			long totalMembers = SecurityGroupProjectUtils.getNumGroupsWithAccessToProject(user, projectId);
-			ret.put("totalGroups", totalMembers);
-			ret.put("groups", groups);
-			return WebUtility.getResponse(ret, 200);
-		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to get details for project {} without having proper access", projectId);
-			classLogger.error("Failed to retrieve all groups with access to project.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 401);
-		} catch (Exception e) {
-			classLogger.error("Failed to retrieve all groups with access to project.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		}
+		String project = WebUtility.inputSanitizer(projectId);
+		return ResourceUtility.respondAllowingAnonymous(request, "list the groups with access to project " + project,
+				user -> {
+					if (project == null || project.isEmpty()) {
+						throw new IllegalArgumentException("Must define the projectId");
+					}
+					List<Map<String, Object>> groups = SecurityGroupProjectUtils.getGroupsWithAccessToProject(user,
+							project, limit, offset);
+					long totalGroups = SecurityGroupProjectUtils.getNumGroupsWithAccessToProject(user, project);
+					Map<String, Object> ret = new HashMap<>();
+					ret.put("totalGroups", totalGroups);
+					ret.put("groups", groups);
+					return ret;
+				});
 	}
 
 	/**
@@ -372,38 +219,15 @@ public class GroupProjectAuthorizationResource {
 	public Response getAvailableGroupsForProject(@Context HttpServletRequest request,
 			@QueryParam("projectId") String projectId, @QueryParam("searchTerm") String searchTerm,
 			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
-		projectId = WebUtility.inputSanitizer(projectId);
-		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
-		if (projectId == null || projectId.isEmpty()) {
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Must define the projectId");
-			return WebUtility.getResponse(errorMap, 400);
-		}
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		try {
-			List<Map<String, Object>> groups = SecurityGroupProjectUtils.getAvailableGroupsForProject(user, projectId,
-					searchTerm, limit, offset);
-			return WebUtility.getResponse(groups, 200);
-		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to list groups to add to project {} without owning it", projectId);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 401);
-		} catch (Exception e) {
-			classLogger.error("Failed to list the groups that can be given access to project {}.", projectId, e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
-			errorMap.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 500);
-		}
+		String project = WebUtility.inputSanitizer(projectId);
+		String term = WebUtility.inputSQLSanitizer(searchTerm);
+		return ResourceUtility.respondAllowingAnonymous(request,
+				"list the groups that can be given access to project " + project, user -> {
+					if (project == null || project.isEmpty()) {
+						throw new IllegalArgumentException("Must define the projectId");
+					}
+					return SecurityGroupProjectUtils.getAvailableGroupsForProject(user, project, term, limit, offset);
+				});
 	}
 
 }

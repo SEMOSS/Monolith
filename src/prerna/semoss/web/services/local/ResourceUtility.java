@@ -185,6 +185,25 @@ public class ResourceUtility {
 	 * @return the response
 	 */
 	public static Response respond(HttpServletRequest request, String action, UserCall call) {
+		return respond(request, action, false, call);
+	}
+
+	/**
+	 * {@link #respond} for a call that only reads, which an anonymous session, such
+	 * as a visitor to a public app, may make too. A call that changes anything uses
+	 * {@link #respond}, which answers anonymous sessions with 401.
+	 *
+	 * @param request the request, whose session holds the user
+	 * @param action  what the call does, for the logs, such as
+	 *                {@code "read their permission on project 123"}
+	 * @param call    the call
+	 * @return the response
+	 */
+	public static Response respondAllowingAnonymous(HttpServletRequest request, String action, UserCall call) {
+		return respond(request, action, true, call);
+	}
+
+	private static Response respond(HttpServletRequest request, String action, boolean allowAnonymous, UserCall call) {
 		String endpoint = request.getMethod() + " " + request.getRequestURI();
 		User user;
 		try {
@@ -193,7 +212,7 @@ public class ResourceUtility {
 			classLogger.warn("[{}] A request without a signed in user tried to {}", endpoint, action);
 			return errorResponse("User session is invalid", 401);
 		}
-		if (user.isAnonymous()) {
+		if (user.isAnonymous() && !allowAnonymous) {
 			classLogger.warn("[{}] An anonymous user tried to {}", endpoint, action);
 			return errorResponse("User session is invalid", 401);
 		}
