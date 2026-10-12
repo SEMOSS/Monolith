@@ -346,6 +346,27 @@ public class InsightAuthorizationResource {
 	}
 
 	/**
+	 * Set the insight visibility for the user to be seen
+	 * 
+	 * @param request
+	 * @param form
+	 * @return
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("setInsightVisibility")
+	public Response setInsightVisibility(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
+		boolean visible = Boolean.parseBoolean(form.getFirst("visibility"));
+		String action = (visible ? "show" : "hide") + " insight " + insightId + " of project " + projectId;
+		return ResourceUtility.respond(request, action, user -> {
+			SecurityInsightUtils.setInsightVisibility(user, projectId, insightId, visible);
+			return true;
+		});
+	}
+
+	/**
 	 * Get the users with no access to a given insight
 	 * 
 	 * @param request
