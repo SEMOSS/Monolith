@@ -66,6 +66,7 @@ import prerna.auth.utils.SecurityUserUtils;
 import prerna.date.SemossDate;
 import prerna.ds.py.PyUtils;
 import prerna.io.connector.ConnectorScopeAccess;
+import prerna.io.connector.ms.MicrosoftGraphUserLookup;
 import prerna.reactor.cluster.VersionReactor;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.theme.AdminThemeUtils;
@@ -281,6 +282,8 @@ public class ServerConfigurationResource {
 		myConfiguration.put("availableProviders", SocialPropertiesUtil.getInstance().getAvailableProviders());
 		// is native registration allowed
 		myConfiguration.put("nativeRegistration", SocialPropertiesUtil.getInstance().isNativeRegistrationAllowed());
+		// can user searches look in the Microsoft directory
+		myConfiguration.put("msGraphLookup", MicrosoftGraphUserLookup.isEnabled());
 
 		// password requirements
 		try {
