@@ -31,9 +31,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import jakarta.annotation.security.PermitAll;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.HttpServletRequest;
@@ -47,17 +44,19 @@ import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import prerna.auth.AccessPermissionEnum;
 import prerna.auth.AuthProvider;
-import prerna.auth.User;
 import prerna.auth.utils.SecurityGroupEngineUtils;
 import prerna.semoss.web.services.local.ResourceUtility;
-import prerna.util.Constants;
+import prerna.util.ValueUtils;
 import prerna.web.services.util.WebUtility;
 
 @Path("/auth/group/engine")
 @PermitAll
 public class GroupEngineAuthorizationResource {
 
-	private static final Logger classLogger = LogManager.getLogger(GroupEngineAuthorizationResource.class);
+	private static final String GROUP_ID_REQUIRED = "The group id cannot be null or empty";
+	private static final String GROUP_TYPE_REQUIRED = "The group type cannot be null or empty";
+	private static final String APP_ID_REQUIRED = "The appId cannot be null or empty";
+	private static final String PERMISSION_REQUIRED = "The permission cannot be null or empty";
 
 	@Context
 	protected ServletContext context;
@@ -74,48 +73,22 @@ public class GroupEngineAuthorizationResource {
 	@Path("getGroupAppPermission")
 	public Response getGroupAppPermission(@Context HttpServletRequest request, @QueryParam("groupId") String groupId,
 			@QueryParam("type") String type, @QueryParam("appId") String appId) {
+		String groupType = AuthProvider.getProviderLabel(WebUtility.inputSanitizer(type));
+		String engine = WebUtility.inputSanitizer(appId);
+		String group = WebUtility.inputSQLSanitizer(groupId);
+		return ResourceUtility.respondAllowingAnonymous(request,
+				"read the permission of group " + group + " on engine " + engine, user -> {
+					Integer permissionCode = SecurityGroupEngineUtils.getGroupDatabasePermission(
+							ValueUtils.requireNonBlank(group, GROUP_ID_REQUIRED),
+							ValueUtils.requireNonBlank(groupType, GROUP_TYPE_REQUIRED),
+							ValueUtils.requireNonBlank(engine, APP_ID_REQUIRED));
+					String permission = permissionCode == null ? null
+							: AccessPermissionEnum.getPermissionValueById(permissionCode);
 
-		type = AuthProvider.getProviderLabel(WebUtility.inputSanitizer(type));
-		appId = WebUtility.inputSanitizer(appId);
-		groupId = WebUtility.inputSQLSanitizer(groupId);
-
-		Map<String, String> errorMap = new HashMap<String, String>();
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			classLogger.error("Invalid user session trying to access authorization resources", e);
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		try {
-			if (groupId == null || (groupId = groupId.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The group id cannot be null or empty");
-			}
-			if (type == null || (type = type.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The group type cannot be null or empty");
-			}
-			if (appId == null || (appId = appId.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The appId cannot be null or empty");
-			}
-
-			Integer permissionCode = SecurityGroupEngineUtils.getGroupDatabasePermission(groupId, type, appId);
-			String permission = permissionCode == null ? null
-					: AccessPermissionEnum.getPermissionValueById(permissionCode);
-
-			Map<String, String> ret = new HashMap<String, String>();
-			ret.put("permission", permission);
-			return WebUtility.getResponse(ret, 200);
-		} catch (IllegalArgumentException e) {
-			classLogger.error("Failed to retrieve group app permission.", e);
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		} catch (Exception e) {
-			classLogger.error("Failed to retrieve group app permission.", e);
-			errorMap.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
-			return WebUtility.getResponse(errorMap, 500);
-		}
+					Map<String, String> ret = new HashMap<>();
+					ret.put("permission", permission);
+					return ret;
+				});
 	}
 
 	/**
@@ -129,57 +102,22 @@ public class GroupEngineAuthorizationResource {
 	@Produces("application/json")
 	@Path("addGroupEnginePermission")
 	public Response addGroupEnginePermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			classLogger.error("Invalid user session trying to access authorization resources", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
 		String groupId = WebUtility.inputSQLSanitizer(form.getFirst("groupId"));
 		String type = AuthProvider.getProviderLabel(WebUtility.inputSanitizer(form.getFirst("type")));
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
+		return ResourceUtility.respond(request, "add group " + groupId + " to engine " + engineId, user -> {
+			SecurityGroupEngineUtils.addEngineGroupPermission(user,
+					ValueUtils.requireNonBlank(groupId, GROUP_ID_REQUIRED),
+					ValueUtils.requireNonBlank(type, GROUP_TYPE_REQUIRED),
+					ValueUtils.requireNonBlank(engineId, "The engineId cannot be null or empty"),
+					ValueUtils.requireNonBlank(permission, PERMISSION_REQUIRED), endDate);
 
-		try {
-			if (groupId == null || (groupId = groupId.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The group id cannot be null or empty");
-			}
-			if (type == null || (type = type.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The group type cannot be null or empty");
-			}
-			if (engineId == null || (engineId = engineId.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The engineId cannot be null or empty");
-			}
-			if (permission == null || (permission = permission.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The permission cannot be null or empty");
-			}
-
-			SecurityGroupEngineUtils.addEngineGroupPermission(user, groupId, type, engineId, permission, endDate);
-		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to add groups to engine {} without having proper access", engineId);
-			classLogger.error("Failed to add group engine permission.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		} catch (Exception e) {
-			classLogger.error("Failed to add group engine permission.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		}
-
-		// log the operation
-		classLogger.info("User has added group {} and type {} to engine {} with permission {}", groupId, type, engineId,
-				permission);
-
-		Map<String, Object> ret = new HashMap<String, Object>();
-		ret.put("success", true);
-		return WebUtility.getResponse(ret, 200);
+			Map<String, Object> ret = new HashMap<>();
+			ret.put("success", true);
+			return ret;
+		});
 	}
 
 	/**
@@ -193,57 +131,23 @@ public class GroupEngineAuthorizationResource {
 	@Produces("application/json")
 	@Path("editGroupAppPermission")
 	public Response editGroupAppPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			classLogger.error("Invalid user session trying to access authorization resources", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
 		String groupId = WebUtility.inputSQLSanitizer(form.getFirst("groupId"));
 		String type = AuthProvider.getProviderLabel(WebUtility.inputSanitizer(form.getFirst("type")));
 		String appId = WebUtility.inputSanitizer(form.getFirst("appId"));
 		String newPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
-		try {
-			if (groupId == null || (groupId = groupId.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The group id cannot be null or empty");
-			}
-			if (type == null || (type = type.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The group type cannot be null or empty");
-			}
-			if (appId == null || (appId = appId.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The appId cannot be null or empty");
-			}
-			if (newPermission == null || (newPermission = newPermission.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The permission cannot be null or empty");
-			}
-			SecurityGroupEngineUtils.editDatabaseGroupPermission(user, groupId, type, appId, newPermission, endDate);
-		} catch (IllegalAccessException e) {
-			classLogger.warn(
-					"User is trying to edit group {} and type {} permissions for app {} without having proper access",
-					groupId, type, appId);
-			classLogger.error("Failed to update group app permission.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		} catch (Exception e) {
-			classLogger.error("Failed to update group app permission.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		}
+		return ResourceUtility.respond(request, "edit the permission of group " + groupId + " on engine " + appId,
+				user -> {
+					SecurityGroupEngineUtils.editDatabaseGroupPermission(user,
+							ValueUtils.requireNonBlank(groupId, GROUP_ID_REQUIRED),
+							ValueUtils.requireNonBlank(type, GROUP_TYPE_REQUIRED),
+							ValueUtils.requireNonBlank(appId, APP_ID_REQUIRED),
+							ValueUtils.requireNonBlank(newPermission, PERMISSION_REQUIRED), endDate);
 
-		// log the operation
-		classLogger.info("User has edited group {} and type {} permission to app {} with level {}", groupId, type,
-				appId, newPermission);
-
-		Map<String, Object> ret = new HashMap<String, Object>();
-		ret.put("success", true);
-		return WebUtility.getResponse(ret, 200);
+					Map<String, Object> ret = new HashMap<>();
+					ret.put("success", true);
+					return ret;
+				});
 	}
 
 	/**
@@ -257,52 +161,19 @@ public class GroupEngineAuthorizationResource {
 	@Produces("application/json")
 	@Path("removeGroupAppPermission")
 	public Response removeGroupAppPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			classLogger.error("Invalid user session trying to access authorization resources", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
 		String groupId = WebUtility.inputSQLSanitizer(form.getFirst("groupId"));
 		String type = AuthProvider.getProviderLabel(WebUtility.inputSanitizer(form.getFirst("type")));
 		String appId = WebUtility.inputSanitizer(form.getFirst("appId"));
-		try {
-			if (groupId == null || (groupId = groupId.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The group id cannot be null or empty");
-			}
-			if (type == null || (type = type.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The group type cannot be null or empty");
-			}
-			if (appId == null || (appId = appId.trim()).isEmpty()) {
-				throw new IllegalArgumentException("The appId cannot be null or empty");
-			}
+		return ResourceUtility.respond(request, "remove group " + groupId + " from engine " + appId, user -> {
+			SecurityGroupEngineUtils.removeDatabaseGroupPermission(user,
+					ValueUtils.requireNonBlank(groupId, GROUP_ID_REQUIRED),
+					ValueUtils.requireNonBlank(type, GROUP_TYPE_REQUIRED),
+					ValueUtils.requireNonBlank(appId, APP_ID_REQUIRED));
 
-			SecurityGroupEngineUtils.removeDatabaseGroupPermission(user, groupId, type, appId);
-		} catch (IllegalAccessException e) {
-			classLogger.warn(
-					"User is trying to remove group {} and type {} from having access to app {} without having proper access",
-					groupId, type, appId);
-			classLogger.error("Failed to remove group app permission.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		} catch (Exception e) {
-			classLogger.error("Failed to remove group app permission.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		}
-
-		// log the operation
-		classLogger.info("User has removed group {} and type {} from having access to app {}", groupId, type, appId);
-
-		Map<String, Object> ret = new HashMap<String, Object>();
-		ret.put("success", true);
-		return WebUtility.getResponse(ret, 200);
+			Map<String, Object> ret = new HashMap<>();
+			ret.put("success", true);
+			return ret;
+		});
 	}
 
 	@GET
@@ -311,42 +182,20 @@ public class GroupEngineAuthorizationResource {
 	public Response getAllGroupsWithAccessToEngine(@Context HttpServletRequest request,
 			@QueryParam("engineId") String engineId, @QueryParam("limit") long limit,
 			@QueryParam("offset") long offset) {
-		engineId = WebUtility.inputSanitizer(engineId);
-		if (engineId == null || engineId.isEmpty()) {
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Must define the engineId");
-			return WebUtility.getResponse(errorMap, 400);
-		}
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			classLogger.error("Invalid user session trying to access authorization resources", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		Map<String, Object> ret = new HashMap<String, Object>();
-		try {
-			List<Map<String, Object>> groups = SecurityGroupEngineUtils.getGroupsWithAccessToEngine(user, engineId,
-					limit, offset);
-			long totalMembers = SecurityGroupEngineUtils.getNumGroupsWithAccessToEngine(user, engineId);
-			ret.put("totalGroups", totalMembers);
-			ret.put("groups", groups);
-			return WebUtility.getResponse(ret, 200);
-		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to get details for engine {} without having proper access", engineId);
-			classLogger.error("Failed to retrieve all groups with access to engine.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 401);
-		} catch (Exception e) {
-			classLogger.error("Failed to retrieve all groups with access to engine.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
-		}
+		String engine = WebUtility.inputSanitizer(engineId);
+		return ResourceUtility.respondAllowingAnonymous(request, "list the groups with access to engine " + engine,
+				user -> {
+					if (engine == null || engine.isEmpty()) {
+						throw new IllegalArgumentException("Must define the engineId");
+					}
+					List<Map<String, Object>> groups = SecurityGroupEngineUtils.getGroupsWithAccessToEngine(user,
+							engine, limit, offset);
+					long totalGroups = SecurityGroupEngineUtils.getNumGroupsWithAccessToEngine(user, engine);
+					Map<String, Object> ret = new HashMap<>();
+					ret.put("totalGroups", totalGroups);
+					ret.put("groups", groups);
+					return ret;
+				});
 	}
 
 	/**
@@ -366,38 +215,15 @@ public class GroupEngineAuthorizationResource {
 	public Response getAvailableGroupsForEngine(@Context HttpServletRequest request,
 			@QueryParam("engineId") String engineId, @QueryParam("searchTerm") String searchTerm,
 			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
-		engineId = WebUtility.inputSanitizer(engineId);
-		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
-		if (engineId == null || engineId.isEmpty()) {
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Must define the engineId");
-			return WebUtility.getResponse(errorMap, 400);
-		}
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		try {
-			List<Map<String, Object>> groups = SecurityGroupEngineUtils.getAvailableGroupsForEngine(user, engineId,
-					searchTerm, limit, offset);
-			return WebUtility.getResponse(groups, 200);
-		} catch (IllegalAccessException e) {
-			classLogger.warn("User is trying to list groups to add to engine {} without owning it", engineId);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 401);
-		} catch (Exception e) {
-			classLogger.error("Failed to list the groups that can be given access to engine {}.", engineId, e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
-			errorMap.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 500);
-		}
+		String engine = WebUtility.inputSanitizer(engineId);
+		String term = WebUtility.inputSQLSanitizer(searchTerm);
+		return ResourceUtility.respondAllowingAnonymous(request,
+				"list the groups that can be given access to engine " + engine, user -> {
+					if (engine == null || engine.isEmpty()) {
+						throw new IllegalArgumentException("Must define the engineId");
+					}
+					return SecurityGroupEngineUtils.getAvailableGroupsForEngine(user, engine, term, limit, offset);
+				});
 	}
 
 }

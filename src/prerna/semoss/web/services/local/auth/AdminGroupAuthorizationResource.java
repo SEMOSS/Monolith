@@ -328,7 +328,8 @@ public class AdminGroupAuthorizationResource {
 		String permission = WebUtility.inputSQLSanitizer(request.getParameter("permission"));
 		String groupType = AuthProvider.getProviderLabel(WebUtility.inputSQLSanitizer(request.getParameter("type")));
 		String endDate = WebUtility.inputSQLSanitizer(request.getParameter("endDate"));
-		return ResourceUtility.respondAsAdmin(request, "change the access group " + groupId + " has to project " + projectId,
+		return ResourceUtility.respondAsAdmin(request,
+				"change the access group " + groupId + " has to project " + projectId,
 				AdminSecurityGroupUtils::getInstance, (user, adminGroupUtils) -> {
 					String id = ValueUtils.requireNonBlank(groupId, GROUP_ID_PARAM_REQUIRED);
 					String project = ValueUtils.requireNonBlank(projectId,
@@ -441,7 +442,8 @@ public class AdminGroupAuthorizationResource {
 		String permission = WebUtility.inputSQLSanitizer(request.getParameter("permission"));
 		String groupType = AuthProvider.getProviderLabel(WebUtility.inputSQLSanitizer(request.getParameter("type")));
 		String endDate = WebUtility.inputSQLSanitizer(request.getParameter("endDate"));
-		return ResourceUtility.respondAsAdmin(request, "change the access group " + groupId + " has to engine " + engineId,
+		return ResourceUtility.respondAsAdmin(request,
+				"change the access group " + groupId + " has to engine " + engineId,
 				AdminSecurityGroupUtils::getInstance, (user, adminGroupUtils) -> {
 					String id = ValueUtils.requireNonBlank(groupId, GROUP_ID_PARAM_REQUIRED);
 					String engine = ValueUtils.requireNonBlank(engineId,
@@ -459,7 +461,8 @@ public class AdminGroupAuthorizationResource {
 		String groupId = WebUtility.inputSQLSanitizer(request.getParameter("groupId"));
 		String engineId = WebUtility.inputSQLSanitizer(request.getParameter("engineId"));
 		String groupType = AuthProvider.getProviderLabel(WebUtility.inputSQLSanitizer(request.getParameter("type")));
-		return ResourceUtility.respondAsAdmin(request, "take away the access group " + groupId + " has to engine " + engineId,
+		return ResourceUtility.respondAsAdmin(request,
+				"take away the access group " + groupId + " has to engine " + engineId,
 				AdminSecurityGroupUtils::getInstance, (user, adminGroupUtils) -> {
 					String id = ValueUtils.requireNonBlank(groupId, GROUP_ID_PARAM_REQUIRED);
 					String engine = ValueUtils.requireNonBlank(engineId,
@@ -515,8 +518,8 @@ public class AdminGroupAuthorizationResource {
 	///////////////////////////////////////////////////////////////
 
 	/**
-	 * Reads the required {@code permission} parameter: 1 owner, 2 editor or 3
-	 * read only.
+	 * Reads the required {@code permission} parameter: 1 owner, 2 editor or 3 read
+	 * only.
 	 *
 	 * @param permission the sanitized parameter
 	 * @throws IllegalArgumentException when it is missing or not a whole number

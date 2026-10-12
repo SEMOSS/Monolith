@@ -29,10 +29,8 @@ package prerna.semoss.web.services.local.auth;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
@@ -85,57 +83,44 @@ public class UserAuthorizationResource {
 	@Produces("application/json")
 	@Consumes({ "application/json", "application/x-www-form-urlencoded" })
 	public Response editUser(@Context HttpServletRequest request) {
-		User user = null;
-		Map<String, String> errorMap = new HashMap<String, String>();
-
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			classLogger.error("Failed to update user.", e);
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		Map<String, Object> userInfo = null;
-		String contentType = request.getContentType();
-		if (contentType != null && contentType.startsWith("application/json")) {
-			try {
-				StringBuilder jsonBuffer = new StringBuilder();
-				String line;
-				try (BufferedReader reader = request.getReader()) {
-					while ((line = reader.readLine()) != null) {
-						jsonBuffer.append(line);
+		return ResourceUtility.respond(request, "edit their user details", user -> {
+			Map<String, Object> userInfo = null;
+			String contentType = request.getContentType();
+			if (contentType != null && contentType.startsWith("application/json")) {
+				try {
+					StringBuilder jsonBuffer = new StringBuilder();
+					String line;
+					try (BufferedReader reader = request.getReader()) {
+						while ((line = reader.readLine()) != null) {
+							jsonBuffer.append(line);
+						}
 					}
+					JSONObject jsonObj = new JSONObject(jsonBuffer.toString());
+					userInfo = jsonObj.toMap();
+				} catch (IOException | org.json.JSONException e) {
+					throw new IllegalArgumentException("Error reading request body.");
 				}
-				JSONObject jsonObj = new JSONObject(jsonBuffer.toString());
-				userInfo = jsonObj.toMap();
-			} catch (IOException | org.json.JSONException e) {
-				classLogger.error("Failed to update user.", e);
-				errorMap.put(Constants.ERROR_MESSAGE, "Error reading request body.");
-				return WebUtility.getResponse(errorMap, 400);
+			} else {
+				// for x-www-form-urlencoded, assume it's in a 'user' parameter as a JSON string
+				String userJson = WebUtility.inputSQLSanitizer(request.getParameter("user"));
+				try {
+					JSONObject jsonObj = new JSONObject(userJson);
+					userInfo = jsonObj.toMap();
+				} catch (org.json.JSONException e) {
+					throw new IllegalArgumentException("Error parsing user JSON from form data.");
+				}
 			}
-		} else {
-			// for x-www-form-urlencoded, assume it's in a 'user' parameter as a JSON string
-			String userJson = WebUtility.inputSQLSanitizer(request.getParameter("user"));
-			try {
-				JSONObject jsonObj = new JSONObject(userJson);
-				userInfo = jsonObj.toMap();
-			} catch (org.json.JSONException e) {
-				classLogger.error("Failed to update user.", e);
-				errorMap.put(Constants.ERROR_MESSAGE, "Error parsing user JSON from form data.");
-				return WebUtility.getResponse(errorMap, 400);
+
+			boolean update = SecurityUserUtils.editUser(user, userInfo);
+			if (update) {
+				AccessToken authToken = AccessToken.copyToken(user.getAccessToken(user.getLogins().get(0)));
+				authToken.setName((String) userInfo.get("name"));
+				authToken.setEmail((String) userInfo.get("newEmail"));
+				UserResource.addAccessToken(authToken, request, false);
 			}
-		}
 
-		boolean update = SecurityUserUtils.editUser(user, userInfo);
-		if (update) {
-			AccessToken authToken = AccessToken.copyToken(user.getAccessToken(user.getLogins().get(0)));
-			authToken.setName((String) userInfo.get("name"));
-			authToken.setEmail((String) userInfo.get("newEmail"));
-			UserResource.addAccessToken(authToken, request, false);
-		}
-
-		return WebUtility.getResponse(userInfo, 200);
+			return userInfo;
+		});
 	}
 
 	/**
@@ -175,76 +160,49 @@ public class UserAuthorizationResource {
 	@Path("createUserAccessKey")
 	@Consumes({ "application/json", "application/x-www-form-urlencoded" })
 	public Response createUserAccessKey(@Context HttpServletRequest request) {
-		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
-		if (user == null) {
-			Map<String, String> ret = new HashMap<>();
-			ret.put(Constants.ERROR_MESSAGE, "No active session. Please login");
-			return WebUtility.getResponse(ret, 401);
-		}
-		AccessToken token = user.getPrimaryLoginToken();
-		boolean accessKeysAllowed = SocialPropertiesUtil.getInstance().accessKeysAllowed(token.getProvider());
-		if (!accessKeysAllowed) {
-			Map<String, String> ret = new HashMap<>();
-			ret.put(Constants.ERROR_MESSAGE,
-					"Creating access keys is not allowed. Please reach out to an administrator if you require this functionality");
-			return WebUtility.getResponse(ret, 401);
-		}
+		return ResourceUtility.respond(request, "create an access key", user -> {
+			AccessToken token = user.getPrimaryLoginToken();
+			boolean accessKeysAllowed = SocialPropertiesUtil.getInstance().accessKeysAllowed(token.getProvider());
+			if (!accessKeysAllowed) {
+				throw new IllegalAccessException(
+						"Creating access keys is not allowed. Please reach out to an administrator if you require this functionality");
+			}
 
-		String tokenName = null;
-		String tokenDescription = null;
+			String tokenName = null;
+			String tokenDescription = null;
 
-		String contentType = request.getContentType();
-		if (contentType != null && contentType.startsWith("application/json")) {
-			try {
-				StringBuilder jsonBuffer = new StringBuilder();
-				String line;
-				try (BufferedReader reader = request.getReader()) {
-					while ((line = reader.readLine()) != null) {
-						jsonBuffer.append(line);
+			String contentType = request.getContentType();
+			if (contentType != null && contentType.startsWith("application/json")) {
+				try {
+					StringBuilder jsonBuffer = new StringBuilder();
+					String line;
+					try (BufferedReader reader = request.getReader()) {
+						while ((line = reader.readLine()) != null) {
+							jsonBuffer.append(line);
+						}
 					}
+					JSONObject root = new JSONObject(jsonBuffer.toString());
+					tokenName = root.has("tokenName") ? root.getString("tokenName") : null;
+					tokenDescription = root.has("tokenDescription") ? root.getString("tokenDescription") : null;
+				} catch (IOException | org.json.JSONException e) {
+					throw new IllegalArgumentException("Error parsing JSON request body.");
 				}
-				JSONObject root = new JSONObject(jsonBuffer.toString());
-				tokenName = root.has("tokenName") ? root.getString("tokenName") : null;
-				tokenDescription = root.has("tokenDescription") ? root.getString("tokenDescription") : null;
-			} catch (IOException | org.json.JSONException e) {
-				classLogger.error("Failed to create user access key.", e);
-				Map<String, String> errorMap = new HashMap<String, String>();
-				errorMap.put(Constants.ERROR_MESSAGE, "Error parsing JSON request body.");
-				return WebUtility.getResponse(errorMap, 400);
+			} else {
+				tokenName = request.getParameter("tokenName");
+				tokenDescription = request.getParameter("tokenDescription");
 			}
-		} else {
-			tokenName = request.getParameter("tokenName");
-			tokenDescription = request.getParameter("tokenDescription");
-		}
 
-		tokenName = WebUtility.inputSQLSanitizer(tokenName);
-		if (tokenName != null) {
-			if (tokenName.length() > 255) {
-				Map<String, String> ret = new HashMap<>();
-				ret.put(Constants.ERROR_MESSAGE, "Token name must be less than 255 characters long");
-				return WebUtility.getResponse(ret, 400);
+			tokenName = WebUtility.inputSQLSanitizer(tokenName);
+			if (tokenName != null && tokenName.length() > 255) {
+				throw new IllegalArgumentException("Token name must be less than 255 characters long");
 			}
-		}
-		tokenDescription = WebUtility.inputSQLSanitizer(tokenDescription);
-		if (tokenDescription != null) {
-			if (tokenDescription.length() > 500) {
-				Map<String, String> ret = new HashMap<>();
-				ret.put(Constants.ERROR_MESSAGE, "Token description must be less than 500 characters long");
-				return WebUtility.getResponse(ret, 400);
+			tokenDescription = WebUtility.inputSQLSanitizer(tokenDescription);
+			if (tokenDescription != null && tokenDescription.length() > 500) {
+				throw new IllegalArgumentException("Token description must be less than 500 characters long");
 			}
-		}
 
-		Map<String, String> oneTimeDetails;
-		try {
-			oneTimeDetails = SecurityUserAccessKeyUtils.createUserAccessToken(token, tokenName, tokenDescription);
-			classLogger.info("User created new access and secret key for login");
-			return WebUtility.getResponse(oneTimeDetails, 200);
-		} catch (SQLException e) {
-			classLogger.error("Error trying to create user access and secret key for login", e);
-			Map<String, String> ret = new HashMap<>();
-			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(ret, 400);
-		}
+			return SecurityUserAccessKeyUtils.createUserAccessToken(token, tokenName, tokenDescription);
+		});
 	}
 
 	/**
@@ -330,19 +288,8 @@ public class UserAuthorizationResource {
 	@Path("/getUserAccessKeys")
 	@Produces("application/json")
 	public Response getUserAccessKeys(@Context HttpServletRequest request) {
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			classLogger.error("Failed to retrieve user access keys.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 401);
-		}
-
-		List<Map<String, Object>> results = SecurityUserAccessKeyUtils
-				.getUserAccessKeyInfo(user.getPrimaryLoginToken());
-		return WebUtility.getResponse(results, 200);
+		return ResourceUtility.respondAllowingAnonymous(request, "list their access keys",
+				user -> SecurityUserAccessKeyUtils.getUserAccessKeyInfo(user.getPrimaryLoginToken()));
 	}
 
 	/**
@@ -542,72 +489,50 @@ public class UserAuthorizationResource {
 	@Path("setUserMetadata")
 	@Produces("application/json")
 	public Response setUserMetadata(@Context HttpServletRequest request) {
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			classLogger.error("Failed to update user metadata.", e);
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 401);
-		}
+		return ResourceUtility.respond(request, "set their user metadata", user -> {
+			String metaKey = null;
+			Object metaValue = null;
 
-		String metaKey = null;
-		Object metaValue = null;
-
-		String contentType = request.getContentType();
-		if (contentType != null && contentType.startsWith("application/json")) {
-			try {
-				StringBuilder jsonBuffer = new StringBuilder();
-				String line;
-				try (BufferedReader reader = request.getReader()) {
-					while ((line = reader.readLine()) != null) {
-						jsonBuffer.append(line);
+			String contentType = request.getContentType();
+			if (contentType != null && contentType.startsWith("application/json")) {
+				try {
+					StringBuilder jsonBuffer = new StringBuilder();
+					String line;
+					try (BufferedReader reader = request.getReader()) {
+						while ((line = reader.readLine()) != null) {
+							jsonBuffer.append(line);
+						}
 					}
+					JSONObject root = new JSONObject(jsonBuffer.toString());
+					metaKey = root.has("metaKey") ? root.getString("metaKey") : null;
+					boolean arrayValue = root.optJSONArray("metaValue") != null;
+					if (arrayValue) {
+						metaValue = root.getJSONArray("metaValue").toList();
+					} else {
+						metaValue = root.has("metaValue") ? root.getString("metaValue") : null;
+					}
+				} catch (IOException | org.json.JSONException e) {
+					throw new IllegalArgumentException("Error parsing JSON request body.");
 				}
-				JSONObject root = new JSONObject(jsonBuffer.toString());
-				metaKey = root.has("metaKey") ? root.getString("metaKey") : null;
-				boolean arrayValue = root.optJSONArray("metaValue") != null;
-				if (arrayValue) {
-					metaValue = root.getJSONArray("metaValue").toList();
-				} else {
-					metaValue = root.has("metaValue") ? root.getString("metaValue") : null;
-				}
-			} catch (IOException | org.json.JSONException e) {
-				classLogger.error("Failed to update user metadata.", e);
-				Map<String, String> errorMap = new HashMap<String, String>();
-				errorMap.put(Constants.ERROR_MESSAGE, "Error parsing JSON request body.");
-				return WebUtility.getResponse(errorMap, 400);
+			} else {
+				Map<String, String[]> paramMap = request.getParameterMap();
+				metaKey = paramMap.get("metaKey") != null ? paramMap.get("metaKey")[0] : null;
+				metaValue = paramMap.get("metaValue") != null ? Arrays.asList(paramMap.get("metaValue")) : null;
 			}
-		} else {
-			Map<String, String[]> paramMap = request.getParameterMap();
-			metaKey = paramMap.get("metaKey") != null ? paramMap.get("metaKey")[0] : null;
-			metaValue = paramMap.get("metaValue") != null ? Arrays.asList(paramMap.get("metaValue")) : null;
-		}
 
-		if (metaKey == null) {
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Parameter metaKey cannot be null");
-			return WebUtility.getResponse(errorMap, 400);
-		}
-		if (metaValue == null) {
-			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Parameter metaValue cannot be null");
-			return WebUtility.getResponse(errorMap, 400);
-		}
+			if (metaKey == null) {
+				throw new IllegalArgumentException("Parameter metaKey cannot be null");
+			}
+			if (metaValue == null) {
+				throw new IllegalArgumentException("Parameter metaValue cannot be null");
+			}
 
-		try {
 			SecurityUserUtils.updateUserMetadata(user, metaKey, metaValue);
-		} catch (Exception e) {
-			classLogger.error("Failed to update user metadata.", e);
-			Map<String, String> errorRet = new HashMap<String, String>();
-			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
-			return WebUtility.getResponse(errorRet, 500);
-		}
 
-		Map<String, String> successMap = new HashMap<>();
-		successMap.put("userMetadata", "Metadata " + metaKey + " updated to " + metaValue);
-		return WebUtility.getResponse(successMap, 200);
+			Map<String, String> successMap = new HashMap<>();
+			successMap.put("userMetadata", "Metadata " + metaKey + " updated to " + metaValue);
+			return successMap;
+		});
 	}
 
 	/**
