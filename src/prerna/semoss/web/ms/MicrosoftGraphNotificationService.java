@@ -47,6 +47,7 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import prerna.collaboration.BrainMailWebhook;
 import prerna.io.connector.calendar.CalendarEvent;
 import prerna.io.connector.ms.MicrosoftGraphSubscriptionRegistry;
 import prerna.io.connector.ms.MicrosoftGraphSubscriptionRegistry.Subscription;
@@ -234,6 +235,11 @@ public class MicrosoftGraphNotificationService {
 		if (resourceId == null) {
 			classLogger.warn("A Microsoft Graph notification for subscription {} named nothing that changed.",
 					subscription.getId());
+			return;
+		}
+		if (isMail && BrainMailWebhook.isMailResource(subscription.getResource())) {
+			// Collaboration's own subscription: the message goes into the owner's Brain, where their chats see it
+			BrainMailWebhook.onMail(subscription, changeType, resourceId);
 			return;
 		}
 		if (DELETED.equalsIgnoreCase(changeType)) {
