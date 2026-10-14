@@ -143,7 +143,7 @@ public class ResourceUtility {
 		 * @param user the signed in user
 		 * @return the response body
 		 * @throws IllegalAccessException   when the user may not do it, answered with
-		 *                                  401
+		 *                                  403
 		 * @throws IllegalArgumentException for a bad request, answered with 400
 		 * @throws Exception                for anything else, answered with 500
 		 */
@@ -170,8 +170,8 @@ public class ResourceUtility {
 
 	/**
 	 * Runs a call for the signed in user and turns its outcome into the response:
-	 * 200 with its result, 401 for a missing or anonymous session or a user who may
-	 * not do it, 400 for a bad request and 500 for anything else. Errors carry
+	 * 200 with its result, 401 for a missing or anonymous session, 403 for a user who
+	 * may not do it, 400 for a bad request and 500 for anything else. Errors carry
 	 * {@link Constants#ERROR_MESSAGE}, and unexpected ones
 	 * {@link Constants#TECH_ERROR_MESSAGE} too. Every outcome is logged with the
 	 * endpoint, such as {@code POST /Monolith/api/auth/group/addGroupMember}, the
@@ -224,7 +224,7 @@ public class ResourceUtility {
 			return WebUtility.getResponse(result, 200);
 		} catch (IllegalAccessException e) {
 			classLogger.warn("[{}] User {} is not allowed to {}: {}", endpoint, userName, action, e.getMessage());
-			return errorResponse(e.getMessage(), 401);
+			return errorResponse(e.getMessage(), 403);
 		} catch (IllegalArgumentException e) {
 			classLogger.warn("[{}] User {} could not {}: {}", endpoint, userName, action, e.getMessage());
 			return errorResponse(e.getMessage(), 400);
@@ -242,7 +242,7 @@ public class ResourceUtility {
 	 * utilities' {@code getInstance}, such as
 	 * {@code AdminSecurityGroupUtils::getInstance}, returns null for anyone who is
 	 * not an admin, so it is the admin check: it runs once, anyone else is answered
-	 * with 401, and the call gets the utilities, without the security database
+	 * with 403, and the call gets the utilities, without the security database
 	 * being asked again whether the user is an admin.
 	 *
 	 * @param <T>           the admin utilities
@@ -266,7 +266,7 @@ public class ResourceUtility {
 
 	/**
 	 * {@link #respond} for admins only, for a call that needs no admin utilities:
-	 * anyone else is answered with 401 before the call runs.
+	 * anyone else is answered with 403 before the call runs.
 	 *
 	 * @param request the request, whose session holds the user
 	 * @param action  what the call does, for the logs, such as "add a group"
