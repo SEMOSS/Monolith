@@ -54,6 +54,7 @@ import prerna.io.connector.ms.MicrosoftGraphSubscriptionRegistry.Subscription;
 import prerna.io.connector.ms.MicrosoftLoginUtils;
 import prerna.semoss.web.app.MicrosoftGraphApplication;
 import prerna.semoss.web.services.local.ResourceUtility;
+import prerna.util.ValueUtils;
 import prerna.web.services.util.WebUtility;
 
 /**
@@ -195,7 +196,7 @@ public class MicrosoftGraphSubscriptionService {
 			return noMicrosoft;
 		}
 
-		String resource = trimToNull(req.getParameter(RESOURCE));
+		String resource = ValueUtils.trimToNull(req.getParameter(RESOURCE));
 		if (resource == null) {
 			return WebUtility.getResponse(
 					Map.of(STATUS, ERROR, REASON, "a resource such as me/messages or me/events is required"), 400);
@@ -210,7 +211,7 @@ public class MicrosoftGraphSubscriptionService {
 
 		// created is what somebody watching a mailbox almost always means, and
 		// asking for all three is a lot of notifications to be surprised by
-		String changeType = trimToNull(req.getParameter("changeType"));
+		String changeType = ValueUtils.trimToNull(req.getParameter("changeType"));
 		if (changeType == null) {
 			changeType = "created";
 		}
@@ -282,7 +283,7 @@ public class MicrosoftGraphSubscriptionService {
 			return noMicrosoft;
 		}
 
-		String subscriptionId = trimToNull(req.getParameter("subscriptionId"));
+		String subscriptionId = ValueUtils.trimToNull(req.getParameter("subscriptionId"));
 		if (subscriptionId == null) {
 			return WebUtility.getResponse(Map.of(STATUS, ERROR, REASON, "a subscriptionId is required"), 400);
 		}
@@ -334,7 +335,7 @@ public class MicrosoftGraphSubscriptionService {
 			return noMicrosoft;
 		}
 
-		String subscriptionId = trimToNull(req.getParameter("subscriptionId"));
+		String subscriptionId = ValueUtils.trimToNull(req.getParameter("subscriptionId"));
 		if (subscriptionId == null) {
 			return WebUtility.getResponse(Map.of(STATUS, ERROR, REASON, "a subscriptionId is required"), 400);
 		}
@@ -496,7 +497,7 @@ public class MicrosoftGraphSubscriptionService {
 	 * @return the number, or 0 when there was nothing readable to read
 	 */
 	private static int optionalInt(String value) {
-		String trimmed = trimToNull(value);
+		String trimmed = ValueUtils.trimToNull(value);
 		if (trimmed == null) {
 			return 0;
 		}
@@ -506,13 +507,6 @@ public class MicrosoftGraphSubscriptionService {
 			classLogger.debug("Ignoring the unreadable number of minutes '{}'", trimmed, e);
 			return 0;
 		}
-	}
-
-	private static String trimToNull(String value) {
-		if (value == null || value.trim().isEmpty()) {
-			return null;
-		}
-		return value.trim();
 	}
 
 }

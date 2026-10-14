@@ -34,10 +34,17 @@ import prerna.auth.utils.SecurityAdminUtils;
 
 public class AbstractAdminResource {
 
+	/**
+	 * @param request the request
+	 * @param user    the signed in user
+	 * @return the admin utilities
+	 * @throws IllegalAccessException when the user is not an admin, which callers
+	 *                                answer with 401
+	 */
 	SecurityAdminUtils performAdminCheck(@Context HttpServletRequest request, User user) throws IllegalAccessException {
 		SecurityAdminUtils adminUtils = SecurityAdminUtils.getInstance(user);
 		if (adminUtils == null) {
-			throw new IllegalArgumentException("User is not an admin");
+			throw new IllegalAccessException("User is not an admin");
 		}
 		return adminUtils;
 	}

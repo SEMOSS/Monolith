@@ -47,6 +47,8 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import prerna.collaboration.BrainMailWebhook;
+import prerna.io.connector.calendar.CalendarEvent;
 import prerna.io.connector.ms.MicrosoftGraphSubscriptionRegistry;
 import prerna.io.connector.ms.MicrosoftGraphSubscriptionRegistry.Subscription;
 import prerna.io.connector.ms.calendar.MicrosoftCalendarHelper;
@@ -235,6 +237,11 @@ public class MicrosoftGraphNotificationService {
 					subscription.getId());
 			return;
 		}
+		if (isMail && BrainMailWebhook.isMailResource(subscription.getResource())) {
+			// Collaboration's own subscription: the message goes into the owner's Brain, where their chats see it
+			BrainMailWebhook.onMail(subscription, changeType, resourceId);
+			return;
+		}
 		if (DELETED.equalsIgnoreCase(changeType)) {
 			// there is nothing left to read, and the id is all anybody gets
 			classLogger.info("Microsoft Graph says {} was deleted from '{}'", resourceId, subscription.getResource());
@@ -254,10 +261,9 @@ public class MicrosoftGraphNotificationService {
 				classLogger.info("Mail {} for subscription {}: from {}, subject '{}'", changeType, subscription.getId(),
 						described.get("from"), described.get("subject"));
 			} else {
-				Map<String, Object> event = MicrosoftCalendarHelper.getEvent(accessToken, null, null, resourceId,
-						MAX_BODY_CHARS, null);
+				CalendarEvent event = MicrosoftCalendarHelper.getEvent(accessToken, null, null, resourceId);
 				classLogger.info("Event {} for subscription {}: '{}' starting {}", changeType, subscription.getId(),
-						event.get("subject"), event.get("start"));
+						event.subject(), event.start() == null ? null : event.start().format());
 			}
 		} catch (Exception e) {
 			// the usual cause is the subscriber's Microsoft login no longer being

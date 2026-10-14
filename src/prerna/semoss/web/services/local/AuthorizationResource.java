@@ -36,7 +36,6 @@ import org.apache.logging.log4j.Logger;
 
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpSession;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
@@ -46,8 +45,8 @@ import jakarta.ws.rs.core.Response;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.graph.utility.MsGraphUtility;
+import prerna.io.connector.ms.MicrosoftGraphUserLookup;
 import prerna.util.Constants;
-import prerna.util.SocialPropertiesUtil;
 import prerna.web.services.util.WebUtility;
 
 @Path("/authorization")
@@ -57,11 +56,24 @@ public class AuthorizationResource {
 	@Context
 	protected ServletContext context;
 
+	/**
+	 * Search for users, in the Microsoft directory when it is available, or in the
+	 * security database.
+	 * 
+	 * @param request
+	 * @param searchTerm    text to search for
+	 * @param limit         page size
+	 * @param offset        number of users already returned
+	 * @param msGraphLookup {@code false} to search the security database when the
+	 *                      directory is available; defaults to the directory
+	 * @return
+	 */
 	@GET
 	@Produces("application/json")
 	@Path("searchForUser")
 	public Response searchForUser(@Context HttpServletRequest request, @QueryParam("searchTerm") String searchTerm,
-			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+			@QueryParam("limit") long limit, @QueryParam("offset") long offset,
+			@QueryParam(MicrosoftGraphUserLookup.LOOKUP_PARAM) String msGraphLookup) {
 
 		User user = null;
 		try {
@@ -75,12 +87,9 @@ public class AuthorizationResource {
 		}
 		searchTerm = searchTerm == null ? "" : searchTerm;
 
-		boolean graphApi = Boolean
-				.parseBoolean("" + SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_lookup"));
-
-		// if not graph api
-		// then we will look at our security db
-		if (!graphApi) {
+		// when the directory is not used
+		// we will look at our security db
+		if (!MicrosoftGraphUserLookup.useDirectory(msGraphLookup)) {
 			try {
 				List<Map<String, Object>> users = SecurityQueryUtils.searchForUser(searchTerm);
 				int fromIndex = (int) Math.min(Math.max(offset, 0L), users.size());
@@ -95,25 +104,13 @@ public class AuthorizationResource {
 			}
 		}
 
-		HttpSession session = request.getSession(false);
-		String sessionKey = "u_" + User.getSingleLogginName(user) + "_" + searchTerm;
-
-		// Initialize or retrieve session data
-		Map<String, Object> sessionData = (Map<String, Object>) session.getAttribute(sessionKey);
-		// New search if:
-		// 1. No session data exists (first time searching this term), OR
-		// 2. Offset is 0 (user is restarting the search)
-		if (sessionData == null || offset == 0) {
-			// Clear any existing data and start fresh
-			sessionData = new HashMap<>();
-			session.setAttribute(sessionKey, sessionData);
-		}
-
-		String graphApiGroupId = SocialPropertiesUtil.getInstance().getProperty("ms_graphapi_groupId");
 		try {
-			List<Map<String, Object>> filteredUsers = MsGraphUtility.fetchMsGraphUsers(user, searchTerm,
-					graphApiGroupId, sessionData);
-			return WebUtility.getResponse(filteredUsers, 200);
+			List<Map<String, Object>> users = MsGraphUtility.searchDirectory(request, user, searchTerm, limit, offset);
+			return WebUtility.getResponse(users, 200);
+		} catch (IllegalAccessException e) {
+			Map<String, String> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
+			return WebUtility.getResponse(errorMap, 400);
 		} catch (Exception e) {
 			classLogger.error("Failed to search for user.", e);
 			Map<String, String> errorMap = new HashMap<>();
