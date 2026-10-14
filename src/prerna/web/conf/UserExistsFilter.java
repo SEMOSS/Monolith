@@ -87,6 +87,7 @@ public class UserExistsFilter extends NoUserInSessionFilter {
 				AccessToken token = user.getAccessToken(user.getLogins().get(0));
 
 				if (!areGroupsValid(token)) {
+					prerna.usertracking.UserAuditTrailUtils.recordHttpDenial("PERMISSION_DENIED", "Required group membership is missing", 403);
 					session.removeAttribute(Constants.SESSION_USER);
 					((HttpServletResponse) arg1).sendError(HttpServletResponse.SC_FORBIDDEN,
 							"User lacks permissions for this resource");
@@ -97,6 +98,7 @@ public class UserExistsFilter extends NoUserInSessionFilter {
 				}
 
 				if (!onlyPerformGroupCheck() && !userExists(token)) {
+					prerna.usertracking.UserAuditTrailUtils.recordHttpDenial("PERMISSION_DENIED", "User is not registered for this application", 302);
 					session.removeAttribute(Constants.SESSION_USER);
 					((HttpServletResponse) arg1).setStatus(302);
 					String redirectUrl = ((HttpServletRequest) arg0).getHeader("referer");
@@ -116,12 +118,14 @@ public class UserExistsFilter extends NoUserInSessionFilter {
 			// so need to check your login even if you haven't gone through the normal flow
 			AccessToken token = user.getAccessToken(user.getLogins().get(0));
 			if (!areGroupsValid(token)) {
+				prerna.usertracking.UserAuditTrailUtils.recordHttpDenial("PERMISSION_DENIED", "Required group membership is missing", 403);
 				session.removeAttribute(Constants.SESSION_USER);
 				((HttpServletResponse) arg1).sendError(HttpServletResponse.SC_FORBIDDEN,
 						"User lacks permissions for this resource");
 				return;
 			}
 			if (!onlyPerformGroupCheck() && !userExists(token)) {
+				prerna.usertracking.UserAuditTrailUtils.recordHttpDenial("PERMISSION_DENIED", "User is not registered for this application", 403);
 				session.removeAttribute(Constants.SESSION_USER);
 				((HttpServletResponse) arg1).sendError(HttpServletResponse.SC_FORBIDDEN,
 						"User lacks permissions for this resource");

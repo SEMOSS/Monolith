@@ -240,18 +240,15 @@ public final class WebUtility {
 	}
 
 	/**
-	 * Every REST error response is built here, so authorization denials returned
-	 * by any endpoint (e.g. a non-admin calling an admin endpoint) are audited in
-	 * one place.
+	 * Audit errors returned through this response helper. Servlet filters that
+	 * send responses directly must audit at their own enforcement point.
 	 */
 	private static void auditErrorResponse(Object vec, int status) {
 		if (status < 400) {
 			return;
 		}
 		Object message = vec instanceof java.util.Map<?, ?> map ? map.get(Constants.ERROR_MESSAGE) : vec;
-		if (message instanceof String text) {
-			UserAuditTrailUtils.recordHttpErrorResponse(status, text);
-		}
+		UserAuditTrailUtils.recordHttpErrorResponse(status, message instanceof String text ? text : null);
 	}
 
 	/**

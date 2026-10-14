@@ -61,7 +61,6 @@ import prerna.auth.utils.SecurityUserUtils;
 import prerna.auth.utils.UserRegistrationEmailService;
 import prerna.date.SemossDate;
 import prerna.semoss.web.services.local.ResourceUtility;
-import prerna.semoss.web.services.local.UserResource;
 import prerna.usertracking.UserAuditTrailUtils;
 import prerna.util.Constants;
 import prerna.util.SocialPropertiesUtil;
@@ -134,7 +133,9 @@ public class UserAuthorizationResource {
 			AccessToken authToken = AccessToken.copyToken(user.getAccessToken(user.getLogins().get(0)));
 			authToken.setName((String) userInfo.get("name"));
 			authToken.setEmail((String) userInfo.get("newEmail"));
-			UserResource.addAccessToken(authToken, request, false);
+			// Refresh the authenticated session without reporting a new authentication.
+			user.setAccessToken(authToken);
+			WebUtility.loggingContextLoginEvent(request.getSession(false));
 			UserAuditTrailUtils.recordUserAdmin(user, null, "USER_UPDATE", authToken.getId(),
 					authToken.getProvider() == null ? null : authToken.getProvider().getLabel(), authToken.getName(),
 					null, null, Map.of("changedFields", new ArrayList<>(userInfo.keySet()), "selfService", true));

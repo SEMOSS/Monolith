@@ -195,11 +195,15 @@ public class PublicHomeCheckFilter implements Filter {
 			if (session != null) {
 				User user = (User) session.getAttribute(Constants.SESSION_USER);
 				if (!SecurityProjectUtils.userCanViewProject(user, projectId)) {
+					prerna.usertracking.UserAuditTrailUtils.recordFailure(user, "PROJECT_VIEW", "PROJECT", projectId,
+							new IllegalAccessException("Project access denied"), 403);
 					sendError(request, response, HttpServletResponse.SC_FORBIDDEN,
 							"You do not have access to this project.");
 					return false;
 				}
 			} else {
+				prerna.usertracking.UserAuditTrailUtils.recordFailure(null, "PROJECT_VIEW", "PROJECT", projectId,
+						new IllegalAccessException("Project access requires authentication"), 403);
 				sendError(request, response, HttpServletResponse.SC_FORBIDDEN,
 						"You must be logged in to access this project.");
 				return false;
