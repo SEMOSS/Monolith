@@ -267,7 +267,10 @@ public class AnthropicEndpoints {
 		dataMap.remove("context_management");
 		dataMap.remove("output_config");
 		dataMap.remove("metadata");
-
+		// Claude Code's auto-mode classifier request; with no safeguard_results in the
+		// response, Claude Code classifies its tool calls itself
+		dataMap.remove("safeguards");
+		
 		List<Map<String, Object>> messagesList = (List<Map<String, Object>>) messages;
 
 		room = RoomUtils.createRoomIfNotExists(roomId, insight, engine, null);
