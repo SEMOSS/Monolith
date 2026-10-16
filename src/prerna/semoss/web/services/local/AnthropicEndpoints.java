@@ -69,6 +69,7 @@ import prerna.engine.impl.model.Room;
 import prerna.engine.impl.model.RoomUtils;
 import prerna.engine.impl.model.inferencetracking.ModelInferenceLogsUtils;
 import prerna.engine.impl.model.responses.AskModelEngineResponse;
+import prerna.engine.impl.model.usage.ModelUsageLimitException;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.sablecc2.PixelRunner;
@@ -270,7 +271,7 @@ public class AnthropicEndpoints {
 		// Claude Code's auto-mode classifier request; with no safeguard_results in the
 		// response, Claude Code classifies its tool calls itself
 		dataMap.remove("safeguards");
-		
+
 		List<Map<String, Object>> messagesList = (List<Map<String, Object>>) messages;
 
 		room = RoomUtils.createRoomIfNotExists(roomId, insight, engine, null);
@@ -318,6 +319,10 @@ public class AnthropicEndpoints {
 				dataMap.put("tools", openAIFormat.get("tools"));
 			}
 
+			ModelUsageLimitException refusal = ModelPixelExecutor.checkUsageLimitsBeforeStream(user, engine);
+			if (refusal != null) {
+				return usageLimitResponse(refusal);
+			}
 			return handleStreamingRequest(engine, finalInsight, finalRoom, dataMap, SESSION_ID, JOB_ID, engineId,
 					response);
 		}
@@ -330,8 +335,12 @@ public class AnthropicEndpoints {
 			Map<String, Object> dataMap, String engineId) {
 		AskModelEngineResponse<?> llmResponse;
 		try {
-			llmResponse = ModelPixelInvoker.askModelSync(engine, insight, room, dataMap);
+			llmResponse = ModelPixelExecutor.askModelSync(engine, insight, room, dataMap);
 		} catch (Exception e) {
+			ModelUsageLimitException refusal = ModelPixelExecutor.findUsageLimitRefusal(e);
+			if (refusal != null) {
+				return usageLimitResponse(refusal);
+			}
 			classLogger.error("Synchronous model call failed for engine '{}'", engineId, e);
 			Map<String, Object> errorMap = AnthropicMessagesHelper.createErrorResponse("api_error",
 					"Error processing request: " + e.getMessage());
@@ -759,6 +768,25 @@ public class AnthropicEndpoints {
 						}
 					}
 				}).build();
+	}
+
+	/**
+	 * The response for a call a usage limit refused, with an Anthropic error body:
+	 * a {@code rate_limit_error}, or an {@code api_error} when the limits cannot be
+	 * checked, with the code from {@link ModelPixelExecutor#usageLimitCode}.
+	 *
+	 * @param refusal the refusal
+	 * @return the response
+	 */
+	private static Response usageLimitResponse(ModelUsageLimitException refusal) {
+		Map<String, Object> error = new HashMap<>();
+		error.put("type", refusal.isUnavailable() ? "api_error" : "rate_limit_error");
+		error.put("message", refusal.getMessage());
+		error.put("code", ModelPixelExecutor.usageLimitCode(refusal));
+		Map<String, Object> body = new HashMap<>();
+		body.put("type", "error");
+		body.put("error", error);
+		return ModelPixelExecutor.usageLimitResponse(refusal, body);
 	}
 
 	/**

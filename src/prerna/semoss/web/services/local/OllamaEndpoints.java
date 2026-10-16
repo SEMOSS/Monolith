@@ -71,6 +71,7 @@ import prerna.engine.impl.model.Room;
 import prerna.engine.impl.model.RoomUtils;
 import prerna.engine.impl.model.responses.AskModelEngineResponse;
 import prerna.engine.impl.model.responses.EmbeddingsModelEngineResponse;
+import prerna.engine.impl.model.usage.ModelUsageLimitException;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.sablecc2.PixelRunner;
@@ -181,16 +182,24 @@ public class OllamaEndpoints {
 
 		if (!stream) {
 			try {
-				AskModelEngineResponse llmResponse = ModelPixelInvoker.askModelSync(engine, insight, room, dataMap);
+				AskModelEngineResponse llmResponse = ModelPixelExecutor.askModelSync(engine, insight, room, dataMap);
 				Map<String, Object> payload = OllamaResponsesHelper.processFullChatResponse(engineId, llmResponse);
 				return WebUtility.getResponse(payload, 200);
 			} catch (Exception e) {
+				ModelUsageLimitException refusal = ModelPixelExecutor.findUsageLimitRefusal(e);
+				if (refusal != null) {
+					return usageLimitResponse(refusal);
+				}
 				classLogger.error("Synchronous Ollama /chat call failed for engine '{}': {}", engineId, e.getMessage(),
 						e);
 				return ModelPixelExecutor.errorResponse(400, e.getMessage());
 			}
 		}
 
+		ModelUsageLimitException refusal = ModelPixelExecutor.checkUsageLimitsBeforeStream(user, engine);
+		if (refusal != null) {
+			return usageLimitResponse(refusal);
+		}
 		StreamingOutput output = new StreamingOutput() {
 			@Override
 			@SuppressWarnings("unchecked")
@@ -464,16 +473,24 @@ public class OllamaEndpoints {
 
 		if (!stream) {
 			try {
-				AskModelEngineResponse llmResponse = ModelPixelInvoker.askModelSync(engine, insight, room, dataMap);
+				AskModelEngineResponse llmResponse = ModelPixelExecutor.askModelSync(engine, insight, room, dataMap);
 				Map<String, Object> payload = OllamaResponsesHelper.processFullGenerateResponse(engineId, llmResponse);
 				return WebUtility.getResponse(payload, 200);
 			} catch (Exception e) {
+				ModelUsageLimitException refusal = ModelPixelExecutor.findUsageLimitRefusal(e);
+				if (refusal != null) {
+					return usageLimitResponse(refusal);
+				}
 				classLogger.error("Synchronous Ollama /generate call failed for engine '{}': {}", engineId,
 						e.getMessage(), e);
 				return ModelPixelExecutor.errorResponse(400, e.getMessage());
 			}
 		}
 
+		ModelUsageLimitException refusal = ModelPixelExecutor.checkUsageLimitsBeforeStream(user, engine);
+		if (refusal != null) {
+			return usageLimitResponse(refusal);
+		}
 		StreamingOutput output = new StreamingOutput() {
 			@Override
 			@SuppressWarnings("unchecked")
@@ -685,9 +702,28 @@ public class OllamaEndpoints {
 					stringsToEncode.size() == 1);
 			return WebUtility.getResponse(payload, 200);
 		} catch (Exception e) {
+			ModelUsageLimitException refusal = ModelPixelExecutor.findUsageLimitRefusal(e);
+			if (refusal != null) {
+				return usageLimitResponse(refusal);
+			}
 			classLogger.error("Ollama /embeddings call failed for engine '{}': {}", engineId, e.getMessage(), e);
 			return ModelPixelExecutor.errorResponse(400, e.getMessage());
 		}
+	}
+
+	/**
+	 * The response for a call a usage limit refused, with an Ollama error body and
+	 * the code from {@link ModelPixelExecutor#usageLimitCode}.
+	 *
+	 * @param refusal the refusal
+	 * @return the response
+	 */
+	private static Response usageLimitResponse(ModelUsageLimitException refusal) {
+		Map<String, Object> body = new HashMap<>();
+		body.put("error", refusal.getMessage());
+		body.put("code", ModelPixelExecutor.usageLimitCode(refusal));
+		body.put(Constants.ERROR_MESSAGE, refusal.getMessage());
+		return ModelPixelExecutor.usageLimitResponse(refusal, body);
 	}
 
 	private Map<String, Object> readRequestData(HttpServletRequest request) throws IOException {

@@ -139,6 +139,61 @@ These resources also belong to **MonolithApplication** and retain the `/Monolith
 
 OpenAI also exposes the listed routes without `/v1` and a legacy `POST /Monolith/api/model/openai/completions` route. Ollama exposes `/chat` and `/generate` aliases beneath `/Monolith/api/model/ollama`. The second `/api` in the Ollama chat/generate paths belongs to the compatibility route itself.
 
+A call refused by a [model usage limit](#model-usage-limits) answers with the error in the provider's shape and a `code`:
+
+| Refused by | Status | `code` | `Retry-After` |
+| --- | --- | --- | --- |
+| A minute or hour rule | `429` | `rate_limit_exceeded` | The seconds until the rule resets |
+| A day or longer rule | `429` | `usage_limit_reached` | None, so clients do not keep retrying until it resets |
+| Limits that cannot be checked right now, such as a cluster that cannot reach Redis | `503` | `usage_limits_unavailable` | None |
+
+OpenAI answers `{"error": {"message", "type", "code"}, "errorMessage"}`, Anthropic `{"type": "error", "error": {"type", "message", "code"}}` with the type `rate_limit_error` (`api_error` for a `503`), and Ollama `{"error", "code", "errorMessage"}`. A streaming call is checked before its stream starts; a refusal after that is reported inside the stream. Every other error keeps its status and body.
+
+### Model usage limits
+
+A model usage limit is JSON: Unlimited, or rules that must all have usage left.
+
+```json
+{
+  "unlimited": false,
+  "rules": [
+    { "metric": "TOKENS", "amount": 100000, "window": "MINUTE", "counts": "EACH_PERSON" },
+    { "metric": "COST", "amount": 500000000, "window": "MONTH", "counts": "SHARED" }
+  ]
+}
+```
+
+`metric` is `TOKENS`, `COST` (millionths of a US dollar, on models with known prices) or `COMPUTE_TIME` (milliseconds). `window` is `MINUTE`, `HOUR`, `DAY`, `WEEK`, `MONTH` or `YEAR`, in UTC. `windowLength` is how long a `MINUTE` window (1 to 59 minutes) or an `HOUR` window (1 to 24 hours) is; it is left out for 1, and other windows are always 1 long. `counts` is `SHARED` (team limits, public use, model totals and team totals) or `EACH_PERSON`. A limit has one rule for each metric, window, window length and `counts`. An empty value means no limit defined, and so does an amount of `0`. Responses leave out fields with no value, so a source with no limit defined has no `usageLimit`.
+
+Only a model's owners, and admins in admin mode, set usage limits on it: a person's, a team's, public use and the model's total. Editors still add people and change the level of Read-Only and Editor people; their adds give no limit and their changes keep the current one. A change by an editor that leaves any other limit is refused with "Only owners can set usage limits".
+
+These endpoints read and set limits that are not part of a grant. Anonymous sessions get `401` from each.
+
+| Method and endpoint | Inputs / purpose | Who may call |
+| --- | --- | --- |
+| `GET /Monolith/api/auth/permissionBatch/getUsageLimitPath` | `engineId`, `userId`, `userType` (required, in any case); how limits apply to one person on a model: `engineId`, `person`, `billedLimitType`, the `ceilings`, then the `steps` in billing order, each with its state, rules, use and reset times. The person must have a grant on the model, their own or a custom team's; the model being public is not enough. Limits that count use on other models stay private: the `ALL_MODELS` and `PLATFORM` steps have no `rules` and say `"rulesHidden": true`, and `TEAM` steps have no `teamTotal` | The model's editors and owners |
+| `GET /Monolith/api/auth/admin/permissionBatch/getUsageLimitPath` | The same, for any person on any model, with every step's `rules` and each team's `teamTotal`; `userType` is required | Admins |
+| `GET /Monolith/api/auth/permissionBatch/getMyUsageLimitPath` | `engineId`; the same, for the signed in person, with every step's `rules` and each team's `teamTotal` | Anyone who can use the model |
+| `GET /Monolith/api/auth/permissionBatch/getMyUsageLimitPaths` | `{"models": [{"engineId", "name", "subtype", "path"}]}`: the signed in person's path, as `getMyUsageLimitPath` gives it, on every model they can use | Anyone signed in |
+| `GET /Monolith/api/auth/admin/modelUsage/getPlatformDefault` | `{"usageLimit"}`: the limit for everyone with no other limit, on any model | Admins |
+| `POST /Monolith/api/auth/admin/modelUsage/setPlatformDefault` | Form `usageLimit`, empty to remove it; answers as the read | Admins |
+| `GET /Monolith/api/auth/admin/modelUsage/getTeamTotal` | `groupId`, `type`; `{"usageLimit"}`: the team's total across all models | Admins |
+| `POST /Monolith/api/auth/admin/modelUsage/setTeamTotal` | Form `groupId`, `type`, `usageLimit`, empty to remove it; answers as the read | Admins |
+
+Limits on grants are set through [permission batches](../src/prerna/semoss/web/services/local/auth/PermissionBatchResource.java) (`usageLimit` on a grant) and through these endpoints:
+
+| Endpoint | Limit fields |
+| --- | --- |
+| `POST /Monolith/api/auth/engine/addEngineUserPermission`, `editEngineUserPermission`, and the same under `/Monolith/api/auth/admin/engine` | Form `usageLimit`, empty for no limit defined. An add without it gives no limit, and an edit without it, such as a change of level only, keeps the limit as it is |
+| `POST .../addEngineUserPermissions`, `editEngineUserPermissions` (user and admin) | Each `userpermissions` row's `usageLimit`. An added row without it gets no limit; an edited row without it keeps the person's limit, and an edited row whose `usageLimit` is null removes it |
+| `GET .../getEngineUsers` (user and admin) | Each row's `usage_limit` |
+| `POST /Monolith/api/auth/project/propagateProjectDependencyPermission(s)` | `usageLimit` (each row's, for the plural), for the models the project depends on. Without it, people added get no limit and people whose access changes keep theirs |
+| `POST /Monolith/api/auth/group/engine/addGroupEnginePermission`, `POST /Monolith/api/auth/admin/group/addGroupEnginePermission` | Form `usageLimit`: the team limit on a model |
+| `POST /Monolith/api/auth/admin/user/registerUser` | Form `modelUsageLimit`: the person's all-models default; without it, none is defined |
+| `POST /Monolith/api/auth/admin/user/editUser` | `model_usage_limit` in the `user` JSON, null for no limit defined; without the key, the default is kept as it is |
+| `GET /Monolith/api/auth/admin/user/getAllUsers` | Each row's `model_usage_limit` |
+| `POST /Monolith/api/auth/createUser` | None: self-registration ignores limit fields, since only admins set all-models defaults |
+
 ### MCP, A2A, and other core resources
 
 | Endpoint / route family | Purpose / implementation |
