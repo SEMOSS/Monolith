@@ -54,6 +54,7 @@ import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityUpdateUtils;
+import prerna.logging.SemossLogUtils;
 import prerna.semoss.web.services.local.UserResource;
 import prerna.util.Constants;
 import prerna.util.Utility;
@@ -173,11 +174,14 @@ public class PIVFilter implements Filter {
 				// if we have the token
 				// and it has values filled in
 				// we know we can populate the user
+				String clientIp = WebUtility.getClientIp((HttpServletRequest) arg0);
 				if (token.getName() != null) {
 					classLogger.info("Valid request coming from user {}", token.getName());
 					// store in session, log in user tracking db, and add the user to security db if
 					// autoadd
 					UserResource.addAccessToken(token, ((HttpServletRequest) arg0), PIVFilter.autoAdd);
+					SemossLogUtils.logSecurityAuditEvent("LOGIN_SUCCESS", token.getId(), token.getName(), clientIp,
+							null, null, null, true, "PIV login succeeded for " + token.getName(), null);
 					// do we need to update credentials?
 					// might be useful for when we add users
 					// but the cert has different values we want to use
@@ -196,8 +200,14 @@ public class PIVFilter implements Filter {
 						// grab the ip address
 						userLogger.addToQueue(new String[] { email, name,
 								LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
-								WebUtility.getClientIp((HttpServletRequest) arg0) });
+								clientIp });
 					}
+				} else {
+					// a client certificate was presented but did not parse into a recognized PIV
+					// identity (no UID/CN pair, no usable email) - still security-relevant
+					SemossLogUtils.logSecurityAuditEvent("LOGIN_FAILURE", null, null, clientIp, null, null, null,
+							false, "a client certificate was presented but did not parse as a valid PIV identity",
+							null);
 				}
 			}
 		}

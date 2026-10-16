@@ -131,7 +131,78 @@
       <filter-name>StartUpSuccessFilter</filter-name>
       <url-pattern>/*</url-pattern>
    </filter-mapping>
-   
+
+   <!-- CAC/PIV FILTERS - establish the session user from a client certificate the
+        TLS connector validated (clientAuth="want"/"true" in server.xml), before
+        any filter below that cares whether a user is present. A request with no
+        client certificate (the default - clientAuth is off unless a site sets
+        CAC_PIV_CLIENT_AUTH, see server.xml) falls through both filters as a
+        harmless no-op: X509Certificate[] is simply absent from the request, so
+        neither filter does anything and native/OAuth login still works
+        unchanged. autoAdd=true means a certificate that parses into a valid
+        identity auto-provisions a security-db user the first time it's seen -
+        this is deliberate for a DoD PKI identity a site's own CA already
+        vouches for, not a default to enable lightly. Both successful and failed
+        certificate parses are written to the security audit trail (see
+        SemossLogUtils.logSecurityAuditEvent calls in CACFilter/PIVFilter). -->
+   <filter>
+      <filter-name>CACFilter</filter-name>
+      <filter-class>prerna.web.conf.CACFilter</filter-class>
+      <init-param>
+			<param-name>autoAdd</param-name>
+			<param-value>true</param-value>
+	  </init-param>
+	  <init-param>
+			<param-name>updateUserInfo</param-name>
+			<param-value>false</param-value>
+	  </init-param>
+	  <init-param>
+			<param-name>countUserEntry</param-name>
+			<param-value>false</param-value>
+	  </init-param>
+	  <init-param>
+			<param-name>logUserInfo</param-name>
+			<param-value>false</param-value>
+	  </init-param>
+	  <init-param>
+			<param-name>logUserInfoSep</param-name>
+			<param-value>,</param-value>
+	  </init-param>
+   </filter>
+   <filter-mapping>
+      <filter-name>CACFilter</filter-name>
+      <url-pattern>/api/*</url-pattern>
+   </filter-mapping>
+
+   <filter>
+      <filter-name>PIVFilter</filter-name>
+      <filter-class>prerna.web.conf.PIVFilter</filter-class>
+      <init-param>
+			<param-name>autoAdd</param-name>
+			<param-value>true</param-value>
+	  </init-param>
+	  <init-param>
+			<param-name>updateUserInfo</param-name>
+			<param-value>false</param-value>
+	  </init-param>
+	  <init-param>
+			<param-name>countUserEntry</param-name>
+			<param-value>false</param-value>
+	  </init-param>
+	  <init-param>
+			<param-name>logUserInfo</param-name>
+			<param-value>false</param-value>
+	  </init-param>
+	  <init-param>
+			<param-name>logUserInfoSep</param-name>
+			<param-value>,</param-value>
+	  </init-param>
+   </filter>
+   <filter-mapping>
+      <filter-name>PIVFilter</filter-name>
+      <url-pattern>/api/*</url-pattern>
+   </filter-mapping>
+
    <!-- security filters for admin page -->
    <filter>
       <filter-name>NoUserExistsFilter</filter-name>
@@ -329,86 +400,6 @@
       <url-pattern>/api/*</url-pattern>
    </filter-mapping>
    -->
-   
-   <!-- CAC FILTER -->
-   <!--  
-   <filter>
-      <filter-name>CACFilter</filter-name>
-      <filter-class>prerna.web.conf.CACFilter</filter-class>
-      <init-param>
-			<param-name>autoAdd</param-name>
-			<param-value>true</param-value>
-	  </init-param>
-	  <init-param>
-			<param-name>updateUserInfo</param-name>
-			<param-value>false</param-value>
-	  </init-param>
-	  <init-param>
-			<param-name>countUserEntry</param-name>
-			<param-value>false</param-value>
-	  </init-param>
-	  <init-param>
-			<param-name>countUserEntryDb</param-name>
-			<param-value>9809c0f7-04c6-43d8-87aa-2553b4a7832a</param-value>
-	  </init-param>
-	  <init-param>
-			<param-name>logUserInfo</param-name>
-			<param-value>false</param-value>
-	  </init-param>
-	  <init-param>
-			<param-name>logUserInfoPath</param-name>
-			<param-value></param-value>
-	  </init-param>
-	  <init-param>
-			<param-name>logUserInfoSep</param-name>
-			<param-value>,</param-value>
-	  </init-param>
-   </filter>
-   <filter-mapping>
-      <filter-name>CACFilter</filter-name>
-      <url-pattern>/api/*</url-pattern>
-   </filter-mapping>
-   -->
-   
-   <!-- PIV FILTER -->
-   <!--  
-   <filter>
-      <filter-name>PIVFilter</filter-name>
-      <filter-class>prerna.web.conf.PIVFilter</filter-class>
-      <init-param>
-			<param-name>autoAdd</param-name>
-			<param-value>true</param-value>
-	  </init-param>
-	  <init-param>
-			<param-name>updateUserInfo</param-name>
-			<param-value>false</param-value>
-	  </init-param>
-	  <init-param>
-			<param-name>countUserEntry</param-name>
-			<param-value>false</param-value>
-	  </init-param>
-	  <init-param>
-			<param-name>countUserEntryDb</param-name>
-			<param-value>9809c0f7-04c6-43d8-87aa-2553b4a7832a</param-value>
-	  </init-param>
-	  <init-param>
-			<param-name>logUserInfo</param-name>
-			<param-value>false</param-value>
-	  </init-param>
-	  <init-param>
-			<param-name>logUserInfoPath</param-name>
-			<param-value></param-value>
-	  </init-param>
-	  <init-param>
-			<param-name>logUserInfoSep</param-name>
-			<param-value>,</param-value>
-	  </init-param>
-   </filter>
-   <filter-mapping>
-      <filter-name>PIVFilter</filter-name>
-      <url-pattern>/api/*</url-pattern>
-   </filter-mapping>
-   --> 
    
    <!-- WAFFLE IT -->
    <!-- 

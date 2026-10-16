@@ -69,6 +69,7 @@ import prerna.ds.util.RdbmsQueryBuilder;
 import prerna.engine.api.IRDBMSEngine;
 import prerna.engine.api.IRawSelectWrapper;
 import prerna.forms.FormBuilder;
+import prerna.logging.SemossLogUtils;
 import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.semoss.web.services.local.UserResource;
 import prerna.util.Constants;
@@ -227,11 +228,14 @@ public class CACFilter implements Filter {
 				// if we have the token
 				// and it has values filled in
 				// we know we can populate the user
+				String clientIp = WebUtility.getClientIp((HttpServletRequest) arg0);
 				if (token.getName() != null) {
 					classLogger.info("Valid request coming from user {}", token.getName());
 					// store in session, log in user tracking db, and add the user to security db if
 					// autoadd
 					UserResource.addAccessToken(token, ((HttpServletRequest) arg0), CACFilter.autoAdd);
+					SemossLogUtils.logSecurityAuditEvent("LOGIN_SUCCESS", token.getId(), token.getName(), clientIp,
+							null, null, null, true, "CAC login succeeded for " + token.getName(), null);
 					// do we need to update credentials?
 					// might be useful for when we add users
 					// but the cert has different values we want to use
@@ -250,8 +254,14 @@ public class CACFilter implements Filter {
 						// grab the ip address
 						userLogger.addToQueue(new String[] { cacId, name,
 								LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
-								WebUtility.getClientIp((HttpServletRequest) arg0) });
+								clientIp });
 					}
+				} else {
+					// a client certificate was presented but did not parse into a recognized CAC
+					// identity (wrong CN shape, missing DoD id, etc.) - still security-relevant
+					SemossLogUtils.logSecurityAuditEvent("LOGIN_FAILURE", null, null, clientIp, null, null, null,
+							false, "a client certificate was presented but did not parse as a valid CAC identity",
+							null);
 				}
 			}
 		}
@@ -273,7 +283,7 @@ public class CACFilter implements Filter {
 
 						// expected type 0 for the san
 						Integer type = (Integer) l.get(0);
-						if (type.equals(new Integer(0))) {
+						if (type == 0) {
 							ASN1Primitive value = ((DLSequence) l.get(1)).toASN1Primitive();
 							ASN1Sequence asn1seq = ASN1Sequence.getInstance(value);
 							ASN1ObjectIdentifier oid = ASN1ObjectIdentifier.getInstance(asn1seq.getObjectAt(0));
