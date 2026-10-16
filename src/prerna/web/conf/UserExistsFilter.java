@@ -48,6 +48,7 @@ import prerna.auth.User;
 import prerna.auth.utils.AdminSecurityGroupUtils;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.semoss.web.services.local.ResourceUtility;
+import prerna.usertracking.AuditErrorCode;
 import prerna.util.Constants;
 
 public class UserExistsFilter extends NoUserInSessionFilter {
@@ -87,7 +88,11 @@ public class UserExistsFilter extends NoUserInSessionFilter {
 				AccessToken token = user.getAccessToken(user.getLogins().get(0));
 
 				if (!areGroupsValid(token)) {
-					session.removeAttribute(Constants.SESSION_USER);
+					prerna.usertracking.UserAuditTrailUtils.recordHttpDenial(AuditErrorCode.PERMISSION_DENIED,
+							"Required group membership is missing", 403);
+					if (session != null) {
+						session.removeAttribute(Constants.SESSION_USER);
+					}
 					((HttpServletResponse) arg1).sendError(HttpServletResponse.SC_FORBIDDEN,
 							"User lacks permissions for this resource");
 					// log the user login
@@ -97,7 +102,11 @@ public class UserExistsFilter extends NoUserInSessionFilter {
 				}
 
 				if (!onlyPerformGroupCheck() && !userExists(token)) {
-					session.removeAttribute(Constants.SESSION_USER);
+					prerna.usertracking.UserAuditTrailUtils.recordHttpDenial(AuditErrorCode.PERMISSION_DENIED,
+							"User is not registered for this application", 302);
+					if (session != null) {
+						session.removeAttribute(Constants.SESSION_USER);
+					}
 					((HttpServletResponse) arg1).setStatus(302);
 					String redirectUrl = ((HttpServletRequest) arg0).getHeader("referer");
 					redirectUrl = redirectUrl + "#!/login";
@@ -116,13 +125,21 @@ public class UserExistsFilter extends NoUserInSessionFilter {
 			// so need to check your login even if you haven't gone through the normal flow
 			AccessToken token = user.getAccessToken(user.getLogins().get(0));
 			if (!areGroupsValid(token)) {
-				session.removeAttribute(Constants.SESSION_USER);
+				prerna.usertracking.UserAuditTrailUtils.recordHttpDenial(AuditErrorCode.PERMISSION_DENIED,
+						"Required group membership is missing", 403);
+				if (session != null) {
+					session.removeAttribute(Constants.SESSION_USER);
+				}
 				((HttpServletResponse) arg1).sendError(HttpServletResponse.SC_FORBIDDEN,
 						"User lacks permissions for this resource");
 				return;
 			}
 			if (!onlyPerformGroupCheck() && !userExists(token)) {
-				session.removeAttribute(Constants.SESSION_USER);
+				prerna.usertracking.UserAuditTrailUtils.recordHttpDenial(AuditErrorCode.PERMISSION_DENIED,
+						"User is not registered for this application", 403);
+				if (session != null) {
+					session.removeAttribute(Constants.SESSION_USER);
+				}
 				((HttpServletResponse) arg1).sendError(HttpServletResponse.SC_FORBIDDEN,
 						"User lacks permissions for this resource");
 				return;

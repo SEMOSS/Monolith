@@ -55,6 +55,7 @@ import prerna.om.InsightStore;
 import prerna.om.LocalUserStore;
 import prerna.reactor.playwright.PlaywrightSession;
 import prerna.semoss.web.services.local.MCPResource;
+import prerna.usertracking.UserAuditTrailUtils;
 import prerna.usertracking.UserTrackingUtils;
 import prerna.util.Constants;
 import prerna.util.FileSystemUtil;
@@ -66,6 +67,7 @@ import prerna.util.insight.InsightUtility;
 public class UserSessionLoader implements HttpSessionListener {
 
 	public static final String IS_USER_LOGOUT = "IS_USER_LOGOUT";
+	public static final String USER_LOGOUT_IP_ADDR = "USER_LOGOUT_IP_ADDR";
 
 	private static final Logger classLogger = LogManager.getLogger(UserSessionLoader.class);
 	private static final String DIR_SEPARATOR = java.nio.file.FileSystems.getDefault().getSeparator();
@@ -214,6 +216,13 @@ public class UserSessionLoader implements HttpSessionListener {
 
 		// register the successful logout
 		UserTrackingUtils.registerLogout(sessionId);
+		if (thisUser != null) {
+			String logoutIpAddr = (String) session.getAttribute(UserSessionLoader.USER_LOGOUT_IP_ADDR);
+			UserAuditTrailUtils.recordLogout(thisUser, sessionId,
+					Boolean.parseBoolean(session.getAttribute(UserSessionLoader.IS_USER_LOGOUT) + "") ? "USER_LOGOUT"
+							: "SESSION_ENDED",
+					logoutIpAddr);
+		}
 		classLogger.info("Finished logout");
 	}
 
