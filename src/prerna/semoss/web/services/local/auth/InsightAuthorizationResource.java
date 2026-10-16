@@ -209,7 +209,8 @@ public class InsightAuthorizationResource {
 		String newPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = null; // form.getFirst("endDate");
 		return ResourceUtility.respond(request, "edit the permission of user " + existingUserId + " on insight "
-				+ insightId + " of project " + projectId, user -> {
+				+ insightId + " of project " + projectId,
+				new ResourceUtility.SecurityAuditEvent("PERMISSION_MODIFIED", "INSIGHT", insightId), user -> {
 					SecurityInsightUtils.editInsightUserPermission(user, existingUserId, projectId, insightId,
 							newPermission, endDate);
 
@@ -404,6 +405,7 @@ public class InsightAuthorizationResource {
 		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
 		String endDate = null; // form.getFirst("endDate");
 		return ResourceUtility.respond(request, "add users to insight " + insightId + " of project " + projectId,
+				new ResourceUtility.SecurityAuditEvent("PERMISSION_GRANTED", "INSIGHT", insightId),
 				user -> {
 					if (AbstractSecurityUtils.adminOnlyInsightAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
 						throw new IllegalAccessException("This functionality is limited to only admins");
@@ -435,6 +437,7 @@ public class InsightAuthorizationResource {
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
 		return ResourceUtility.respond(request, "remove users from insight " + insightId + " of project " + projectId,
+				new ResourceUtility.SecurityAuditEvent("PERMISSION_REVOKED", "INSIGHT", insightId),
 				user -> {
 					List<String> ids = new Gson().fromJson(form.getFirst("ids"), List.class);
 					ids = WebUtility.inputSanitizer(ids);

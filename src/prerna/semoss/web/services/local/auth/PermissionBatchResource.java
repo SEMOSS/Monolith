@@ -83,8 +83,10 @@ public class PermissionBatchResource {
 	@Path("/savePermissionBatches")
 	public Response savePermissionBatches(@Context HttpServletRequest request) {
 		String batches = request.getParameter("batches");
-		return ResourceUtility.respond(request, "save a permission batch", user -> SecurityAccessPermissionBatchUtils
-				.saveBatches(user, SecurityAccessPermissionBatchUtils.readBatches(batches)));
+		return ResourceUtility.respond(request, "save a permission batch",
+				new ResourceUtility.SecurityAuditEvent("PERMISSION_BATCH_APPLIED", "PERMISSION_BATCH", null),
+				user -> SecurityAccessPermissionBatchUtils.saveBatches(user,
+						SecurityAccessPermissionBatchUtils.readBatches(batches)));
 	}
 
 	/**

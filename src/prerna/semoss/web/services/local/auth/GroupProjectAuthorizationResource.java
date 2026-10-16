@@ -109,7 +109,8 @@ public class GroupProjectAuthorizationResource {
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
-		return ResourceUtility.respond(request, "add group " + groupId + " to project " + projectId, user -> {
+		return ResourceUtility.respond(request, "add group " + groupId + " to project " + projectId,
+				new ResourceUtility.SecurityAuditEvent("PERMISSION_GRANTED", "PROJECT", projectId), user -> {
 			SecurityGroupProjectUtils.addProjectGroupPermission(user,
 					ValueUtils.requireNonBlank(groupId, GROUP_ID_REQUIRED),
 					ValueUtils.requireNonBlank(type, GROUP_TYPE_REQUIRED),
@@ -140,6 +141,7 @@ public class GroupProjectAuthorizationResource {
 		String newPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
 		return ResourceUtility.respond(request, "edit the permission of group " + groupId + " on project " + projectId,
+				new ResourceUtility.SecurityAuditEvent("PERMISSION_MODIFIED", "PROJECT", projectId),
 				user -> {
 					SecurityGroupProjectUtils.editProjectGroupPermission(user,
 							ValueUtils.requireNonBlank(groupId, GROUP_ID_REQUIRED),
@@ -168,7 +170,8 @@ public class GroupProjectAuthorizationResource {
 		String groupId = WebUtility.inputSQLSanitizer(form.getFirst("groupId"));
 		String type = AuthProvider.getProviderLabel(WebUtility.inputSanitizer(form.getFirst("type")));
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
-		return ResourceUtility.respond(request, "remove group " + groupId + " from project " + projectId, user -> {
+		return ResourceUtility.respond(request, "remove group " + groupId + " from project " + projectId,
+				new ResourceUtility.SecurityAuditEvent("PERMISSION_REVOKED", "PROJECT", projectId), user -> {
 			SecurityGroupProjectUtils.removeProjectGroupPermission(user,
 					ValueUtils.requireNonBlank(groupId, GROUP_ID_REQUIRED),
 					ValueUtils.requireNonBlank(type, GROUP_TYPE_REQUIRED),

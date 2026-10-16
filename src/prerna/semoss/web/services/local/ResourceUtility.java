@@ -55,6 +55,7 @@ import jakarta.ws.rs.core.StreamingOutput;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityAdminUtils;
+import prerna.logging.SemossLogUtils;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.sablecc2.PixelRunner;
@@ -151,6 +152,24 @@ public class ResourceUtility {
 	}
 
 	/**
+	 * Describes a call to {@link #respond} as a security-relevant event (a
+	 * permission/role/group change), so it is also written to the security audit
+	 * trail ({@link SemossLogUtils#logSecurityAuditEvent}), not just the ordinary
+	 * application log. Every {@link #respondAsAdmin} call is audited automatically
+	 * with {@code ADMIN_ACTION} - this is for the smaller set of permission
+	 * changes a non-admin "owner" can make through plain {@link #respond} (e.g.
+	 * granting another user access to a project or engine they own).
+	 *
+	 * @param eventType  a short, stable event name, e.g. "PERMISSION_GRANTED",
+	 *                   "PERMISSION_REVOKED"
+	 * @param targetType what kind of thing was acted on, e.g. "PROJECT",
+	 *                   "ENGINE", "GROUP" (nullable)
+	 * @param targetId   the id of the thing acted on (nullable)
+	 */
+	public record SecurityAuditEvent(String eventType, String targetType, String targetId) {
+	}
+
+	/**
 	 * A call an endpoint makes for a signed in admin, for
 	 * {@link ResourceUtility#respondAsAdmin(HttpServletRequest, String, Function, AdminCall)}.
 	 *
@@ -185,7 +204,24 @@ public class ResourceUtility {
 	 * @return the response
 	 */
 	public static Response respond(HttpServletRequest request, String action, UserCall call) {
-		return respond(request, action, false, call);
+		return respond(request, action, false, null, call);
+	}
+
+	/**
+	 * {@link #respond} for a security-relevant call (a permission/role/group
+	 * change) that is not behind {@link #respondAsAdmin} - see
+	 * {@link SecurityAuditEvent}.
+	 *
+	 * @param request   the request, whose session holds the user
+	 * @param action    what the call does, for the logs, such as
+	 *                  {@code "add user jdoe to group Sales"}
+	 * @param auditEvent the security audit classification for this call
+	 * @param call      the call
+	 * @return the response
+	 */
+	public static Response respond(HttpServletRequest request, String action, SecurityAuditEvent auditEvent,
+			UserCall call) {
+		return respond(request, action, false, auditEvent, call);
 	}
 
 	/**
@@ -200,20 +236,24 @@ public class ResourceUtility {
 	 * @return the response
 	 */
 	public static Response respondAllowingAnonymous(HttpServletRequest request, String action, UserCall call) {
-		return respond(request, action, true, call);
+		return respond(request, action, true, null, call);
 	}
 
-	private static Response respond(HttpServletRequest request, String action, boolean allowAnonymous, UserCall call) {
+	private static Response respond(HttpServletRequest request, String action, boolean allowAnonymous,
+			SecurityAuditEvent auditEvent, UserCall call) {
 		String endpoint = request.getMethod() + " " + request.getRequestURI();
+		String clientIp = WebUtility.getClientIp(request);
 		User user;
 		try {
 			user = getUser(request);
 		} catch (IllegalAccessException e) {
 			classLogger.warn("[{}] A request without a signed in user tried to {}", endpoint, action);
+			auditIfRelevant(auditEvent, null, null, clientIp, false, action);
 			return errorResponse("User session is invalid", 401);
 		}
 		if (user.isAnonymous() && !allowAnonymous) {
 			classLogger.warn("[{}] An anonymous user tried to {}", endpoint, action);
+			auditIfRelevant(auditEvent, null, null, clientIp, false, action);
 			return errorResponse("User session is invalid", 401);
 		}
 
@@ -221,20 +261,43 @@ public class ResourceUtility {
 		try {
 			Object result = call.call(user);
 			classLogger.info("[{}] User {} was able to {}", endpoint, userName, action);
+			auditIfRelevant(auditEvent, user.getPrimaryLoginToken() == null ? null : user.getPrimaryLoginToken().getId(),
+					userName, clientIp, true, action);
 			return WebUtility.getResponse(result, 200);
 		} catch (IllegalAccessException e) {
 			classLogger.warn("[{}] User {} is not allowed to {}: {}", endpoint, userName, action, e.getMessage());
+			auditIfRelevant(auditEvent, user.getPrimaryLoginToken() == null ? null : user.getPrimaryLoginToken().getId(),
+					userName, clientIp, false, action + ": " + e.getMessage());
 			return errorResponse(e.getMessage(), 401);
 		} catch (IllegalArgumentException e) {
 			classLogger.warn("[{}] User {} could not {}: {}", endpoint, userName, action, e.getMessage());
+			auditIfRelevant(auditEvent, user.getPrimaryLoginToken() == null ? null : user.getPrimaryLoginToken().getId(),
+					userName, clientIp, false, action + ": " + e.getMessage());
 			return errorResponse(e.getMessage(), 400);
 		} catch (Exception e) {
 			classLogger.error("[{}] User {} failed to {}.", endpoint, userName, action, e);
+			auditIfRelevant(auditEvent, user.getPrimaryLoginToken() == null ? null : user.getPrimaryLoginToken().getId(),
+					userName, clientIp, false, action + ": " + e.getMessage());
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please reach out to an admin.");
 			errorMap.put(Constants.TECH_ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 500);
 		}
+	}
+
+	/**
+	 * Writes {@code auditEvent} to the security audit trail if non-null. A null
+	 * event (the common case - most {@link #respond} calls are routine reads or
+	 * writes with no distinct security classification) is a no-op, so ordinary
+	 * traffic never reaches {@code SECURITY_AUDIT_LOGS}.
+	 */
+	private static void auditIfRelevant(SecurityAuditEvent auditEvent, String actorUserId, String actorUserName,
+			String actorIp, boolean success, String message) {
+		if (auditEvent == null) {
+			return;
+		}
+		SemossLogUtils.logSecurityAuditEvent(auditEvent.eventType(), actorUserId, actorUserName, actorIp,
+				auditEvent.targetType(), auditEvent.targetId(), null, success, message, null);
 	}
 
 	/**
@@ -255,7 +318,7 @@ public class ResourceUtility {
 	 */
 	public static <T> Response respondAsAdmin(HttpServletRequest request, String action,
 			Function<User, T> adminInstance, AdminCall<T> call) {
-		return respond(request, action, user -> {
+		return respond(request, action, false, new SecurityAuditEvent("ADMIN_ACTION", null, null), user -> {
 			T adminUtils = adminInstance.apply(user);
 			if (adminUtils == null) {
 				throw new IllegalAccessException("This functionality is limited to only admins");
@@ -274,7 +337,7 @@ public class ResourceUtility {
 	 * @return the response
 	 */
 	public static Response respondAsAdmin(HttpServletRequest request, String action, UserCall call) {
-		return respond(request, action, user -> {
+		return respond(request, action, false, new SecurityAuditEvent("ADMIN_ACTION", null, null), user -> {
 			if (!SecurityAdminUtils.userIsAdmin(user)) {
 				throw new IllegalAccessException("This functionality is limited to only admins");
 			}

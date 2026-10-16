@@ -92,6 +92,7 @@ import prerna.util.SocialPropertiesUtil;
 import prerna.util.Utility;
 import prerna.util.ldap.ILdapAuthenticator;
 import prerna.util.ldap.LDAPPasswordChangeRequiredException;
+import prerna.logging.SemossLogUtils;
 import prerna.util.linotp.LinOTPResponse;
 import prerna.util.linotp.LinOTPUtil;
 import prerna.web.conf.DBLoader;
@@ -1328,9 +1329,13 @@ public class UserResource {
 			// so that the default is to redirect
 			Boolean disableRedirect = Boolean.parseBoolean(request.getParameter("disableRedirect") + "");
 
+			String clientIp = WebUtility.getClientIp(request);
+
 			if (username == null || password == null || username.isEmpty() || password.isEmpty()) {
 				classLogger.warn("User is trying to login using username='{}' but user name or password are empty",
 						username);
+				SemossLogUtils.logSecurityAuditEvent("LOGIN_FAILURE", null, username, clientIp, null, null, null,
+						false, "native login attempted with an empty username or password", null);
 				ret.put(Constants.ERROR_MESSAGE, "The user name or password are empty");
 				return WebUtility.getResponse(ret, 401);
 			}
@@ -1349,6 +1354,8 @@ public class UserResource {
 				authToken.setEmail(email);
 				// no need to auto-add since to login native you must already exist
 				addAccessToken(authToken, request, false);
+				SemossLogUtils.logSecurityAuditEvent("LOGIN_SUCCESS", id, username, clientIp, null, null, null, true,
+						"native login succeeded for " + username, null);
 
 				// add these to the return
 				ret.put("success", "true");
@@ -1371,6 +1378,8 @@ public class UserResource {
 				}
 				classLogger.warn("User is trying to login using username='{}' but user name or password are empty",
 						username);
+				SemossLogUtils.logSecurityAuditEvent("LOGIN_FAILURE", null, username, clientIp, null, null, null,
+						false, "native login failed for " + username + ": invalid credentials", null);
 				ret.put(Constants.ERROR_MESSAGE, "The user name or password are invalid.");
 				return WebUtility.getResponse(ret, 401);
 			}
@@ -1383,6 +1392,9 @@ public class UserResource {
 				}
 			}
 			classLogger.error("Unexpected error in loginNative", e);
+			SemossLogUtils.logSecurityAuditEvent("LOGIN_FAILURE", null, request.getParameter("username"),
+					WebUtility.getClientIp(request), null, null, null, false,
+					"native login raised an unexpected error: " + e.getMessage(), null);
 			ret.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(ret, 500);
 		}

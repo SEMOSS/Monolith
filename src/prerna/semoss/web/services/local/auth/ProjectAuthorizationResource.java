@@ -297,7 +297,8 @@ public class ProjectAuthorizationResource {
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
-		return ResourceUtility.respond(request, "add user " + newUserId + " to project " + projectId, user -> {
+		return ResourceUtility.respond(request, "add user " + newUserId + " to project " + projectId,
+				new ResourceUtility.SecurityAuditEvent("PERMISSION_GRANTED", "PROJECT", projectId), user -> {
 			if (AbstractSecurityUtils.adminOnlyProjectAddAccess(projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
 				throw new IllegalAccessException(ADMINS_ONLY);
 			}
@@ -334,7 +335,8 @@ public class ProjectAuthorizationResource {
 				: null;
 		String maxTokensStr = WebUtility.inputSanitizer(request.getParameter("maxTokens"));
 		String maxResponseTimeStr = WebUtility.inputSanitizer(request.getParameter("maxResponseTime"));
-		return ResourceUtility.respond(request, "give user " + newUserId + " access to project " + projectId, user -> {
+		return ResourceUtility.respond(request, "give user " + newUserId + " access to project " + projectId,
+				new ResourceUtility.SecurityAuditEvent("PERMISSION_GRANTED", "PROJECT", projectId), user -> {
 			int maxTokens = readMaxTokens(maxTokensStr);
 			double maxResponseTime = readMaxResponseTime(maxResponseTimeStr);
 
@@ -363,7 +365,8 @@ public class ProjectAuthorizationResource {
 			MultivaluedMap<String, String> form) {
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
-		return ResourceUtility.respond(request, "give users access to project " + projectId, user -> {
+		return ResourceUtility.respond(request, "give users access to project " + projectId,
+				new ResourceUtility.SecurityAuditEvent("PERMISSION_GRANTED", "PROJECT", projectId), user -> {
 			List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 
 			// Determine if admin right are required to add users and, if so, if requester
@@ -411,7 +414,8 @@ public class ProjectAuthorizationResource {
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String newPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
-		return ResourceUtility.respond(request, "edit user " + existingUserId + " on project " + projectId, user -> {
+		return ResourceUtility.respond(request, "edit user " + existingUserId + " on project " + projectId,
+				new ResourceUtility.SecurityAuditEvent("PERMISSION_MODIFIED", "PROJECT", projectId), user -> {
 			if (AbstractSecurityUtils.adminOnlyProjectAddAccess(projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
 				throw new IllegalAccessException(ADMINS_ONLY);
 			}
@@ -437,7 +441,8 @@ public class ProjectAuthorizationResource {
 			MultivaluedMap<String, String> form) {
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
-		return ResourceUtility.respond(request, "edit user permissions on project " + projectId, user -> {
+		return ResourceUtility.respond(request, "edit user permissions on project " + projectId,
+				new ResourceUtility.SecurityAuditEvent("PERMISSION_MODIFIED", "PROJECT", projectId), user -> {
 			if (AbstractSecurityUtils.adminOnlyProjectAddAccess(projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
 				throw new IllegalAccessException(ADMINS_ONLY);
 			}
@@ -464,7 +469,8 @@ public class ProjectAuthorizationResource {
 		String existingUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String action = "remove user " + existingUserId + " from project " + projectId;
-		return ResourceUtility.respond(request, action, user -> {
+		return ResourceUtility.respond(request, action,
+				new ResourceUtility.SecurityAuditEvent("PERMISSION_REVOKED", "PROJECT", projectId), user -> {
 			if (AbstractSecurityUtils.adminOnlyProjectAddAccess(projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
 				throw new IllegalAccessException(ADMINS_ONLY);
 			}
@@ -516,7 +522,8 @@ public class ProjectAuthorizationResource {
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		boolean isPublic = Boolean.parseBoolean(form.getFirst("public"));
 		String action = "make project " + projectId + (isPublic ? " public" : " private");
-		return ResourceUtility.respond(request, action, user -> {
+		return ResourceUtility.respond(request, action,
+				new ResourceUtility.SecurityAuditEvent("PERMISSION_MODIFIED", "PROJECT", projectId), user -> {
 			if (AbstractSecurityUtils.adminOnlyProjectSetPublic(projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
 				throw new IllegalAccessException(ADMINS_ONLY);
 			}

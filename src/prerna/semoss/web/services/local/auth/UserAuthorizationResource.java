@@ -160,7 +160,8 @@ public class UserAuthorizationResource {
 	@Path("createUserAccessKey")
 	@Consumes({ "application/json", "application/x-www-form-urlencoded" })
 	public Response createUserAccessKey(@Context HttpServletRequest request) {
-		return ResourceUtility.respond(request, "create an access key", user -> {
+		return ResourceUtility.respond(request, "create an access key",
+				new ResourceUtility.SecurityAuditEvent("ACCESS_KEY_CREATED", "USER", null), user -> {
 			AccessToken token = user.getPrimaryLoginToken();
 			boolean accessKeysAllowed = SocialPropertiesUtil.getInstance().accessKeysAllowed(token.getProvider());
 			if (!accessKeysAllowed) {

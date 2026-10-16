@@ -228,7 +228,8 @@ public class GroupAuthorizationResource {
 		String userId = WebUtility.inputSQLSanitizer(request.getParameter("userId"));
 		String userLoginType = WebUtility.inputSQLSanitizer(request.getParameter("type"));
 		String endDate = WebUtility.inputSQLSanitizer(request.getParameter("endDate"));
-		return ResourceUtility.respond(request, "add user " + userId + " to group " + groupId, user -> {
+		return ResourceUtility.respond(request, "add user " + userId + " to group " + groupId,
+				new ResourceUtility.SecurityAuditEvent("PERMISSION_GRANTED", "GROUP", groupId), user -> {
 			SecurityGroupManagerUtils.addUserToGroup(user, groupId, userId, userLoginType, endDate);
 			return true;
 		});
@@ -241,7 +242,8 @@ public class GroupAuthorizationResource {
 		String groupId = WebUtility.inputSQLSanitizer(request.getParameter("groupId"));
 		String userId = WebUtility.inputSQLSanitizer(request.getParameter("userId"));
 		String userLoginType = WebUtility.inputSQLSanitizer(request.getParameter("type"));
-		return ResourceUtility.respond(request, "remove user " + userId + " from group " + groupId, user -> {
+		return ResourceUtility.respond(request, "remove user " + userId + " from group " + groupId,
+				new ResourceUtility.SecurityAuditEvent("PERMISSION_REVOKED", "GROUP", groupId), user -> {
 			SecurityGroupManagerUtils.removeUserFromGroup(user, groupId, userId, userLoginType);
 			return true;
 		});
@@ -259,7 +261,8 @@ public class GroupAuthorizationResource {
 		String groupId = WebUtility.inputSQLSanitizer(request.getParameter("groupId"));
 		String userId = WebUtility.inputSQLSanitizer(request.getParameter("userId"));
 		String userLoginType = WebUtility.inputSQLSanitizer(request.getParameter("type"));
-		return ResourceUtility.respond(request, "make user " + userId + " a manager of group " + groupId, user -> {
+		return ResourceUtility.respond(request, "make user " + userId + " a manager of group " + groupId,
+				new ResourceUtility.SecurityAuditEvent("PERMISSION_GRANTED", "GROUP", groupId), user -> {
 			SecurityGroupManagerUtils.addGroupManager(user, groupId, userId, userLoginType);
 			return true;
 		});
@@ -272,7 +275,8 @@ public class GroupAuthorizationResource {
 		String groupId = WebUtility.inputSQLSanitizer(request.getParameter("groupId"));
 		String userId = WebUtility.inputSQLSanitizer(request.getParameter("userId"));
 		String userLoginType = WebUtility.inputSQLSanitizer(request.getParameter("type"));
-		return ResourceUtility.respond(request, "remove user " + userId + " as a manager of group " + groupId, user -> {
+		return ResourceUtility.respond(request, "remove user " + userId + " as a manager of group " + groupId,
+				new ResourceUtility.SecurityAuditEvent("PERMISSION_REVOKED", "GROUP", groupId), user -> {
 			SecurityGroupManagerUtils.removeGroupManager(user, groupId, userId, userLoginType);
 			return true;
 		});

@@ -323,7 +323,8 @@ public class EngineAuthorizationResource {
 				: null;
 		String maxTokensStr = WebUtility.inputSanitizer(request.getParameter("maxTokens"));
 		String maxResponseTimeStr = WebUtility.inputSanitizer(request.getParameter("maxResponseTime"));
-		return ResourceUtility.respond(request, "add user " + newUserId + " to engine " + engineId, user -> {
+		return ResourceUtility.respond(request, "add user " + newUserId + " to engine " + engineId,
+				new ResourceUtility.SecurityAuditEvent("PERMISSION_GRANTED", "ENGINE", engineId), user -> {
 			if (AbstractSecurityUtils.adminOnlyEngineAddAccess(engineId) && !SecurityAdminUtils.userIsAdmin(user)) {
 				throw new IllegalAccessException(ADMINS_ONLY);
 			}
@@ -349,7 +350,8 @@ public class EngineAuthorizationResource {
 	@Path("addEngineUserPermissions")
 	public Response addEngineUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
-		return ResourceUtility.respond(request, "add users to engine " + engineId, user -> {
+		return ResourceUtility.respond(request, "add users to engine " + engineId,
+				new ResourceUtility.SecurityAuditEvent("PERMISSION_GRANTED", "ENGINE", engineId), user -> {
 			if (AbstractSecurityUtils.adminOnlyEngineAddAccess(engineId) && !SecurityAdminUtils.userIsAdmin(user)) {
 				throw new IllegalAccessException(ADMINS_ONLY);
 			}
@@ -393,7 +395,8 @@ public class EngineAuthorizationResource {
 				: null;
 		String maxTokensStr = WebUtility.inputSanitizer(request.getParameter("maxTokens"));
 		String maxResponseTimeStr = WebUtility.inputSanitizer(request.getParameter("maxResponseTime"));
-		return ResourceUtility.respond(request, "edit user " + existingUserId + " on engine " + engineId, user -> {
+		return ResourceUtility.respond(request, "edit user " + existingUserId + " on engine " + engineId,
+				new ResourceUtility.SecurityAuditEvent("PERMISSION_MODIFIED", "ENGINE", engineId), user -> {
 			if (AbstractSecurityUtils.adminOnlyEngineAddAccess(engineId) && !SecurityAdminUtils.userIsAdmin(user)) {
 				throw new IllegalAccessException(ADMINS_ONLY);
 			}
@@ -420,7 +423,8 @@ public class EngineAuthorizationResource {
 	public Response editEngineUserPermissions(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
-		return ResourceUtility.respond(request, "edit user permissions on engine " + engineId, user -> {
+		return ResourceUtility.respond(request, "edit user permissions on engine " + engineId,
+				new ResourceUtility.SecurityAuditEvent("PERMISSION_MODIFIED", "ENGINE", engineId), user -> {
 			if (AbstractSecurityUtils.adminOnlyEngineAddAccess(engineId) && !SecurityAdminUtils.userIsAdmin(user)) {
 				throw new IllegalAccessException(ADMINS_ONLY);
 			}
@@ -447,7 +451,8 @@ public class EngineAuthorizationResource {
 		String existingUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		String action = "remove user " + existingUserId + " from engine " + engineId;
-		return ResourceUtility.respond(request, action, user -> {
+		return ResourceUtility.respond(request, action,
+				new ResourceUtility.SecurityAuditEvent("PERMISSION_REVOKED", "ENGINE", engineId), user -> {
 			if (AbstractSecurityUtils.adminOnlyEngineAddAccess(engineId) && !SecurityAdminUtils.userIsAdmin(user)) {
 				throw new IllegalAccessException(ADMINS_ONLY);
 			}
@@ -471,7 +476,8 @@ public class EngineAuthorizationResource {
 	public Response removeEngineUserPermissions(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
-		return ResourceUtility.respond(request, "remove users from engine " + engineId, user -> {
+		return ResourceUtility.respond(request, "remove users from engine " + engineId,
+				new ResourceUtility.SecurityAuditEvent("PERMISSION_REVOKED", "ENGINE", engineId), user -> {
 			List<String> ids = new Gson().fromJson(form.getFirst("ids"), List.class);
 			ids = WebUtility.inputSQLSanitizer(ids);
 			if (AbstractSecurityUtils.adminOnlyEngineAddAccess(engineId) && !SecurityAdminUtils.userIsAdmin(user)) {
@@ -498,7 +504,8 @@ public class EngineAuthorizationResource {
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		boolean isPublic = Boolean.parseBoolean(form.getFirst("public"));
 		String action = "make engine " + engineId + (isPublic ? " public" : " private");
-		return ResourceUtility.respond(request, action, user -> {
+		return ResourceUtility.respond(request, action,
+				new ResourceUtility.SecurityAuditEvent("PERMISSION_MODIFIED", "ENGINE", engineId), user -> {
 			if (AbstractSecurityUtils.adminOnlyEngineSetPublic(engineId) && !SecurityAdminUtils.userIsAdmin(user)) {
 				throw new IllegalAccessException(ADMINS_ONLY);
 			}
@@ -614,7 +621,8 @@ public class EngineAuthorizationResource {
 			MultivaluedMap<String, String> form) {
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		String endDate = null; // form.getFirst("endDate");
-		return ResourceUtility.respond(request, "approve access requests for engine " + engineId, user -> {
+		return ResourceUtility.respond(request, "approve access requests for engine " + engineId,
+				new ResourceUtility.SecurityAuditEvent("PERMISSION_GRANTED", "ENGINE", engineId), user -> {
 			if (AbstractSecurityUtils.adminOnlyEngineAddAccess(engineId) && !SecurityAdminUtils.userIsAdmin(user)) {
 				throw new IllegalAccessException(ADMINS_ONLY);
 			}
@@ -640,7 +648,8 @@ public class EngineAuthorizationResource {
 	public Response denyEngineUserAccessRequest(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
-		return ResourceUtility.respond(request, "deny access requests for engine " + engineId, user -> {
+		return ResourceUtility.respond(request, "deny access requests for engine " + engineId,
+				new ResourceUtility.SecurityAuditEvent("ACCESS_REQUEST_DENIED", "ENGINE", engineId), user -> {
 			if (AbstractSecurityUtils.adminOnlyEngineAddAccess(engineId) && !SecurityAdminUtils.userIsAdmin(user)) {
 				throw new IllegalAccessException(ADMINS_ONLY);
 			}

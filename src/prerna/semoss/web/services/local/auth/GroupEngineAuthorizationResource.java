@@ -107,7 +107,8 @@ public class GroupEngineAuthorizationResource {
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
-		return ResourceUtility.respond(request, "add group " + groupId + " to engine " + engineId, user -> {
+		return ResourceUtility.respond(request, "add group " + groupId + " to engine " + engineId,
+				new ResourceUtility.SecurityAuditEvent("PERMISSION_GRANTED", "ENGINE", engineId), user -> {
 			SecurityGroupEngineUtils.addEngineGroupPermission(user,
 					ValueUtils.requireNonBlank(groupId, GROUP_ID_REQUIRED),
 					ValueUtils.requireNonBlank(type, GROUP_TYPE_REQUIRED),
@@ -137,6 +138,7 @@ public class GroupEngineAuthorizationResource {
 		String newPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
 		return ResourceUtility.respond(request, "edit the permission of group " + groupId + " on engine " + appId,
+				new ResourceUtility.SecurityAuditEvent("PERMISSION_MODIFIED", "ENGINE", appId),
 				user -> {
 					SecurityGroupEngineUtils.editDatabaseGroupPermission(user,
 							ValueUtils.requireNonBlank(groupId, GROUP_ID_REQUIRED),
@@ -164,7 +166,8 @@ public class GroupEngineAuthorizationResource {
 		String groupId = WebUtility.inputSQLSanitizer(form.getFirst("groupId"));
 		String type = AuthProvider.getProviderLabel(WebUtility.inputSanitizer(form.getFirst("type")));
 		String appId = WebUtility.inputSanitizer(form.getFirst("appId"));
-		return ResourceUtility.respond(request, "remove group " + groupId + " from engine " + appId, user -> {
+		return ResourceUtility.respond(request, "remove group " + groupId + " from engine " + appId,
+				new ResourceUtility.SecurityAuditEvent("PERMISSION_REVOKED", "ENGINE", appId), user -> {
 			SecurityGroupEngineUtils.removeDatabaseGroupPermission(user,
 					ValueUtils.requireNonBlank(groupId, GROUP_ID_REQUIRED),
 					ValueUtils.requireNonBlank(type, GROUP_TYPE_REQUIRED),
