@@ -49,7 +49,8 @@ import prerna.web.services.util.WebUtility;
  * Bulk Access Management: make many changes to who can use projects, engines
  * and insights, and to who is in custom groups, then validate and save them
  * together. Also reads who can use a project or engine in the end, through any
- * source. A batch is sent as JSON in the {@code batches} form field; see
+ * source, and how usage limits apply to one person on a model. A batch is sent
+ * as JSON in the {@code batches} form field; see
  * {@link SecurityAccessPermissionBatchUtils#readBatches(String)}.
  * {@link SecurityAccessPermissionBatchUtils} checks every change against the
  * same rules as the single permission endpoints, with the user's own
@@ -91,64 +92,116 @@ public class PermissionBatchResource {
 	 * Who can use a project or an engine now, or who is in or manages a custom
 	 * group, in the shape batches use, and what the signed in user may change.
 	 *
-	 * @param kind {@code PROJECT}, {@code ENGINE}, {@code TEAM} or
-	 *             {@code TEAM_MANAGERS}
+	 * @param resourceType {@code PROJECT}, {@code ENGINE}, {@code TEAM} or
+	 *                     {@code TEAM_MANAGERS}
 	 */
 	@GET
 	@Produces("application/json")
 	@Path("/getPermissions")
-	public Response getPermissions(@Context HttpServletRequest request, @QueryParam("kind") String kind,
+	public Response getPermissions(@Context HttpServletRequest request, @QueryParam("resourceType") String resourceType,
 			@QueryParam("id") String id) {
 		String resource = WebUtility.inputSQLSanitizer(id);
 		return ResourceUtility.respond(request, "read the permissions on " + resource,
-				user -> SecurityAccessPermissionBatchUtils.getPermissions(user, toTarget(kind, resource)));
+				user -> SecurityAccessPermissionBatchUtils.getPermissions(user, toTarget(resourceType, resource)));
 	}
 
 	/**
 	 * The people to copy from a project, engine or custom group into another, with
 	 * the access each has on both.
 	 *
-	 * @param sourceKind {@code PROJECT}, {@code ENGINE}, {@code TEAM} or
-	 *                   {@code TEAM_MANAGERS}
-	 * @param targetKind {@code PROJECT}, {@code ENGINE}, {@code TEAM} or
-	 *                   {@code TEAM_MANAGERS}
+	 * @param sourceResourceType {@code PROJECT}, {@code ENGINE}, {@code TEAM} or
+	 *                           {@code TEAM_MANAGERS}
+	 * @param targetResourceType {@code PROJECT}, {@code ENGINE}, {@code TEAM} or
+	 *                           {@code TEAM_MANAGERS}
 	 */
 	@GET
 	@Produces("application/json")
 	@Path("/getPermissionsToCopy")
 	public Response getPermissionsToCopy(@Context HttpServletRequest request,
-			@QueryParam("sourceKind") String sourceKind, @QueryParam("sourceId") String sourceId,
-			@QueryParam("targetKind") String targetKind, @QueryParam("targetId") String targetId) {
+			@QueryParam("sourceResourceType") String sourceResourceType, @QueryParam("sourceId") String sourceId,
+			@QueryParam("targetResourceType") String targetResourceType, @QueryParam("targetId") String targetId) {
 		String source = WebUtility.inputSQLSanitizer(sourceId);
 		String target = WebUtility.inputSQLSanitizer(targetId);
 		return ResourceUtility.respond(request, "read the permissions to copy from " + source + " to " + target,
-				user -> SecurityAccessPermissionBatchUtils.getPermissionsToCopy(user, toTarget(sourceKind, source),
-						toTarget(targetKind, target)));
+				user -> SecurityAccessPermissionBatchUtils.getPermissionsToCopy(user,
+						toTarget(sourceResourceType, source), toTarget(targetResourceType, target)));
 	}
 
 	/**
 	 * Everyone who can use a project or an engine in the end, one row per person,
 	 * with the access they get directly and through each custom group.
 	 *
-	 * @param kind {@code PROJECT} or {@code ENGINE}
+	 * @param resourceType {@code PROJECT} or {@code ENGINE}
 	 */
 	@GET
 	@Produces("application/json")
 	@Path("/getEffectivePermissions")
-	public Response getEffectivePermissions(@Context HttpServletRequest request, @QueryParam("kind") String kind,
-			@QueryParam("id") String id) {
+	public Response getEffectivePermissions(@Context HttpServletRequest request,
+			@QueryParam("resourceType") String resourceType, @QueryParam("id") String id) {
 		String resource = WebUtility.inputSQLSanitizer(id);
 		return ResourceUtility.respond(request, "read the effective permissions on " + resource,
-				user -> EffectivePermissionUtils.getEffectivePermissions(user, toTarget(kind, resource)));
+				user -> EffectivePermissionUtils.getEffectivePermissions(user, toTarget(resourceType, resource)));
 	}
 
-	static PermissionTargetResource toTarget(String kind, String id) {
-		String value = ValueUtils.requireNonBlank(kind, "Must define what kind of resource it is");
+	/**
+	 * How usage limits apply to one person on a model: the ceilings, then each
+	 * source in billing order with its state, rules and use. For the model's
+	 * editors and owners, about a person with a grant on the model, their own or a
+	 * team's. The all-models default and platform default steps leave out their
+	 * {@code rules} and say {@code "rulesHidden": true}, and team steps leave out
+	 * {@code teamTotal}, since those limits count use on other models.
+	 *
+	 * @param engineId the model
+	 * @param userId   the person
+	 * @param userType the person's login type, required
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("/getUsageLimitPath")
+	public Response getUsageLimitPath(@Context HttpServletRequest request, @QueryParam("engineId") String engineId,
+			@QueryParam("userId") String userId, @QueryParam("userType") String userType) {
+		String engine = WebUtility.inputSQLSanitizer(engineId);
+		String person = WebUtility.inputSQLSanitizer(userId);
+		String type = WebUtility.inputSQLSanitizer(userType);
+		return ResourceUtility.respond(request, "read how usage limits apply to " + person + " on model " + engine,
+				user -> SecurityAccessPermissionBatchUtils.getUsageLimitPath(user, engine, person, type));
+	}
+
+	/**
+	 * How usage limits apply to the signed in person on a model, for anyone who can
+	 * use the model.
+	 *
+	 * @param engineId the model
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("/getMyUsageLimitPath")
+	public Response getMyUsageLimitPath(@Context HttpServletRequest request, @QueryParam("engineId") String engineId) {
+		String engine = WebUtility.inputSQLSanitizer(engineId);
+		return ResourceUtility.respond(request, "read how usage limits apply to them on model " + engine,
+				user -> SecurityAccessPermissionBatchUtils.getMyUsageLimitPath(user, engine));
+	}
+
+	/**
+	 * How usage limits apply to the signed in person on every model they can use,
+	 * for a dashboard of their use.
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("/getMyUsageLimitPaths")
+	public Response getMyUsageLimitPaths(@Context HttpServletRequest request) {
+		return ResourceUtility.respond(request, "read how usage limits apply to them on their models",
+				SecurityAccessPermissionBatchUtils::getMyUsageLimitPaths);
+	}
+
+	static PermissionTargetResource toTarget(String resourceType, String id) {
+		String value = ValueUtils.requireNonBlank(resourceType, "Must define the type of resource");
 		try {
 			return new PermissionTargetResource(
-					PermissionTargetResource.Kind.valueOf(value.trim().toUpperCase(Locale.ROOT)), id, null);
+					PermissionTargetResource.TargetResourceType.valueOf(value.trim().toUpperCase(Locale.ROOT)), id,
+					null);
 		} catch (IllegalArgumentException e) {
-			throw new IllegalArgumentException(value + " is not a kind of resource Bulk Access Management knows");
+			throw new IllegalArgumentException(value + " is not a type of resource Bulk Access Management knows");
 		}
 	}
 

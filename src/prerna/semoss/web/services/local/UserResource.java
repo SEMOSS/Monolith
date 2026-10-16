@@ -1638,39 +1638,6 @@ public class UserResource {
 			String phoneExtension = WebUtility.inputSanitizer(request.getParameter("phoneextension"));
 			String countryCode = WebUtility.inputSanitizer(request.getParameter("countrycode"));
 
-			String modelUsageRestriction = WebUtility.inputSanitizer(request.getParameter("modelUsageRestriction"));
-			if (modelUsageRestriction != null) {
-				modelUsageRestriction = modelUsageRestriction.trim();
-			}
-			String modelUsageFrequency = WebUtility.inputSanitizer(request.getParameter("modelUsageFrequency"));
-			if (modelUsageFrequency != null) {
-				modelUsageFrequency = modelUsageFrequency.trim();
-			}
-			int modelMaxTokens = 0;
-			String modelMaxTokensStr = WebUtility.inputSanitizer(request.getParameter("modelMaxTokens"));
-			if (modelMaxTokensStr != null && !(modelMaxTokensStr = modelMaxTokensStr.trim()).isEmpty()) {
-				// must be a valid integer
-				try {
-					modelMaxTokens = Integer.parseInt(modelMaxTokensStr);
-				} catch (NumberFormatException e) {
-					classLogger.error("Unexpected error in createNativeUser", e);
-					ret.put(Constants.ERROR_MESSAGE, "modelMaxTokens must be a valid integer value");
-					return WebUtility.getResponse(ret, 400);
-				}
-			}
-			double modelMaxResponseTime = 0.0;
-			String modelMaxResponseTimeStr = WebUtility.inputSanitizer(request.getParameter("modelMaxResponseTime"));
-			if (modelMaxResponseTimeStr != null
-					&& !(modelMaxResponseTimeStr = modelMaxResponseTimeStr.trim()).isEmpty()) {
-				// must be a valid double
-				try {
-					modelMaxResponseTime = Double.parseDouble(modelMaxResponseTimeStr);
-				} catch (NumberFormatException e) {
-					classLogger.error("Unexpected error in createNativeUser", e);
-					ret.put(Constants.ERROR_MESSAGE, "modelMaxResponseTime must be a valid double value");
-					return WebUtility.getResponse(ret, 400);
-				}
-			}
 			AccessToken newUser = new AccessToken();
 
 			newUser.setProvider(AuthProvider.NATIVE);
@@ -1681,12 +1648,9 @@ public class UserResource {
 			newUser.setPhone(phone);
 			newUser.setPhoneExtension(phoneExtension);
 			newUser.setCountryCode(countryCode);
-			// model restriction values
-			newUser.setModelUsageRestriction(modelUsageRestriction);
-			newUser.setModelUsageFrequency(modelUsageFrequency);
-			newUser.setModelMaxTokens(modelMaxTokens);
-			newUser.setModelMaxResponseTime(modelMaxResponseTime);
 
+			// only admins set all-models defaults, so a registrant's limit fields are not
+			// read and the user is saved with no default
 			boolean userCreated = SecurityNativeUserUtils.addNativeUser(newUser, password);
 			if (userCreated) {
 				ret.put("success", "true");

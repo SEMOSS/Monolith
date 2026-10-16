@@ -45,6 +45,7 @@ import jakarta.ws.rs.core.Response;
 import prerna.auth.AccessPermissionEnum;
 import prerna.auth.AuthProvider;
 import prerna.auth.utils.SecurityGroupEngineUtils;
+import prerna.auth.utils.SecurityModelUsageLimitUtils;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.ValueUtils;
 import prerna.web.services.util.WebUtility;
@@ -57,6 +58,8 @@ public class GroupEngineAuthorizationResource {
 	private static final String GROUP_TYPE_REQUIRED = "The group type cannot be null or empty";
 	private static final String APP_ID_REQUIRED = "The appId cannot be null or empty";
 	private static final String PERMISSION_REQUIRED = "The permission cannot be null or empty";
+	/** The form field for a team limit on a model, as JSON */
+	private static final String USAGE_LIMIT = "usageLimit";
 
 	@Context
 	protected ServletContext context;
@@ -92,8 +95,9 @@ public class GroupEngineAuthorizationResource {
 	}
 
 	/**
-	 * Add a group to an app
-	 * 
+	 * Add a group to an app. On a model, {@code usageLimit} (JSON, empty for no
+	 * limit defined) is the team limit, with shared and each-member rules.
+	 *
 	 * @param request
 	 * @param form
 	 * @return
@@ -107,12 +111,19 @@ public class GroupEngineAuthorizationResource {
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
+		boolean usageLimitSent = form.containsKey(USAGE_LIMIT);
+		String usageLimit = form.getFirst(USAGE_LIMIT);
 		return ResourceUtility.respond(request, "add group " + groupId + " to engine " + engineId, user -> {
-			SecurityGroupEngineUtils.addEngineGroupPermission(user,
-					ValueUtils.requireNonBlank(groupId, GROUP_ID_REQUIRED),
-					ValueUtils.requireNonBlank(type, GROUP_TYPE_REQUIRED),
-					ValueUtils.requireNonBlank(engineId, "The engineId cannot be null or empty"),
-					ValueUtils.requireNonBlank(permission, PERMISSION_REQUIRED), endDate);
+			String group = ValueUtils.requireNonBlank(groupId, GROUP_ID_REQUIRED);
+			String groupType = ValueUtils.requireNonBlank(type, GROUP_TYPE_REQUIRED);
+			String engine = ValueUtils.requireNonBlank(engineId, "The engineId cannot be null or empty");
+			String level = ValueUtils.requireNonBlank(permission, PERMISSION_REQUIRED);
+			if (usageLimitSent) {
+				SecurityGroupEngineUtils.addEngineGroupPermission(user, group, groupType, engine, level, endDate,
+						SecurityModelUsageLimitUtils.readJson(usageLimit));
+			} else {
+				SecurityGroupEngineUtils.addEngineGroupPermission(user, group, groupType, engine, level, endDate);
+			}
 
 			Map<String, Object> ret = new HashMap<>();
 			ret.put("success", true);

@@ -48,8 +48,10 @@ import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
+import prerna.auth.access.ModelUsageLimit;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityAdminUtils;
+import prerna.auth.utils.SecurityModelUsageLimitUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
@@ -60,6 +62,11 @@ import prerna.web.services.util.WebUtility;
 public class AdminUserAuthorizationResource extends AbstractAdminResource {
 
 	private static final Logger classLogger = LogManager.getLogger(AdminUserAuthorizationResource.class);
+	/**
+	 * The registerUser form field for the person's all-models default, as JSON,
+	 * empty for no limit defined
+	 */
+	private static final String MODEL_USAGE_LIMIT = "modelUsageLimit";
 
 	@GET
 	@Path("/isAdminUser")
@@ -78,6 +85,14 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 		return WebUtility.getResponse(isAdmin, 200);
 	}
 
+	/**
+	 * Registers a person. Their all-models default is sent as
+	 * {@code modelUsageLimit} (JSON, empty or left out for no limit defined).
+	 *
+	 * @param request the request
+	 * @param form    the form
+	 * @return whether the person was registered
+	 */
 	@POST
 	@Path("/registerUser")
 	@Produces("application/json")
@@ -112,31 +127,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			Boolean publisher = Boolean.parseBoolean(form.getFirst("publisher"));
 			Boolean exporter = Boolean.parseBoolean(form.getFirst("exporter"));
 			String password = WebUtility.inputSQLSanitizer(form.getFirst("password"));
-
-			// model restrictions
-			String modelUsageRestriction = WebUtility.inputSQLSanitizer(form.getFirst("modelUsageRestriction"));
-			String modelUsageFrequency = WebUtility.inputSQLSanitizer(form.getFirst("modelUsageFrequency"));
-			Integer modelMaxTokens = null;
-			String modelMaxTokensStr = form.getFirst("modelMaxTokens");
-			if (modelMaxTokensStr != null && !(modelMaxTokensStr = modelMaxTokensStr.trim()).isEmpty()) {
-				try {
-					modelMaxTokens = Integer.parseInt(modelMaxTokensStr);
-				} catch (NumberFormatException e) {
-					classLogger.error("Failed to register user.", e);
-					throw new IllegalArgumentException("modelMaxTokens must be a valid Integer value");
-				}
-			}
-			Double modelMaxResponseTime = null;
-			String modelMaxResponseTimeStr = form.getFirst("modelMaxResponseTime");
-			if (modelMaxResponseTimeStr != null
-					&& !(modelMaxResponseTimeStr = modelMaxResponseTimeStr.trim()).isEmpty()) {
-				try {
-					modelMaxResponseTime = Double.parseDouble(modelMaxResponseTimeStr);
-				} catch (NumberFormatException e) {
-					classLogger.error("Failed to register user.", e);
-					throw new IllegalArgumentException("modelMaxResponseTime must be a valid Number value");
-				}
-			}
+			ModelUsageLimit modelUsageLimit = SecurityModelUsageLimitUtils.readJson(form.getFirst(MODEL_USAGE_LIMIT));
 
 			// validate email & password
 			if (email != null && !email.isEmpty()) {
@@ -169,8 +160,7 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			}
 
 			success = SecurityUpdateUtils.registerUser(newUserId, name, email, password, type, phone, phoneExtension,
-					countryCode, newUserAdmin, publisher, exporter, modelUsageRestriction, modelUsageFrequency,
-					modelMaxTokens, modelMaxResponseTime);
+					countryCode, newUserAdmin, publisher, exporter, modelUsageLimit);
 		} catch (IllegalArgumentException e) {
 			classLogger.error("Failed to register user.", e);
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -265,8 +255,10 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 	}
 
 	/**
-	 * Edit user properties
-	 * 
+	 * Edit user properties. The user JSON can carry the person's all-models default
+	 * as {@code model_usage_limit}, null for no limit defined; without the key, the
+	 * default is kept as it is.
+	 *
 	 * @param request
 	 * @param form
 	 * @return true if the edition was performed

@@ -44,10 +44,11 @@ import prerna.web.services.util.WebUtility;
 
 /**
  * Bulk Access Management in admin mode: the same calls as
- * {@link PermissionBatchResource}, for admins only, where an admin can change
- * and read any project, engine, insight or custom group whatever their own
- * access. The admin check runs once, and the admin utilities it returns prove
- * it to {@link SecurityAccessPermissionBatchUtils}.
+ * {@link PermissionBatchResource}, apart from reading the signed in person's
+ * own usage limits, for admins only, where an admin can change and read any
+ * project, engine, insight or custom group whatever their own access. The admin
+ * check runs once, and the admin utilities it returns prove it to
+ * {@link SecurityAccessPermissionBatchUtils}.
  */
 @Path("/auth/admin/permissionBatch")
 @PermitAll
@@ -84,18 +85,18 @@ public class AdminPermissionBatchResource {
 	 * Who can use a project or an engine now, or who is in or manages a custom
 	 * group.
 	 *
-	 * @param kind {@code PROJECT}, {@code ENGINE}, {@code TEAM} or
-	 *             {@code TEAM_MANAGERS}
+	 * @param resourceType {@code PROJECT}, {@code ENGINE}, {@code TEAM} or
+	 *                     {@code TEAM_MANAGERS}
 	 */
 	@GET
 	@Produces("application/json")
 	@Path("/getPermissions")
-	public Response getPermissions(@Context HttpServletRequest request, @QueryParam("kind") String kind,
+	public Response getPermissions(@Context HttpServletRequest request, @QueryParam("resourceType") String resourceType,
 			@QueryParam("id") String id) {
 		String resource = WebUtility.inputSQLSanitizer(id);
 		return ResourceUtility.respondAsAdmin(request, "read the permissions on " + resource + " as an admin",
 				SecurityAdminUtils::getInstance, (user, adminUtils) -> SecurityAccessPermissionBatchUtils
-						.getPermissions(adminUtils, user, PermissionBatchResource.toTarget(kind, resource)));
+						.getPermissions(adminUtils, user, PermissionBatchResource.toTarget(resourceType, resource)));
 	}
 
 	/**
@@ -105,32 +106,55 @@ public class AdminPermissionBatchResource {
 	@Produces("application/json")
 	@Path("/getPermissionsToCopy")
 	public Response getPermissionsToCopy(@Context HttpServletRequest request,
-			@QueryParam("sourceKind") String sourceKind, @QueryParam("sourceId") String sourceId,
-			@QueryParam("targetKind") String targetKind, @QueryParam("targetId") String targetId) {
+			@QueryParam("sourceResourceType") String sourceResourceType, @QueryParam("sourceId") String sourceId,
+			@QueryParam("targetResourceType") String targetResourceType, @QueryParam("targetId") String targetId) {
 		String source = WebUtility.inputSQLSanitizer(sourceId);
 		String target = WebUtility.inputSQLSanitizer(targetId);
 		return ResourceUtility.respondAsAdmin(request,
 				"read the permissions to copy from " + source + " to " + target + " as an admin",
 				SecurityAdminUtils::getInstance,
 				(user, adminUtils) -> SecurityAccessPermissionBatchUtils.getPermissionsToCopy(adminUtils, user,
-						PermissionBatchResource.toTarget(sourceKind, source),
-						PermissionBatchResource.toTarget(targetKind, target)));
+						PermissionBatchResource.toTarget(sourceResourceType, source),
+						PermissionBatchResource.toTarget(targetResourceType, target)));
 	}
 
 	/**
 	 * Everyone who can use a project or an engine in the end, one row per person.
 	 *
-	 * @param kind {@code PROJECT} or {@code ENGINE}
+	 * @param resourceType {@code PROJECT} or {@code ENGINE}
 	 */
 	@GET
 	@Produces("application/json")
 	@Path("/getEffectivePermissions")
-	public Response getEffectivePermissions(@Context HttpServletRequest request, @QueryParam("kind") String kind,
-			@QueryParam("id") String id) {
+	public Response getEffectivePermissions(@Context HttpServletRequest request,
+			@QueryParam("resourceType") String resourceType, @QueryParam("id") String id) {
 		String resource = WebUtility.inputSQLSanitizer(id);
 		return ResourceUtility.respondAsAdmin(request, "read the effective permissions on " + resource + " as an admin",
-				SecurityAdminUtils::getInstance, (user, adminUtils) -> EffectivePermissionUtils
-						.getEffectivePermissions(adminUtils, user, PermissionBatchResource.toTarget(kind, resource)));
+				SecurityAdminUtils::getInstance,
+				(user, adminUtils) -> EffectivePermissionUtils.getEffectivePermissions(adminUtils, user,
+						PermissionBatchResource.toTarget(resourceType, resource)));
+	}
+
+	/**
+	 * How usage limits apply to one person on a model, with every step's rules and
+	 * each team's total.
+	 *
+	 * @param engineId the model
+	 * @param userId   the person
+	 * @param userType the person's login type, required
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("/getUsageLimitPath")
+	public Response getUsageLimitPath(@Context HttpServletRequest request, @QueryParam("engineId") String engineId,
+			@QueryParam("userId") String userId, @QueryParam("userType") String userType) {
+		String engine = WebUtility.inputSQLSanitizer(engineId);
+		String person = WebUtility.inputSQLSanitizer(userId);
+		String type = WebUtility.inputSQLSanitizer(userType);
+		return ResourceUtility.respondAsAdmin(request,
+				"read how usage limits apply to " + person + " on model " + engine + " as an admin",
+				SecurityAdminUtils::getInstance, (user, adminUtils) -> SecurityAccessPermissionBatchUtils
+						.getUsageLimitPath(adminUtils, user, engine, person, type));
 	}
 
 }

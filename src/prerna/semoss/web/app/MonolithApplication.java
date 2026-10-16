@@ -58,6 +58,7 @@ import prerna.semoss.web.services.local.VectorEngineResource;
 import prerna.semoss.web.services.local.auth.AdminEngineAuthorizationResource;
 import prerna.semoss.web.services.local.auth.AdminGroupAuthorizationResource;
 import prerna.semoss.web.services.local.auth.AdminInsightAuthorizationResource;
+import prerna.semoss.web.services.local.auth.AdminModelUsageResource;
 import prerna.semoss.web.services.local.auth.AdminPermissionBatchResource;
 import prerna.semoss.web.services.local.auth.AdminProjectAuthorizationResource;
 import prerna.semoss.web.services.local.auth.AdminUserAuthorizationResource;
@@ -113,6 +114,8 @@ public class MonolithApplication extends Application {
 		// Bulk Access Management validates and saves many access changes together
 		singletons.add(new PermissionBatchResource());
 		singletons.add(new AdminPermissionBatchResource());
+		// admins set the platform default model usage limit and team totals
+		singletons.add(new AdminModelUsageResource());
 		// group admin authorization
 		singletons.add(new AdminGroupAuthorizationResource());
 		// insight execution
