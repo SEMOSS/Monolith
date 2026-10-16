@@ -86,6 +86,9 @@ import prerna.io.connector.salesforce.SalesforceTokenFiller;
 import prerna.io.connector.servicenow.ServiceNowTokenFiller;
 import prerna.security.HttpHelperUtility;
 import prerna.security.PKCEUtil;
+import prerna.usertracking.AuditErrorCode;
+import prerna.usertracking.AuditEventType;
+import prerna.usertracking.AuditTargetType;
 import prerna.usertracking.UserAuditTrailUtils;
 import prerna.usertracking.UserTrackingUtils;
 import prerna.util.Constants;
@@ -1324,7 +1327,7 @@ public class UserResource {
 		if (socialData.getLoginsAllowed().get("native") == null || !socialData.getLoginsAllowed().get("native")) {
 			ret.put(Constants.ERROR_MESSAGE, "Native login is not allowed");
 			UserAuditTrailUtils.recordLoginFailed(request.getParameter("username"), AuthProvider.NATIVE.getLabel(),
-					UserAuditTrailUtils.ERROR_LOGIN_DISABLED, "Native login is not allowed",
+					AuditErrorCode.LOGIN_METHOD_DISABLED, "Native login is not allowed",
 					WebUtility.getClientIp(request), 400);
 			return WebUtility.getResponse(ret, 400);
 		}
@@ -1341,7 +1344,7 @@ public class UserResource {
 						username);
 				ret.put(Constants.ERROR_MESSAGE, "The user name or password are empty");
 				UserAuditTrailUtils.recordLoginFailed(username, AuthProvider.NATIVE.getLabel(),
-						UserAuditTrailUtils.ERROR_MISSING_CREDENTIALS, "The user name or password are empty",
+						AuditErrorCode.MISSING_CREDENTIALS, "The user name or password are empty",
 						WebUtility.getClientIp(request), 401);
 				return WebUtility.getResponse(ret, 401);
 			}
@@ -1384,7 +1387,7 @@ public class UserResource {
 						username);
 				ret.put(Constants.ERROR_MESSAGE, "The user name or password are invalid.");
 				UserAuditTrailUtils.recordLoginFailed(username, AuthProvider.NATIVE.getLabel(),
-						UserAuditTrailUtils.ERROR_INVALID_CREDENTIALS, "The user name or password are invalid.",
+						AuditErrorCode.INVALID_CREDENTIALS, "The user name or password are invalid.",
 						WebUtility.getClientIp(request), 401);
 				return WebUtility.getResponse(ret, 401);
 			}
@@ -1398,7 +1401,7 @@ public class UserResource {
 			}
 			classLogger.error("Unexpected error in loginNative", e);
 			UserAuditTrailUtils.recordLoginFailed(request.getParameter("username"), AuthProvider.NATIVE.getLabel(),
-					UserAuditTrailUtils.ERROR_INTERNAL, e.getMessage(), WebUtility.getClientIp(request), 500);
+					AuditErrorCode.INTERNAL_ERROR, e.getMessage(), WebUtility.getClientIp(request), 500);
 			ret.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(ret, 500);
 		}
@@ -1420,8 +1423,8 @@ public class UserResource {
 		if (socialData.getLoginsAllowed().get("ldap") == null || !socialData.getLoginsAllowed().get("ldap")) {
 			ret.put(Constants.ERROR_MESSAGE, "LDAP login is not allowed");
 			UserAuditTrailUtils.recordLoginFailed(request.getParameter("username"), "LDAP",
-					UserAuditTrailUtils.ERROR_LOGIN_DISABLED, "LDAP login is not allowed",
-					WebUtility.getClientIp(request), 400);
+					AuditErrorCode.LOGIN_METHOD_DISABLED, "LDAP login is not allowed", WebUtility.getClientIp(request),
+					400);
 			return WebUtility.getResponse(ret, 400);
 		}
 
@@ -1434,7 +1437,7 @@ public class UserResource {
 
 			if (username == null || password == null || username.isEmpty() || password.isEmpty()) {
 				ret.put(Constants.ERROR_MESSAGE, "The user name or password are empty");
-				UserAuditTrailUtils.recordLoginFailed(username, "LDAP", UserAuditTrailUtils.ERROR_MISSING_CREDENTIALS,
+				UserAuditTrailUtils.recordLoginFailed(username, "LDAP", AuditErrorCode.MISSING_CREDENTIALS,
 						"The user name or password are empty", WebUtility.getClientIp(request), 401);
 				return WebUtility.getResponse(ret, 401);
 			}
@@ -1465,7 +1468,7 @@ public class UserResource {
 			ret.put(Constants.ERROR_MESSAGE, "User must change their password before login");
 			ret.put(ILdapAuthenticator.LDAP_PASSWORD_CHANGE_RETURN_KEY, true);
 			UserAuditTrailUtils.recordLoginFailed(request.getParameter("username"), "LDAP",
-					UserAuditTrailUtils.ERROR_PASSWORD_CHANGE_REQUIRED, "User must change their password before login",
+					AuditErrorCode.PASSWORD_CHANGE_REQUIRED, "User must change their password before login",
 					WebUtility.getClientIp(request), 401);
 			return WebUtility.getResponse(ret, 401);
 		} catch (Exception e) {
@@ -1479,7 +1482,7 @@ public class UserResource {
 			classLogger.error("Unexpected error in loginLDAP", e);
 			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
 			UserAuditTrailUtils.recordLoginFailed(request.getParameter("username"), "LDAP",
-					UserAuditTrailUtils.ERROR_INVALID_CREDENTIALS, e.getMessage(), WebUtility.getClientIp(request), 500);
+					AuditErrorCode.INVALID_CREDENTIALS, e.getMessage(), WebUtility.getClientIp(request), 500);
 			return WebUtility.getResponse(ret, 500);
 		} finally {
 			if (authenticator != null) {
@@ -1836,8 +1839,8 @@ public class UserResource {
 			return WebUtility.getResponse(errorRet, 500);
 		}
 		// only the changed keys are audited; the values can be client secrets
-		UserAuditTrailUtils.recordResourceEvent(user, "CONFIG_UPDATE", "PLATFORM_CONFIG", "social.properties",
-				provider, null, null, null,
+		UserAuditTrailUtils.recordResourceEvent(user, AuditEventType.CONFIG_UPDATE, AuditTargetType.PLATFORM_CONFIG,
+				"social.properties", provider, null, null, null,
 				Map.of("provider", provider, "changedKeys", new ArrayList<>(sanitizedMods.keySet())));
 
 		return WebUtility.getResponse(true, 200);
@@ -1871,8 +1874,8 @@ public class UserResource {
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 500);
 		}
-		UserAuditTrailUtils.recordResourceEvent(user, "CONFIG_UPDATE", "PLATFORM_CONFIG", "social.properties",
-				"All login properties", null, null, null, Map.of("scope", "ALL"));
+		UserAuditTrailUtils.recordResourceEvent(user, AuditEventType.CONFIG_UPDATE, AuditTargetType.PLATFORM_CONFIG,
+				"social.properties", "All login properties", null, null, null, Map.of("scope", "ALL"));
 
 		return WebUtility.getResponse(true, 200);
 	}

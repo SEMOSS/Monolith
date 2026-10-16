@@ -59,6 +59,7 @@ import prerna.auth.utils.SecurityUserUtils;
 import prerna.auth.utils.UserRegistrationEmailService;
 import prerna.date.SemossDate;
 import prerna.semoss.web.services.local.ResourceUtility;
+import prerna.usertracking.AuditEventType;
 import prerna.usertracking.UserAuditTrailUtils;
 import prerna.util.Constants;
 import prerna.util.SocialPropertiesUtil;
@@ -120,9 +121,10 @@ public class UserAuthorizationResource {
 				// Refresh the authenticated session without reporting a new authentication.
 				user.setAccessToken(authToken);
 				WebUtility.loggingContextLoginEvent(request.getSession(false));
-				UserAuditTrailUtils.recordUserAdmin(user, null, "USER_UPDATE", authToken.getId(),
-						authToken.getProvider() == null ? null : authToken.getProvider().getLabel(), authToken.getName(),
-						null, null, Map.of("changedFields", new ArrayList<>(userInfo.keySet()), "selfService", true));
+				UserAuditTrailUtils.recordUserAdmin(user, null, AuditEventType.USER_UPDATE, authToken.getId(),
+						authToken.getProvider() == null ? null : authToken.getProvider().getLabel(),
+						authToken.getName(), null, null,
+						Map.of("changedFields", new ArrayList<>(userInfo.keySet()), "selfService", true));
 			}
 
 			return userInfo;
@@ -474,8 +476,8 @@ public class UserAuthorizationResource {
 
 		classLogger.info("User has changed password for user id = {} for reset request on {} with email {}", userId,
 				dateAdded, email);
-		UserAuditTrailUtils.recordUserAdmin(null, null, "USER_PASSWORD_RESET", userId, null, null, null, null,
-				Map.of("method", "RESET_LINK"));
+		UserAuditTrailUtils.recordUserAdmin(null, null, AuditEventType.USER_PASSWORD_RESET, userId, null, null, null,
+				null, Map.of("method", "RESET_LINK"));
 
 		UserRegistrationEmailService.getInstance().sendPasswordResetSuccessEmail(email, sender);
 
@@ -610,8 +612,8 @@ public class UserAuthorizationResource {
 					SecurityNativeUserUtils.performResetPassword(userId, newPassword);
 
 					classLogger.info("User has changed their password");
-					UserAuditTrailUtils.recordUserAdmin(null, null, "USER_PASSWORD_RESET", userId, null, null, null,
-							null, Map.of("method", "CHANGE_PASSWORD", "selfService", true));
+					UserAuditTrailUtils.recordUserAdmin(null, null, AuditEventType.USER_PASSWORD_RESET, userId, null,
+							null, null, null, Map.of("method", "CHANGE_PASSWORD", "selfService", true));
 
 					Map<String, Object> retMap = new HashMap<>();
 					retMap.put("success", true);

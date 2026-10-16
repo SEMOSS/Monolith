@@ -240,8 +240,8 @@ public final class WebUtility {
 	}
 
 	/**
-	 * Audit errors returned through this response helper. Servlet filters that
-	 * send responses directly must audit at their own enforcement point.
+	 * Audit errors returned through this response helper. Servlet filters that send
+	 * responses directly must audit at their own enforcement point.
 	 */
 	private static void auditErrorResponse(Object vec, int status) {
 		if (status < 400) {
