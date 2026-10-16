@@ -50,6 +50,7 @@ import jakarta.ws.rs.core.Response;
 import prerna.auth.AccessToken;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityAdminUtils;
+import prerna.auth.utils.SecurityModelUsageLimitUtils;
 import prerna.auth.utils.reactors.admin.AdminMyEnginesReactor;
 import prerna.graph.utility.MsGraphUtility;
 import prerna.io.connector.ms.MicrosoftGraphUserLookup;
@@ -67,6 +68,11 @@ import prerna.web.services.util.WebUtility;
 public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 
 	private static final Logger classLogger = LogManager.getLogger(AdminEngineAuthorizationResource.class);
+	/**
+	 * The form field for a model usage limit, as JSON, empty for no limit defined.
+	 * An edit without it keeps the person's limit.
+	 */
+	private static final String USAGE_LIMIT = "usageLimit";
 
 	@Context
 	protected ServletContext context;
@@ -456,8 +462,9 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	}
 
 	/**
-	 * Get the engine users and their permissions
-	 * 
+	 * Get the engine users and their permissions. On a model, each row has its
+	 * {@code usage_limit}.
+	 *
 	 * @param request
 	 * @param engineId
 	 * @param userId
@@ -501,8 +508,9 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	}
 
 	/**
-	 * Add a user to a engine
-	 * 
+	 * Add a user to a engine. A model's usage limit is sent as {@code usageLimit}
+	 * (JSON, empty for no limit defined); without it the person gets no limit.
+	 *
 	 * @param request
 	 * @param form
 	 * @return
@@ -530,40 +538,9 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = null; // form.getFirst("endDate");
 
-		String usageRestriction = form.containsKey("usageRestriction")
-				? WebUtility.inputSQLSanitizer(form.getFirst("usageRestriction"))
-				: null;
-		String usageFrequency = form.containsKey("usageFrequency")
-				? WebUtility.inputSQLSanitizer(form.getFirst("usageFrequency"))
-				: null;
-		int maxTokens = 0;
-		String maxTokensStr = WebUtility.inputSanitizer(request.getParameter("maxTokens"));
-		if (maxTokensStr != null && !(maxTokensStr = maxTokensStr.trim()).isEmpty()) {
-			// must be a valid integer
-			try {
-				maxTokens = Integer.parseInt(maxTokensStr);
-			} catch (NumberFormatException e) {
-				classLogger.error("Failed to add engine user permission.", e);
-				ret.put(Constants.ERROR_MESSAGE, "maxTokens must be a valid integer value");
-				return WebUtility.getResponse(ret, 400);
-			}
-		}
-		double maxResponseTime = 0.0;
-		String maxResponseTimeStr = WebUtility.inputSanitizer(request.getParameter("maxResponseTime"));
-		if (maxResponseTimeStr != null && !(maxResponseTimeStr = maxResponseTimeStr.trim()).isEmpty()) {
-			// must be a valid double
-			try {
-				maxResponseTime = Double.parseDouble(maxResponseTimeStr);
-			} catch (NumberFormatException e) {
-				classLogger.error("Failed to add engine user permission.", e);
-				ret.put(Constants.ERROR_MESSAGE, "maxResponseTime must be a valid double value");
-				return WebUtility.getResponse(ret, 400);
-			}
-		}
-
 		try {
-			adminUtils.addEngineUser(newUserId, engineId, permission, user, endDate, usageRestriction, usageFrequency,
-					maxTokens, maxResponseTime);
+			adminUtils.addEngineUser(newUserId, engineId, permission, user, endDate,
+					SecurityModelUsageLimitUtils.readJson(form.getFirst(USAGE_LIMIT)));
 		} catch (Exception e) {
 			classLogger.error("Failed to add engine user permission.", e);
 			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -577,8 +554,10 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	}
 
 	/**
-	 * Add user permissions in bulk to a engine
-	 * 
+	 * Add user permissions in bulk to a engine. Each row of {@code userpermissions}
+	 * can carry a model's usage limit as {@code usageLimit}; a row without it gives
+	 * no limit.
+	 *
 	 * @param request
 	 * @param form
 	 * @return
@@ -670,8 +649,10 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	}
 
 	/**
-	 * Edit user permission for a engine
-	 * 
+	 * Edit user permission for a engine. A model's usage limit is sent as
+	 * {@code usageLimit} (JSON, empty for no limit defined); a form without it,
+	 * such as a change of level only, leaves the limit as it is.
+	 *
 	 * @param request
 	 * @param form
 	 * @return
@@ -700,40 +681,13 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		String newPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = null; // form.getFirst("endDate");
 
-		String usageRestriction = form.containsKey("usageRestriction")
-				? WebUtility.inputSQLSanitizer(form.getFirst("usageRestriction"))
-				: null;
-		String usageFrequency = form.containsKey("usageFrequency")
-				? WebUtility.inputSQLSanitizer(form.getFirst("usageFrequency"))
-				: null;
-		int maxTokens = 0;
-		String maxTokensStr = WebUtility.inputSanitizer(request.getParameter("maxTokens"));
-		if (maxTokensStr != null && !(maxTokensStr = maxTokensStr.trim()).isEmpty()) {
-			// must be a valid integer
-			try {
-				maxTokens = Integer.parseInt(maxTokensStr);
-			} catch (NumberFormatException e) {
-				classLogger.error("Failed to update engine user permission.", e);
-				ret.put(Constants.ERROR_MESSAGE, "maxTokens must be a valid integer value");
-				return WebUtility.getResponse(ret, 400);
-			}
-		}
-		double maxResponseTime = 0.0;
-		String maxResponseTimeStr = WebUtility.inputSanitizer(request.getParameter("maxResponseTime"));
-		if (maxResponseTimeStr != null && !(maxResponseTimeStr = maxResponseTimeStr.trim()).isEmpty()) {
-			// must be a valid double
-			try {
-				maxResponseTime = Double.parseDouble(maxResponseTimeStr);
-			} catch (NumberFormatException e) {
-				classLogger.error("Failed to update engine user permission.", e);
-				ret.put(Constants.ERROR_MESSAGE, "maxResponseTime must be a valid double value");
-				return WebUtility.getResponse(ret, 400);
-			}
-		}
-
 		try {
-			adminUtils.editEngineUserPermission(existingUserId, engineId, newPermission, user, endDate,
-					usageRestriction, usageFrequency, maxTokens, maxResponseTime);
+			if (form.containsKey(USAGE_LIMIT)) {
+				adminUtils.editEngineUserPermission(existingUserId, engineId, newPermission, user, endDate,
+						SecurityModelUsageLimitUtils.readJson(form.getFirst(USAGE_LIMIT)));
+			} else {
+				adminUtils.editEngineUserPermission(existingUserId, engineId, newPermission, user, endDate);
+			}
 		} catch (Exception e) {
 			classLogger.error("Failed to update engine user permission.", e);
 			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -748,8 +702,11 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	}
 
 	/**
-	 * Edit user permission for a engine
-	 * 
+	 * Edit user permission for a engine, in bulk. Each row of
+	 * {@code userpermissions} can carry a model's usage limit as
+	 * {@code usageLimit}; a row without it keeps the person's limit, and a row
+	 * whose {@code usageLimit} is null removes it.
+	 *
 	 * @param request
 	 * @param form
 	 * @return

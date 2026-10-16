@@ -32,6 +32,8 @@ import java.util.List;
 import java.util.Map;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.ToNumberPolicy;
 
 import jakarta.annotation.security.PermitAll;
 import jakarta.servlet.ServletContext;
@@ -44,8 +46,10 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
+import prerna.auth.access.ModelUsageLimit;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityAdminUtils;
+import prerna.auth.utils.SecurityModelUsageLimitUtils;
 import prerna.auth.utils.SecurityProjectUtils;
 import prerna.graph.utility.MsGraphUtility;
 import prerna.io.connector.ms.MicrosoftGraphUserLookup;
@@ -56,7 +60,6 @@ import prerna.sablecc2.om.PixelDataType;
 import prerna.sablecc2.om.ReactorKeysEnum;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.semoss.web.services.local.ResourceUtility;
-import prerna.util.ValueUtils;
 import prerna.web.services.util.WebUtility;
 
 @Path("/auth/project")
@@ -64,6 +67,15 @@ import prerna.web.services.util.WebUtility;
 public class ProjectAuthorizationResource {
 
 	private static final String ADMINS_ONLY = "This functionality is limited to only admins";
+	/**
+	 * The field for a model usage limit, as JSON, empty for no limit defined. A
+	 * propagation without it keeps the limit of a person whose access to a model
+	 * changes.
+	 */
+	private static final String USAGE_LIMIT = "usageLimit";
+	/** Reads JSON rows, keeping whole numbers whole */
+	private static final Gson ROW_GSON = new GsonBuilder().setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE)
+			.create();
 
 	@Context
 	protected ServletContext context;
@@ -309,8 +321,12 @@ public class ProjectAuthorizationResource {
 	}
 
 	/**
-	 * Propagate project dependent permissions
-	 * 
+	 * Propagate project dependent permissions. The person's usage limit on the
+	 * models the project depends on is sent as {@code usageLimit} (JSON, empty for
+	 * no limit defined). Without it, a person added to a model gets no limit and a
+	 * person whose access to a model changes keeps their limit. Only a model's
+	 * owners set a limit that differs from the current one.
+	 *
 	 * @param request
 	 * @param form
 	 * @return
@@ -326,32 +342,30 @@ public class ProjectAuthorizationResource {
 		String requestedPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
 
-		String usageRestriction = form.containsKey("usageRestriction")
-				? WebUtility.inputSQLSanitizer(form.getFirst("usageRestriction"))
-				: null;
-		String usageFrequency = form.containsKey("usageFrequency")
-				? WebUtility.inputSQLSanitizer(form.getFirst("usageFrequency"))
-				: null;
-		String maxTokensStr = WebUtility.inputSanitizer(request.getParameter("maxTokens"));
-		String maxResponseTimeStr = WebUtility.inputSanitizer(request.getParameter("maxResponseTime"));
+		boolean usageLimitSent = form.containsKey(USAGE_LIMIT);
+		String usageLimit = form.getFirst(USAGE_LIMIT);
 		return ResourceUtility.respond(request, "give user " + newUserId + " access to project " + projectId, user -> {
-			int maxTokens = readMaxTokens(maxTokensStr);
-			double maxResponseTime = readMaxResponseTime(maxResponseTimeStr);
-
 			// Determine if admin right are required to add users and, if so, if requester
 			// has those rights.
 			if (AbstractSecurityUtils.adminOnlyProjectAddAccess(projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
 				throw new IllegalAccessException(ADMINS_ONLY);
 			}
 
+			if (usageLimitSent) {
+				return SecurityProjectUtils.propagateProjectPermission(user, projectId, newUserId, newUserType,
+						requestedPermission, endDate, SecurityModelUsageLimitUtils.readJson(usageLimit));
+			}
 			return SecurityProjectUtils.propagateProjectPermission(user, projectId, newUserId, newUserType,
-					requestedPermission, endDate, usageRestriction, usageFrequency, maxTokens, maxResponseTime);
+					requestedPermission, endDate);
 		});
 	}
 
 	/**
-	 * Propagate project dependent permissions
-	 * 
+	 * Propagate project dependent permissions, in bulk. Each row of
+	 * {@code userpermissions} can carry the person's usage limit on the models the
+	 * project depends on as {@code usageLimit}. Without it, a person whose access
+	 * to a model changes keeps their limit.
+	 *
 	 * @param request
 	 * @param form
 	 * @return
@@ -364,7 +378,7 @@ public class ProjectAuthorizationResource {
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
 		return ResourceUtility.respond(request, "give users access to project " + projectId, user -> {
-			List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
+			List<Map<String, Object>> requests = ROW_GSON.fromJson(form.getFirst("userpermissions"), List.class);
 
 			// Determine if admin right are required to add users and, if so, if requester
 			// has those rights.
@@ -373,17 +387,18 @@ public class ProjectAuthorizationResource {
 			}
 
 			Map<String, Object> userRet = new HashMap<>();
-			for (Map<String, String> userRequest : requests) {
-				String newUserId = userRequest.get("userid");
-				String newUserType = userRequest.get("type");
-				String requestedPermission = userRequest.get("permission");
-				String usageRestriction = userRequest.get("usageRestriction");
-				String usageFrequency = userRequest.get("usageFrequency");
-				int maxTokens = readMaxTokens(userRequest.get("maxTokens"));
-				double maxResponseTime = readMaxResponseTime(userRequest.get("maxResponseTime"));
-				Map<String, Object> responses = SecurityProjectUtils.propagateProjectPermission(user, projectId,
-						newUserId, newUserType, requestedPermission, endDate, usageRestriction, usageFrequency,
-						maxTokens, maxResponseTime);
+			for (Map<String, Object> userRequest : requests) {
+				String newUserId = textOf(userRequest.get("userid"));
+				String newUserType = textOf(userRequest.get("type"));
+				String requestedPermission = textOf(userRequest.get("permission"));
+				Map<String, Object> responses;
+				if (userRequest.containsKey(USAGE_LIMIT)) {
+					responses = SecurityProjectUtils.propagateProjectPermission(user, projectId, newUserId, newUserType,
+							requestedPermission, endDate, readUsageLimit(userRequest.get(USAGE_LIMIT)));
+				} else {
+					responses = SecurityProjectUtils.propagateProjectPermission(user, projectId, newUserId, newUserType,
+							requestedPermission, endDate);
+				}
 				userRet.put(newUserId, responses);
 			}
 
@@ -731,41 +746,27 @@ public class ProjectAuthorizationResource {
 	}
 
 	/**
-	 * Reads the {@code maxTokens} limit sent for a permission.
+	 * Reads a row's {@code usageLimit}, sent as a JSON object or as JSON text.
 	 *
-	 * @param value the value sent, which may be null or blank
-	 * @return the limit, or 0 when none is sent
-	 * @throws IllegalArgumentException when the value is not an integer
+	 * @param value the value sent, which may be null
+	 * @return the limit, or null for no limit defined
+	 * @throws IllegalArgumentException when the value is not a limit
 	 */
-	private static int readMaxTokens(String value) {
-		String trimmed = ValueUtils.trimToNull(value);
-		if (trimmed == null) {
-			return 0;
+	private static ModelUsageLimit readUsageLimit(Object value) {
+		if (value == null || value instanceof String) {
+			return SecurityModelUsageLimitUtils.readJson((String) value);
 		}
-		try {
-			return Integer.parseInt(trimmed);
-		} catch (NumberFormatException e) {
-			throw new IllegalArgumentException("maxTokens must be a valid integer value");
-		}
+		return SecurityModelUsageLimitUtils.readJson(ROW_GSON.toJson(value));
 	}
 
 	/**
-	 * Reads the {@code maxResponseTime} limit sent for a permission.
+	 * Reads a value from one of the posted user permission requests as text.
 	 *
-	 * @param value the value sent, which may be null or blank
-	 * @return the limit, or 0 when none is sent
-	 * @throws IllegalArgumentException when the value is not a number
+	 * @param value a row's value, which may be null
+	 * @return the value as text, or null
 	 */
-	private static double readMaxResponseTime(String value) {
-		String trimmed = ValueUtils.trimToNull(value);
-		if (trimmed == null) {
-			return 0.0;
-		}
-		try {
-			return Double.parseDouble(trimmed);
-		} catch (NumberFormatException e) {
-			throw new IllegalArgumentException("maxResponseTime must be a valid double value");
-		}
+	private static String textOf(Object value) {
+		return value == null ? null : value.toString();
 	}
 
 }

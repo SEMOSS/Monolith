@@ -79,6 +79,7 @@ import prerna.engine.impl.model.openai.OpenAIModelsHelper;
 import prerna.engine.impl.model.openai.OpenAIResponsesHelper;
 import prerna.engine.impl.model.responses.AskModelEngineResponse;
 import prerna.engine.impl.model.responses.EmbeddingsModelEngineResponse;
+import prerna.engine.impl.model.usage.ModelUsageLimitException;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.sablecc2.comm.PixelJobManager;
@@ -229,8 +230,12 @@ public class OpenAIEndpoints {
 		if (!isStreamingRequest) {
 			AskModelEngineResponse llmResponse;
 			try {
-				llmResponse = ModelPixelInvoker.askModelSync(engine, FINAL_INSIGHT, FINAL_ROOM, dataMap);
+				llmResponse = ModelPixelExecutor.askModelSync(engine, FINAL_INSIGHT, FINAL_ROOM, dataMap);
 			} catch (Exception e) {
+				ModelUsageLimitException refusal = ModelPixelExecutor.findUsageLimitRefusal(e);
+				if (refusal != null) {
+					return usageLimitResponse(refusal);
+				}
 				classLogger.error("Chat completions synchronous model call failed for engine '{}'", engineId, e);
 				return ModelPixelExecutor.errorResponse(400, e.getMessage());
 			}
@@ -239,6 +244,10 @@ public class OpenAIEndpoints {
 					llmResponse);
 			return WebUtility.getResponse(processedResposne, 200);
 		} else {
+			ModelUsageLimitException refusal = ModelPixelExecutor.checkUsageLimitsBeforeStream(user, engine);
+			if (refusal != null) {
+				return usageLimitResponse(refusal);
+			}
 			classLogger.info("Starting streaming response for model: {}", engineId);
 			return Response.ok().header("Content-Type", "text/event-stream").header("Cache-Control", "no-cache")
 					.header("Connection", "keep-alive").entity(new StreamingOutput() {
@@ -378,16 +387,24 @@ public class OpenAIEndpoints {
 
 		if (!isStreamingRequest) {
 			try {
-				AskModelEngineResponse llmResponse = ModelPixelInvoker.askModelSync(engine, insight, room, dataMap);
+				AskModelEngineResponse llmResponse = ModelPixelExecutor.askModelSync(engine, insight, room, dataMap);
 
 				Map<String, Object> processedResponse = OpenAIResponsesHelper.processAskModelEngineResponse(engineId,
 						llmResponse);
 				return WebUtility.getResponse(processedResponse, 200);
 			} catch (Exception e) {
+				ModelUsageLimitException refusal = ModelPixelExecutor.findUsageLimitRefusal(e);
+				if (refusal != null) {
+					return usageLimitResponse(refusal);
+				}
 				classLogger.error("Responses synchronous model call failed for engine '{}'", engineId, e);
 				return ModelPixelExecutor.errorResponse(400, e.getMessage());
 			}
 		} else {
+			ModelUsageLimitException refusal = ModelPixelExecutor.checkUsageLimitsBeforeStream(user, engine);
+			if (refusal != null) {
+				return usageLimitResponse(refusal);
+			}
 			return handleStreamingResponse(engine, insight, room, dataMap, SESSION_ID, JOB_ID, engineId);
 		}
 	}
@@ -561,15 +578,23 @@ public class OpenAIEndpoints {
 
 		if (!isStreamingRequest) {
 			try {
-				AskModelEngineResponse<?> llmResponse = ModelPixelInvoker.askModelSync(engine, insight, room, dataMap);
+				AskModelEngineResponse<?> llmResponse = ModelPixelExecutor.askModelSync(engine, insight, room, dataMap);
 				long createdAt = Instant.now().getEpochSecond();
 				Map<String, Object> responseMap = OpenAIImagesHelper.buildNonStreamingResponse(createdAt, llmResponse);
 				return WebUtility.getResponse(responseMap, 200);
 			} catch (Exception e) {
+				ModelUsageLimitException refusal = ModelPixelExecutor.findUsageLimitRefusal(e);
+				if (refusal != null) {
+					return usageLimitResponse(refusal);
+				}
 				classLogger.error("Images synchronous model call failed for engine '{}'", engineId, e);
 				return ModelPixelExecutor.errorResponse(400, e.getMessage());
 			}
 		} else {
+			ModelUsageLimitException refusal = ModelPixelExecutor.checkUsageLimitsBeforeStream(user, engine);
+			if (refusal != null) {
+				return usageLimitResponse(refusal);
+			}
 			return handleImagesStreamingResponse(engine, insight, room, dataMap, SESSION_ID, JOB_ID, engineId,
 					OUTPUT_FORMAT, QUALITY, SIZE);
 		}
@@ -726,8 +751,12 @@ public class OpenAIEndpoints {
 		if (!isStreamingRequest) {
 			AskModelEngineResponse llmResponse;
 			try {
-				llmResponse = ModelPixelInvoker.askModelSync(engine, insight, room, dataMap);
+				llmResponse = ModelPixelExecutor.askModelSync(engine, insight, room, dataMap);
 			} catch (Exception e) {
+				ModelUsageLimitException refusal = ModelPixelExecutor.findUsageLimitRefusal(e);
+				if (refusal != null) {
+					return usageLimitResponse(refusal);
+				}
 				classLogger.error("Model completion synchronous call failed for engine '{}'", engineId, e);
 				return ModelPixelExecutor.errorResponse(400, e.getMessage());
 			}
@@ -781,6 +810,10 @@ public class OpenAIEndpoints {
 
 			return WebUtility.getResponse(llmResponseMap, 200);
 		} else {
+			ModelUsageLimitException refusal = ModelPixelExecutor.checkUsageLimitsBeforeStream(user, engine);
+			if (refusal != null) {
+				return usageLimitResponse(refusal);
+			}
 			// fake streaming implementation!!
 			final String messageId = "chatcmpl-" + GUID.v7().toUUID().toString();
 			final long creationTimestamp = Instant.now().getEpochSecond();
@@ -953,6 +986,10 @@ public class OpenAIEndpoints {
 		try {
 			embeddingsResponse = engine.embeddings(stringsToEncode, insight, dataMap);
 		} catch (Exception e) {
+			ModelUsageLimitException refusal = ModelPixelExecutor.findUsageLimitRefusal(e);
+			if (refusal != null) {
+				return usageLimitResponse(refusal);
+			}
 			classLogger.error("Embeddings call failed for engine '{}'", engineId, e);
 			return ModelPixelExecutor.errorResponse(400, e.getMessage());
 		}
@@ -1009,6 +1046,26 @@ public class OpenAIEndpoints {
 			return ModelPixelExecutor.errorResponse(400, "Could not find model = '" + modelId + "'");
 		}
 		return WebUtility.getResponse(model, 200);
+	}
+
+	/**
+	 * The response for a call a usage limit refused, with an OpenAI error body
+	 * whose {@code type} and {@code code} are from
+	 * {@link ModelPixelExecutor#usageLimitCode}.
+	 *
+	 * @param refusal the refusal
+	 * @return the response
+	 */
+	private static Response usageLimitResponse(ModelUsageLimitException refusal) {
+		String code = ModelPixelExecutor.usageLimitCode(refusal);
+		Map<String, Object> error = new HashMap<>();
+		error.put("message", refusal.getMessage());
+		error.put("type", code);
+		error.put("code", code);
+		Map<String, Object> body = new HashMap<>();
+		body.put("error", error);
+		body.put(Constants.ERROR_MESSAGE, refusal.getMessage());
+		return ModelPixelExecutor.usageLimitResponse(refusal, body);
 	}
 
 }

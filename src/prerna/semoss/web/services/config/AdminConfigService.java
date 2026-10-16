@@ -97,8 +97,7 @@ public class AdminConfigService {
 		Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
 		List<String> ids = GSON.fromJson(idString, List.class);
 		for (String id : ids) {
-			SecurityUpdateUtils.registerUser(id, null, null, null, null, null, null, null, true, true, true, null, null,
-					null, null);
+			SecurityUpdateUtils.registerUser(id, null, null, null, null, null, null, null, true, true, true, null);
 		}
 
 		// take the user back to the login page
