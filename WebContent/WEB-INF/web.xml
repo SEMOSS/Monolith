@@ -87,6 +87,24 @@
       <filter-name>HeaderSecurityFilter</filter-name>
       <url-pattern>/*</url-pattern>
    </filter-mapping>
+
+   <!-- Content-Security-Policy - Tomcat's HttpHeaderSecurityFilter above does
+        not support CSP, hence a separate filter. Report-only by default (logs
+        violations to the browser console, blocks nothing) - see
+        ContentSecurityPolicyFilter's own javadoc and docker/il4/README.md's
+        mobile-code section before setting reportOnly to false. -->
+   <filter>
+      <filter-name>ContentSecurityPolicyFilter</filter-name>
+      <filter-class>prerna.web.conf.ContentSecurityPolicyFilter</filter-class>
+      <init-param>
+         <param-name>reportOnly</param-name>
+         <param-value>true</param-value>
+      </init-param>
+   </filter>
+   <filter-mapping>
+      <filter-name>ContentSecurityPolicyFilter</filter-name>
+      <url-pattern>/*</url-pattern>
+   </filter-mapping>
    <!-- CORS FILTER - MUST FILL IN cors.allowed.origins -->
    <!-- 
    <filter>
