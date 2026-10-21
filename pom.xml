@@ -50,6 +50,8 @@
 		<bc.jdk18on.version>1.85</bc.jdk18on.version>
 		<netty.version>4.1.138.Final</netty.version>
 		<jackson3.version>3.1.7</jackson3.version>
+		<lz4.version>1.11.4</lz4.version>
+		<rabbitmq.version>5.34.0</rabbitmq.version>
 		<!-- BouncyCastle FIPS, consumed only by the fips profile below. Keep in sync
 		     with the properties of the same name in Semoss/pom.xml and the
 		     BC_*_VERSION build args in Semoss/docker/Dockerfile.tomcat. -->
@@ -494,6 +496,18 @@
 	</repositories>
 	<dependencyManagement>
 		<dependencies>
+			<!-- Keep the security pins aligned with Semoss even when an older
+			     Semoss snapshot is installed; its dependencyManagement is not inherited. -->
+			<dependency>
+				<groupId>at.yawk.lz4</groupId>
+				<artifactId>lz4-java</artifactId>
+				<version>${lz4.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.rabbitmq</groupId>
+				<artifactId>amqp-client</artifactId>
+				<version>${rabbitmq.version}</version>
+			</dependency>
 			<!-- Override the SSHJ version inherited through Semoss so Monolith does not
 			     depend on which Semoss snapshot is installed when this branch is built. -->
 			<dependency>
