@@ -83,6 +83,7 @@ import prerna.auth.AccessToken;
 import prerna.auth.User;
 import prerna.logging.SemossLogUtils;
 import prerna.om.ThreadStore;
+import prerna.usertracking.UserAuditTrailUtils;
 import prerna.util.Constants;
 import prerna.util.FstUtil;
 import prerna.util.Utility;
@@ -239,6 +240,18 @@ public final class WebUtility {
 	}
 
 	/**
+	 * Audit errors returned through this response helper. Servlet filters that send
+	 * responses directly must audit at their own enforcement point.
+	 */
+	private static void auditErrorResponse(Object vec, int status) {
+		if (status < 400) {
+			return;
+		}
+		Object message = vec instanceof java.util.Map<?, ?> map ? map.get(Constants.ERROR_MESSAGE) : vec;
+		UserAuditTrailUtils.recordHttpErrorResponse(status, message instanceof String text ? text : null);
+	}
+
+	/**
 	 * Build a JSON response with the given entity, status code, optional extra
 	 * headers, and optional cookies. Cookies are written via {@code Set-Cookie}
 	 * headers so that {@code SameSite} attributes from
@@ -252,6 +265,7 @@ public final class WebUtility {
 	 * @return JAX-RS Response, or {@code null} if {@code vec} is null
 	 */
 	public static Response getResponse(Object vec, int status, List<String[]> addHeaders, NewCookie... cookies) {
+		auditErrorResponse(vec, status);
 		if (vec != null) {
 			Gson gson = getDefaultGson();
 			try {
@@ -833,6 +847,13 @@ public final class WebUtility {
 		ThreadContext.put(SemossLogUtils.METHOD, request.getMethod());
 		ThreadContext.put(SemossLogUtils.ENDPOINT, request.getRequestURI());
 		ThreadContext.put(SemossLogUtils.HOST, request.getHeader("Host"));
+		String userAgent = request.getHeader("User-Agent");
+		if (userAgent == null) {
+			ThreadContext.remove(SemossLogUtils.USER_AGENT);
+		} else {
+			ThreadContext.put(SemossLogUtils.USER_AGENT,
+					userAgent.length() > 1000 ? userAgent.substring(0, 1000) : userAgent);
+		}
 		loggingContextLoginEvent(request.getSession(false));
 
 		// also store local values

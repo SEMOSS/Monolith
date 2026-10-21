@@ -54,6 +54,8 @@ import jakarta.servlet.http.HttpSession;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityProjectUtils;
 import prerna.project.api.IProject;
+import prerna.usertracking.AuditEventType;
+import prerna.usertracking.AuditTargetType;
 import prerna.util.Constants;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
@@ -195,11 +197,17 @@ public class PublicHomeCheckFilter implements Filter {
 			if (session != null) {
 				User user = (User) session.getAttribute(Constants.SESSION_USER);
 				if (!SecurityProjectUtils.userCanViewProject(user, projectId)) {
+					prerna.usertracking.UserAuditTrailUtils.recordFailure(user, AuditEventType.PROJECT_VIEW,
+							AuditTargetType.PROJECT, projectId, new IllegalAccessException("Project access denied"),
+							403);
 					sendError(request, response, HttpServletResponse.SC_FORBIDDEN,
 							"You do not have access to this project.");
 					return false;
 				}
 			} else {
+				prerna.usertracking.UserAuditTrailUtils.recordFailure(null, AuditEventType.PROJECT_VIEW,
+						AuditTargetType.PROJECT, projectId,
+						new IllegalAccessException("Project access requires authentication"), 403);
 				sendError(request, response, HttpServletResponse.SC_FORBIDDEN,
 						"You must be logged in to access this project.");
 				return false;

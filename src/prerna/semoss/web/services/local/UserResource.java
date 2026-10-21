@@ -86,6 +86,10 @@ import prerna.io.connector.salesforce.SalesforceTokenFiller;
 import prerna.io.connector.servicenow.ServiceNowTokenFiller;
 import prerna.security.HttpHelperUtility;
 import prerna.security.PKCEUtil;
+import prerna.usertracking.AuditErrorCode;
+import prerna.usertracking.AuditEventType;
+import prerna.usertracking.AuditTargetType;
+import prerna.usertracking.UserAuditTrailUtils;
 import prerna.usertracking.UserTrackingUtils;
 import prerna.util.Constants;
 import prerna.util.SocialPropertiesUtil;
@@ -232,6 +236,7 @@ public class UserResource {
 			// when we call session.invalidate() the UserSessionLoader will properly log is
 			// user logout or tomcat ending
 			session.setAttribute(UserSessionLoader.IS_USER_LOGOUT, true);
+			session.setAttribute(UserSessionLoader.USER_LOGOUT_IP_ADDR, WebUtility.getClientIp(request));
 			classLogger.info("User has logged out from all providers in the session");
 			// well, you have logged out and we always require a login
 			// so i will redirect you by default unless you specifically say not to
@@ -356,11 +361,14 @@ public class UserResource {
 	 */
 	public static void userTrackingLogin(HttpServletRequest request, User semossUser, AuthProvider ap) {
 		String ip = WebUtility.getClientIp(request);
+		String sessionId = "NO_SESSION_ID";
 		if (request.getSession() != null && request.getSession().getId() != null) {
-			UserTrackingUtils.registerLogin(request.getSession().getId(), ip, semossUser, ap);
+			sessionId = request.getSession().getId();
+			UserTrackingUtils.registerLogin(sessionId, ip, semossUser, ap);
 		} else {
-			UserTrackingUtils.registerLogin("NO_SESSION_ID", ip, semossUser, ap);
+			UserTrackingUtils.registerLogin(sessionId, ip, semossUser, ap);
 		}
+		UserAuditTrailUtils.recordLogin(semossUser, ap, sessionId, ip);
 	}
 
 	/**
@@ -1319,6 +1327,9 @@ public class UserResource {
 
 		if (socialData.getLoginsAllowed().get("native") == null || !socialData.getLoginsAllowed().get("native")) {
 			ret.put(Constants.ERROR_MESSAGE, "Native login is not allowed");
+			UserAuditTrailUtils.recordLoginFailed(request.getParameter("username"), AuthProvider.NATIVE.getLabel(),
+					AuditErrorCode.LOGIN_METHOD_DISABLED, "Native login is not allowed",
+					WebUtility.getClientIp(request), 400);
 			return WebUtility.getResponse(ret, 400);
 		}
 
@@ -1337,6 +1348,9 @@ public class UserResource {
 				SemossLogUtils.logSecurityAuditEvent("LOGIN_FAILURE", null, username, clientIp, null, null, null,
 						false, "native login attempted with an empty username or password", null);
 				ret.put(Constants.ERROR_MESSAGE, "The user name or password are empty");
+				UserAuditTrailUtils.recordLoginFailed(username, AuthProvider.NATIVE.getLabel(),
+						AuditErrorCode.MISSING_CREDENTIALS, "The user name or password are empty",
+						WebUtility.getClientIp(request), 401);
 				return WebUtility.getResponse(ret, 401);
 			}
 
@@ -1381,6 +1395,9 @@ public class UserResource {
 				SemossLogUtils.logSecurityAuditEvent("LOGIN_FAILURE", null, username, clientIp, null, null, null,
 						false, "native login failed for " + username + ": invalid credentials", null);
 				ret.put(Constants.ERROR_MESSAGE, "The user name or password are invalid.");
+				UserAuditTrailUtils.recordLoginFailed(username, AuthProvider.NATIVE.getLabel(),
+						AuditErrorCode.INVALID_CREDENTIALS, "The user name or password are invalid.",
+						WebUtility.getClientIp(request), 401);
 				return WebUtility.getResponse(ret, 401);
 			}
 		} catch (Exception e) {
@@ -1395,6 +1412,8 @@ public class UserResource {
 			SemossLogUtils.logSecurityAuditEvent("LOGIN_FAILURE", null, request.getParameter("username"),
 					WebUtility.getClientIp(request), null, null, null, false,
 					"native login raised an unexpected error: " + e.getMessage(), null);
+			UserAuditTrailUtils.recordLoginFailed(request.getParameter("username"), AuthProvider.NATIVE.getLabel(),
+					AuditErrorCode.INTERNAL_ERROR, e.getMessage(), WebUtility.getClientIp(request), 500);
 			ret.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
 			return WebUtility.getResponse(ret, 500);
 		}
@@ -1415,6 +1434,9 @@ public class UserResource {
 		Map<String, Object> ret = new HashMap<>();
 		if (socialData.getLoginsAllowed().get("ldap") == null || !socialData.getLoginsAllowed().get("ldap")) {
 			ret.put(Constants.ERROR_MESSAGE, "LDAP login is not allowed");
+			UserAuditTrailUtils.recordLoginFailed(request.getParameter("username"), "LDAP",
+					AuditErrorCode.LOGIN_METHOD_DISABLED, "LDAP login is not allowed", WebUtility.getClientIp(request),
+					400);
 			return WebUtility.getResponse(ret, 400);
 		}
 
@@ -1427,6 +1449,8 @@ public class UserResource {
 
 			if (username == null || password == null || username.isEmpty() || password.isEmpty()) {
 				ret.put(Constants.ERROR_MESSAGE, "The user name or password are empty");
+				UserAuditTrailUtils.recordLoginFailed(username, "LDAP", AuditErrorCode.MISSING_CREDENTIALS,
+						"The user name or password are empty", WebUtility.getClientIp(request), 401);
 				return WebUtility.getResponse(ret, 401);
 			}
 
@@ -1455,6 +1479,9 @@ public class UserResource {
 			classLogger.error("Unexpected error in loginLDAP", e);
 			ret.put(Constants.ERROR_MESSAGE, "User must change their password before login");
 			ret.put(ILdapAuthenticator.LDAP_PASSWORD_CHANGE_RETURN_KEY, true);
+			UserAuditTrailUtils.recordLoginFailed(request.getParameter("username"), "LDAP",
+					AuditErrorCode.PASSWORD_CHANGE_REQUIRED, "User must change their password before login",
+					WebUtility.getClientIp(request), 401);
 			return WebUtility.getResponse(ret, 401);
 		} catch (Exception e) {
 			HttpSession session = request.getSession(false);
@@ -1466,6 +1493,8 @@ public class UserResource {
 			}
 			classLogger.error("Unexpected error in loginLDAP", e);
 			ret.put(Constants.ERROR_MESSAGE, e.getMessage());
+			UserAuditTrailUtils.recordLoginFailed(request.getParameter("username"), "LDAP",
+					AuditErrorCode.INVALID_CREDENTIALS, e.getMessage(), WebUtility.getClientIp(request), 500);
 			return WebUtility.getResponse(ret, 500);
 		} finally {
 			if (authenticator != null) {
@@ -1650,39 +1679,6 @@ public class UserResource {
 			String phoneExtension = WebUtility.inputSanitizer(request.getParameter("phoneextension"));
 			String countryCode = WebUtility.inputSanitizer(request.getParameter("countrycode"));
 
-			String modelUsageRestriction = WebUtility.inputSanitizer(request.getParameter("modelUsageRestriction"));
-			if (modelUsageRestriction != null) {
-				modelUsageRestriction = modelUsageRestriction.trim();
-			}
-			String modelUsageFrequency = WebUtility.inputSanitizer(request.getParameter("modelUsageFrequency"));
-			if (modelUsageFrequency != null) {
-				modelUsageFrequency = modelUsageFrequency.trim();
-			}
-			int modelMaxTokens = 0;
-			String modelMaxTokensStr = WebUtility.inputSanitizer(request.getParameter("modelMaxTokens"));
-			if (modelMaxTokensStr != null && !(modelMaxTokensStr = modelMaxTokensStr.trim()).isEmpty()) {
-				// must be a valid integer
-				try {
-					modelMaxTokens = Integer.parseInt(modelMaxTokensStr);
-				} catch (NumberFormatException e) {
-					classLogger.error("Unexpected error in createNativeUser", e);
-					ret.put(Constants.ERROR_MESSAGE, "modelMaxTokens must be a valid integer value");
-					return WebUtility.getResponse(ret, 400);
-				}
-			}
-			double modelMaxResponseTime = 0.0;
-			String modelMaxResponseTimeStr = WebUtility.inputSanitizer(request.getParameter("modelMaxResponseTime"));
-			if (modelMaxResponseTimeStr != null
-					&& !(modelMaxResponseTimeStr = modelMaxResponseTimeStr.trim()).isEmpty()) {
-				// must be a valid double
-				try {
-					modelMaxResponseTime = Double.parseDouble(modelMaxResponseTimeStr);
-				} catch (NumberFormatException e) {
-					classLogger.error("Unexpected error in createNativeUser", e);
-					ret.put(Constants.ERROR_MESSAGE, "modelMaxResponseTime must be a valid double value");
-					return WebUtility.getResponse(ret, 400);
-				}
-			}
 			AccessToken newUser = new AccessToken();
 
 			newUser.setProvider(AuthProvider.NATIVE);
@@ -1693,12 +1689,9 @@ public class UserResource {
 			newUser.setPhone(phone);
 			newUser.setPhoneExtension(phoneExtension);
 			newUser.setCountryCode(countryCode);
-			// model restriction values
-			newUser.setModelUsageRestriction(modelUsageRestriction);
-			newUser.setModelUsageFrequency(modelUsageFrequency);
-			newUser.setModelMaxTokens(modelMaxTokens);
-			newUser.setModelMaxResponseTime(modelMaxResponseTime);
 
+			// only admins set all-models defaults, so a registrant's limit fields are not
+			// read and the user is saved with no default
 			boolean userCreated = SecurityNativeUserUtils.addNativeUser(newUser, password);
 			if (userCreated) {
 				ret.put("success", "true");
@@ -1857,6 +1850,10 @@ public class UserResource {
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 500);
 		}
+		// only the changed keys are audited; the values can be client secrets
+		UserAuditTrailUtils.recordResourceEvent(user, AuditEventType.CONFIG_UPDATE, AuditTargetType.PLATFORM_CONFIG,
+				"social.properties", provider, null, null, null,
+				Map.of("provider", provider, "changedKeys", new ArrayList<>(sanitizedMods.keySet())));
 
 		return WebUtility.getResponse(true, 200);
 	}
@@ -1889,6 +1886,8 @@ public class UserResource {
 			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorRet, 500);
 		}
+		UserAuditTrailUtils.recordResourceEvent(user, AuditEventType.CONFIG_UPDATE, AuditTargetType.PLATFORM_CONFIG,
+				"social.properties", "All login properties", null, null, null, Map.of("scope", "ALL"));
 
 		return WebUtility.getResponse(true, 200);
 	}

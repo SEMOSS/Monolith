@@ -39,6 +39,7 @@ import jakarta.ws.rs.core.Response;
 import prerna.auth.AuthProvider;
 import prerna.auth.utils.AdminSecurityGroupUtils;
 import prerna.auth.utils.SecurityGroupManagerUtils;
+import prerna.auth.utils.SecurityModelUsageLimitUtils;
 import prerna.graph.utility.MsGraphUtility;
 import prerna.io.connector.ms.MicrosoftGraphUserLookup;
 import prerna.semoss.web.services.local.ResourceUtility;
@@ -61,6 +62,8 @@ public class AdminGroupAuthorizationResource {
 	private static final String GROUP_ID_PARAM_REQUIRED = "The group id ('groupId') cannot be null or empty";
 	private static final String USER_ID_PARAM_REQUIRED = "The user id ('userId') cannot be null or empty";
 	private static final String USER_TYPE_PARAM_REQUIRED = "The user login type ('type') cannot be null or empty";
+	/** The form field for a team limit on a model, as JSON */
+	private static final String USAGE_LIMIT = "usageLimit";
 
 	///////////////////////////////////////////////////////////////
 
@@ -413,6 +416,11 @@ public class AdminGroupAuthorizationResource {
 	 * Group Engine Permissions
 	 */
 
+	/**
+	 * Gives a group access to an engine. On a model, {@code usageLimit} (JSON,
+	 * empty for no limit defined) is the team limit, with shared and each-member
+	 * rules.
+	 */
 	@POST
 	@Produces("application/json")
 	@Path("/addGroupEnginePermission")
@@ -422,13 +430,20 @@ public class AdminGroupAuthorizationResource {
 		String permission = WebUtility.inputSQLSanitizer(request.getParameter("permission"));
 		String groupType = AuthProvider.getProviderLabel(WebUtility.inputSQLSanitizer(request.getParameter("type")));
 		String endDate = WebUtility.inputSQLSanitizer(request.getParameter("endDate"));
+		boolean usageLimitSent = request.getParameterMap().containsKey(USAGE_LIMIT);
+		String usageLimit = request.getParameter(USAGE_LIMIT);
 		return ResourceUtility.respondAsAdmin(request, "give group " + groupId + " access to engine " + engineId,
 				AdminSecurityGroupUtils::getInstance, (user, adminGroupUtils) -> {
 					String id = ValueUtils.requireNonBlank(groupId, GROUP_ID_PARAM_REQUIRED);
 					String engine = ValueUtils.requireNonBlank(engineId,
 							"The engine id ('engineId') cannot be null or empty");
 					int level = requirePermission(permission);
-					adminGroupUtils.addGroupEnginePermission(user, id, groupType, engine, level, endDate);
+					if (usageLimitSent) {
+						adminGroupUtils.addGroupEnginePermission(user, id, groupType, engine, level, endDate,
+								SecurityModelUsageLimitUtils.readJson(usageLimit));
+					} else {
+						adminGroupUtils.addGroupEnginePermission(user, id, groupType, engine, level, endDate);
+					}
 					return true;
 				});
 	}

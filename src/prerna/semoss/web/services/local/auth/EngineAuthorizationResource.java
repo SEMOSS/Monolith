@@ -47,6 +47,7 @@ import jakarta.ws.rs.core.Response;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityEngineUtils;
+import prerna.auth.utils.SecurityModelUsageLimitUtils;
 import prerna.graph.utility.MsGraphUtility;
 import prerna.io.connector.ms.MicrosoftGraphUserLookup;
 import prerna.om.Insight;
@@ -56,7 +57,6 @@ import prerna.sablecc2.om.PixelDataType;
 import prerna.sablecc2.om.ReactorKeysEnum;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.semoss.web.services.local.ResourceUtility;
-import prerna.util.ValueUtils;
 import prerna.web.services.util.WebUtility;
 
 @Path("/auth/engine")
@@ -64,6 +64,11 @@ import prerna.web.services.util.WebUtility;
 public class EngineAuthorizationResource {
 
 	private static final String ADMINS_ONLY = "This functionality is limited to only admins";
+	/**
+	 * The form field for a model usage limit, as JSON, empty for no limit defined.
+	 * An edit without it keeps the person's limit.
+	 */
+	private static final String USAGE_LIMIT = "usageLimit";
 
 	@Context
 	protected ServletContext context;
@@ -270,8 +275,9 @@ public class EngineAuthorizationResource {
 	}
 
 	/**
-	 * Get the engine users and their permissions
-	 * 
+	 * Get the engine users and their permissions. On a model, each row has its
+	 * {@code usage_limit}.
+	 *
 	 * @param request
 	 * @param form
 	 * @return
@@ -300,8 +306,10 @@ public class EngineAuthorizationResource {
 	}
 
 	/**
-	 * Add a user to an engine
-	 * 
+	 * Add a user to an engine. A model's usage limit is sent as {@code usageLimit}
+	 * (JSON, empty for no limit defined); without it the person gets no limit. Only
+	 * the model's owners give a limit.
+	 *
 	 * @param request
 	 * @param form
 	 * @return
@@ -315,23 +323,14 @@ public class EngineAuthorizationResource {
 		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = null; // form.getFirst("endDate");
 
-		String usageRestriction = form.containsKey("usageRestriction")
-				? WebUtility.inputSQLSanitizer(form.getFirst("usageRestriction"))
-				: null;
-		String usageFrequency = form.containsKey("usageFrequency")
-				? WebUtility.inputSQLSanitizer(form.getFirst("usageFrequency"))
-				: null;
-		String maxTokensStr = WebUtility.inputSanitizer(request.getParameter("maxTokens"));
-		String maxResponseTimeStr = WebUtility.inputSanitizer(request.getParameter("maxResponseTime"));
+		String usageLimit = form.getFirst(USAGE_LIMIT);
 		return ResourceUtility.respond(request, "add user " + newUserId + " to engine " + engineId,
 				new ResourceUtility.SecurityAuditEvent("PERMISSION_GRANTED", "ENGINE", engineId), user -> {
 			if (AbstractSecurityUtils.adminOnlyEngineAddAccess(engineId) && !SecurityAdminUtils.userIsAdmin(user)) {
 				throw new IllegalAccessException(ADMINS_ONLY);
 			}
-			int maxTokens = readMaxTokens(maxTokensStr);
-			double maxResponseTime = readMaxResponseTime(maxResponseTimeStr);
-			SecurityEngineUtils.addEngineUser(user, newUserId, engineId, permission, endDate, usageRestriction,
-					usageFrequency, maxTokens, maxResponseTime);
+			SecurityEngineUtils.addEngineUser(user, newUserId, engineId, permission, endDate,
+					SecurityModelUsageLimitUtils.readJson(usageLimit));
 			Map<String, Object> ret = new HashMap<>();
 			ret.put("success", true);
 			return ret;
@@ -339,8 +338,10 @@ public class EngineAuthorizationResource {
 	}
 
 	/**
-	 * Add user permissions in bulk to a engine
-	 * 
+	 * Add user permissions in bulk to a engine. Each row of {@code userpermissions}
+	 * can carry a model's usage limit as {@code usageLimit}, which only the model's
+	 * owners give; a row without it gives no limit.
+	 *
 	 * @param request
 	 * @param form
 	 * @return
@@ -371,8 +372,11 @@ public class EngineAuthorizationResource {
 	}
 
 	/**
-	 * Edit user permission for an engine
-	 * 
+	 * Edit user permission for an engine. A model's usage limit is sent as
+	 * {@code usageLimit} (JSON, empty for no limit defined); a form without it,
+	 * such as a change of level only, leaves the limit as it is. Only the model's
+	 * owners change a limit.
+	 *
 	 * @param request
 	 * @param form
 	 * @return
@@ -387,23 +391,20 @@ public class EngineAuthorizationResource {
 		String newPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = null; // form.getFirst("endDate");
 
-		String usageRestriction = form.containsKey("usageRestriction")
-				? WebUtility.inputSQLSanitizer(form.getFirst("usageRestriction"))
-				: null;
-		String usageFrequency = form.containsKey("usageFrequency")
-				? WebUtility.inputSQLSanitizer(form.getFirst("usageFrequency"))
-				: null;
-		String maxTokensStr = WebUtility.inputSanitizer(request.getParameter("maxTokens"));
-		String maxResponseTimeStr = WebUtility.inputSanitizer(request.getParameter("maxResponseTime"));
+		boolean usageLimitSent = form.containsKey(USAGE_LIMIT);
+		String usageLimit = form.getFirst(USAGE_LIMIT);
 		return ResourceUtility.respond(request, "edit user " + existingUserId + " on engine " + engineId,
 				new ResourceUtility.SecurityAuditEvent("PERMISSION_MODIFIED", "ENGINE", engineId), user -> {
 			if (AbstractSecurityUtils.adminOnlyEngineAddAccess(engineId) && !SecurityAdminUtils.userIsAdmin(user)) {
 				throw new IllegalAccessException(ADMINS_ONLY);
 			}
-			int maxTokens = readMaxTokens(maxTokensStr);
-			double maxResponseTime = readMaxResponseTime(maxResponseTimeStr);
-			SecurityEngineUtils.editEngineUserPermission(user, existingUserId, existingUserType, engineId,
-					newPermission, endDate, usageRestriction, usageFrequency, maxTokens, maxResponseTime);
+			if (usageLimitSent) {
+				SecurityEngineUtils.editEngineUserPermission(user, existingUserId, existingUserType, engineId,
+						newPermission, endDate, SecurityModelUsageLimitUtils.readJson(usageLimit));
+			} else {
+				SecurityEngineUtils.editEngineUserPermission(user, existingUserId, existingUserType, engineId,
+						newPermission, endDate);
+			}
 			Map<String, Object> ret = new HashMap<>();
 			ret.put("success", true);
 			return ret;
@@ -411,8 +412,12 @@ public class EngineAuthorizationResource {
 	}
 
 	/**
-	 * Edit user permission for an engine, in bulk
-	 * 
+	 * Edit user permission for an engine, in bulk. Each row of
+	 * {@code userpermissions} can carry a model's usage limit as
+	 * {@code usageLimit}, which only the model's owners change; a row without it
+	 * keeps the person's limit, and a row whose {@code usageLimit} is null removes
+	 * it.
+	 *
 	 * @param request
 	 * @param form
 	 * @return
@@ -661,44 +666,6 @@ public class EngineAuthorizationResource {
 			ret.put("success", true);
 			return ret;
 		});
-	}
-
-	/**
-	 * Reads the {@code maxTokens} limit sent for a permission.
-	 *
-	 * @param value the value sent, which may be null or blank
-	 * @return the limit, or 0 when none is sent
-	 * @throws IllegalArgumentException when the value is not an integer
-	 */
-	private static int readMaxTokens(String value) {
-		String trimmed = ValueUtils.trimToNull(value);
-		if (trimmed == null) {
-			return 0;
-		}
-		try {
-			return Integer.parseInt(trimmed);
-		} catch (NumberFormatException e) {
-			throw new IllegalArgumentException("maxTokens must be a valid integer value");
-		}
-	}
-
-	/**
-	 * Reads the {@code maxResponseTime} limit sent for a permission.
-	 *
-	 * @param value the value sent, which may be null or blank
-	 * @return the limit, or 0 when none is sent
-	 * @throws IllegalArgumentException when the value is not a number
-	 */
-	private static double readMaxResponseTime(String value) {
-		String trimmed = ValueUtils.trimToNull(value);
-		if (trimmed == null) {
-			return 0.0;
-		}
-		try {
-			return Double.parseDouble(trimmed);
-		} catch (NumberFormatException e) {
-			throw new IllegalArgumentException("maxResponseTime must be a valid double value");
-		}
 	}
 
 }

@@ -102,8 +102,7 @@ public class NoUserExistsFilter implements Filter {
 			// if there a env var for initial admin
 			// set the admin so we are done
 			String id = System.getenv(SMSS_INITIAL_ADMIN);
-			SecurityUpdateUtils.registerUser(id, null, null, null, null, null, null, null, true, true, true, null, null,
-					null, null);
+			SecurityUpdateUtils.registerUser(id, null, null, null, null, null, null, null, true, true, true, null);
 			classLogger.info("The initial admin has been defined via an environment variable");
 			// set boolean so we dont keep querying all the time
 			NoUserExistsFilter.userDefined = true;
@@ -111,6 +110,8 @@ public class NoUserExistsFilter implements Filter {
 	}
 
 	/**
+	 * Whether the security database has any user yet. When it has none, the first
+	 * admin still needs to be set. A query that fails counts as having one.
 	 * 
 	 * @return
 	 */
