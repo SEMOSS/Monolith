@@ -47,6 +47,7 @@ import prerna.auth.SyncUserAssetsThread;
 import prerna.auth.User;
 import prerna.cluster.util.ClusterUtil;
 import prerna.engine.impl.model.Room;
+import prerna.engine.impl.model.RoomMessageStore;
 import prerna.engine.impl.model.RoomUtils;
 import prerna.engine.impl.r.IRUserConnection;
 import prerna.om.ClientProcessWrapper;
@@ -212,6 +213,12 @@ public class UserSessionLoader implements HttpSessionListener {
 			cleanupUserRooms(subAgent, "agent user");
 		}
 
+		// drop cached room projections from Redis; they reload from the DB on next open
+		evictRedisRooms(thisUser);
+		if (subAgent != thisUser) {
+			evictRedisRooms(subAgent);
+		}
+
 		cleanupPlaywrightSessions(thisUser);
 
 		// register the successful logout
@@ -277,6 +284,17 @@ public class UserSessionLoader implements HttpSessionListener {
 	 * @param user     the user whose room map should be processed
 	 * @param userType descriptive label used in logs (for example, session user)
 	 */
+	private void evictRedisRooms(User user) {
+		if (user == null || user.getRoomHash() == null) {
+			return;
+		}
+		try {
+			RoomMessageStore.evictRedisProjections(user.getRoomHash().keySet());
+		} catch (Exception e) {
+			classLogger.warn("Failed to evict Redis room projections during session cleanup", e);
+		}
+	}
+
 	private void cleanupUserRooms(User user, String userType) {
 		if (!ClusterUtil.IS_CLUSTER || user == null || user.getRoomHash() == null) {
 			return;
