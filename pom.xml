@@ -52,6 +52,8 @@
 		<jackson3.version>3.1.7</jackson3.version>
 		<lz4.version>1.11.4</lz4.version>
 		<rabbitmq.version>5.34.0</rabbitmq.version>
+		<databricks.jdbc.version>2.8.4</databricks.jdbc.version>
+		<tika.version>3.3.3</tika.version>
 		<!-- BouncyCastle FIPS, consumed only by the fips profile below. Keep in sync
 		     with the properties of the same name in Semoss/pom.xml and the
 		     BC_*_VERSION build args in Semoss/docker/Dockerfile.tomcat. -->
@@ -507,6 +509,16 @@
 				<groupId>com.rabbitmq</groupId>
 				<artifactId>amqp-client</artifactId>
 				<version>${rabbitmq.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.databricks</groupId>
+				<artifactId>databricks-jdbc</artifactId>
+				<version>${databricks.jdbc.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.tika</groupId>
+				<artifactId>tika-core</artifactId>
+				<version>${tika.version}</version>
 			</dependency>
 			<!-- Override the SSHJ version inherited through Semoss so Monolith does not
 			     depend on which Semoss snapshot is installed when this branch is built. -->
