@@ -63,6 +63,7 @@ import prerna.util.FileSystemUtil;
 import prerna.util.SymlinkHelper;
 import prerna.util.Utility;
 import prerna.util.insight.InsightUtility;
+import prerna.util.openshell.OpenShellUserSandboxes;
 
 @WebListener
 public class UserSessionLoader implements HttpSessionListener {
@@ -200,11 +201,11 @@ public class UserSessionLoader implements HttpSessionListener {
 		}
 
 		// stop netty/python wrappers and chroot mounts for session user
-		cleanupUserProcessAndChroot(thisUser, "session user");
+		cleanupUserProcessAndChroot(thisUser, sessionId, "session user");
 
 		// remove agent users
 		if (subAgent != thisUser) {
-			cleanupUserProcessAndChroot(subAgent, "agent user");
+			cleanupUserProcessAndChroot(subAgent, sessionId, "agent user");
 		}
 
 		// if cloud sync enabled, push and clear the rooms
@@ -236,19 +237,28 @@ public class UserSessionLoader implements HttpSessionListener {
 	/**
 	 * Cleans up user-owned client process and optional chroot resources.
 	 *
-	 * @param user     the user to clean up
-	 * @param userType descriptive label used in logs (for example, session user)
+	 * @param user      the user to clean up
+	 * @param sessionId the session that ended
+	 * @param userType  descriptive label used in logs (for example, session user)
 	 */
-	private void cleanupUserProcessAndChroot(User user, String userType) {
+	private void cleanupUserProcessAndChroot(User user, String sessionId, String userType) {
 		if (user == null) {
 			return;
 		}
 
+		boolean openshellUserSandbox = OpenShellUserSandboxes.enabled();
 		try {
-			// stop the netty thread if used for either r or python
-			ClientProcessWrapper cpw = user.getPythonClientProcessWrapper();
-			if (cpw != null) {
-				cpw.shutdown(true);
+			if (openshellUserSandbox) {
+				// The python worker and chroot belong to the user, not this session: they
+				// go when the user's last session here ends, and the sandbox when their
+				// last session anywhere does.
+				OpenShellUserSandboxes.sessionEnded(user, sessionId);
+			} else {
+				// stop the netty thread if used for either r or python
+				ClientProcessWrapper cpw = user.getPythonClientProcessWrapper();
+				if (cpw != null) {
+					cpw.shutdown(true);
+				}
 			}
 		} catch (Exception e) {
 			classLogger.error("Failed to shut down client process wrapper during {} cleanup", userType, e);
@@ -266,7 +276,7 @@ public class UserSessionLoader implements HttpSessionListener {
 
 		// remove mounts if chroot is enabled
 		try {
-			if (Boolean.parseBoolean(Utility.getDIHelperProperty(Constants.CHROOT_ENABLE))) {
+			if (!openshellUserSandbox && Boolean.parseBoolean(Utility.getDIHelperProperty(Constants.CHROOT_ENABLE))) {
 				SymlinkHelper chrootHelper = user.getUserSymlinkHelper();
 				if (chrootHelper != null) {
 					chrootHelper.removeChrootFolder();

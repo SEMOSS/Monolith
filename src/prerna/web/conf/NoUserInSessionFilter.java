@@ -46,11 +46,13 @@ import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
 import prerna.util.SocialPropertiesUtil;
+import prerna.util.openshell.OpenShellUserSandboxes;
 import prerna.web.services.util.WebUtility;
 
 public class NoUserInSessionFilter implements Filter {
 
 	private static final String NO_USER_HTML = "/noUserFail/";
+	private static final String OPENSHELL_LEASE_ATTR = "OPENSHELL_SANDBOX_LEASE";
 
 	@Override
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2)
@@ -76,6 +78,14 @@ public class NoUserInSessionFilter implements Filter {
 				// don't know what i am redirecting
 				// send back an error and have the client remake the request
 				setInvalidEntryRedirect(context, arg0, arg1);
+			} else if (session != null && OpenShellUserSandboxes.enabled()) {
+				// any activity, not only python, keeps the user's sandbox alive for the
+				// session timeout; refreshed at most once a minute per session
+				String marker = OpenShellUserSandboxes.touch(user, session.getId(),
+						(String) session.getAttribute(OPENSHELL_LEASE_ATTR), session.getMaxInactiveInterval());
+				if (marker != null) {
+					session.setAttribute(OPENSHELL_LEASE_ATTR, marker);
+				}
 			}
 		}
 
