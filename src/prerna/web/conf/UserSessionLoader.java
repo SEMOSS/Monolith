@@ -97,6 +97,10 @@ public class UserSessionLoader implements HttpSessionListener {
 		classLogger.info("Starting logout");
 		HttpSession session = sessionEvent.getSession();
 		String sessionId = session.getId();
+		// A user sandbox outlives a server stop, which also destroys every session: only a
+		// logout or a real timeout ends the user's claim on it (see OpenShellUserSandboxes).
+		boolean openshellUserSandbox = OpenShellUserSandboxes.enabled();
+		boolean sessionOver = !openshellUserSandbox || sessionIsOver(session);
 
 		User thisUser = (User) session.getAttribute(Constants.SESSION_USER);
 		if (thisUser == null) {
@@ -135,6 +139,10 @@ public class UserSessionLoader implements HttpSessionListener {
 				}
 				classLogger.info("Trying to drop insight {}", insightId);
 				try {
+					if (!sessionOver) {
+						// the user's python outlives this server; keep the insight's variables
+						insight.setDeletePythonGlobalsOnDropInsight(false);
+					}
 					InsightUtility.dropInsight(insight);
 					classLogger.info("Dropped insight {}", insightId);
 				} catch (Exception e) {
@@ -201,11 +209,11 @@ public class UserSessionLoader implements HttpSessionListener {
 		}
 
 		// stop netty/python wrappers and chroot mounts for session user
-		cleanupUserProcessAndChroot(thisUser, sessionId, "session user");
+		cleanupUserProcessAndChroot(thisUser, sessionId, sessionOver, "session user");
 
 		// remove agent users
 		if (subAgent != thisUser) {
-			cleanupUserProcessAndChroot(subAgent, sessionId, "agent user");
+			cleanupUserProcessAndChroot(subAgent, sessionId, sessionOver, "agent user");
 		}
 
 		// if cloud sync enabled, push and clear the rooms
@@ -239,9 +247,10 @@ public class UserSessionLoader implements HttpSessionListener {
 	 *
 	 * @param user      the user to clean up
 	 * @param sessionId the session that ended
+	 * @param over      true for a logout or timeout, false when the server is stopping
 	 * @param userType  descriptive label used in logs (for example, session user)
 	 */
-	private void cleanupUserProcessAndChroot(User user, String sessionId, String userType) {
+	private void cleanupUserProcessAndChroot(User user, String sessionId, boolean over, String userType) {
 		if (user == null) {
 			return;
 		}
@@ -252,7 +261,7 @@ public class UserSessionLoader implements HttpSessionListener {
 				// The python worker and chroot belong to the user, not this session: they
 				// go when the user's last session here ends, and the sandbox when their
 				// last session anywhere does.
-				OpenShellUserSandboxes.sessionEnded(user, sessionId);
+				OpenShellUserSandboxes.sessionEnded(user, sessionId, over);
 			} else {
 				// stop the netty thread if used for either r or python
 				ClientProcessWrapper cpw = user.getPythonClientProcessWrapper();
@@ -397,4 +406,27 @@ public class UserSessionLoader implements HttpSessionListener {
 		}
 	}
 
+
+	/**
+	 * Whether the user has really left: an explicit logout, or idle past the session
+	 * timeout. Anything else that destroys a session -- a server stop above all -- is not
+	 * the user leaving.
+	 *
+	 * @param session the session being destroyed
+	 * @return true for a logout or a timeout
+	 */
+	private static boolean sessionIsOver(HttpSession session) {
+		try {
+			if (Boolean.parseBoolean(session.getAttribute(UserSessionLoader.IS_USER_LOGOUT) + "")) {
+				return true;
+			}
+			int maxInactive = session.getMaxInactiveInterval();
+			long idleMs = System.currentTimeMillis() - session.getLastAccessedTime();
+			// the container expires a session a little after its interval, never before
+			return maxInactive > 0 && idleMs >= maxInactive * 1000L - 5000L;
+		} catch (IllegalStateException e) {
+			// unreadable: keep the lease; the sweeper deletes it once it lapses
+			return false;
+		}
+	}
 }
