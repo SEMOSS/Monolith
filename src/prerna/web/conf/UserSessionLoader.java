@@ -63,11 +63,17 @@ import prerna.util.FileSystemUtil;
 import prerna.util.SymlinkHelper;
 import prerna.util.Utility;
 import prerna.util.insight.InsightUtility;
+import prerna.util.openshell.OpenShellUserSandboxes;
 
 @WebListener
 public class UserSessionLoader implements HttpSessionListener {
 
+	/** How far short of its timeout an idle session still counts as timed out. */
+	private static final long SESSION_EXPIRY_SLACK_MS = 5000L;
+
 	public static final String IS_USER_LOGOUT = "IS_USER_LOGOUT";
+	// set when the app invalidates a live session on purpose (not a logout, not a server stop)
+	public static final String IS_SESSION_ENDED = "IS_SESSION_ENDED";
 	public static final String USER_LOGOUT_IP_ADDR = "USER_LOGOUT_IP_ADDR";
 
 	private static final Logger classLogger = LogManager.getLogger(UserSessionLoader.class);
@@ -98,6 +104,11 @@ public class UserSessionLoader implements HttpSessionListener {
 		String sessionId = session.getId();
 
 		User thisUser = (User) session.getAttribute(Constants.SESSION_USER);
+		// A user sandbox outlives a server stop, which also destroys every session: only a
+		// logout or a real timeout ends the user's claim on it (see OpenShellUserSandboxes).
+		String openshellOwner = OpenShellUserSandboxes.ownerForSession(thisUser,
+				session.getAttribute(OpenShellUserSandboxes.SESSION_OWNER_ATTR));
+		boolean sessionOver = openshellOwner == null || sessionIsOver(session);
 		if (thisUser == null) {
 			// no need to log a new session that is auto dropped
 			// this just keeps writing to the log
@@ -134,6 +145,10 @@ public class UserSessionLoader implements HttpSessionListener {
 				}
 				classLogger.info("Trying to drop insight {}", insightId);
 				try {
+					if (!sessionOver) {
+						// the user's python outlives this server; keep the insight's variables
+						insight.setDeletePythonGlobalsOnDropInsight(false);
+					}
 					InsightUtility.dropInsight(insight);
 					classLogger.info("Dropped insight {}", insightId);
 				} catch (Exception e) {
@@ -200,11 +215,12 @@ public class UserSessionLoader implements HttpSessionListener {
 		}
 
 		// stop netty/python wrappers and chroot mounts for session user
-		cleanupUserProcessAndChroot(thisUser, "session user");
+		cleanupUserProcessAndChroot(thisUser, openshellOwner, sessionId, sessionOver, "session user");
 
 		// remove agent users
 		if (subAgent != thisUser) {
-			cleanupUserProcessAndChroot(subAgent, "agent user");
+			cleanupUserProcessAndChroot(subAgent, OpenShellUserSandboxes.ownerForSession(subAgent, null), sessionId,
+					sessionOver, "agent user");
 		}
 
 		// if cloud sync enabled, push and clear the rooms
@@ -236,19 +252,31 @@ public class UserSessionLoader implements HttpSessionListener {
 	/**
 	 * Cleans up user-owned client process and optional chroot resources.
 	 *
-	 * @param user     the user to clean up
-	 * @param userType descriptive label used in logs (for example, session user)
+	 * @param user           the user to clean up
+	 * @param openshellOwner owner of the user's OpenShell sandbox, or null outside that mode
+	 * @param sessionId      the session that ended
+	 * @param over           true for a logout or timeout, false when the server is stopping
+	 * @param userType       descriptive label used in logs (for example, session user)
 	 */
-	private void cleanupUserProcessAndChroot(User user, String userType) {
+	private void cleanupUserProcessAndChroot(User user, String openshellOwner, String sessionId, boolean over,
+			String userType) {
 		if (user == null) {
 			return;
 		}
 
+		boolean openshellUserSandbox = openshellOwner != null;
 		try {
-			// stop the netty thread if used for either r or python
-			ClientProcessWrapper cpw = user.getPythonClientProcessWrapper();
-			if (cpw != null) {
-				cpw.shutdown(true);
+			if (openshellUserSandbox) {
+				// The python worker and chroot belong to the user, not this session: they
+				// go when the user's last session here ends, and the sandbox when their
+				// last session anywhere does.
+				OpenShellUserSandboxes.sessionEnded(openshellOwner, sessionId, over);
+			} else {
+				// stop the netty thread if used for either r or python
+				ClientProcessWrapper cpw = user.getPythonClientProcessWrapper();
+				if (cpw != null) {
+					cpw.shutdown(true);
+				}
 			}
 		} catch (Exception e) {
 			classLogger.error("Failed to shut down client process wrapper during {} cleanup", userType, e);
@@ -266,7 +294,7 @@ public class UserSessionLoader implements HttpSessionListener {
 
 		// remove mounts if chroot is enabled
 		try {
-			if (Boolean.parseBoolean(Utility.getDIHelperProperty(Constants.CHROOT_ENABLE))) {
+			if (!openshellUserSandbox && Boolean.parseBoolean(Utility.getDIHelperProperty(Constants.CHROOT_ENABLE))) {
 				SymlinkHelper chrootHelper = user.getUserSymlinkHelper();
 				if (chrootHelper != null) {
 					chrootHelper.removeChrootFolder();
@@ -387,4 +415,27 @@ public class UserSessionLoader implements HttpSessionListener {
 		}
 	}
 
+	/**
+	 * Whether the user has really left: an explicit logout, a session the app ended on
+	 * purpose, or idle past the session timeout. Anything else that destroys a session --
+	 * a server stop above all -- is not the user leaving.
+	 *
+	 * @param session the session being destroyed
+	 * @return true for a logout, an app-ended session or a timeout
+	 */
+	private static boolean sessionIsOver(HttpSession session) {
+		try {
+			if (Boolean.parseBoolean(String.valueOf(session.getAttribute(UserSessionLoader.IS_USER_LOGOUT)))
+					|| Boolean.parseBoolean(String.valueOf(session.getAttribute(UserSessionLoader.IS_SESSION_ENDED)))) {
+				return true;
+			}
+			int maxInactive = session.getMaxInactiveInterval();
+			long idleMs = System.currentTimeMillis() - session.getLastAccessedTime();
+			// the container expires a session a little after its interval, never before
+			return maxInactive > 0 && idleMs >= maxInactive * 1000L - SESSION_EXPIRY_SLACK_MS;
+		} catch (IllegalStateException e) {
+			// unreadable: keep the lease; the sweeper deletes it once it lapses
+			return false;
+		}
+	}
 }
