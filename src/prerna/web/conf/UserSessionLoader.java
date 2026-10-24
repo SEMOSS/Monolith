@@ -72,6 +72,8 @@ public class UserSessionLoader implements HttpSessionListener {
 	private static final long SESSION_EXPIRY_SLACK_MS = 5000L;
 
 	public static final String IS_USER_LOGOUT = "IS_USER_LOGOUT";
+	// set when the app invalidates a live session on purpose (not a logout, not a server stop)
+	public static final String IS_SESSION_ENDED = "IS_SESSION_ENDED";
 	public static final String USER_LOGOUT_IP_ADDR = "USER_LOGOUT_IP_ADDR";
 
 	private static final Logger classLogger = LogManager.getLogger(UserSessionLoader.class);
@@ -409,16 +411,17 @@ public class UserSessionLoader implements HttpSessionListener {
 	}
 
 	/**
-	 * Whether the user has really left: an explicit logout, or idle past the session
-	 * timeout. Anything else that destroys a session -- a server stop above all -- is not
-	 * the user leaving.
+	 * Whether the user has really left: an explicit logout, a session the app ended on
+	 * purpose, or idle past the session timeout. Anything else that destroys a session --
+	 * a server stop above all -- is not the user leaving.
 	 *
 	 * @param session the session being destroyed
-	 * @return true for a logout or a timeout
+	 * @return true for a logout, an app-ended session or a timeout
 	 */
 	private static boolean sessionIsOver(HttpSession session) {
 		try {
-			if (Boolean.parseBoolean(String.valueOf(session.getAttribute(UserSessionLoader.IS_USER_LOGOUT)))) {
+			if (Boolean.parseBoolean(String.valueOf(session.getAttribute(UserSessionLoader.IS_USER_LOGOUT)))
+					|| Boolean.parseBoolean(String.valueOf(session.getAttribute(UserSessionLoader.IS_SESSION_ENDED)))) {
 				return true;
 			}
 			int maxInactive = session.getMaxInactiveInterval();
