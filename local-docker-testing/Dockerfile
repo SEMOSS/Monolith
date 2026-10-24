@@ -26,7 +26,7 @@ RUN cd $TOMCAT_HOME/webapps && \
 # the published semoss-dev base carries node + /opt/semosshome/js itself.
 # target/docker-js is staged from ../Semoss/js by createLocalDockerScript.sh
 # (never with node_modules - npm ci below installs the linux dependencies).
-ARG NODE_VERSION=24.21.0
+ARG NODE_VERSION=24.22.1
 ENV NODE_HOME=/opt/node
 RUN set -eux; \
 	case "$(uname -m)" in \

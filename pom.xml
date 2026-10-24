@@ -53,8 +53,27 @@
 		     real jackson-core/jackson-databind/jackson-dataformat-yaml jars
 		     (WEB-INF/lib). Shaded 2.x copies of the same CVEs embedded in
 		     gremlin-shaded/databricks-jdbc are untouched by this bump; those are
-		     not independently patchable. -->
+		     not independently patchable. dev independently bumped to 3.1.7 before
+		     this fix landed; kept the higher, CVE-driven value on merge, matching
+		     Semoss/pom.xml. -->
 		<jackson3.version>3.2.3</jackson3.version>
+		<lz4.version>1.11.4</lz4.version>
+		<!-- rabbitmq.version intentionally not carried over from dev: the existing
+		     amqp-client entry below already pins a higher, CVE-driven hardcoded
+		     version; introducing this property unused would risk a future
+		     re-declaration tripping the enforcer plugin's duplicate-version check. -->
+		<!-- databricks-jdbc/tika-core had no dependencyManagement entry of their own
+		     in this pom before dev's addition. 2.8.4 drops databricks-jdbc's bundled
+		     log4j-core/log4j-api entirely (confirmed via direct jar inspection) and
+		     bumps bundled jackson to 2.21.5, closing CVE-2025-68161/34477/34478/34480/49844
+		     (log4j) and CVE-2026-18401/68494/59888 (jackson) against the Semoss/pom.xml
+		     copy of this same shaded jar - about a third of its ~20 bundled-vendor
+		     findings. Same Simba-derived 2.x codebase as 2.7.4, not the ground-up 3.x
+		     rewrite; see docker/il4/README.md in both IL4 repos for the full
+		     accepted-risk writeup. Kept matching Semoss/pom.xml's own choice for
+		     consistency. -->
+		<databricks.jdbc.version>2.8.4</databricks.jdbc.version>
+		<tika.version>3.3.3</tika.version>
 		<!-- BouncyCastle FIPS, consumed only by the fips profile below. Keep in sync
 		     with the properties of the same name in Semoss/pom.xml and the
 		     BC_*_VERSION build args in Semoss/docker/Dockerfile.tomcat. -->
@@ -499,6 +518,27 @@
 	</repositories>
 	<dependencyManagement>
 		<dependencies>
+			<!-- Keep the security pins aligned with Semoss even when an older
+			     Semoss snapshot is installed; its dependencyManagement is not inherited. -->
+			<dependency>
+				<groupId>at.yawk.lz4</groupId>
+				<artifactId>lz4-java</artifactId>
+				<version>${lz4.version}</version>
+			</dependency>
+			<!-- amqp-client intentionally omitted here: dev's own entry duplicated the
+			     existing hardcoded 5.37.0 pin further down (enforcer's
+			     BanDuplicatePomDependencyVersions caught it), consistent with why
+			     rabbitmq.version itself was dropped from the properties above. -->
+			<dependency>
+				<groupId>com.databricks</groupId>
+				<artifactId>databricks-jdbc</artifactId>
+				<version>${databricks.jdbc.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.tika</groupId>
+				<artifactId>tika-core</artifactId>
+				<version>${tika.version}</version>
+			</dependency>
 			<!-- Override the SSHJ version inherited through Semoss so Monolith does not
 			     depend on which Semoss snapshot is installed when this branch is built. -->
 			<dependency>

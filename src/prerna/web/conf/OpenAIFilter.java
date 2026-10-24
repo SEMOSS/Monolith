@@ -73,9 +73,22 @@ public class OpenAIFilter implements Filter {
 		if (authValue == null) {
 			authValue = request.getHeader("authorization");
 			if (authValue == null) {
-				// no token? just go through and other filters will validate
-				arg2.doFilter(arg0, arg1);
-				return;
+				// Anthropic-style clients (e.g. the Goose anthropic provider) send the
+				// key as an x-api-key header, not as a Bearer Authorization header.
+				// Accept it on the Anthropic model routes only - that is where an
+				// x-api-key caller is expected - so other endpoints keep the original
+				// behaviour. The value is the same access:secret pair, so wrap it as a
+				// Bearer token for the shared validation below.
+				String apiKeyHeader = request.getHeader("x-api-key");
+				String requestUri = request.getRequestURI();
+				if (apiKeyHeader != null && !apiKeyHeader.trim().isEmpty() && requestUri != null
+						&& requestUri.contains("/api/model/anthropic/")) {
+					authValue = "Bearer " + apiKeyHeader.trim();
+				} else {
+					// no token? just go through and other filters will validate
+					arg2.doFilter(arg0, arg1);
+					return;
+				}
 			}
 		}
 
