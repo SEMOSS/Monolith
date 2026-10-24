@@ -85,6 +85,9 @@ public class NoUserInSessionFilter implements Filter {
 						(String) session.getAttribute(OPENSHELL_LEASE_ATTR), session.getMaxInactiveInterval());
 				if (marker != null) {
 					session.setAttribute(OPENSHELL_LEASE_ATTR, marker);
+					// kept for logout: dropping a provider can leave the user with no login
+					// to derive the owner from by the time the session is destroyed
+					session.setAttribute(OpenShellUserSandboxes.SESSION_OWNER_ATTR, OpenShellUserSandboxes.ownerOf(user));
 				}
 			}
 		}

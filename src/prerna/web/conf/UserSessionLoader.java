@@ -106,7 +106,9 @@ public class UserSessionLoader implements HttpSessionListener {
 		User thisUser = (User) session.getAttribute(Constants.SESSION_USER);
 		// A user sandbox outlives a server stop, which also destroys every session: only a
 		// logout or a real timeout ends the user's claim on it (see OpenShellUserSandboxes).
-		boolean sessionOver = !OpenShellUserSandboxes.appliesTo(thisUser) || sessionIsOver(session);
+		String openshellOwner = OpenShellUserSandboxes.ownerForSession(thisUser,
+				session.getAttribute(OpenShellUserSandboxes.SESSION_OWNER_ATTR));
+		boolean sessionOver = openshellOwner == null || sessionIsOver(session);
 		if (thisUser == null) {
 			// no need to log a new session that is auto dropped
 			// this just keeps writing to the log
@@ -213,11 +215,12 @@ public class UserSessionLoader implements HttpSessionListener {
 		}
 
 		// stop netty/python wrappers and chroot mounts for session user
-		cleanupUserProcessAndChroot(thisUser, sessionId, sessionOver, "session user");
+		cleanupUserProcessAndChroot(thisUser, openshellOwner, sessionId, sessionOver, "session user");
 
 		// remove agent users
 		if (subAgent != thisUser) {
-			cleanupUserProcessAndChroot(subAgent, sessionId, sessionOver, "agent user");
+			cleanupUserProcessAndChroot(subAgent, OpenShellUserSandboxes.ownerForSession(subAgent, null), sessionId,
+					sessionOver, "agent user");
 		}
 
 		// if cloud sync enabled, push and clear the rooms
@@ -249,23 +252,25 @@ public class UserSessionLoader implements HttpSessionListener {
 	/**
 	 * Cleans up user-owned client process and optional chroot resources.
 	 *
-	 * @param user      the user to clean up
-	 * @param sessionId the session that ended
-	 * @param over      true for a logout or timeout, false when the server is stopping
-	 * @param userType  descriptive label used in logs (for example, session user)
+	 * @param user           the user to clean up
+	 * @param openshellOwner owner of the user's OpenShell sandbox, or null outside that mode
+	 * @param sessionId      the session that ended
+	 * @param over           true for a logout or timeout, false when the server is stopping
+	 * @param userType       descriptive label used in logs (for example, session user)
 	 */
-	private void cleanupUserProcessAndChroot(User user, String sessionId, boolean over, String userType) {
+	private void cleanupUserProcessAndChroot(User user, String openshellOwner, String sessionId, boolean over,
+			String userType) {
 		if (user == null) {
 			return;
 		}
 
-		boolean openshellUserSandbox = OpenShellUserSandboxes.appliesTo(user);
+		boolean openshellUserSandbox = openshellOwner != null;
 		try {
 			if (openshellUserSandbox) {
 				// The python worker and chroot belong to the user, not this session: they
 				// go when the user's last session here ends, and the sandbox when their
 				// last session anywhere does.
-				OpenShellUserSandboxes.sessionEnded(user, sessionId, over);
+				OpenShellUserSandboxes.sessionEnded(openshellOwner, sessionId, over);
 			} else {
 				// stop the netty thread if used for either r or python
 				ClientProcessWrapper cpw = user.getPythonClientProcessWrapper();
