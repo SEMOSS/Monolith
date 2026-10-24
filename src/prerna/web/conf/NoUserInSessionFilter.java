@@ -78,7 +78,7 @@ public class NoUserInSessionFilter implements Filter {
 				// don't know what i am redirecting
 				// send back an error and have the client remake the request
 				setInvalidEntryRedirect(context, arg0, arg1);
-			} else if (session != null && OpenShellUserSandboxes.enabled()) {
+			} else if (session != null && OpenShellUserSandboxes.appliesTo(user)) {
 				// any activity, not only python, keeps the user's sandbox alive for the
 				// session timeout; refreshed at most once a minute per session
 				String marker = OpenShellUserSandboxes.touch(user, session.getId(),

@@ -68,6 +68,9 @@ import prerna.util.openshell.OpenShellUserSandboxes;
 @WebListener
 public class UserSessionLoader implements HttpSessionListener {
 
+	/** How far short of its timeout an idle session still counts as timed out. */
+	private static final long SESSION_EXPIRY_SLACK_MS = 5000L;
+
 	public static final String IS_USER_LOGOUT = "IS_USER_LOGOUT";
 	public static final String USER_LOGOUT_IP_ADDR = "USER_LOGOUT_IP_ADDR";
 
@@ -97,12 +100,11 @@ public class UserSessionLoader implements HttpSessionListener {
 		classLogger.info("Starting logout");
 		HttpSession session = sessionEvent.getSession();
 		String sessionId = session.getId();
-		// A user sandbox outlives a server stop, which also destroys every session: only a
-		// logout or a real timeout ends the user's claim on it (see OpenShellUserSandboxes).
-		boolean openshellUserSandbox = OpenShellUserSandboxes.enabled();
-		boolean sessionOver = !openshellUserSandbox || sessionIsOver(session);
 
 		User thisUser = (User) session.getAttribute(Constants.SESSION_USER);
+		// A user sandbox outlives a server stop, which also destroys every session: only a
+		// logout or a real timeout ends the user's claim on it (see OpenShellUserSandboxes).
+		boolean sessionOver = !OpenShellUserSandboxes.appliesTo(thisUser) || sessionIsOver(session);
 		if (thisUser == null) {
 			// no need to log a new session that is auto dropped
 			// this just keeps writing to the log
@@ -255,7 +257,7 @@ public class UserSessionLoader implements HttpSessionListener {
 			return;
 		}
 
-		boolean openshellUserSandbox = OpenShellUserSandboxes.enabled();
+		boolean openshellUserSandbox = OpenShellUserSandboxes.appliesTo(user);
 		try {
 			if (openshellUserSandbox) {
 				// The python worker and chroot belong to the user, not this session: they
@@ -406,7 +408,6 @@ public class UserSessionLoader implements HttpSessionListener {
 		}
 	}
 
-
 	/**
 	 * Whether the user has really left: an explicit logout, or idle past the session
 	 * timeout. Anything else that destroys a session -- a server stop above all -- is not
@@ -417,13 +418,13 @@ public class UserSessionLoader implements HttpSessionListener {
 	 */
 	private static boolean sessionIsOver(HttpSession session) {
 		try {
-			if (Boolean.parseBoolean(session.getAttribute(UserSessionLoader.IS_USER_LOGOUT) + "")) {
+			if (Boolean.parseBoolean(String.valueOf(session.getAttribute(UserSessionLoader.IS_USER_LOGOUT)))) {
 				return true;
 			}
 			int maxInactive = session.getMaxInactiveInterval();
 			long idleMs = System.currentTimeMillis() - session.getLastAccessedTime();
 			// the container expires a session a little after its interval, never before
-			return maxInactive > 0 && idleMs >= maxInactive * 1000L - 5000L;
+			return maxInactive > 0 && idleMs >= maxInactive * 1000L - SESSION_EXPIRY_SLACK_MS;
 		} catch (IllegalStateException e) {
 			// unreadable: keep the lease; the sweeper deletes it once it lapses
 			return false;
