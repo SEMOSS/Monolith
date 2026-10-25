@@ -1579,8 +1579,14 @@ public class UserResource {
 	public Response loginLinOTP(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws ClientProtocolException, IOException {
 		Map<String, Object> returnMap = new HashMap<>();
+		String attemptedUsername = request.getParameter("username");
+		String clientIp = WebUtility.getClientIp(request);
+		String authMode = socialData.getProperty("linotp_auth_mode", "rest");
+
 		if (socialData.getLoginsAllowed().get("linotp") == null || !socialData.getLoginsAllowed().get("linotp")) {
 			returnMap.put(Constants.ERROR_MESSAGE, "LinOTP login is not allowed");
+			UserAuditTrailUtils.recordLoginFailed(attemptedUsername, AuthProvider.LINOTP.getLabel(),
+					AuditErrorCode.LOGIN_METHOD_DISABLED, "LinOTP login is not allowed", clientIp, 400);
 			return WebUtility.getResponse(returnMap, 400);
 		}
 
@@ -1589,23 +1595,56 @@ public class UserResource {
 		Boolean disableRedirect = Boolean.parseBoolean(request.getParameter("disableRedirect") + "");
 		boolean autoAdd = Boolean.parseBoolean(socialData.getProperty("linotp_auto_add", "true"));
 
-		LinOTPResponse linotpResponse = LinOTPUtil.login(request);
+		LinOTPResponse linotpResponse;
+		try {
+			linotpResponse = LinOTPUtil.login(request);
+		} catch (IOException e) {
+			classLogger.error("Unexpected error in loginLinOTP (auth mode=" + authMode + ")", e);
+			SemossLogUtils.logSecurityAuditEvent("LOGIN_FAILURE", null, attemptedUsername, clientIp, null, null, null,
+					false, "LinOTP login (" + authMode + ") raised an unexpected error: " + e.getMessage(), null);
+			UserAuditTrailUtils.recordLoginFailed(attemptedUsername, AuthProvider.LINOTP.getLabel(),
+					AuditErrorCode.INTERNAL_ERROR, e.getMessage(), clientIp, 500);
+			returnMap.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
+			return WebUtility.getResponse(returnMap, 500);
+		}
 		returnMap = linotpResponse.getReturnMap();
 		int responseCode = linotpResponse.getResponseCode();
 		if (responseCode != 200) {
-			// we just throw the error
+			// a genuine failure: invalid credentials/OTP, RADIUS/LinOTP server
+			// unreachable, misconfiguration, etc. - the specific reason is already in
+			// returnMap's error message, which must never contain the submitted
+			// pin/password/OTP (LinOTPUtil never puts them there).
+			Object errorMessage = returnMap.get(Constants.ERROR_MESSAGE);
+			String reason = "LinOTP login (" + authMode + ") failed for " + attemptedUsername
+					+ (errorMessage != null ? ": " + errorMessage : "");
+			SemossLogUtils.logSecurityAuditEvent("LOGIN_FAILURE", null, attemptedUsername, clientIp, null, null, null,
+					false, reason, null);
+			UserAuditTrailUtils.recordLoginFailed(attemptedUsername, AuthProvider.LINOTP.getLabel(),
+					AuditErrorCode.INVALID_CREDENTIALS, errorMessage == null ? null : errorMessage.toString(),
+					clientIp, responseCode);
 			return WebUtility.getResponse(returnMap, responseCode);
 		} else {
 			// are we logged in?
 			AccessToken token = linotpResponse.getToken();
 			if (token == null) {
-				// it is a 200 but we are not logged in
-				// you likely need to enter otp in 2nd response
+				// it is a 200 but we are not logged in: a challenge-response step (the
+				// pin/first factor checked out and the server is asking for an OTP next).
+				// This is neither a success nor a failure, so it is deliberately not
+				// written to the audit trail - only the eventual accept/reject outcome is.
+				classLogger.debug("LinOTP login ({}) for user='{}' is awaiting a second-factor OTP", authMode,
+						attemptedUsername);
 				return WebUtility.getResponse(returnMap, responseCode);
 			}
 
 			// we have a login
+			// addAccessToken() -> userTrackingLogin() already calls
+			// UserAuditTrailUtils.recordLogin for every provider, LinOTP included - only
+			// the SemossLogUtils side (which loginNative also adds explicitly alongside
+			// that same automatic call) needs adding here.
 			addAccessToken(token, request, autoAdd);
+			classLogger.info("LinOTP login ({}) succeeded for user='{}'", authMode, token.getUsername());
+			SemossLogUtils.logSecurityAuditEvent("LOGIN_SUCCESS", token.getId(), token.getUsername(), clientIp, null,
+					null, null, true, "LinOTP login (" + authMode + ") succeeded for " + token.getUsername(), null);
 			// log the log in
 			if (!disableRedirect) {
 				setMainPageRedirect(request, response, redirect);
