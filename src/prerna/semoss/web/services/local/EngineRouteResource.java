@@ -301,6 +301,10 @@ public class EngineRouteResource {
 				return WebUtility.getResponse(errorMap, 400);
 			}
 
+			// the smss file is unchanged and the new values live in the secret store, so
+			// the other nodes only need to close the engine to read them on next use
+			ClusterUtil.publishEngineClose(engineId);
+
 			Map<String, Object> success = new HashMap<>();
 			success.put("success", true);
 			return WebUtility.getResponse(success, 200);
