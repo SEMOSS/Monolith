@@ -6,6 +6,8 @@ Monolith connects browsers and API clients to the [SEMOSS core runtime](https://
 
 Use Monolith together with [semoss-ui](https://github.com/SEMOSS/semoss-ui) to run the SEMOSS web experience, or call its APIs from your own applications. For examples of a complete infrastructure deployment, see [SEMOSS-deployment](https://github.com/SEMOSS/SEMOSS-deployment).
 
+For backend metadata shared by REST APIs and Pixel reactors, see the [operation contract guide](https://github.com/SEMOSS/Semoss/blob/dev/docs/development_guides/operation_contracts.md). The readiness endpoint declares its response fields inline in `@Returns`, without a separate DTO.
+
 [Docker quick start](#quick-start-with-docker) · [Build from source](#building-from-source) · [Core documentation](https://github.com/SEMOSS/Semoss/tree/dev/docs) · [Complete deployment examples](https://github.com/SEMOSS/SEMOSS-deployment) · [Issues](https://github.com/SEMOSS/Monolith/issues)
 
 ## Contents

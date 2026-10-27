@@ -34,6 +34,8 @@ import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.Response;
+import prerna.contract.Description;
+import prerna.contract.Returns;
 import prerna.util.Constants;
 import prerna.util.SystemEngineRegistry;
 import prerna.util.Utility;
@@ -77,6 +79,15 @@ public class HealthResource {
 	@GET
 	@Path("/ready")
 	@Produces("application/json")
+	@Description("Reports whether backend startup has completed.")
+	@Returns(statuses = { 200, 503 },
+			description = "HTTP 200 when startup is complete; HTTP 503 while the backend is not ready.",
+			fields = {
+					@Returns.Field(name = "status", type = String.class, values = { "READY", "NOT_READY" },
+							description = "Current readiness state."),
+					@Returns.Field(name = "startupComplete", type = boolean.class,
+							description = "Whether startup completed successfully.")
+			})
 	public Response readiness() {
 		boolean complete = DBLoader.isStartupComplete();
 
