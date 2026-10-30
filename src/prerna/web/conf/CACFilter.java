@@ -453,7 +453,8 @@ public class CACFilter implements Filter {
 					if (wrapper.hasNext()) {
 
 						// form builder update block
-						String emailColumnExists = "SELECT COLUMN_NAME, TYPE_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'FORMS_USER_ACCESS' AND COLUMN_NAME='EMAIL'";
+						// only checks the column exists; TYPE_NAME was removed in H2 2.x
+						String emailColumnExists = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'FORMS_USER_ACCESS' AND COLUMN_NAME='EMAIL'";
 						IRawSelectWrapper requireFormUpdateWrapper = null;
 						try {
 							requireFormUpdateWrapper = WrapperManager.getInstance().getRawWrapper(formEngine,
