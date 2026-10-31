@@ -46,10 +46,10 @@
 		<!-- Pins that Semoss/pom.xml also carries at the same value. Its
 		     dependencyManagement is not inherited here, so each pom needs its own
 		     copy and the two have to be bumped together. -->
-		<!-- Version 1.85 addresses vulnerabilities inherited through SSHJ. -->
-		<bc.jdk18on.version>1.85</bc.jdk18on.version>
+		<!-- Version 1.86 addresses vulnerabilities inherited through SSHJ. -->
+		<bc.jdk18on.version>1.86</bc.jdk18on.version>
 		<netty.version>4.1.138.Final</netty.version>
-		<jackson3.version>3.1.7</jackson3.version>
+		<jackson3.version>3.1.8</jackson3.version>
 		<lz4.version>1.11.4</lz4.version>
 		<rabbitmq.version>5.37.0</rabbitmq.version>
 		<databricks.jdbc.version>2.8.4</databricks.jdbc.version>
@@ -58,9 +58,9 @@
 		     with the properties of the same name in Semoss/pom.xml and the
 		     BC_*_VERSION build args in Semoss/docker/Dockerfile.tomcat. -->
 		<bc.fips.version>2.1.3</bc.fips.version>
-		<bcpkix.fips.version>2.1.12</bcpkix.fips.version>
+		<bcpkix.fips.version>2.1.13</bcpkix.fips.version>
 		<bctls.fips.version>2.1.24</bctls.fips.version>
-		<bcutil.fips.version>2.1.7</bcutil.fips.version>
+		<bcutil.fips.version>2.1.8</bcutil.fips.version>
 		<!-- Must match the sshj version in Semoss/pom.xml. dependencyManagement
 		     applies it to the normal transitive dependency, while the fips profile
 		     re-declares sshj to strip its non-FIPS BouncyCastle transitives. -->
@@ -527,7 +527,7 @@
 				<artifactId>sshj</artifactId>
 				<version>${sshj.version}</version>
 			</dependency>
-			<!-- Converge the non-FIPS BouncyCastle that sshj brings in. Version 1.85
+			<!-- Converge the non-FIPS BouncyCastle that sshj brings in. Version 1.86
 			     addresses the vulnerabilities inherited through SSHJ and ensures the
 			     non-FIPS war ships one consistent BouncyCastle release.
 			     dependencyManagement is not inherited from the semoss pom, so this
@@ -548,6 +548,23 @@
 				<groupId>org.bouncycastle</groupId>
 				<artifactId>bcutil-jdk18on</artifactId>
 				<version>${bc.jdk18on.version}</version>
+			</dependency>
+			<!-- jnr-posix 3.0.44 (use after free) arrives through the dse driver in
+			     semoss. Same pins as Semoss/pom.xml; dependencyManagement is not inherited. -->
+			<dependency>
+				<groupId>com.github.jnr</groupId>
+				<artifactId>jnr-posix</artifactId>
+				<version>3.1.8</version>
+			</dependency>
+			<dependency>
+				<groupId>com.github.jnr</groupId>
+				<artifactId>jnr-ffi</artifactId>
+				<version>2.2.19</version>
+			</dependency>
+			<dependency>
+				<groupId>com.github.jnr</groupId>
+				<artifactId>jnr-constants</artifactId>
+				<version>0.10.2</version>
 			</dependency>
 			<!-- Converge the FIPS BouncyCastle that reaches the non-FIPS war. Two
 			     separate paths feed it: bcpkix-fips from semoss, whose artifacts
