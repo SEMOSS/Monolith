@@ -167,7 +167,7 @@ A model usage limit is JSON: Unlimited, or rules that must all have usage left.
 
 Only a model's owners, and admins in admin mode, set usage limits on it: a person's, a team's, public use and the model's total. Editors still add people and change the level of Read-Only and Editor people; their adds give no limit and their changes keep the current one. A change by an editor that leaves any other limit is refused with "Only owners can set usage limits".
 
-These endpoints read and set limits that are not part of a grant. Anonymous sessions get `401` from each.
+These endpoints read and set limits that are not part of a grant. Requests without a signed in user get `401` from each.
 
 | Method and endpoint | Inputs / purpose | Who may call |
 | --- | --- | --- |

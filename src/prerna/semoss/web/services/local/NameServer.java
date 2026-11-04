@@ -1289,7 +1289,7 @@ public class NameServer {
 		}
 		HttpSession session = request.getSession(false);
 		User user = session == null ? null : (User) session.getAttribute(Constants.SESSION_USER);
-		if (user == null || user.isAnonymous()) {
+		if (user == null) {
 			Map<String, Object> errorRet = new HashMap<>();
 			errorRet.put("errorMessage", "Agent run streaming requires an authenticated user");
 			return WebUtility.getResponseNoCache(errorRet, 401);

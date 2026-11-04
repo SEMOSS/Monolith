@@ -79,8 +79,8 @@ public class GroupEngineAuthorizationResource {
 		String groupType = AuthProvider.getProviderLabel(WebUtility.inputSanitizer(type));
 		String engine = WebUtility.inputSanitizer(appId);
 		String group = WebUtility.inputSQLSanitizer(groupId);
-		return ResourceUtility.respondAllowingAnonymous(request,
-				"read the permission of group " + group + " on engine " + engine, user -> {
+		return ResourceUtility.respond(request, "read the permission of group " + group + " on engine " + engine,
+				user -> {
 					Integer permissionCode = SecurityGroupEngineUtils.getGroupDatabasePermission(
 							ValueUtils.requireNonBlank(group, GROUP_ID_REQUIRED),
 							ValueUtils.requireNonBlank(groupType, GROUP_TYPE_REQUIRED),
@@ -194,19 +194,18 @@ public class GroupEngineAuthorizationResource {
 			@QueryParam("engineId") String engineId, @QueryParam("limit") long limit,
 			@QueryParam("offset") long offset) {
 		String engine = WebUtility.inputSanitizer(engineId);
-		return ResourceUtility.respondAllowingAnonymous(request, "list the groups with access to engine " + engine,
-				user -> {
-					if (engine == null || engine.isEmpty()) {
-						throw new IllegalArgumentException("Must define the engineId");
-					}
-					List<Map<String, Object>> groups = SecurityGroupEngineUtils.getGroupsWithAccessToEngine(user,
-							engine, limit, offset);
-					long totalGroups = SecurityGroupEngineUtils.getNumGroupsWithAccessToEngine(user, engine);
-					Map<String, Object> ret = new HashMap<>();
-					ret.put("totalGroups", totalGroups);
-					ret.put("groups", groups);
-					return ret;
-				});
+		return ResourceUtility.respond(request, "list the groups with access to engine " + engine, user -> {
+			if (engine == null || engine.isEmpty()) {
+				throw new IllegalArgumentException("Must define the engineId");
+			}
+			List<Map<String, Object>> groups = SecurityGroupEngineUtils.getGroupsWithAccessToEngine(user, engine, limit,
+					offset);
+			long totalGroups = SecurityGroupEngineUtils.getNumGroupsWithAccessToEngine(user, engine);
+			Map<String, Object> ret = new HashMap<>();
+			ret.put("totalGroups", totalGroups);
+			ret.put("groups", groups);
+			return ret;
+		});
 	}
 
 	/**
@@ -228,8 +227,8 @@ public class GroupEngineAuthorizationResource {
 			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
 		String engine = WebUtility.inputSanitizer(engineId);
 		String term = WebUtility.inputSQLSanitizer(searchTerm);
-		return ResourceUtility.respondAllowingAnonymous(request,
-				"list the groups that can be given access to engine " + engine, user -> {
+		return ResourceUtility.respond(request, "list the groups that can be given access to engine " + engine,
+				user -> {
 					if (engine == null || engine.isEmpty()) {
 						throw new IllegalArgumentException("Must define the engineId");
 					}

@@ -98,12 +98,6 @@ public class ImageUploader extends AbstractUploader {
 						"Session could not be validated in order to upload the engine image");
 				return WebUtility.getResponse(errorMap, 400);
 			}
-
-			if (user.isAnonymous()) {
-				HashMap<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload an engine image");
-				return WebUtility.getResponse(errorMap, 400);
-			}
 		} else {
 			returnMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(returnMap, 400);
@@ -303,12 +297,6 @@ public class ImageUploader extends AbstractUploader {
 				return WebUtility.getResponse(errorMap, 400);
 			}
 
-			if (user.isAnonymous()) {
-				HashMap<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload an engine image");
-				return WebUtility.getResponse(errorMap, 400);
-			}
-
 			if (!SecurityEngineUtils.userCanEditEngine(user, engineId)) {
 				returnMap.put(Constants.ERROR_MESSAGE,
 						"User does not have access to this engine or the engine id does not exist");
@@ -451,12 +439,6 @@ public class ImageUploader extends AbstractUploader {
 				HashMap<String, String> errorMap = new HashMap<>();
 				errorMap.put(Constants.ERROR_MESSAGE,
 						"Session could not be validated in order to upload the project image");
-				return WebUtility.getResponse(errorMap, 400);
-			}
-
-			if (user.isAnonymous()) {
-				HashMap<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload an project image");
 				return WebUtility.getResponse(errorMap, 400);
 			}
 		} else {
@@ -603,12 +585,6 @@ public class ImageUploader extends AbstractUploader {
 				return WebUtility.getResponse(errorMap, 400);
 			}
 
-			if (user.isAnonymous()) {
-				HashMap<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload an project image");
-				return WebUtility.getResponse(errorMap, 400);
-			}
-
 			try {
 				projectId = SecurityProjectUtils.testUserProjectIdForAlias(user, projectId);
 			} catch (Exception e) {
@@ -706,12 +682,6 @@ public class ImageUploader extends AbstractUploader {
 				HashMap<String, String> errorMap = new HashMap<>();
 				errorMap.put(Constants.ERROR_MESSAGE,
 						"Session could not be validated in order to upload the insight image");
-				return WebUtility.getResponse(errorMap, 400);
-			}
-
-			if (user.isAnonymous()) {
-				HashMap<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload an insight image");
 				return WebUtility.getResponse(errorMap, 400);
 			}
 		} else {
@@ -867,12 +837,6 @@ public class ImageUploader extends AbstractUploader {
 				return WebUtility.getResponse(errorMap, 400);
 			}
 
-			if (user.isAnonymous()) {
-				HashMap<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload an app image");
-				return WebUtility.getResponse(errorMap, 400);
-			}
-
 			try {
 				projectId = SecurityProjectUtils.testUserProjectIdForAlias(user, projectId);
 			} catch (Exception e) {
@@ -968,12 +932,6 @@ public class ImageUploader extends AbstractUploader {
 				HashMap<String, String> errorMap = new HashMap<>();
 				errorMap.put(Constants.ERROR_MESSAGE,
 						"Session could not be validated in order to upload the engine image");
-				return WebUtility.getResponse(errorMap, 400);
-			}
-
-			if (user.isAnonymous()) {
-				HashMap<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload an engine image");
 				return WebUtility.getResponse(errorMap, 400);
 			}
 		} else {
@@ -1184,12 +1142,6 @@ public class ImageUploader extends AbstractUploader {
 				HashMap<String, String> errorMap = new HashMap<>();
 				errorMap.put(Constants.ERROR_MESSAGE,
 						"Session could not be validated in order to upload the engine image");
-				return WebUtility.getResponse(errorMap, 400);
-			}
-
-			if (user.isAnonymous()) {
-				HashMap<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload an engine image");
 				return WebUtility.getResponse(errorMap, 400);
 			}
 

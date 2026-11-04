@@ -92,7 +92,7 @@ public class EngineAuthorizationResource {
 		List<String> engines = WebUtility.inputSanitizer(engineFilter);
 		List<String> types = WebUtility.inputSanitizer(engineTypes);
 		List<String> keys = WebUtility.inputSanitizer(metaKeys);
-		return ResourceUtility.respondAllowingAnonymous(request, "list the engines they can access", user -> {
+		return ResourceUtility.respond(request, "list the engines they can access", user -> {
 			MyEnginesReactor reactor = new MyEnginesReactor();
 			reactor.In();
 			Insight temp = new Insight();
@@ -164,7 +164,7 @@ public class EngineAuthorizationResource {
 	@Produces("application/json")
 	@Path("getEngines")
 	public Response getEnginesPOST(@Context HttpServletRequest request) {
-		return ResourceUtility.respondAllowingAnonymous(request, "list the engines they can access", user -> {
+		return ResourceUtility.respond(request, "list the engines they can access", user -> {
 			MyEnginesReactor reactor = new MyEnginesReactor();
 			reactor.In();
 			Insight temp = new Insight();
@@ -257,7 +257,7 @@ public class EngineAuthorizationResource {
 			@QueryParam("engineId") String engineId) {
 		String engine = WebUtility.inputSanitizer(engineId);
 		String action = "read their permission on engine " + engine;
-		return ResourceUtility.respondAllowingAnonymous(request, action, user -> {
+		return ResourceUtility.respond(request, action, user -> {
 			String permission = SecurityEngineUtils.getActualUserEnginePermission(user, engine);
 			if (permission == null) {
 				// are you discoverable?
@@ -294,7 +294,7 @@ public class EngineAuthorizationResource {
 		String term = WebUtility.inputSQLSanitizer(searchTerm);
 		String level = WebUtility.inputSanitizer(permission);
 		String searchParam = term != null ? term : member;
-		return ResourceUtility.respondAllowingAnonymous(request, "list the users of engine " + engine, user -> {
+		return ResourceUtility.respond(request, "list the users of engine " + engine, user -> {
 			List<Map<String, Object>> members = SecurityEngineUtils.getEngineUsers(user, engine, searchParam, level,
 					limit, offset);
 			long totalMembers = SecurityEngineUtils.getEngineUsersCount(user, engine, searchParam, level);
@@ -595,7 +595,7 @@ public class EngineAuthorizationResource {
 			@QueryParam(MicrosoftGraphUserLookup.LOOKUP_PARAM) String msGraphLookup) {
 		String engine = WebUtility.inputSanitizer(engineId);
 		String term = WebUtility.inputSQLSanitizer(searchTerm);
-		return ResourceUtility.respondAllowingAnonymous(request, "find people to add to engine " + engine, user -> {
+		return ResourceUtility.respond(request, "find people to add to engine " + engine, user -> {
 			// when the directory is not used
 			// then we will look at our security db
 			if (!MicrosoftGraphUserLookup.useDirectory(msGraphLookup)) {

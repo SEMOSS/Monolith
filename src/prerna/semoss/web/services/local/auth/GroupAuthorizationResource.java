@@ -52,8 +52,7 @@ import prerna.web.services.util.WebUtility;
  * act as an ordinary user; admins manage every custom group under
  * {@code /auth/admin/group}. The owner of a project or engine can see who
  * manages a custom group before they give it access.
- * {@link SecurityGroupManagerUtils} checks who may do what; anonymous sessions
- * can do nothing here.
+ * {@link SecurityGroupManagerUtils} checks who may do what.
  */
 @Path("/auth/group")
 @PermitAll
