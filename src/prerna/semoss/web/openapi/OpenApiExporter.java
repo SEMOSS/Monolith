@@ -31,7 +31,6 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.RecordComponent;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -61,17 +60,18 @@ import io.swagger.v3.core.util.Json31;
 import io.swagger.v3.jaxrs2.Reader;
 import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.integration.SwaggerConfiguration;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.parser.OpenAPIV3Parser;
 import io.swagger.v3.parser.core.models.ParseOptions;
 import io.swagger.v3.parser.core.models.SwaggerParseResult;
 import jakarta.ws.rs.core.Application;
+import prerna.engine.api.IEngine;
 import prerna.openapi.Internal;
-import prerna.reactor.AbstractReactor2;
-import prerna.reactor.DynamicOutput;
-import prerna.reactor.NoInput;
+import prerna.openapi.PixelInput;
+import prerna.openapi.PixelOutput;
+import prerna.reactor.IReactor;
+import prerna.reactor.ReactorContract;
 
 /**
  * Writes the OpenAPI 3.1 document every SEMOSS SDK is generated from.
@@ -82,8 +82,10 @@ import prerna.reactor.NoInput;
  * <li>Under {@code paths}: every resource method with a swagger-core
  * {@code @Operation(operationId = ...)}, in the resources each servlet's
  * {@link Application} registers.</li>
- * <li>Under the {@code x-semoss-pixels} extension: every concrete
- * {@link AbstractReactor2}, read from its input record and output type.</li>
+ * <li>Under the {@code x-semoss-pixels} extension: every general reactor,
+ * its contract inferred from what it declares ({@link ReactorContract}) and
+ * refined by {@code @PixelInput} and {@code @PixelOutput}. A reactor that
+ * cannot be read is left out and reported.</li>
  * <li>{@code @Hidden} (swagger-core) on a method, resource or reactor leaves it
  * out. {@link Internal} publishes it with {@code "x-internal": true}, which the
  * SDKs mark as not for general use.</li>
@@ -132,13 +134,32 @@ public final class OpenApiExporter {
 		if (parent != null) {
 			Files.createDirectories(parent);
 		}
-		Files.writeString(output, export(), StandardCharsets.UTF_8);
+		Result result = run(SERVLETS, REACTOR_PACKAGES);
+		Files.writeString(output, result.json(), StandardCharsets.UTF_8);
 		System.out.println("Wrote " + output);
+
+		Path skipped = output.resolveSibling("skipped.txt");
+		Files.writeString(skipped, String.join("\n", result.skipped()) + (result.skipped().isEmpty() ? "" : "\n"),
+				StandardCharsets.UTF_8);
+		System.out.println("Left out " + result.skipped().size() + " reactor(s) that cannot be read; see " + skipped);
+	}
+
+	/**
+	 * The document and the reactors left out of it.
+	 *
+	 * @param skipped one {@code "Name (class): reason"} per reactor, sorted
+	 */
+	record Result(String json, List<String> skipped) {
 	}
 
 	/** Builds the document for Monolith's servlets and the reactors in {@link #REACTOR_PACKAGES}. */
 	public static String export() throws Exception {
-		return export(SERVLETS, REACTOR_PACKAGES);
+		return run(SERVLETS, REACTOR_PACKAGES).json();
+	}
+
+	/** Builds the document for the given servlets and reactor packages. */
+	static String export(List<Servlet> servlets, List<String> reactorPackages) throws Exception {
+		return run(servlets, reactorPackages).json();
 	}
 
 	/**
@@ -146,14 +167,16 @@ public final class OpenApiExporter {
 	 *
 	 * @param servlets        the servlets whose annotated operations are published
 	 * @param reactorPackages the packages scanned for reactors
-	 * @return the document as canonical JSON, ending in a newline
+	 * @return the document as canonical JSON, ending in a newline, and the reactors left out
 	 * @throws IllegalStateException when something annotated is incomplete,
 	 *                               ambiguous or not valid OpenAPI 3.1
 	 */
-	static String export(List<Servlet> servlets, List<String> reactorPackages) throws Exception {
+	static Result run(List<Servlet> servlets, List<String> reactorPackages) throws Exception {
 		ObjectNode schemas = NODES.objectNode();
 		ObjectNode paths = readRestOperations(servlets, schemas);
-		ObjectNode pixels = readReactors(reactorPackages, schemas);
+		List<String> skipped = new ArrayList<>();
+		ObjectNode pixels = readReactors(reactorPackages, schemas, skipped);
+		skipped.sort(null);
 
 		ObjectNode root = NODES.objectNode();
 		root.put("openapi", "3.1.0");
@@ -180,7 +203,7 @@ public final class OpenApiExporter {
 
 		String json = writer().writeValueAsString(canonical).replace("\r\n", "\n") + "\n";
 		validate(json);
-		return json;
+		return new Result(json, List.copyOf(skipped));
 	}
 
 	/*
@@ -317,19 +340,24 @@ public final class OpenApiExporter {
 	 * Pixels
 	 */
 
-	/** Every concrete AbstractReactor2 in the packages, sorted by class name. */
+	/** Every concrete, general reactor in the packages, sorted by class name. */
 	static List<Class<?>> findReactors(List<String> packages) throws ClassNotFoundException {
 		List<Class<?>> reactors = new ArrayList<>();
 		ClassLoader loader = OpenApiExporter.class.getClassLoader();
 		try (ScanResult scan = new ClassGraph().enableClassInfo().acceptPackages(packages.toArray(new String[0]))
 				.scan()) {
-			for (ClassInfo info : scan.getSubclasses(AbstractReactor2.class.getName())) {
+			for (ClassInfo info : scan.getClassesImplementing(IReactor.class.getName())) {
 				if (info.isAbstract() || info.isInterface()) {
 					continue;
 				}
 				// Loaded without running static initializers.
 				Class<?> reactor = Class.forName(info.getName(), false, loader);
-				if (!Modifier.isAbstract(reactor.getModifiers())) {
+				if (Modifier.isAbstract(reactor.getModifiers()) || IEngine.class.isAssignableFrom(reactor)) {
+					continue;
+				}
+				// Frame-specific versions share a general reactor's name; the frame
+				// picks one at runtime, so only the general one is published.
+				if (ReactorContract.isGeneral(reactor)) {
 					reactors.add(reactor);
 				}
 			}
@@ -338,33 +366,85 @@ public final class OpenApiExporter {
 		return reactors;
 	}
 
-	private static ObjectNode readReactors(List<String> packages, ObjectNode schemas) throws Exception {
-		ObjectNode reactors = NODES.objectNode();
-		Map<String, Class<?>> byName = new TreeMap<>();
+	/** Whether a reactor refines its contract with an annotation, so a problem with it fails the export. */
+	private static boolean isAnnotated(Class<?> reactor) {
+		return reactor.getAnnotationsByType(PixelInput.class).length > 0
+				|| reactor.isAnnotationPresent(PixelOutput.class);
+	}
+
+	private static final java.util.regex.Pattern PIXEL_IDENTIFIER = java.util.regex.Pattern
+			.compile("^[A-Za-z_][A-Za-z0-9_]*$");
+
+	/**
+	 * Reads the contract of every general reactor that is not {@code @Hidden}.
+	 *
+	 * @param skipped collects each reactor left out and why, as
+	 *                {@code "Name (class): reason"}
+	 */
+	private static ObjectNode readReactors(List<String> packages, ObjectNode schemas, List<String> skipped)
+			throws Exception {
+		// Read every contract first, so names claimed twice can be left out entirely.
+		Map<String, List<ReactorContract>> byName = new TreeMap<>();
+		Map<ReactorContract, Class<?>> classes = new java.util.IdentityHashMap<>();
 		for (Class<?> reactorClass : findReactors(packages)) {
 			if (reactorClass.isAnnotationPresent(Hidden.class)) {
 				continue;
 			}
-			String name = pixelName(reactorClass);
-			Class<?> previous = byName.put(name, reactorClass);
-			if (previous != null) {
-				throw new IllegalStateException("Two reactors are called " + name + " in Pixel: "
-						+ previous.getName() + " and " + reactorClass.getName());
+			String name = ReactorContract.pixelName(reactorClass);
+			ReactorContract contract;
+			try {
+				contract = ReactorContract.of(reactorClass);
+				String problem = identifierProblem(contract);
+				if (problem != null) {
+					throw new IllegalArgumentException(problem);
+				}
+			} catch (Exception | LinkageError e) {
+				Throwable cause = e instanceof java.lang.reflect.InvocationTargetException ite && ite.getCause() != null
+						? ite.getCause()
+						: e;
+				if (isAnnotated(reactorClass)) {
+					throw new IllegalStateException(
+							reactorClass.getName() + " is annotated for the SDK but its contract cannot be read: "
+									+ cause,
+							cause);
+				}
+				skipped.add(name + " (" + reactorClass.getName() + "): " + describe(cause));
+				continue;
 			}
-			String description = reactorDescription(reactorClass);
+			byName.computeIfAbsent(contract.name(), n -> new ArrayList<>()).add(contract);
+			classes.put(contract, reactorClass);
+		}
 
-			Class<? extends Record> input = AbstractReactor2.inputType(reactorClass);
+		ObjectNode reactors = NODES.objectNode();
+		for (Map.Entry<String, List<ReactorContract>> entry : byName.entrySet()) {
+			List<ReactorContract> claimants = entry.getValue();
+			if (claimants.size() > 1) {
+				List<String> names = claimants.stream().map(c -> classes.get(c).getName()).sorted().toList();
+				for (ReactorContract claimant : claimants) {
+					if (isAnnotated(classes.get(claimant))) {
+						throw new IllegalStateException(classes.get(claimant).getName()
+								+ " is annotated for the SDK, but its Pixel name is also claimed by " + names);
+					}
+				}
+				skipped.add(entry.getKey() + " (" + String.join(", ", names) + "): two classes have this Pixel name");
+				continue;
+			}
+			ReactorContract contract = claimants.get(0);
+			String name = contract.name();
+
 			String inputName = "Pixel." + name + ".Input";
-			addSchema(schemas, inputName, inputSchema(name, input, schemas));
-
+			addSchema(schemas, inputName, inputSchema(contract, schemas));
 			String outputName = "Pixel." + name + ".Output";
-			addSchema(schemas, outputName, outputSchema(reactorClass, input, schemas));
+			addSchema(schemas, outputName, outputSchema(contract, schemas));
 
 			ObjectNode reactor = reactors.putObject(name);
-			reactor.put("description", description);
+			reactor.put("description", contract.description());
 			reactor.set("inputSchema", NODES.objectNode().put("$ref", "#/components/schemas/" + inputName));
 			reactor.set("outputSchema", NODES.objectNode().put("$ref", "#/components/schemas/" + outputName));
-			markInternal(reactor, reactorClass.getAnnotation(Internal.class));
+			if (contract.inferred()) {
+				reactor.put("x-semoss-inferred", true);
+			}
+			markInternal(reactor, contract.internal());
 		}
 
 		ObjectNode pixels = NODES.objectNode();
@@ -374,51 +454,42 @@ public final class OpenApiExporter {
 		return pixels;
 	}
 
-	/** The name a reactor is called by in Pixel: its class name without "Reactor". */
-	static String pixelName(Class<?> reactorClass) {
-		String simple = reactorClass.getSimpleName();
-		return simple.endsWith("Reactor") ? simple.substring(0, simple.length() - "Reactor".length()) : simple;
-	}
-
-	/**
-	 * Reads the reactor's description. This is the one place a reactor is
-	 * constructed: {@code getReactorDescription()} is an instance method, and an
-	 * {@link AbstractReactor2} constructor only reads its input record.
-	 */
-	private static String reactorDescription(Class<?> reactorClass) throws Exception {
-		AbstractReactor2<?, ?> reactor = (AbstractReactor2<?, ?>) reactorClass.getDeclaredConstructor().newInstance();
-		String description = reactor.getReactorDescription();
-		if (description == null || description.isBlank()) {
-			throw new IllegalStateException(reactorClass.getName() + " needs a getReactorDescription()");
+	/** Why a contract cannot be published as is, or null. Names and keys are written into Pixel unescaped. */
+	private static String identifierProblem(ReactorContract contract) {
+		if (!PIXEL_IDENTIFIER.matcher(contract.name()).matches()) {
+			return "\"" + contract.name() + "\" is not an identifier";
 		}
-		return description;
+		for (ReactorContract.Input input : contract.inputs()) {
+			if (!PIXEL_IDENTIFIER.matcher(input.name()).matches()) {
+				return "its key \"" + input.name() + "\" is not an identifier";
+			}
+		}
+		return null;
 	}
 
-	private static ObjectNode inputSchema(String name, Class<? extends Record> input, ObjectNode schemas) {
+	/** A short, stable reason for a skipped reactor. */
+	private static String describe(Throwable cause) {
+		String message = cause.getMessage();
+		String first = message == null ? "" : message.lines().findFirst().orElse("");
+		return cause.getClass().getSimpleName() + (first.isBlank() ? "" : ": " + first);
+	}
+
+	private static ObjectNode inputSchema(ReactorContract contract, ObjectNode schemas) {
 		ObjectNode schema = NODES.objectNode();
 		schema.put("type", "object");
-		Schema recordSchema = input.getAnnotation(Schema.class);
-		if (input == NoInput.class) {
-			schema.put("description", name + " takes no inputs");
+		if (contract.inputs().isEmpty()) {
+			schema.put("description", contract.name() + " takes no inputs");
 			return schema;
 		}
-		schema.put("description", recordSchema != null && !recordSchema.description().isEmpty()
-				? recordSchema.description()
-				: "Inputs for " + name);
-
+		schema.put("description", "Inputs for " + contract.name());
 		ObjectNode properties = schema.putObject("properties");
 		ArrayNode required = NODES.arrayNode();
-		for (RecordComponent component : input.getRecordComponents()) {
-			Schema annotation = AbstractReactor2.schemaOf(component);
-			if (annotation == null || annotation.description().isEmpty()) {
-				throw new IllegalStateException(input.getName() + "." + component.getName()
-						+ " needs @Schema(description = \"...\")");
-			}
-			ObjectNode property = schemaForType(component.getGenericType(), schemas);
-			property.put("description", annotation.description());
-			properties.set(component.getName(), property);
-			if (AbstractReactor2.isRequired(component)) {
-				required.add(component.getName());
+		for (ReactorContract.Input input : contract.inputs()) {
+			ObjectNode property = schemaFor(input.type(), input.items(), schemas);
+			property.put("description", input.description());
+			properties.set(input.name(), property);
+			if (input.required()) {
+				required.add(input.name());
 			}
 		}
 		if (!required.isEmpty()) {
@@ -427,34 +498,31 @@ public final class OpenApiExporter {
 		return schema;
 	}
 
-	private static ObjectNode outputSchema(Class<?> reactorClass, Class<? extends Record> input, ObjectNode schemas) {
-		Type output = AbstractReactor2.outputType(reactorClass);
-		if (AbstractReactor2.isDynamicOutput(output)) {
-			DynamicOutput dynamic = reactorClass.getAnnotation(DynamicOutput.class);
-			if (dynamic == null || dynamic.value().isBlank()) {
-				throw new IllegalStateException(reactorClass.getName() + " needs @DynamicOutput(\"why\")");
-			}
-			return NODES.objectNode().put("description", "Any value: " + dynamic.value());
+	private static ObjectNode outputSchema(ReactorContract contract, ObjectNode schemas) {
+		ReactorContract.Output output = contract.output();
+		if (output == null) {
+			return NODES.objectNode().put("description", "Not declared by the reactor");
 		}
-		ObjectNode schema = schemaForType(output, schemas);
-		Schema annotation = runAnnotation(reactorClass, input);
-		if (annotation != null && !annotation.description().isEmpty()) {
-			schema.put("description", annotation.description());
+		ObjectNode schema = schemaFor(output.type(), output.items(), schemas);
+		if (!output.description().isBlank()) {
+			schema.put("description", output.description());
 		}
 		return schema;
 	}
 
-	/** An optional {@code @Schema(description)} on {@code run}, describing the output. */
-	private static Schema runAnnotation(Class<?> reactorClass, Class<?> input) {
-		try {
-			Method run = reactorClass.getDeclaredMethod("run", input);
-			return run.getAnnotation(Schema.class);
-		} catch (NoSuchMethodException e) {
-			return null;
+	/** The JSON Schema of a declared or inferred type; a {@code List} uses its item type. */
+	private static ObjectNode schemaFor(Class<?> type, Class<?> items, ObjectNode schemas) {
+		if (List.class.isAssignableFrom(type)) {
+			ObjectNode schema = NODES.objectNode().put("type", "array");
+			if (items != Void.class) {
+				schema.set("items", schemaForType(items, schemas));
+			}
+			return schema;
 		}
+		return schemaForType(type, schemas);
 	}
 
-	/** The JSON Schema of a Java type, the same set {@link AbstractReactor2} accepts. */
+	/** The JSON Schema of a Java type. */
 	static ObjectNode schemaForType(Type type, ObjectNode schemas) {
 		if (type instanceof ParameterizedType parameterized && parameterized.getRawType() instanceof Class<?> raw) {
 			Type[] arguments = parameterized.getActualTypeArguments();

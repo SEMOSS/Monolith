@@ -19,7 +19,8 @@ to change that. The document is build output (under `target/`) and is not commit
 | `paths` | every resource method with a swagger-core `@Operation(operationId = ...)`, in the resources each servlet's JAX-RS application registers |
 | `components.schemas` | the records those annotations name (such as `ServerConfig`), and each reactor's input and output |
 | `x-semoss-servlets` | each servlet prefix and the SDK module it is published under (`"/api": "monolith"`) |
-| `x-semoss-pixels` | version 1: every `AbstractReactor2` in the `prerna` packages, read from its input record and output type |
+| `x-semoss-pixels` | version 1: every general reactor in the `prerna` packages, its contract inferred from what it declares and refined by `@PixelInput` and `@PixelOutput` |
+| `x-semoss-inferred` | on a reactor whose contract is inferred in part |
 | `x-internal`, `x-internal-reason` | on an operation or reactor marked `@Internal` |
 
 The document is canonical: two runs over the same code write the same bytes. It is
@@ -34,7 +35,7 @@ application and SDK module name, and the tests check it against `web.xml`.
 
 - **`@Hidden`** (swagger-core, `io.swagger.v3.oas.annotations.Hidden`) leaves an API out of
   the document, and so out of every SDK. Put it on a resource method, on a resource
-  class (all of its methods), or on an `AbstractReactor2` class.
+  class (all of its methods), or on a reactor class.
 - **`@Internal`** (Semoss, `prerna.openapi.Internal`) publishes it with
   `"x-internal": true`, plus `"x-internal-reason"` when you give one:
   `@Internal("Used by the admin console only")`. Generated SDK code tags it
@@ -64,21 +65,47 @@ application and SDK module name, and the tests check it against `web.xml`.
 
 ## Publishing a reactor
 
-1. Extend `AbstractReactor2<Input, Output>` (in Semoss) and declare the inputs as a
-   record. See its Javadoc for the supported types.
-2. Give it a `getReactorDescription()`.
-3. That is all: every concrete `AbstractReactor2` is published unless it is `@Hidden`.
-   Two reactors with the same Pixel name fail the export.
+Every general reactor is published with no changes, its contract inferred from what
+it already declares (`prerna.reactor.ReactorContract` in Semoss):
+
+| Contract | Inferred from |
+|---|---|
+| inputs | `keysToGet`, by canonical name (before any `,alias`) |
+| required inputs | `keyRequired`; with none, nothing is required, as `organizeKeys()` checks |
+| input types | `getKeyTypeForMCP` (string, integer, number, boolean, array, object) |
+| descriptions | `getDescriptionForKey` and `getReactorDescription`, or a placeholder |
+| output | nothing: published as any value unless declared |
+
+Refine what inference cannot see with annotations from `prerna.openapi`:
+
+```java
+@PixelOutput(value = String.class, description = "The id of the current insight")
+@PixelInput(name = "ids", type = List.class, items = String.class, description = "The job ids")
+@PixelInput(name = "value", type = Object.class)   // any value
+public class SomeReactor extends AbstractReactor { ... }
+```
+
+- **What is left out:**
+  - Frame-specific reactors, the R, Python, SQL and graph versions `ReactorFactory` keeps per frame type. They share the general reactor's name, which is what Pixel calls.
+  - `@Hidden` reactors.
+- **Skipped reactors:** a reactor whose contract cannot be read (its constructor fails, a key or name is not an identifier, or two classes claim one name) is left out and listed with the reason in `target/generator/skipped.txt`. The list is the same on every run. A reactor with `@PixelInput` or `@PixelOutput` fails the export instead, as does a `@PixelInput` for a key the reactor does not have.
+- **Flagged contracts:** a reactor with anything inferred gets `"x-semoss-inferred": true`, which the SDK notes in its TSDoc.
 
 ## Tests
 
 - `OpenApiExporterTest` checks:
-  - that two exports are identical;
-  - what the current code publishes (`/api/config` and the three reactors);
-  - on fixtures in `test/openapi/fixtures`: that unannotated and `@Hidden` methods and
-    reactors are left out, that `@Internal` ones get `x-internal`, and that a duplicate
-    `operationId` fails;
+  - that two exports are identical and skip the same reactors;
+  - what the current code publishes (`/api/config`, every general reactor, and the pinned
+    types of the three annotated pilot reactors);
+  - on fixtures in `test/openapi/fixtures`:
+    - unannotated and `@Hidden` methods are left out;
+    - `@Hidden` and frame-specific reactors are left out;
+    - inferred and annotated reactors are read correctly;
+    - unreadable and twice-named reactors are skipped and reported;
+    - `@Internal` ones get `x-internal`;
+    - a duplicate `operationId`, or a bad `@PixelInput` (`test/openapi/badfixtures`), fails;
   - that every servlet's application constructs, and that `SERVLETS` matches
     `WebContent/WEB-INF/web.xml`.
+- In Semoss, `ReactorContractTest` covers the inference rules and the annotations.
 - `ServerConfigContractTest` checks that `ServerConfig` documents exactly the keys
   `ServerConfigurationResource` puts.

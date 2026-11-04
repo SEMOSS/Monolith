@@ -27,52 +27,92 @@
  *******************************************************************************/
 package openapi.fixtures;
 
+import java.util.List;
+
 import io.swagger.v3.oas.annotations.Hidden;
 import prerna.openapi.Internal;
-import prerna.reactor.AbstractReactor2;
-import prerna.reactor.NoInput;
+import prerna.openapi.PixelInput;
+import prerna.openapi.PixelOutput;
+import prerna.reactor.AbstractReactor;
+import prerna.sablecc2.om.ReactorKeysEnum;
+import prerna.sablecc2.om.nounmeta.NounMetadata;
 
-/** Reactors for OpenApiExporterTest: published, hidden and internal. */
+/** Reactors for OpenApiExporterTest: inferred, annotated, hidden, internal and unreadable. */
 public final class FixtureReactors {
 
 	private FixtureReactors() {
 	}
 
-	public static class VisibleFixtureReactor extends AbstractReactor2<NoInput, String> {
+	/** Nothing annotated: everything is inferred. */
+	public static class InferredFixtureReactor extends AbstractReactor {
+		public InferredFixtureReactor() {
+			this.keysToGet = new String[] { "name", ReactorKeysEnum.LIMIT.getKey() };
+			this.keyRequired = new int[] { 1, 0 };
+		}
+
 		@Override
-		protected String run(NoInput input) {
-			return "visible";
+		public NounMetadata execute() {
+			return null;
+		}
+
+		@Override
+		protected String getDescriptionForKey(String key) {
+			return key.equals("name") ? "A name" : super.getDescriptionForKey(key);
+		}
+	}
+
+	@PixelInput(name = "tags", type = List.class, items = String.class, description = "Some tags")
+	@PixelOutput(value = Integer.class, description = "How many")
+	public static class AnnotatedFixtureReactor extends AbstractReactor {
+		public AnnotatedFixtureReactor() {
+			this.keysToGet = new String[] { "tags" };
+		}
+
+		@Override
+		public NounMetadata execute() {
+			return null;
 		}
 
 		@Override
 		public String getReactorDescription() {
-			return "Published";
+			return "Counts tags";
 		}
 	}
 
 	@Hidden
-	public static class HiddenFixtureReactor extends AbstractReactor2<NoInput, String> {
-		@Override
-		protected String run(NoInput input) {
-			return "hidden";
-		}
-
-		@Override
-		public String getReactorDescription() {
-			return "Not published";
-		}
+	public static class HiddenFixtureReactor extends InferredFixtureReactor {
 	}
 
 	@Internal("Testing only")
-	public static class InternalFixtureReactor extends AbstractReactor2<NoInput, String> {
-		@Override
-		protected String run(NoInput input) {
-			return "internal";
+	public static class InternalFixtureReactor extends InferredFixtureReactor {
+	}
+
+	/** Its constructor fails, so it cannot be read. */
+	public static class BrokenFixtureReactor extends AbstractReactor {
+		public BrokenFixtureReactor() {
+			throw new IllegalStateException("needs a running server");
 		}
 
 		@Override
-		public String getReactorDescription() {
-			return "Published as internal";
+		public NounMetadata execute() {
+			return null;
+		}
+	}
+
+	/** Two classes both called "Twin" in Pixel. */
+	public static final class First {
+		private First() {
+		}
+
+		public static class TwinReactor extends InferredFixtureReactor {
+		}
+	}
+
+	public static final class Second {
+		private Second() {
+		}
+
+		public static class TwinReactor extends InferredFixtureReactor {
 		}
 	}
 }
