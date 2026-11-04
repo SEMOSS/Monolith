@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+#
+# Writes the OpenAPI 3.1 document every SEMOSS SDK is generated from:
+#   target/generator/openapi.json
+#
+# The backend owns the contract. SDKs only read this file: pass --sdk to
+# regenerate the TypeScript SDK from it right away.
+#
+# Usage:
+#   scripts/generate-api [--sdk PATH_TO_libs/sdk] [--semoss PATH] [--skip-semoss-install]
+#
+#   --sdk PATH              after writing the document, run "pnpm generate --openapi" in PATH
+#   --semoss PATH           the Semoss checkout to install first (default: ../Semoss)
+#   --skip-semoss-install   use the Semoss artifact already in the local Maven repository
+#
+# What is published is chosen by the allowlists in
+# src/prerna/semoss/web/openapi/OpenApiExporter.java.
+set -euo pipefail
+
+MONOLITH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SEMOSS_DIR="${MONOLITH_DIR}/../Semoss"
+SDK_DIR=""
+INSTALL_SEMOSS=1
+
+while [[ $# -gt 0 ]]; do
+	case "$1" in
+		--sdk)
+			SDK_DIR="${2:?--sdk needs a path}"
+			shift 2
+			;;
+		--semoss)
+			SEMOSS_DIR="${2:?--semoss needs a path}"
+			shift 2
+			;;
+		--skip-semoss-install)
+			INSTALL_SEMOSS=0
+			shift
+			;;
+		-h | --help)
+			sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//'
+			exit 0
+			;;
+		*)
+			echo "Unknown argument: $1 (see --help)" >&2
+			exit 2
+			;;
+	esac
+done
+
+GENERATOR_DIR="${MONOLITH_DIR}/target/generator"
+OUTPUT="${GENERATOR_DIR}/openapi.json"
+CLASSPATH_FILE="${GENERATOR_DIR}/classpath.txt"
+mkdir -p "${GENERATOR_DIR}"
+
+if [[ "${INSTALL_SEMOSS}" -eq 1 ]]; then
+	echo "Installing Semoss from ${SEMOSS_DIR}"
+	(cd "${SEMOSS_DIR}" && mvn -q -DskipTests install)
+fi
+
+# The openapi profile compiles into target/openapi-build, apart from target/classes,
+# where an IDE may have left stale copies of Semoss classes that would shadow the jar.
+BUILD_DIR="${MONOLITH_DIR}/target/openapi-build"
+echo "Compiling Monolith into ${BUILD_DIR}"
+rm -rf "${BUILD_DIR}"
+(cd "${MONOLITH_DIR}" && mvn -q -P openapi -DskipTests compile dependency:build-classpath \
+	-Dmdep.outputFile="${CLASSPATH_FILE}")
+
+echo "Writing ${OUTPUT}"
+java -cp "${BUILD_DIR}/classes:$(cat "${CLASSPATH_FILE}")" \
+	prerna.semoss.web.openapi.OpenApiExporter "${OUTPUT}"
+
+if [[ -n "${SDK_DIR}" ]]; then
+	echo "Generating the TypeScript SDK in ${SDK_DIR}"
+	(cd "${SDK_DIR}" && pnpm generate --openapi "${OUTPUT}")
+fi
