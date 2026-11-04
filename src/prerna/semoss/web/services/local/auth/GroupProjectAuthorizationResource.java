@@ -77,8 +77,8 @@ public class GroupProjectAuthorizationResource {
 		String project = WebUtility.inputSanitizer(projectId);
 		String groupType = AuthProvider.getProviderLabel(WebUtility.inputSanitizer(type));
 		String group = WebUtility.inputSQLSanitizer(groupId);
-		return ResourceUtility.respondAllowingAnonymous(request,
-				"read the permission of group " + group + " on project " + project, user -> {
+		return ResourceUtility.respond(request, "read the permission of group " + group + " on project " + project,
+				user -> {
 					Integer permissionCode = SecurityGroupProjectUtils.getGroupProjectPermission(
 							ValueUtils.requireNonBlank(group, GROUP_ID_REQUIRED),
 							ValueUtils.requireNonBlank(groupType, GROUP_TYPE_REQUIRED),
@@ -187,19 +187,18 @@ public class GroupProjectAuthorizationResource {
 			@QueryParam("projectId") String projectId, @QueryParam("limit") long limit,
 			@QueryParam("offset") long offset) {
 		String project = WebUtility.inputSanitizer(projectId);
-		return ResourceUtility.respondAllowingAnonymous(request, "list the groups with access to project " + project,
-				user -> {
-					if (project == null || project.isEmpty()) {
-						throw new IllegalArgumentException("Must define the projectId");
-					}
-					List<Map<String, Object>> groups = SecurityGroupProjectUtils.getGroupsWithAccessToProject(user,
-							project, limit, offset);
-					long totalGroups = SecurityGroupProjectUtils.getNumGroupsWithAccessToProject(user, project);
-					Map<String, Object> ret = new HashMap<>();
-					ret.put("totalGroups", totalGroups);
-					ret.put("groups", groups);
-					return ret;
-				});
+		return ResourceUtility.respond(request, "list the groups with access to project " + project, user -> {
+			if (project == null || project.isEmpty()) {
+				throw new IllegalArgumentException("Must define the projectId");
+			}
+			List<Map<String, Object>> groups = SecurityGroupProjectUtils.getGroupsWithAccessToProject(user, project,
+					limit, offset);
+			long totalGroups = SecurityGroupProjectUtils.getNumGroupsWithAccessToProject(user, project);
+			Map<String, Object> ret = new HashMap<>();
+			ret.put("totalGroups", totalGroups);
+			ret.put("groups", groups);
+			return ret;
+		});
 	}
 
 	/**
@@ -221,8 +220,8 @@ public class GroupProjectAuthorizationResource {
 			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
 		String project = WebUtility.inputSanitizer(projectId);
 		String term = WebUtility.inputSQLSanitizer(searchTerm);
-		return ResourceUtility.respondAllowingAnonymous(request,
-				"list the groups that can be given access to project " + project, user -> {
+		return ResourceUtility.respond(request, "list the groups that can be given access to project " + project,
+				user -> {
 					if (project == null || project.isEmpty()) {
 						throw new IllegalArgumentException("Must define the projectId");
 					}

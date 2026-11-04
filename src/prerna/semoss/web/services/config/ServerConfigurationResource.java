@@ -130,8 +130,6 @@ public class ServerConfigurationResource {
 
 		// security is always enabled...
 		loadConfig.put("security", true);
-		loadConfig.put("anonymousUsers", AbstractSecurityUtils.anonymousUsersEnabled());
-		loadConfig.put("anonymousUserUploadData", AbstractSecurityUtils.anonymousUserUploadData());
 		// admin only for project actions
 		loadConfig.put("adminOnlyProjectAdd", AbstractSecurityUtils.adminOnlyProjectAdd());
 		loadConfig.put("adminOnlyProjectDelete", AbstractSecurityUtils.adminOnlyProjectDelete());
@@ -311,7 +309,7 @@ public class ServerConfigurationResource {
 		// from the scopes it asks for, so a client can tell which apps can work before
 		// it calls them. only whether each app can work is sent, never the scopes, and
 		// only to a user signed in to the platform
-		if (user != null && user.isLoggedIn() && !user.isAnonymous()) {
+		if (user != null && user.isLoggedIn()) {
 			myConfiguration.put("connectorAccess", ConnectorScopeAccess.getConnectorAccess());
 		}
 		// themes
@@ -375,8 +373,8 @@ public class ServerConfigurationResource {
 	 * {@code @Consumes}/{@code @Produces} content types.
 	 * <p>
 	 * Resources whose simple class name starts with {@code "Admin"} are only
-	 * included when the calling user is logged in and an admin. Anonymous and
-	 * non-admin users get the rest of the catalog without those entries.
+	 * included when the calling user is logged in and an admin. Other callers get
+	 * the rest of the catalog without those entries.
 	 *
 	 * @param request     the incoming HTTP request (used only to prefix the
 	 *                    application context path on each path so callers see real
@@ -388,8 +386,8 @@ public class ServerConfigurationResource {
 	@Path("/endpoints")
 	@Produces("application/json")
 	public Response listEndpoints(@Context HttpServletRequest request, @Context Application application) {
-		// admin gating: anonymous users and non-admin logged-in users do not
-		// see endpoints from resources whose simple class name starts with
+		// admin gating: callers who are not a logged-in admin do not see
+		// endpoints from resources whose simple class name starts with
 		// "Admin" (e.g. AdminUserAuthorizationResource).
 		boolean includeAdminResources = false;
 		try {

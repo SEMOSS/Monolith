@@ -296,7 +296,7 @@ public class UserAuthorizationResource {
 	@Path("/getUserAccessKeys")
 	@Produces("application/json")
 	public Response getUserAccessKeys(@Context HttpServletRequest request) {
-		return ResourceUtility.respondAllowingAnonymous(request, "list their access keys",
+		return ResourceUtility.respond(request, "list their access keys",
 				user -> SecurityUserAccessKeyUtils.getUserAccessKeyInfo(user.getPrimaryLoginToken()));
 	}
 

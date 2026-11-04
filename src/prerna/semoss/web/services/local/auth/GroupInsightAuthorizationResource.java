@@ -78,7 +78,7 @@ public class GroupInsightAuthorizationResource {
 		String groupType = AuthProvider.getProviderLabel(WebUtility.inputSQLSanitizer(type));
 		String insight = WebUtility.inputSQLSanitizer(insightId);
 		String group = WebUtility.inputSQLSanitizer(groupId);
-		return ResourceUtility.respondAllowingAnonymous(request,
+		return ResourceUtility.respond(request,
 				"read the permission of group " + group + " on insight " + insight + " of project " + project, user -> {
 					Integer permissionCode = SecurityGroupInsightsUtils.getGroupInsightPermission(
 							ValueUtils.requireNonBlank(group, GROUP_ID_REQUIRED),

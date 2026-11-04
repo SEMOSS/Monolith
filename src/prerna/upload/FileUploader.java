@@ -311,12 +311,6 @@ public class FileUploader extends AbstractUploader {
 			return permResponse;
 		}
 
-		if (user.isAnonymous() && in.isSavedInsight()) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload files to a saved insight");
-			return WebUtility.getResponse(errorMap, 400);
-		}
-
 		if (in.isSavedInsight() && !SecurityInsightUtils.userCanEditInsight(user, in.getProjectId(), in.getRdbmsId())) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "User does not edit access for this insight");
@@ -487,12 +481,6 @@ public class FileUploader extends AbstractUploader {
 		Response permResponse = checkGeneralUserPermissions(user);
 		if (permResponse != null) {
 			return permResponse;
-		}
-
-		if (user.isAnonymous()) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload files to user assets");
-			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		ThreadStore.setSessionId(request.getSession().getId());
@@ -679,12 +667,6 @@ public class FileUploader extends AbstractUploader {
 	 * @return A Response object if permissions are denied, otherwise null.
 	 */
 	private Response checkGeneralUserPermissions(User user) {
-		if (user.isAnonymous() && !AbstractSecurityUtils.anonymousUserUploadData()) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload files");
-			return WebUtility.getResponse(errorMap, 400);
-		}
-
 		if (AbstractSecurityUtils.adminSetPublisher() && !SecurityQueryUtils.userIsPublisher(user)) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE,

@@ -73,7 +73,7 @@ public class InsightAuthorizationResource {
 		String term = WebUtility.inputSQLSanitizer(searchTerm);
 		String offsetValue = WebUtility.inputSanitizer(offset);
 		String limitValue = WebUtility.inputSanitizer(limit);
-		return ResourceUtility.respondAllowingAnonymous(request, "search their insights", user -> {
+		return ResourceUtility.respond(request, "search their insights", user -> {
 			List<String> projectFilter = null;
 			if (project != null && !project.trim().isEmpty()) {
 				projectFilter = new ArrayList<>();
@@ -97,8 +97,7 @@ public class InsightAuthorizationResource {
 	public Response getProjectInsights(@Context HttpServletRequest request, @QueryParam("projectId") String projectId,
 			@QueryParam("searchTerm") String searchTerm) {
 		String project = WebUtility.inputSanitizer(projectId);
-		return ResourceUtility.respondAllowingAnonymous(request,
-				"list the insights they can edit in project " + project,
+		return ResourceUtility.respond(request, "list the insights they can edit in project " + project,
 				user -> SecurityInsightUtils.getUserEditableInsights(user, project));
 	}
 
@@ -116,7 +115,7 @@ public class InsightAuthorizationResource {
 			@QueryParam("projectId") String projectId, @QueryParam("insightId") String insightId) {
 		String project = WebUtility.inputSanitizer(projectId);
 		String insight = WebUtility.inputSanitizer(insightId);
-		return ResourceUtility.respondAllowingAnonymous(request,
+		return ResourceUtility.respond(request,
 				"read their permission on insight " + insight + " of project " + project, user -> {
 					String permission = SecurityInsightUtils.getActualUserInsightPermission(user, project, insight);
 					if (permission == null) {
@@ -147,8 +146,8 @@ public class InsightAuthorizationResource {
 		String memberId = WebUtility.inputSQLSanitizer(userId);
 		String insight = WebUtility.inputSanitizer(insightId);
 		String memberPermission = WebUtility.inputSanitizer(permission);
-		return ResourceUtility.respondAllowingAnonymous(request,
-				"list the users of insight " + insight + " of project " + project, user -> {
+		return ResourceUtility.respond(request, "list the users of insight " + insight + " of project " + project,
+				user -> {
 					List<Map<String, Object>> members = SecurityInsightUtils.getInsightUsers(user, project, insight,
 							memberId, memberPermission, limit, offset);
 					long totalMembers = SecurityInsightUtils.getInsightUsersCount(user, project, insight, memberId,
@@ -383,7 +382,7 @@ public class InsightAuthorizationResource {
 		String project = WebUtility.inputSanitizer(projectId);
 		String insight = WebUtility.inputSanitizer(insightId);
 		String term = WebUtility.inputSQLSanitizer(searchTerm);
-		return ResourceUtility.respondAllowingAnonymous(request,
+		return ResourceUtility.respond(request,
 				"list the users without access to insight " + insight + " of project " + project,
 				user -> SecurityInsightUtils.getInsightUsersNoCredentials(user, project, insight, term, limit, offset));
 	}

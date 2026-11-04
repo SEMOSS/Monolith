@@ -42,7 +42,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import prerna.auth.User;
-import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
 import prerna.util.SocialPropertiesUtil;
@@ -72,7 +71,7 @@ public class NoUserInSessionFilter implements Filter {
 				user = (User) session.getAttribute(Constants.SESSION_USER);
 			}
 
-			if (user == null || (!AbstractSecurityUtils.anonymousUsersEnabled() && user.getLogins().isEmpty())) {
+			if (user == null || user.getLogins().isEmpty()) {
 				// don't know what i am redirecting
 				// send back an error and have the client remake the request
 				setInvalidEntryRedirect(context, arg0, arg1);
