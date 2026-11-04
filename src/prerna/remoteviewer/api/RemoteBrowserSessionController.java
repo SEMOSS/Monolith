@@ -27,8 +27,11 @@
  *******************************************************************************/
 package prerna.remoteviewer.api;
 
+import java.io.IOException;
 import java.nio.file.Files;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -47,17 +50,24 @@ import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import prerna.auth.User;
+import prerna.auth.utils.SecurityInsightUtils;
+import prerna.cluster.util.ClusterUtil;
+import prerna.om.Insight;
+import prerna.om.InsightStore;
 import prerna.reactor.playwright.PlaywrightUtility;
+import prerna.reactor.playwright.PlaywrightDownloadRegistry;
 import prerna.reactor.playwright.RecordingMeta;
 import prerna.reactor.playwright.StepsEnvelope;
 import prerna.remoteviewer.model.RemoteBrowserRecordedStep;
 import prerna.remoteviewer.model.RemoteBrowserSessionCreateRequest;
 import prerna.remoteviewer.model.RemoteBrowserSessionCreateResponse;
 import prerna.remoteviewer.security.RemoteBrowserUrlSafetyValidator;
+import prerna.remoteviewer.service.RemoteBrowserSelectedTextService;
 import prerna.remoteviewer.service.RemoteBrowserSession;
 import prerna.remoteviewer.service.RemoteBrowserSessionManager;
 import prerna.semoss.web.services.local.ResourceUtility;
@@ -140,7 +150,8 @@ public class RemoteBrowserSessionController {
 
 		String wsUrl = "/browserSocket/" + session.getSessionId();
 		RemoteBrowserSessionCreateResponse resp = new RemoteBrowserSessionCreateResponse(session.getSessionId(), wsUrl,
-				session.getViewportWidth(), session.getViewportHeight(), safeUrl(session));
+				session.getViewportWidth(), session.getViewportHeight(), safeUrl(session),
+				RemoteBrowserSelectedTextService.contextLimits());
 
 		classLogger.info("Browser session {} created for user {}", session.getSessionId(), userId);
 		return Response.ok(GSON.toJson(resp)).build();
@@ -311,6 +322,155 @@ public class RemoteBrowserSessionController {
 	}
 
 	/**
+	 * Returns metadata for native browser downloads captured during the current or
+	 * requested run. Binary contents are intentionally never returned by this API.
+	 *
+	 * <p>
+	 * GET /api/browser-sessions/{sessionId}/downloads?runId=...
+	 */
+	@GET
+	@Path("/{sessionId}/downloads")
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response getDownloads(@Context HttpServletRequest request, @PathParam("sessionId") String sessionId,
+			@QueryParam("runId") String runId) {
+		User user;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			return buildError(Response.Status.UNAUTHORIZED, "User session is invalid");
+		}
+
+		Optional<RemoteBrowserSession> opt = RemoteBrowserSessionManager.getInstance().getSession(sessionId);
+		if (opt.isEmpty()) {
+			return buildError(Response.Status.NOT_FOUND, "Session not found");
+		}
+		RemoteBrowserSession session = opt.get();
+		if (!session.getUserId().equals(user.getPrimaryLoginToken().getId())) {
+			return buildError(Response.Status.FORBIDDEN, "Access denied");
+		}
+
+		PlaywrightDownloadRegistry registry = session.getPlaywrightSession().getDownloadRegistry();
+		registry.awaitIdle(2_000);
+		String resolvedRunId = runId == null || runId.isBlank() ? registry.getActiveRunId() : runId;
+		List<Map<String, Object>> downloads = new ArrayList<>();
+		List<Map<String, Object>> errors = new ArrayList<>();
+		for (PlaywrightDownloadRegistry.DownloadRecord record : registry.getRecords(resolvedRunId)) {
+			Map<String, Object> metadata = record.toMap();
+			downloads.add(metadata);
+			if ("failed".equals(record.getStatus()) || "save-failed".equals(record.getStatus())) {
+				errors.add(downloadError(record));
+			}
+		}
+		Map<String, Object> response = new LinkedHashMap<>();
+		response.put("runId", resolvedRunId);
+		response.put("downloadCount", downloads.size());
+		response.put("downloads", downloads);
+		response.put("downloadErrors", errors);
+		return Response.ok(GSON.toJson(response)).build();
+	}
+
+	/**
+	 * Persists staged native browser downloads into an editable Insight. The
+	 * operation is per-file best effort and idempotent for an already-saved record.
+	 *
+	 * <p>
+	 * POST /api/browser-sessions/{sessionId}/downloads/save
+	 *
+	 * <pre>
+	 * {"insightId":"current-insight-id","downloadIds":["download-id-1"]}
+	 * </pre>
+	 */
+	@POST
+	@Path("/{sessionId}/downloads/save")
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response saveDownloads(@Context HttpServletRequest request, @PathParam("sessionId") String sessionId,
+			String body) {
+		User user;
+		try {
+			user = ResourceUtility.getUser(request);
+		} catch (IllegalAccessException e) {
+			return buildError(Response.Status.UNAUTHORIZED, "User session is invalid");
+		}
+
+		Optional<RemoteBrowserSession> opt = RemoteBrowserSessionManager.getInstance().getSession(sessionId);
+		if (opt.isEmpty()) {
+			return buildError(Response.Status.NOT_FOUND, "Session not found");
+		}
+		RemoteBrowserSession session = opt.get();
+		if (!session.getUserId().equals(user.getPrimaryLoginToken().getId())) {
+			return buildError(Response.Status.FORBIDDEN, "Access denied");
+		}
+
+		SaveDownloadsRequest req;
+		try {
+			req = body == null || body.isBlank() ? null : GSON.fromJson(body, SaveDownloadsRequest.class);
+		} catch (Exception e) {
+			return buildError(Response.Status.BAD_REQUEST, "Invalid request body");
+		}
+		if (req == null || req.insightId == null || req.insightId.isBlank()) {
+			return buildError(Response.Status.BAD_REQUEST, "Field 'insightId' is required");
+		}
+
+		Insight insight = InsightStore.getInstance().get(req.insightId);
+		if (insight == null || insight.getUser() == null) {
+			return buildError(Response.Status.NOT_FOUND, "Insight not found");
+		}
+		if (insight.isSavedInsight()
+				&& !SecurityInsightUtils.userCanEditInsight(user, insight.getProjectId(), insight.getRdbmsId())) {
+			return buildError(Response.Status.FORBIDDEN, "User does not have edit access to this insight");
+		}
+		if (!insight.isSavedInsight() && (insight.getUser().getPrimaryLoginToken() == null
+				|| !user.getPrimaryLoginToken().getId().equals(insight.getUser().getPrimaryLoginToken().getId()))) {
+			return buildError(Response.Status.FORBIDDEN, "Insight is not owned by the authenticated browser session");
+		}
+
+		PlaywrightDownloadRegistry registry = session.getPlaywrightSession().getDownloadRegistry();
+		registry.awaitIdle(5_000);
+		List<PlaywrightDownloadRegistry.DownloadRecord> candidates = selectDownloadRecords(registry, req.downloadIds);
+		if (req.downloadIds != null && !req.downloadIds.isEmpty() && candidates.size() != req.downloadIds.size()) {
+			return buildError(Response.Status.BAD_REQUEST,
+					"One or more downloadIds are not part of this browser session");
+		}
+
+		List<Map<String, Object>> saved = new ArrayList<>();
+		List<Map<String, Object>> errors = new ArrayList<>();
+		for (PlaywrightDownloadRegistry.DownloadRecord record : registry.getActiveRunRecords()) {
+			if ("failed".equals(record.getStatus())) {
+				errors.add(downloadError(record));
+			}
+		}
+		for (PlaywrightDownloadRegistry.DownloadRecord record : candidates) {
+			try {
+				Map<String, Object> result = saveOneDownload(record, registry, insight, user);
+				if ("saved".equals(record.getStatus())) {
+					saved.add(result);
+				} else {
+					if (errors.stream().noneMatch(error -> record.getDownloadId().equals(error.get("downloadId")))) {
+						errors.add(downloadError(record));
+					}
+				}
+			} catch (Exception e) {
+				String reason = e.getMessage() == null || e.getMessage().isBlank() ? "Could not save download" : e.getMessage();
+				registry.markSaveFailed(record.getDownloadId(), reason);
+				errors.add(downloadError(record));
+			}
+		}
+		if (!saved.isEmpty() && insight.getRoomId() != null) {
+			ClusterUtil.pushRoomAsync(insight.getRoomId());
+		}
+
+		Map<String, Object> response = new LinkedHashMap<>();
+		String responseRunId = saved.isEmpty() ? registry.getActiveRunId() : String.valueOf(saved.get(0).get("runId"));
+		response.put("runId", responseRunId);
+		response.put("downloadSummary", downloadSummary(saved, responseRunId));
+		response.put("downloadCount", saved.size());
+		response.put("downloads", saved);
+		response.put("downloadErrors", errors);
+		return Response.ok(GSON.toJson(response)).build();
+	}
+
+	/**
 	 * Closes a browser session.
 	 *
 	 * <p>
@@ -344,6 +504,48 @@ public class RemoteBrowserSessionController {
 
 	// ---- helpers ----
 
+	private static List<PlaywrightDownloadRegistry.DownloadRecord> selectDownloadRecords(
+			PlaywrightDownloadRegistry registry, List<String> requestedIds) {
+		List<PlaywrightDownloadRegistry.DownloadRecord> available = registry.getActiveRunRecords();
+		if (requestedIds == null || requestedIds.isEmpty()) {
+			return available.stream()
+					.filter(record -> "ready".equals(record.getStatus()) || "save-failed".equals(record.getStatus()))
+					.toList();
+		}
+		List<PlaywrightDownloadRegistry.DownloadRecord> selected = new ArrayList<>();
+		for (String id : requestedIds) {
+			PlaywrightDownloadRegistry.DownloadRecord record = registry.getRecord(id);
+			if (record != null && !selected.contains(record)) {
+				selected.add(record);
+			}
+		}
+		return selected;
+	}
+
+	private static Map<String, Object> saveOneDownload(PlaywrightDownloadRegistry.DownloadRecord record,
+			PlaywrightDownloadRegistry registry, Insight insight, User user) throws IOException {
+		return registry.persistRecord(record, insight, user);
+	}
+
+	private static Map<String, Object> downloadError(PlaywrightDownloadRegistry.DownloadRecord record) {
+		Map<String, Object> error = new LinkedHashMap<>();
+		error.put("downloadId", record.getDownloadId());
+		error.put("runId", record.getRunId());
+		error.put("stepId", record.getTriggerStepId());
+		error.put("fileName", record.getFileName());
+		error.put("status", record.getStatus());
+		error.put("error", record.getError() == null ? "Download could not be saved" : record.getError());
+		return error;
+	}
+
+	private static String downloadSummary(List<Map<String, Object>> saved, String runId) {
+		if (saved.isEmpty()) {
+			return "No browser downloads were saved to the current insight";
+		}
+		return "Downloaded " + saved.size() + " file" + (saved.size() == 1 ? "" : "s")
+				+ " and saved them to the current insight under /browser-downloads/" + runId + "/";
+	}
+
 	private static Response buildError(Response.Status status, String message) {
 		Map<String, String> body = new HashMap<>();
 		body.put("error", message);
@@ -364,5 +566,10 @@ public class RemoteBrowserSessionController {
 		private String title;
 		private String description;
 		private String intent;
+	}
+
+	private static class SaveDownloadsRequest {
+		private String insightId;
+		private List<String> downloadIds;
 	}
 }
