@@ -147,19 +147,6 @@ public class DBLoader implements ServletContextListener {
 		}
 		context.setInitParameter(Constants.ADMIN_SET_EXPORTER, adminSetExporter);
 
-		// see if we allow anonymous users
-		String anonymousUsersEnabled = context.getInitParameter(Constants.ANONYMOUS_USER_ALLOWED);
-		if (anonymousUsersEnabled == null) {
-			anonymousUsersEnabled = "false";
-		}
-		context.setInitParameter(Constants.ANONYMOUS_USER_ALLOWED, anonymousUsersEnabled);
-		// see if anonymous users can upload data
-		String anonymousUsersUploadData = context.getInitParameter(Constants.ANONYMOUS_USER_UPLOAD_DATA);
-		if (anonymousUsersUploadData == null) {
-			anonymousUsersUploadData = "false";
-		}
-		context.setInitParameter(Constants.ANONYMOUS_USER_UPLOAD_DATA, anonymousUsersUploadData);
-
 		// see if we redirect to logout page or back to login screen
 		String useLogoutPage = context.getInitParameter(Constants.USE_LOGOUT_PAGE);
 		if (useLogoutPage == null) {
@@ -209,8 +196,6 @@ public class DBLoader implements ServletContextListener {
 		// load it as a boolean instead of us searching within DIHelper
 		DIHelper.getInstance().setLocalProperty(Constants.ADMIN_SET_PUBLISHER, adminSetPublisher);
 		DIHelper.getInstance().setLocalProperty(Constants.ADMIN_SET_EXPORTER, adminSetExporter);
-		DIHelper.getInstance().setLocalProperty(Constants.ANONYMOUS_USER_ALLOWED, anonymousUsersEnabled);
-		DIHelper.getInstance().setLocalProperty(Constants.ANONYMOUS_USER_UPLOAD_DATA, anonymousUsersUploadData);
 		DIHelper.getInstance().setLocalProperty(Constants.USE_LOGOUT_PAGE, useLogoutPage);
 		DIHelper.getInstance().setLocalProperty(Constants.SESSION_ID_KEY, SESSION_ID_KEY);
 		DIHelper.getInstance().setLocalProperty(Constants.CONTEXT_PATH_KEY, contextPath);

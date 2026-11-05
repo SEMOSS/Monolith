@@ -50,6 +50,7 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.TimeZone;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -247,7 +248,7 @@ public final class WebUtility {
 		if (status < 400) {
 			return;
 		}
-		Object message = vec instanceof java.util.Map<?, ?> map ? map.get(Constants.ERROR_MESSAGE) : vec;
+		Object message = vec instanceof Map<?, ?> map ? map.get(Constants.ERROR_MESSAGE) : vec;
 		UserAuditTrailUtils.recordHttpErrorResponse(status, message instanceof String text ? text : null);
 	}
 

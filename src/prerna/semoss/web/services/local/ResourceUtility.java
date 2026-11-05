@@ -189,8 +189,8 @@ public class ResourceUtility {
 
 	/**
 	 * Runs a call for the signed in user and turns its outcome into the response:
-	 * 200 with its result, 401 for a missing or anonymous session, 403 for a user who
-	 * may not do it, 400 for a bad request and 500 for anything else. Errors carry
+	 * 200 with its result, 401 for a missing session, 403 for a user who may not do
+	 * it, 400 for a bad request and 500 for anything else. Errors carry
 	 * {@link Constants#ERROR_MESSAGE}, and unexpected ones
 	 * {@link Constants#TECH_ERROR_MESSAGE} too. Every outcome is logged with the
 	 * endpoint, such as {@code POST /Monolith/api/auth/group/addGroupMember}, the
@@ -204,7 +204,7 @@ public class ResourceUtility {
 	 * @return the response
 	 */
 	public static Response respond(HttpServletRequest request, String action, UserCall call) {
-		return respond(request, action, false, null, call);
+		return respond(request, action, null, call);
 	}
 
 	/**
@@ -221,26 +221,6 @@ public class ResourceUtility {
 	 */
 	public static Response respond(HttpServletRequest request, String action, SecurityAuditEvent auditEvent,
 			UserCall call) {
-		return respond(request, action, false, auditEvent, call);
-	}
-
-	/**
-	 * {@link #respond} for a call that only reads, which an anonymous session, such
-	 * as a visitor to a public app, may make too. A call that changes anything uses
-	 * {@link #respond}, which answers anonymous sessions with 401.
-	 *
-	 * @param request the request, whose session holds the user
-	 * @param action  what the call does, for the logs, such as
-	 *                {@code "read their permission on project 123"}
-	 * @param call    the call
-	 * @return the response
-	 */
-	public static Response respondAllowingAnonymous(HttpServletRequest request, String action, UserCall call) {
-		return respond(request, action, true, null, call);
-	}
-
-	private static Response respond(HttpServletRequest request, String action, boolean allowAnonymous,
-			SecurityAuditEvent auditEvent, UserCall call) {
 		String endpoint = request.getMethod() + " " + request.getRequestURI();
 		String clientIp = WebUtility.getClientIp(request);
 		User user;
@@ -248,11 +228,6 @@ public class ResourceUtility {
 			user = getUser(request);
 		} catch (IllegalAccessException e) {
 			classLogger.warn("[{}] A request without a signed in user tried to {}", endpoint, action);
-			auditIfRelevant(auditEvent, null, null, clientIp, false, action);
-			return errorResponse("User session is invalid", 401);
-		}
-		if (user.isAnonymous() && !allowAnonymous) {
-			classLogger.warn("[{}] An anonymous user tried to {}", endpoint, action);
 			auditIfRelevant(auditEvent, null, null, clientIp, false, action);
 			return errorResponse("User session is invalid", 401);
 		}
@@ -318,7 +293,7 @@ public class ResourceUtility {
 	 */
 	public static <T> Response respondAsAdmin(HttpServletRequest request, String action,
 			Function<User, T> adminInstance, AdminCall<T> call) {
-		return respond(request, action, false, new SecurityAuditEvent("ADMIN_ACTION", null, null), user -> {
+		return respond(request, action, new SecurityAuditEvent("ADMIN_ACTION", null, null), user -> {
 			T adminUtils = adminInstance.apply(user);
 			if (adminUtils == null) {
 				throw new IllegalAccessException("This functionality is limited to only admins");
@@ -337,7 +312,7 @@ public class ResourceUtility {
 	 * @return the response
 	 */
 	public static Response respondAsAdmin(HttpServletRequest request, String action, UserCall call) {
-		return respond(request, action, false, new SecurityAuditEvent("ADMIN_ACTION", null, null), user -> {
+		return respond(request, action, new SecurityAuditEvent("ADMIN_ACTION", null, null), user -> {
 			if (!SecurityAdminUtils.userIsAdmin(user)) {
 				throw new IllegalAccessException("This functionality is limited to only admins");
 			}

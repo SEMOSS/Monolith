@@ -72,7 +72,6 @@ import prerna.auth.AuthProvider;
 import prerna.auth.SyncUserAssetsThread;
 import prerna.auth.User;
 import prerna.auth.external.ExternalAuthorizationHelper;
-import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityAPIUserUtils;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityExternalConnectorsUtils;
@@ -329,7 +328,6 @@ public class UserResource {
 		SecurityUserUtils.loadUserMetadata(token);
 
 		semossUser.setAccessToken(token);
-		semossUser.setAnonymous(false);
 
 		session.setAttribute(Constants.SESSION_USER, semossUser);
 		WebUtility.loggingContextLoginEvent(session);
@@ -1386,7 +1384,7 @@ public class UserResource {
 				User user = null;
 				if (session != null) {
 					user = (User) session.getAttribute(Constants.SESSION_USER);
-					if (!AbstractSecurityUtils.anonymousUsersEnabled() && user != null && user.getLogins().isEmpty()) {
+					if (user != null && user.getLogins().isEmpty()) {
 						session.invalidate();
 					}
 				}
@@ -1404,7 +1402,7 @@ public class UserResource {
 			HttpSession session = request.getSession(false);
 			if (session != null) {
 				User user = (User) session.getAttribute(Constants.SESSION_USER);
-				if (!AbstractSecurityUtils.anonymousUsersEnabled() && user != null && user.getLogins().isEmpty()) {
+				if (user != null && user.getLogins().isEmpty()) {
 					session.invalidate();
 				}
 			}
@@ -1472,7 +1470,7 @@ public class UserResource {
 			HttpSession session = request.getSession(false);
 			if (session != null) {
 				User user = (User) session.getAttribute(Constants.SESSION_USER);
-				if (!AbstractSecurityUtils.anonymousUsersEnabled() && user != null && user.getLogins().isEmpty()) {
+				if (user != null && user.getLogins().isEmpty()) {
 					session.invalidate();
 				}
 			}
@@ -1487,7 +1485,7 @@ public class UserResource {
 			HttpSession session = request.getSession(false);
 			if (session != null) {
 				User user = (User) session.getAttribute(Constants.SESSION_USER);
-				if (!AbstractSecurityUtils.anonymousUsersEnabled() && user != null && user.getLogins().isEmpty()) {
+				if (user != null && user.getLogins().isEmpty()) {
 					session.invalidate();
 				}
 			}
@@ -1547,7 +1545,7 @@ public class UserResource {
 			HttpSession session = request.getSession(false);
 			if (session != null) {
 				User user = (User) session.getAttribute(Constants.SESSION_USER);
-				if (!AbstractSecurityUtils.anonymousUsersEnabled() && user != null && user.getLogins().isEmpty()) {
+				if (user != null && user.getLogins().isEmpty()) {
 					session.invalidate();
 				}
 			}

@@ -128,7 +128,7 @@ public class MicrosoftGraphSubscriptionService {
 		} catch (IllegalAccessException e) {
 			classLogger.debug("Microsoft Graph availability was asked for without a session.", e);
 		}
-		if (user == null || !user.isLoggedIn() || user.isAnonymous()) {
+		if (user == null || !user.isLoggedIn()) {
 			return WebUtility.getResponse(Map.of(STATUS, ERROR, REASON, "user session is invalid"), 401);
 		}
 

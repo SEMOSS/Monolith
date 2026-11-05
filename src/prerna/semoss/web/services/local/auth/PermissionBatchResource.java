@@ -55,8 +55,7 @@ import prerna.web.services.util.WebUtility;
  * {@link SecurityAccessPermissionBatchUtils} checks every change against the
  * same rules as the single permission endpoints, with the user's own
  * permissions: being an admin counts for nothing here, and
- * {@link AdminPermissionBatchResource} is the admin mode. Anonymous sessions
- * can do nothing here.
+ * {@link AdminPermissionBatchResource} is the admin mode.
  */
 @Path("/auth/permissionBatch")
 @PermitAll

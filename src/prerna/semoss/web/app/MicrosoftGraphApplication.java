@@ -33,6 +33,7 @@ import java.util.Set;
 import jakarta.ws.rs.ApplicationPath;
 import jakarta.ws.rs.core.Application;
 import prerna.semoss.web.ms.MicrosoftGraphNotificationService;
+import prerna.semoss.web.ms.MicrosoftGraphPhotoService;
 import prerna.semoss.web.ms.MicrosoftGraphSubscriptionService;
 
 /**
@@ -50,7 +51,8 @@ import prerna.semoss.web.ms.MicrosoftGraphSubscriptionService;
  * user drives, and every endpoint on it needs a session;
  * {@link MicrosoftGraphNotificationService} holds the two inbound receivers,
  * which authenticate each delivery by the client state the subscription was
- * created with.
+ * created with. {@link MicrosoftGraphPhotoService} serves profile photos to a
+ * signed in user.
  */
 @ApplicationPath("/msgraph")
 public class MicrosoftGraphApplication extends Application {
@@ -60,6 +62,7 @@ public class MicrosoftGraphApplication extends Application {
 	public MicrosoftGraphApplication() {
 		singletons.add(new MicrosoftGraphSubscriptionService());
 		singletons.add(new MicrosoftGraphNotificationService());
+		singletons.add(new MicrosoftGraphPhotoService());
 	}
 
 	@Override
