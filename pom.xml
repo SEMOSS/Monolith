@@ -43,6 +43,11 @@
 		     individual <version> elements. -->
 		<resteasy.version>7.0.5.Final</resteasy.version>
 		<jakarta.websocket.version>2.2.0</jakarta.websocket.version>
+		<!-- swagger-core, for the OpenAPI document scripts/generate-api writes. Keep
+		     equal to swagger.version in Semoss/pom.xml, which carries the annotations. -->
+		<swagger.version>2.2.30</swagger.version>
+		<swagger.parser.version>2.1.30</swagger.parser.version>
+		<junit.version>6.0.0</junit.version>
 		<!-- Pins that Semoss/pom.xml also carries at the same value. Its
 		     dependencyManagement is not inherited here, so each pom needs its own
 		     copy and the two have to be bumped together. -->
@@ -91,6 +96,7 @@
 	</reporting>
 	<build>
 		<sourceDirectory>src</sourceDirectory>
+		<testSourceDirectory>test</testSourceDirectory>
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -101,6 +107,12 @@
 					<target>21</target>
 					<encoding>cp1252</encoding>
 				</configuration>
+			</plugin>
+			<!-- Runs the JUnit 5 tests in test/, such as OpenApiExporterTest -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<version>3.5.2</version>
 			</plugin>
 			<plugin>
 				<groupId>com.mycila</groupId>
@@ -211,6 +223,15 @@
 		</plugins>
 	</build>
 	<profiles>
+		<!-- Used by scripts/generate-api: builds into its own directory, so classes an IDE
+		     leaves in target/classes (such as copies of Semoss classes) can never shadow the
+		     Semoss jar the OpenAPI document is read from. -->
+		<profile>
+			<id>openapi</id>
+			<build>
+				<directory>${project.basedir}/target/openapi-build</directory>
+			</build>
+		</profile>
 		<profile>
 			<id>dev</id>
 			<activation>
@@ -634,6 +655,27 @@
 			<artifactId>semoss</artifactId>
 			<version>${ci.version}</version>
 			<classifier>shaded-dependencies</classifier>
+		</dependency>
+		<!-- OpenAPI: swagger-core reads the REST annotations and swagger-parser checks the
+		     document OpenApiExporter writes. Provided, so neither ships in the war; the
+		     annotations themselves come with Semoss. -->
+		<dependency>
+			<groupId>io.swagger.core.v3</groupId>
+			<artifactId>swagger-jaxrs2-jakarta</artifactId>
+			<version>${swagger.version}</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>io.swagger.parser.v3</groupId>
+			<artifactId>swagger-parser-v3</artifactId>
+			<version>${swagger.parser.version}</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter</artifactId>
+			<version>${junit.version}</version>
+			<scope>test</scope>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/org.apache.tomcat/tomcat-catalina -->
 		<!-- this is the primary tomcat specific jar -->
