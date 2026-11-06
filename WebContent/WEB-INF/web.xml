@@ -318,18 +318,6 @@
       <url-pattern>/api/*</url-pattern>
    </filter-mapping> -->
    
-   <!--  allow anonymous users -->
-   <!-- 
-   <filter>
-      <filter-name>AnonymousUserFilter</filter-name>
-      <filter-class>prerna.web.conf.AnonymousUserFilter</filter-class>
-   </filter>
-   <filter-mapping>
-      <filter-name>AnonymousUserFilter</filter-name>
-      <url-pattern>/api/*</url-pattern>
-   </filter-mapping>
-   -->
-   
    <!-- CAC FILTER -->
    <!--  
    <filter>
@@ -485,23 +473,6 @@
    -->
    <!-- End Waffle -->
    
-   <!-- Allow Token Filter -->
-   <filter>
-      <filter-name>NoUserInSessionTrustedTokenFilter</filter-name>
-      <filter-class>prerna.web.conf.NoUserInSessionTrustedTokenFilter</filter-class>
-	  <init-param>
-			<param-name>trustedTokenPrefix</param-name>
-			<param-value>sencha</param-value>
-	  </init-param>
-	  <init-param>
-			<param-name>trustedTokenDomain</param-name>
-			<param-value>*</param-value>
-	  </init-param>
-   </filter>
-   <filter-mapping>
-      <filter-name>NoUserInSessionTrustedTokenFilter</filter-name>
-      <url-pattern>/api/*</url-pattern>
-   </filter-mapping>
    <!-- This is the main filter for security -->
    <filter>
       <filter-name>NoUserInSessionFilter</filter-name>
@@ -708,14 +679,6 @@
       <param-value>false</param-value>
    </context-param>
    <context-param>
-      <param-name>anonymous-users-allowed</param-name>
-      <param-value>false</param-value>
-   </context-param>
-      <context-param>
-      <param-name>anonymous-users-upload-data</param-name>
-      <param-value>false</param-value>
-   </context-param>
-   <context-param>
       <param-name>use-logout-page</param-name>
       <param-value>false</param-value>
    </context-param>
@@ -745,9 +708,6 @@
    </listener>
    <listener>
       <listener-class>prerna.web.conf.UserDBLoader</listener-class>
-   </listener>
-   <listener>
-      <listener-class>prerna.web.conf.NoUserInSessionTrustedTokenListener</listener-class>
    </listener>
    <listener>
       <listener-class>prerna.semoss.web.github.GitHubLifecycleListener</listener-class>

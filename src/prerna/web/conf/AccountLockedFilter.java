@@ -63,7 +63,7 @@ public class AccountLockedFilter implements Filter {
 			user = (User) session.getAttribute(Constants.SESSION_USER);
 		}
 
-		if (user != null && !user.isAnonymous()) {
+		if (user != null) {
 			AccessToken token = user.getAccessToken(user.getPrimaryLogin());
 			boolean isLocked = token.isLocked();
 			if (isLocked) {

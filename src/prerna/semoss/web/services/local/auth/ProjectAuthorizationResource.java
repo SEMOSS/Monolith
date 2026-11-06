@@ -98,7 +98,7 @@ public class ProjectAuthorizationResource {
 		String term = WebUtility.inputSQLSanitizer(searchTerm);
 		List<String> projects = WebUtility.inputSanitizer(projectFilter);
 		List<String> keys = WebUtility.inputSanitizer(metaKeys);
-		return ResourceUtility.respondAllowingAnonymous(request, "list the projects they can access", user -> {
+		return ResourceUtility.respond(request, "list the projects they can access", user -> {
 			MyProjectsReactor reactor = new MyProjectsReactor();
 			reactor.In();
 			Insight temp = new Insight();
@@ -163,7 +163,7 @@ public class ProjectAuthorizationResource {
 	@Produces("application/json")
 	@Path("getProjects")
 	public Response getProjectsPOST(@Context HttpServletRequest request) {
-		return ResourceUtility.respondAllowingAnonymous(request, "list the projects they can access", user -> {
+		return ResourceUtility.respond(request, "list the projects they can access", user -> {
 			MyProjectsReactor reactor = new MyProjectsReactor();
 			reactor.In();
 			Insight temp = new Insight();
@@ -247,7 +247,7 @@ public class ProjectAuthorizationResource {
 			@QueryParam("projectId") String projectId, @QueryParam("searchTerm") String searchTerm) {
 		String project = WebUtility.inputSanitizer(projectId);
 		String action = "read their permission on project " + project;
-		return ResourceUtility.respondAllowingAnonymous(request, action, user -> {
+		return ResourceUtility.respond(request, action, user -> {
 			String permission = SecurityProjectUtils.getActualUserProjectPermission(user, project);
 			if (permission == null) {
 				// are you discoverable?
@@ -283,7 +283,7 @@ public class ProjectAuthorizationResource {
 		String term = WebUtility.inputSQLSanitizer(searchTerm);
 		String level = WebUtility.inputSanitizer(permission);
 		String searchParam = term != null ? term : member;
-		return ResourceUtility.respondAllowingAnonymous(request, "list the users of project " + project, user -> {
+		return ResourceUtility.respond(request, "list the users of project " + project, user -> {
 			List<Map<String, Object>> members = SecurityProjectUtils.getProjectUsers(user, project, searchParam, level,
 					limit, offset);
 			long totalMembers = SecurityProjectUtils.getProjectUsersCount(user, project, searchParam, level);
@@ -624,7 +624,7 @@ public class ProjectAuthorizationResource {
 			@QueryParam(MicrosoftGraphUserLookup.LOOKUP_PARAM) String msGraphLookup) {
 		String project = WebUtility.inputSanitizer(projectId);
 		String term = WebUtility.inputSQLSanitizer(searchTerm);
-		return ResourceUtility.respondAllowingAnonymous(request, "find people to add to project " + project, user -> {
+		return ResourceUtility.respond(request, "find people to add to project " + project, user -> {
 			// when the directory is not used
 			// then we will look at our security db
 			if (!MicrosoftGraphUserLookup.useDirectory(msGraphLookup)) {
