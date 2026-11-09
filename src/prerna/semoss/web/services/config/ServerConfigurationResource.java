@@ -76,6 +76,11 @@ import prerna.util.Utility;
 import prerna.web.conf.DBLoader;
 import prerna.web.services.util.WebUtility;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+
 @Path("/config")
 @PermitAll
 public class ServerConfigurationResource {
@@ -338,6 +343,8 @@ public class ServerConfigurationResource {
 	@GET
 	@Path("/")
 	@Produces("application/json")
+	@Operation(operationId = "config", summary = "Read the server configuration", description = "Returns platform settings, login providers and, when signed in, the session's logins.")
+	@ApiResponse(responseCode = "200", description = "The server configuration", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ServerConfig.class)))
 	public Response getServerConfig(@Context HttpServletRequest request, @Context HttpServletResponse response,
 			@Context FilterChain filterChain) {
 		List<NewCookie> newCookies = new ArrayList<>();
