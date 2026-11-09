@@ -30,7 +30,10 @@ package openapi.fixtures.frame.r;
 import prerna.reactor.AbstractReactor;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
 
-/** A frame-specific reactor: its package names the R frame, so it is not published. */
+/**
+ * A frame-specific reactor: its package names the R frame, so it is not
+ * published.
+ */
 public class FrameFixtureReactor extends AbstractReactor {
 
 	@Override

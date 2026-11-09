@@ -27,20 +27,24 @@
  *******************************************************************************/
 package openapi.badfixtures;
 
-import prerna.openapi.PixelInput;
 import prerna.reactor.AbstractReactor;
+import prerna.reactor.ReactorDefinition;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
 
-/** Annotated for a key it does not have, which fails the export. */
-@PixelInput(name = "missing", type = String.class)
-public class BadAnnotationReactor extends AbstractReactor {
+/** Describes a key it does not have, which fails the export. */
+public class BadDefinitionReactor extends AbstractReactor {
 
-	public BadAnnotationReactor() {
+	public BadDefinitionReactor() {
 		this.keysToGet = new String[] { "present" };
 	}
 
 	@Override
 	public NounMetadata execute() {
 		return null;
+	}
+
+	@Override
+	public ReactorDefinition getReactorDefinition() {
+		return super.getReactorDefinition().key("missing", "Not one of its keys");
 	}
 }

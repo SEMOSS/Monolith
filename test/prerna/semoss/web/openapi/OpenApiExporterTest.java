@@ -66,7 +66,7 @@ class OpenApiExporterTest {
 	}
 
 	@Test
-	void publishesWhatMonolithAndSemossAnnotate() throws Exception {
+	void publishesWhatMonolithAndSemossDefine() throws Exception {
 		JsonNode doc = OpenApiExporter.read(OpenApiExporter.export());
 
 		assertEquals("3.1.0", doc.path("openapi").asText());
@@ -82,25 +82,26 @@ class OpenApiExporterTest {
 		assertTrue(contains(serverConfig.path("required"), "csrf"));
 		assertFalse(contains(serverConfig.path("required"), "primaryLogin"), "keys that can be left out are optional");
 
-		JsonNode pixels = doc.path("x-semoss-pixels");
-		assertEquals(1, pixels.path("schemaVersion").asInt());
-		assertEquals("/api/engine/runPixel", pixels.path("transport").path("path").asText());
-		List<String> reactors = names(pixels.path("reactors"));
-		assertTrue(reactors.size() > 500, "every general reactor is published, got " + reactors.size());
+		JsonNode reactorExtension = doc.path("x-semoss-reactor");
+		assertEquals(1, reactorExtension.path("schemaVersion").asInt());
+		assertEquals("/api/engine/runPixel", reactorExtension.path("transport").path("path").asText());
+		List<String> reactors = names(reactorExtension.path("reactors"));
+		assertTrue(reactors.size() > 500,
+				"the general reactors that declare metadata are published, got " + reactors.size());
 		assertTrue(reactors.containsAll(List.of("Echo", "GetCurrentInsightId", "StopPixelExecution")));
 
 		// the pilot reactors keep the types their annotations pin
 		JsonNode schemas = doc.path("components").path("schemas");
-		JsonNode stopInput = schemas.path("Pixel.StopPixelExecution.Input");
+		JsonNode stopInput = schemas.path("Reactor.StopPixelExecution.Input");
 		assertEquals("string", stopInput.path("properties").path("id").path("type").asText());
 		assertTrue(contains(stopInput.path("required"), "id"));
-		assertEquals("string", schemas.path("Pixel.StopPixelExecution.Output").path("type").asText());
-		assertFalse(schemas.path("Pixel.GetCurrentInsightId.Input").has("properties"));
-		assertEquals("string", schemas.path("Pixel.GetCurrentInsightId.Output").path("type").asText());
-		JsonNode echoValue = schemas.path("Pixel.Echo.Input").path("properties").path("value");
+		assertEquals("string", schemas.path("Reactor.StopPixelExecution.Output").path("type").asText());
+		assertFalse(schemas.path("Reactor.GetCurrentInsightId.Input").has("properties"));
+		assertEquals("string", schemas.path("Reactor.GetCurrentInsightId.Output").path("type").asText());
+		JsonNode echoValue = schemas.path("Reactor.Echo.Input").path("properties").path("value");
 		assertFalse(echoValue.has("type"), "Echo's value is any value");
-		assertFalse(contains(schemas.path("Pixel.Echo.Input").path("required"), "value"));
-		assertFalse(schemas.path("Pixel.Echo.Output").has("type"), "an undeclared output is any value");
+		assertFalse(contains(schemas.path("Reactor.Echo.Input").path("required"), "value"));
+		assertFalse(schemas.path("Reactor.Echo.Output").has("type"), "an undeclared output is any value");
 
 		Map<String, String> modules = new TreeMap<>();
 		doc.path("x-semoss-servlets").fields().forEachRemaining(e -> modules.put(e.getKey(), e.getValue().asText()));
@@ -123,16 +124,18 @@ class OpenApiExporterTest {
 	}
 
 	@Test
-	void infersReactorsAndAppliesTheirAnnotations() throws Exception {
+	void readsWhatEachReactorDefines() throws Exception {
 		OpenApiExporter.Result result = OpenApiExporter.run(FIXTURE_SERVLETS, FIXTURE_REACTORS);
 		JsonNode doc = OpenApiExporter.read(result.json());
-		JsonNode reactors = doc.path("x-semoss-pixels").path("reactors");
+		JsonNode reactors = doc.path("x-semoss-reactor").path("reactors");
 		JsonNode schemas = doc.path("components").path("schemas");
 
-		// hidden, frame-specific, unreadable and twice-named reactors are left out
-		assertEquals(List.of("AnnotatedFixture", "InferredFixture", "InternalFixture"), names(reactors));
+		// undefined, hidden, frame-specific, unreadable and twice-named reactors are
+		// left out
+		assertEquals(List.of("DefinedFixture", "InferredFixture", "InternalFixture", "NoKeysFixture", "RowsFixture"),
+				names(reactors));
 
-		JsonNode inferred = schemas.path("Pixel.InferredFixture.Input");
+		JsonNode inferred = schemas.path("Reactor.InferredFixture.Input");
 		assertTrue(reactors.path("InferredFixture").path("x-semoss-inferred").asBoolean());
 		assertEquals("string", inferred.path("properties").path("name").path("type").asText());
 		assertEquals("A name", inferred.path("properties").path("name").path("description").asText());
@@ -141,14 +144,25 @@ class OpenApiExporterTest {
 		assertFalse(contains(inferred.path("required"), "limit"));
 		assertEquals("InferredFixture reactor", reactors.path("InferredFixture").path("description").asText());
 		assertEquals("Not declared by the reactor",
-				schemas.path("Pixel.InferredFixture.Output").path("description").asText());
+				schemas.path("Reactor.InferredFixture.Output").path("description").asText());
 
-		JsonNode annotated = schemas.path("Pixel.AnnotatedFixture.Input").path("properties").path("tags");
-		assertFalse(reactors.path("AnnotatedFixture").has("x-semoss-inferred"));
-		assertEquals("array", annotated.path("type").asText());
-		assertEquals("string", annotated.path("items").path("type").asText());
-		assertEquals("Some tags", annotated.path("description").asText());
-		assertEquals("integer", schemas.path("Pixel.AnnotatedFixture.Output").path("type").asText());
+		JsonNode defined = schemas.path("Reactor.DefinedFixture.Input").path("properties").path("tags");
+		assertFalse(reactors.path("DefinedFixture").has("x-semoss-inferred"));
+		assertEquals("array", defined.path("type").asText());
+		assertEquals("string", defined.path("items").path("type").asText());
+		assertEquals("Some tags", defined.path("description").asText());
+		assertEquals("integer", schemas.path("Reactor.DefinedFixture.Output").path("type").asText());
+		assertEquals("Counts tags", reactors.path("DefinedFixture").path("description").asText());
+
+		assertFalse(reactors.path("NoKeysFixture").has("x-semoss-inferred"), "noKeys() declares the empty input");
+		assertFalse(schemas.path("Reactor.NoKeysFixture.Input").has("properties"));
+		assertEquals("NoKeysFixture takes no inputs",
+				schemas.path("Reactor.NoKeysFixture.Input").path("description").asText());
+
+		JsonNode rows = schemas.path("Reactor.RowsFixture.Output");
+		assertEquals("array", rows.path("type").asText(), "a JSON Schema output is published as given");
+		assertEquals("Some rows", rows.path("description").asText());
+		assertEquals("string", rows.path("items").path("properties").path("id").path("type").asText());
 
 		assertTrue(reactors.path("InternalFixture").path("x-internal").asBoolean());
 		assertEquals("Testing only", reactors.path("InternalFixture").path("x-internal-reason").asText());
@@ -163,13 +177,22 @@ class OpenApiExporterTest {
 				+ "IllegalStateException: needs a running server"), skipped.get(0));
 		assertTrue(skipped.get(1).startsWith("Twin (") && skipped.get(1).endsWith("two classes have this Pixel name"),
 				skipped.get(1));
+		assertFalse(skipped.toString().contains("UndefinedFixture"), "a reactor that declares nothing is not reported");
 	}
 
 	@Test
-	void failsWhenAnAnnotatedReactorCannotBeRead() {
+	void failsListingEveryInvalidReactorDefinition() {
 		IllegalStateException error = assertThrows(IllegalStateException.class,
 				() -> OpenApiExporter.run(FIXTURE_SERVLETS, List.of("openapi.badfixtures")));
-		assertTrue(error.getMessage().contains("BadAnnotationReactor is annotated for the SDK"), error.getMessage());
+		String message = error.getMessage();
+
+		assertTrue(message.startsWith("2 reactor definition(s) are wrong"), message);
+		assertTrue(message.contains("BadDefinition (openapi.badfixtures.BadDefinitionReactor): "
+				+ "openapi.badfixtures.BadDefinitionReactor describes the key \"missing\""), message);
+		assertTrue(
+				message.contains("BadChild (openapi.badfixtures.BadChildReactor): "
+						+ "openapi.badfixtures.BadParentReactor describes the key \"shared\""),
+				"a parent's mistake names the parent: " + message);
 	}
 
 	@Test
@@ -195,7 +218,8 @@ class OpenApiExporterTest {
 		for (Servlet servlet : OpenApiExporter.SERVLETS) {
 			declared.put(servlet.prefix(), servlet.application());
 		}
-		assertEquals(new TreeMap<>(mapped), declared, "OpenApiExporter.SERVLETS lists every RESTEasy servlet in web.xml");
+		assertEquals(new TreeMap<>(mapped), declared,
+				"OpenApiExporter.SERVLETS lists every RESTEasy servlet in web.xml");
 	}
 
 	@Test
@@ -212,7 +236,9 @@ class OpenApiExporterTest {
 		assertEquals(2, problems.size(), problems.toString());
 	}
 
-	/** Each servlet's url-pattern prefix mapped to its jakarta.ws.rs.Application. */
+	/**
+	 * Each servlet's url-pattern prefix mapped to its jakarta.ws.rs.Application.
+	 */
 	private static Map<String, String> applicationsByPrefix(Path webXml) throws Exception {
 		DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
 		factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);

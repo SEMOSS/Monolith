@@ -44,9 +44,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * Keeps {@link ServerConfig}, which documents {@code GET /api/config} for the
- * SDKs, in step with the map {@link ServerConfigurationResource} actually builds.
- * The map is assembled from many settings at runtime, so this compares the keys
- * the resource puts with the record's wire names.
+ * SDKs, in step with the map {@link ServerConfigurationResource} actually
+ * builds. The map is assembled from many settings at runtime, so this compares
+ * the keys the resource puts with the record's wire names.
  */
 class ServerConfigContractTest {
 

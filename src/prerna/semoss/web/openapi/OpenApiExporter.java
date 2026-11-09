@@ -68,24 +68,23 @@ import io.swagger.v3.parser.core.models.SwaggerParseResult;
 import jakarta.ws.rs.core.Application;
 import prerna.engine.api.IEngine;
 import prerna.openapi.Internal;
-import prerna.openapi.PixelInput;
-import prerna.openapi.PixelOutput;
+import prerna.openapi.ReactorContract;
 import prerna.reactor.IReactor;
-import prerna.reactor.ReactorContract;
 
 /**
  * Writes the OpenAPI 3.1 document every SEMOSS SDK is generated from.
  * <p>
- * The backend owns the contract: SDKs (TypeScript today, Python later) only read
- * this document. Nothing is listed by hand: what is annotated is published.
+ * The backend owns the contract: SDKs (TypeScript today, Python later) only
+ * read this document. Nothing is listed by hand: what is annotated is
+ * published.
  * <ul>
  * <li>Under {@code paths}: every resource method with a swagger-core
  * {@code @Operation(operationId = ...)}, in the resources each servlet's
  * {@link Application} registers.</li>
- * <li>Under the {@code x-semoss-pixels} extension: every general reactor,
- * its contract inferred from what it declares ({@link ReactorContract}) and
- * refined by {@code @PixelInput} and {@code @PixelOutput}. A reactor that
- * cannot be read is left out and reported.</li>
+ * <li>Under the {@code x-semoss-reactor} extension: every general reactor that
+ * declares something about itself ({@link ReactorContract#isDefined}), with the
+ * contract it declares ({@link ReactorContract}). A reactor that declares
+ * nothing is left out; one that cannot be read is left out and reported.</li>
  * <li>{@code @Hidden} (swagger-core) on a method, resource or reactor leaves it
  * out. {@link Internal} publishes it with {@code "x-internal": true}, which the
  * SDKs mark as not for general use.</li>
@@ -105,7 +104,9 @@ public final class OpenApiExporter {
 	record Servlet(String prefix, String module, String application) {
 	}
 
-	/** Every RESTEasy servlet in WebContent/WEB-INF/web.xml, checked by the tests. */
+	/**
+	 * Every RESTEasy servlet in WebContent/WEB-INF/web.xml, checked by the tests.
+	 */
 	static final List<Servlet> SERVLETS = List.of(
 			new Servlet("/api", "monolith", "prerna.semoss.web.app.MonolithApplication"),
 			new Servlet("/health", "health", "prerna.semoss.web.app.HealthApplication"),
@@ -152,7 +153,10 @@ public final class OpenApiExporter {
 	record Result(String json, List<String> skipped) {
 	}
 
-	/** Builds the document for Monolith's servlets and the reactors in {@link #REACTOR_PACKAGES}. */
+	/**
+	 * Builds the document for Monolith's servlets and the reactors in
+	 * {@link #REACTOR_PACKAGES}.
+	 */
 	public static String export() throws Exception {
 		return run(SERVLETS, REACTOR_PACKAGES).json();
 	}
@@ -167,7 +171,8 @@ public final class OpenApiExporter {
 	 *
 	 * @param servlets        the servlets whose annotated operations are published
 	 * @param reactorPackages the packages scanned for reactors
-	 * @return the document as canonical JSON, ending in a newline, and the reactors left out
+	 * @return the document as canonical JSON, ending in a newline, and the reactors
+	 *         left out
 	 * @throws IllegalStateException when something annotated is incomplete,
 	 *                               ambiguous or not valid OpenAPI 3.1
 	 */
@@ -175,7 +180,7 @@ public final class OpenApiExporter {
 		ObjectNode schemas = NODES.objectNode();
 		ObjectNode paths = readRestOperations(servlets, schemas);
 		List<String> skipped = new ArrayList<>();
-		ObjectNode pixels = readReactors(reactorPackages, schemas, skipped);
+		ObjectNode reactorExtension = readReactors(reactorPackages, schemas, skipped);
 		skipped.sort(null);
 
 		ObjectNode root = NODES.objectNode();
@@ -192,7 +197,7 @@ public final class OpenApiExporter {
 			servletModules.put(servlet.prefix(), servlet.module());
 		}
 		root.set("x-semoss-servlets", servletModules);
-		root.set("x-semoss-pixels", pixels);
+		root.set("x-semoss-reactor", reactorExtension);
 
 		JsonNode canonical = canonical(root);
 		List<String> problems = new ArrayList<>();
@@ -210,7 +215,9 @@ public final class OpenApiExporter {
 	 * REST
 	 */
 
-	/** The resource classes a servlet's application registers, by constructing it. */
+	/**
+	 * The resource classes a servlet's application registers, by constructing it.
+	 */
 	static List<Class<?>> resourcesOf(Servlet servlet) throws Exception {
 		Application application = (Application) Class.forName(servlet.application()).getDeclaredConstructor()
 				.newInstance();
@@ -225,7 +232,9 @@ public final class OpenApiExporter {
 		return resources;
 	}
 
-	/** A published resource method: its {@code @Operation} and where it is declared. */
+	/**
+	 * A published resource method: its {@code @Operation} and where it is declared.
+	 */
 	private record AnnotatedOperation(Method method, Class<?> resource) {
 	}
 
@@ -253,8 +262,8 @@ public final class OpenApiExporter {
 					AnnotatedOperation previous = operations.put(operationId, new AnnotatedOperation(method, resource));
 					if (previous != null) {
 						throw new IllegalStateException("Two operations in " + servlet.prefix() + " are named \""
-								+ operationId + "\": " + previous.resource().getName() + "." + previous.method().getName()
-								+ " and " + resource.getName() + "." + method.getName());
+								+ operationId + "\": " + previous.resource().getName() + "."
+								+ previous.method().getName() + " and " + resource.getName() + "." + method.getName());
 					}
 					annotated.add(resource);
 				}
@@ -289,7 +298,8 @@ public final class OpenApiExporter {
 					ObjectNode pathItem = paths.has(fullPath) ? (ObjectNode) paths.get(fullPath)
 							: paths.putObject(fullPath);
 					if (pathItem.has(op.getKey())) {
-						throw new IllegalStateException(op.getKey().toUpperCase() + " " + fullPath + " is declared twice");
+						throw new IllegalStateException(
+								op.getKey().toUpperCase() + " " + fullPath + " is declared twice");
 					}
 					pathItem.set(op.getKey(), operation);
 				}
@@ -319,7 +329,9 @@ public final class OpenApiExporter {
 		return internal != null ? internal : declaring.getAnnotation(Internal.class);
 	}
 
-	/** Adds {@code x-internal}, and its reason, to an operation or reactor entry. */
+	/**
+	 * Adds {@code x-internal}, and its reason, to an operation or reactor entry.
+	 */
 	private static void markInternal(ObjectNode node, Internal internal) {
 		if (internal == null) {
 			return;
@@ -337,7 +349,7 @@ public final class OpenApiExporter {
 	}
 
 	/*
-	 * Pixels
+	 * Reactors
 	 */
 
 	/** Every concrete, general reactor in the packages, sorted by class name. */
@@ -366,75 +378,76 @@ public final class OpenApiExporter {
 		return reactors;
 	}
 
-	/** Whether a reactor refines its contract with an annotation, so a problem with it fails the export. */
-	private static boolean isAnnotated(Class<?> reactor) {
-		return reactor.getAnnotationsByType(PixelInput.class).length > 0
-				|| reactor.isAnnotationPresent(PixelOutput.class);
-	}
-
 	private static final java.util.regex.Pattern PIXEL_IDENTIFIER = java.util.regex.Pattern
 			.compile("^[A-Za-z_][A-Za-z0-9_]*$");
 
 	/**
-	 * Reads the contract of every general reactor that is not {@code @Hidden}.
+	 * Reads the contract of every general reactor that declares something about
+	 * itself and is not {@code @Hidden}.
 	 *
-	 * @param skipped collects each reactor left out and why, as
+	 * @param skipped collects each reactor left out because it cannot be read, as
 	 *                {@code "Name (class): reason"}
+	 * @throws IllegalStateException when any reactor's definition is wrong, listing
+	 *                               every one with the class whose code to fix
 	 */
 	private static ObjectNode readReactors(List<String> packages, ObjectNode schemas, List<String> skipped)
 			throws Exception {
-		// Read every contract first, so names claimed twice can be left out entirely.
-		Map<String, List<ReactorContract>> byName = new TreeMap<>();
-		Map<ReactorContract, Class<?>> classes = new java.util.IdentityHashMap<>();
+		// Grouped by Pixel name first, so a name claimed twice is left out even when
+		// one claimant declares nothing.
+		Map<String, List<Class<?>>> byName = new TreeMap<>();
 		for (Class<?> reactorClass : findReactors(packages)) {
-			if (reactorClass.isAnnotationPresent(Hidden.class)) {
+			if (!reactorClass.isAnnotationPresent(Hidden.class)) {
+				byName.computeIfAbsent(ReactorContract.pixelName(reactorClass), n -> new ArrayList<>())
+						.add(reactorClass);
+			}
+		}
+
+		ObjectNode reactors = NODES.objectNode();
+		List<String> invalid = new ArrayList<>();
+		for (Map.Entry<String, List<Class<?>>> entry : byName.entrySet()) {
+			String name = entry.getKey();
+			List<Class<?>> claimants = entry.getValue();
+			boolean defined = false;
+			for (Class<?> claimant : claimants) {
+				try {
+					defined |= ReactorContract.isDefined(claimant);
+				} catch (LinkageError e) {
+					skipped.add(name + " (" + claimant.getName() + "): " + describe(e));
+				}
+			}
+			if (!defined) {
 				continue;
 			}
-			String name = ReactorContract.pixelName(reactorClass);
+			if (claimants.size() > 1) {
+				List<String> names = claimants.stream().map(Class::getName).sorted().toList();
+				skipped.add(name + " (" + String.join(", ", names) + "): two classes have this Pixel name");
+				continue;
+			}
+
+			Class<?> reactorClass = claimants.get(0);
 			ReactorContract contract;
 			try {
 				contract = ReactorContract.of(reactorClass);
-				String problem = identifierProblem(contract);
-				if (problem != null) {
-					throw new IllegalArgumentException(problem);
-				}
+			} catch (IllegalStateException e) {
+				invalid.add(name + " (" + reactorClass.getName() + "): " + e.getMessage());
+				continue;
 			} catch (Exception | LinkageError e) {
 				Throwable cause = e instanceof java.lang.reflect.InvocationTargetException ite && ite.getCause() != null
 						? ite.getCause()
 						: e;
-				if (isAnnotated(reactorClass)) {
-					throw new IllegalStateException(
-							reactorClass.getName() + " is annotated for the SDK but its contract cannot be read: "
-									+ cause,
-							cause);
-				}
 				skipped.add(name + " (" + reactorClass.getName() + "): " + describe(cause));
 				continue;
 			}
-			byName.computeIfAbsent(contract.name(), n -> new ArrayList<>()).add(contract);
-			classes.put(contract, reactorClass);
-		}
-
-		ObjectNode reactors = NODES.objectNode();
-		for (Map.Entry<String, List<ReactorContract>> entry : byName.entrySet()) {
-			List<ReactorContract> claimants = entry.getValue();
-			if (claimants.size() > 1) {
-				List<String> names = claimants.stream().map(c -> classes.get(c).getName()).sorted().toList();
-				for (ReactorContract claimant : claimants) {
-					if (isAnnotated(classes.get(claimant))) {
-						throw new IllegalStateException(classes.get(claimant).getName()
-								+ " is annotated for the SDK, but its Pixel name is also claimed by " + names);
-					}
-				}
-				skipped.add(entry.getKey() + " (" + String.join(", ", names) + "): two classes have this Pixel name");
+			String problem = identifierProblem(contract);
+			if (problem != null) {
+				skipped.add(
+						name + " (" + reactorClass.getName() + "): " + describe(new IllegalArgumentException(problem)));
 				continue;
 			}
-			ReactorContract contract = claimants.get(0);
-			String name = contract.name();
 
-			String inputName = "Pixel." + name + ".Input";
+			String inputName = "Reactor." + name + ".Input";
 			addSchema(schemas, inputName, inputSchema(contract, schemas));
-			String outputName = "Pixel." + name + ".Output";
+			String outputName = "Reactor." + name + ".Output";
 			addSchema(schemas, outputName, outputSchema(contract, schemas));
 
 			ObjectNode reactor = reactors.putObject(name);
@@ -447,14 +460,23 @@ public final class OpenApiExporter {
 			markInternal(reactor, contract.internal());
 		}
 
-		ObjectNode pixels = NODES.objectNode();
-		pixels.put("schemaVersion", 1);
-		pixels.set("transport", NODES.objectNode().put("path", PIXEL_TRANSPORT));
-		pixels.set("reactors", reactors);
-		return pixels;
+		if (!invalid.isEmpty()) {
+			throw new IllegalStateException(
+					invalid.size() + " reactor definition(s) are wrong; each names the class whose code to fix:\n  "
+							+ String.join("\n  ", invalid));
+		}
+
+		ObjectNode extension = NODES.objectNode();
+		extension.put("schemaVersion", 1);
+		extension.set("transport", NODES.objectNode().put("path", PIXEL_TRANSPORT));
+		extension.set("reactors", reactors);
+		return extension;
 	}
 
-	/** Why a contract cannot be published as is, or null. Names and keys are written into Pixel unescaped. */
+	/**
+	 * Why a contract cannot be published as is, or null. Names and keys are written
+	 * into Pixel unescaped.
+	 */
 	private static String identifierProblem(ReactorContract contract) {
 		if (!PIXEL_IDENTIFIER.matcher(contract.name()).matches()) {
 			return "\"" + contract.name() + "\" is not an identifier";
@@ -478,7 +500,7 @@ public final class OpenApiExporter {
 		ObjectNode schema = NODES.objectNode();
 		schema.put("type", "object");
 		if (contract.inputs().isEmpty()) {
-			schema.put("description", contract.name() + " takes no inputs");
+			schema.put("description", contract.name() + (contract.noKeys() ? " takes no inputs" : " declares no keys"));
 			return schema;
 		}
 		schema.put("description", "Inputs for " + contract.name());
@@ -498,10 +520,13 @@ public final class OpenApiExporter {
 		return schema;
 	}
 
-	private static ObjectNode outputSchema(ReactorContract contract, ObjectNode schemas) {
+	private static ObjectNode outputSchema(ReactorContract contract, ObjectNode schemas) throws IOException {
 		ReactorContract.Output output = contract.output();
 		if (output == null) {
 			return NODES.objectNode().put("description", "Not declared by the reactor");
+		}
+		if (output.schema() != null) {
+			return (ObjectNode) Json31.mapper().readTree(output.schema());
 		}
 		ObjectNode schema = schemaFor(output.type(), output.items(), schemas);
 		if (!output.description().isBlank()) {
@@ -510,7 +535,10 @@ public final class OpenApiExporter {
 		return schema;
 	}
 
-	/** The JSON Schema of a declared or inferred type; a {@code List} uses its item type. */
+	/**
+	 * The JSON Schema of a declared or inferred type; a {@code List} uses its item
+	 * type.
+	 */
 	private static ObjectNode schemaFor(Class<?> type, Class<?> items, ObjectNode schemas) {
 		if (List.class.isAssignableFrom(type)) {
 			ObjectNode schema = NODES.objectNode().put("type", "array");
@@ -625,7 +653,10 @@ public final class OpenApiExporter {
 		return node;
 	}
 
-	/** Rejects OpenAPI 3.0 forms and missing documentation that SDK generators require. */
+	/**
+	 * Rejects OpenAPI 3.0 forms and missing documentation that SDK generators
+	 * require.
+	 */
 	static void lint(JsonNode node, String where, List<String> problems) {
 		if (node.isObject()) {
 			if (node.has("nullable")) {
@@ -655,14 +686,17 @@ public final class OpenApiExporter {
 		}
 	}
 
-	/** Parses the document with swagger-parser, failing on any message it reports. */
+	/**
+	 * Parses the document with swagger-parser, failing on any message it reports.
+	 */
 	private static void validate(String json) {
 		ParseOptions options = new ParseOptions();
 		options.setResolve(true);
 		SwaggerParseResult result = new OpenAPIV3Parser().readContents(json, null, options);
 		List<String> messages = result.getMessages() == null ? List.of() : result.getMessages();
 		if (result.getOpenAPI() == null || !messages.isEmpty()) {
-			throw new IllegalStateException("swagger-parser rejected the document:\n  " + String.join("\n  ", messages));
+			throw new IllegalStateException(
+					"swagger-parser rejected the document:\n  " + String.join("\n  ", messages));
 		}
 	}
 

@@ -27,23 +27,27 @@
  *******************************************************************************/
 package openapi.fixtures;
 
-import java.util.List;
+import org.json.JSONObject;
 
 import io.swagger.v3.oas.annotations.Hidden;
 import prerna.openapi.Internal;
-import prerna.openapi.PixelInput;
-import prerna.openapi.PixelOutput;
 import prerna.reactor.AbstractReactor;
+import prerna.reactor.ReactorDefinition;
 import prerna.sablecc2.om.ReactorKeysEnum;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
 
-/** Reactors for OpenApiExporterTest: inferred, annotated, hidden, internal and unreadable. */
+/**
+ * Reactors for OpenApiExporterTest: inferred, defined, keyless, undefined,
+ * hidden, internal and unreadable.
+ */
 public final class FixtureReactors {
 
 	private FixtureReactors() {
 	}
 
-	/** Nothing annotated: everything is inferred. */
+	/**
+	 * Describes one key through the deprecated method; everything else is inferred.
+	 */
 	public static class InferredFixtureReactor extends AbstractReactor {
 		public InferredFixtureReactor() {
 			this.keysToGet = new String[] { "name", ReactorKeysEnum.LIMIT.getKey() };
@@ -55,16 +59,15 @@ public final class FixtureReactors {
 			return null;
 		}
 
+		@SuppressWarnings("deprecation")
 		@Override
 		protected String getDescriptionForKey(String key) {
 			return key.equals("name") ? "A name" : super.getDescriptionForKey(key);
 		}
 	}
 
-	@PixelInput(name = "tags", type = List.class, items = String.class, description = "Some tags")
-	@PixelOutput(value = Integer.class, description = "How many")
-	public static class AnnotatedFixtureReactor extends AbstractReactor {
-		public AnnotatedFixtureReactor() {
+	public static class DefinedFixtureReactor extends AbstractReactor {
+		public DefinedFixtureReactor() {
 			this.keysToGet = new String[] { "tags" };
 		}
 
@@ -74,8 +77,50 @@ public final class FixtureReactors {
 		}
 
 		@Override
-		public String getReactorDescription() {
-			return "Counts tags";
+		public ReactorDefinition getReactorDefinition() {
+			return super.getReactorDefinition().description("Counts tags")
+					.key("tags", key -> key.list(String.class).description("Some tags"))
+					.output(Integer.class, "How many");
+		}
+	}
+
+	public static class NoKeysFixtureReactor extends AbstractReactor {
+		@Override
+		public NounMetadata execute() {
+			return null;
+		}
+
+		@Override
+		public ReactorDefinition getReactorDefinition() {
+			return super.getReactorDefinition().description("Says hello").noKeys().output(String.class, "A greeting");
+		}
+	}
+
+	/** Declares its output as a JSON Schema. */
+	public static class RowsFixtureReactor extends AbstractReactor {
+		@Override
+		public NounMetadata execute() {
+			return null;
+		}
+
+		@Override
+		public ReactorDefinition getReactorDefinition() {
+			JSONObject row = new JSONObject().put("type", "object").put("properties",
+					new JSONObject().put("id", new JSONObject().put("type", "string").put("description", "The id")));
+			return super.getReactorDefinition().description("Lists rows").noKeys().outputSchema(
+					new JSONObject().put("type", "array").put("description", "Some rows").put("items", row));
+		}
+	}
+
+	/** Declares nothing about itself, so it is not published. */
+	public static class UndefinedFixtureReactor extends AbstractReactor {
+		public UndefinedFixtureReactor() {
+			this.keysToGet = new String[] { "anything" };
+		}
+
+		@Override
+		public NounMetadata execute() {
+			return null;
 		}
 	}
 
@@ -96,6 +141,11 @@ public final class FixtureReactors {
 		@Override
 		public NounMetadata execute() {
 			return null;
+		}
+
+		@Override
+		public ReactorDefinition getReactorDefinition() {
+			return super.getReactorDefinition().description("Needs a running server");
 		}
 	}
 

@@ -39,14 +39,13 @@ import io.swagger.v3.oas.annotations.media.Schema;
 /**
  * The response of {@code GET /api/config}.
  * <p>
- * For now this documents the map {@link ServerConfigurationResource} builds, and
- * {@code ServerConfigContractTest} checks the two keep the same keys. A key
+ * For now this documents the map {@link ServerConfigurationResource} builds,
+ * and {@code ServerConfigContractTest} checks the two keep the same keys. A key
  * whose value can be null is optional, since the response leaves out null
  * values. Returning this record from the endpoint itself is a later change.
  */
 @Schema(description = "Server configuration returned by /api/config")
-public record ServerConfig(
-		@Schema(description = "Whether R is enabled", requiredMode = REQUIRED) boolean r,
+public record ServerConfig(@Schema(description = "Whether R is enabled", requiredMode = REQUIRED) boolean r,
 		@Schema(description = "Whether Python is enabled", requiredMode = REQUIRED) boolean python,
 		@Schema(description = "Whether security is enabled; always true", requiredMode = REQUIRED) boolean security,
 		@Schema(description = "Whether anonymous users may use the platform", requiredMode = REQUIRED) boolean anonymousUsers,

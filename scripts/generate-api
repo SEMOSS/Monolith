@@ -4,17 +4,24 @@
 #   target/generator/openapi.json
 #
 # The backend owns the contract. SDKs only read this file: pass --sdk to
-# regenerate the TypeScript SDK from it right away.
+# regenerate the TypeScript SDK from it right away. Everything runs on this
+# machine: nothing is pulled from or pushed to GitHub, and nothing is deployed.
+#
+#   1. Build the local Semoss checkout and copy its jar into the local Maven
+#      repository, which is where Monolith's build reads Semoss from.
+#   2. Compile Monolith against that jar.
+#   3. Run OpenApiExporter, which writes the document and skipped.txt.
+#   4. With --sdk, regenerate the TypeScript SDK from the document.
 #
 # Usage:
 #   scripts/generate-api [--sdk PATH_TO_libs/sdk] [--semoss PATH] [--skip-semoss-install]
 #
 #   --sdk PATH              after writing the document, run "pnpm generate --openapi" in PATH
-#   --semoss PATH           the Semoss checkout to install first (default: ../Semoss)
-#   --skip-semoss-install   use the Semoss artifact already in the local Maven repository
+#   --semoss PATH           the local Semoss checkout to build first (default: ../Semoss)
+#   --skip-semoss-install   use the Semoss jar already in the local Maven repository
 #
-# What is published is chosen by the allowlists in
-# src/prerna/semoss/web/openapi/OpenApiExporter.java.
+# The document publishes every REST method with a swagger-core @Operation and every
+# reactor that describes itself in its definition; see docs/openapi.md.
 set -euo pipefail
 
 MONOLITH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -37,7 +44,7 @@ while [[ $# -gt 0 ]]; do
 			shift
 			;;
 		-h | --help)
-			sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//'
+			awk 'NR == 1 { next } /^#/ { sub(/^# ?/, ""); print; next } { exit }' "$0"
 			exit 0
 			;;
 		*)
@@ -50,26 +57,59 @@ done
 GENERATOR_DIR="${MONOLITH_DIR}/target/generator"
 OUTPUT="${GENERATOR_DIR}/openapi.json"
 CLASSPATH_FILE="${GENERATOR_DIR}/classpath.txt"
+BUILD_DIR="${MONOLITH_DIR}/target/openapi-build"
 mkdir -p "${GENERATOR_DIR}"
 
+TOTAL_STEPS=3
+if [[ -n "${SDK_DIR}" ]]; then
+	TOTAL_STEPS=4
+fi
+STEP=0
+
+step() {
+	STEP=$((STEP + 1))
+	echo ""
+	echo "[${STEP}/${TOTAL_STEPS}] $1"
+	shift
+	for line in "$@"; do
+		echo "      ${line}"
+	done
+}
+
 if [[ "${INSTALL_SEMOSS}" -eq 1 ]]; then
-	echo "Installing Semoss from ${SEMOSS_DIR}"
+	if [[ ! -f "${SEMOSS_DIR}/pom.xml" ]]; then
+		echo "No Semoss checkout at ${SEMOSS_DIR}. Pass --semoss PATH to point at one, or" >&2
+		echo "--skip-semoss-install to use the Semoss jar already in the local Maven repository." >&2
+		exit 1
+	fi
+	SEMOSS_DIR="$(cd "${SEMOSS_DIR}" && pwd)"
+	BRANCH="$(git -C "${SEMOSS_DIR}" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+	step "Building Semoss from your local checkout: ${SEMOSS_DIR}${BRANCH:+ (branch ${BRANCH})}" \
+		"mvn install compiles it and its tests without running them, packages the jar, and" \
+		"copies the jar into your local Maven repository (~/.m2/repository by default)," \
+		"which is where Monolith's build reads Semoss from. This can take a few minutes."
 	(cd "${SEMOSS_DIR}" && mvn -q -DskipTests install)
+else
+	step "Skipping the Semoss build (--skip-semoss-install)" \
+		"Monolith compiles against the Semoss jar already in your local Maven repository."
 fi
 
-# The openapi profile compiles into target/openapi-build, apart from target/classes,
-# where an IDE may have left stale copies of Semoss classes that would shadow the jar.
-BUILD_DIR="${MONOLITH_DIR}/target/openapi-build"
-echo "Compiling Monolith into ${BUILD_DIR}"
+step "Compiling Monolith against that Semoss jar" \
+	"Classes go to ${BUILD_DIR}, apart from target/classes," \
+	"so stale Semoss classes an IDE left there cannot shadow the jar."
 rm -rf "${BUILD_DIR}"
 (cd "${MONOLITH_DIR}" && mvn -q -P openapi -DskipTests compile dependency:build-classpath \
 	-Dmdep.outputFile="${CLASSPATH_FILE}")
 
-echo "Writing ${OUTPUT}"
+step "Writing the OpenAPI document with OpenApiExporter" "${OUTPUT}"
 java -cp "${BUILD_DIR}/classes:$(cat "${CLASSPATH_FILE}")" \
 	prerna.semoss.web.openapi.OpenApiExporter "${OUTPUT}"
 
 if [[ -n "${SDK_DIR}" ]]; then
-	echo "Generating the TypeScript SDK in ${SDK_DIR}"
+	step "Regenerating the TypeScript SDK in ${SDK_DIR}" "pnpm generate --openapi ${OUTPUT}"
 	(cd "${SDK_DIR}" && pnpm generate --openapi "${OUTPUT}")
 fi
+
+echo ""
+echo "Done. The document is ${OUTPUT}"
+echo "Reactors that declare metadata but could not be read are listed in ${GENERATOR_DIR}/skipped.txt"

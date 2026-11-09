@@ -65,6 +65,7 @@ import prerna.auth.User;
 import prerna.engine.impl.model.message.MessageInputMedia;
 import prerna.om.Insight;
 import prerna.om.ThreadStore;
+import prerna.reactor.ReactorDefinition;
 import prerna.reactor.agent.mcp.MCPErrorCode;
 import prerna.reactor.agent.mcp.MCPUtility;
 import prerna.sablecc2.PixelRunner;
@@ -578,7 +579,11 @@ public class MCPReaper implements Runnable {
 			Object retObject = null;
 			try {
 				retObject = runPixel(insight.getUser(), insight, pixel, sessionId);
-				response.put("result", buildToolCallResult(retObject, insight));
+				Map<String, Object> result = buildToolCallResult(retObject, insight);
+				if (isPlainTextResult(result)) {
+					addStructuredContent(result, retObject, outputSchema(insight, projectId, callName, sessionId));
+				}
+				response.put("result", result);
 			} catch (SemossMCPException e) {
 				/*
 				 * { "jsonrpc": "2.0", "id": 3, "error": { "code": <example code>, "message":
@@ -719,6 +724,91 @@ public class MCPReaper implements Runnable {
 		content.put("type", "text");
 		content.put("text", text);
 		return content;
+	}
+
+	/**
+	 * Whether a tool result is a successful single text block, the only kind given
+	 * structured content.
+	 */
+	private static boolean isPlainTextResult(Map<String, Object> result) {
+		return Boolean.FALSE.equals(result.get("isError")) && result.get("content") instanceof List<?> content
+				&& content.size() == 1 && content.get(0) instanceof Map<?, ?> block && "text".equals(block.get("type"));
+	}
+
+	/**
+	 * The outputSchema of a tool in the project's tools/list, or null when it has
+	 * none.
+	 */
+	private JSONObject outputSchema(Insight insight, String projectId, String toolName, String sessionId) {
+		try {
+			Object toolMap = runPixel(insight.getUser(), insight, "GetMCPTools(project='" + projectId + "');",
+					sessionId);
+			JSONArray tools = toolMap instanceof JSONObject json ? json.optJSONArray("tools") : null;
+			for (int i = 0; tools != null && i < tools.length(); i++) {
+				JSONObject tool = tools.optJSONObject(i);
+				if (tool != null && toolName.equals(tool.optString("name"))) {
+					return tool.optJSONObject("outputSchema");
+				}
+			}
+		} catch (Exception e) {
+			classLogger.warn("Could not read the output schema of MCP tool {}: {}", toolName, e.getMessage());
+		}
+		return null;
+	}
+
+	/**
+	 * Adds a tool's output as {@code structuredContent}, which MCP requires to
+	 * match the tool's {@code outputSchema}. An output the schema wraps
+	 * ({@link ReactorDefinition#WRAP_RESULT_MARKER}) goes under
+	 * {@link ReactorDefinition#WRAPPED_RESULT}. An output that does not fit the
+	 * schema's shape stays text only.
+	 *
+	 * @param result       the tool result, given {@code structuredContent} in place
+	 * @param retObject    what the tool returned
+	 * @param outputSchema the tool's output schema, or null
+	 */
+	static void addStructuredContent(Map<String, Object> result, Object retObject, JSONObject outputSchema) {
+		if (outputSchema == null) {
+			return;
+		}
+		boolean wrapped = outputSchema.optBoolean(ReactorDefinition.WRAP_RESULT_MARKER, false);
+		JSONObject properties = outputSchema.optJSONObject("properties");
+		JSONObject valueSchema = wrapped && properties != null
+				? properties.optJSONObject(ReactorDefinition.WRAPPED_RESULT)
+				: outputSchema;
+		String output = retObject == null ? "" : retObject.toString().trim();
+		Object value = structuredValue(output, valueSchema == null ? null : valueSchema.optString("type", null));
+		if (value == null || (!wrapped && !(value instanceof JSONObject))) {
+			classLogger.warn("A tool output does not fit its output schema, so it is returned as text only");
+			return;
+		}
+		result.put("structuredContent",
+				wrapped ? new JSONObject().put(ReactorDefinition.WRAPPED_RESULT, value) : value);
+	}
+
+	/**
+	 * Parses a tool's text output as the JSON value its schema type expects, or
+	 * null.
+	 */
+	private static Object structuredValue(String output, String type) {
+		try {
+			if (output.startsWith("\"") && output.endsWith("\"") && output.length() > 1) {
+				return new JSONArray("[" + output + "]").get(0);
+			}
+			if ("string".equals(type)) {
+				return output;
+			}
+			if (output.startsWith("{")) {
+				return new JSONObject(output);
+			}
+			if (output.startsWith("[")) {
+				return new JSONArray(output);
+			}
+			Object scalar = JSONObject.stringToValue(output);
+			return scalar == JSONObject.NULL ? null : scalar;
+		} catch (JSONException e) {
+			return null;
+		}
 	}
 
 	/**

@@ -19,7 +19,7 @@ to change that. The document is build output (under `target/`) and is not commit
 | `paths` | every resource method with a swagger-core `@Operation(operationId = ...)`, in the resources each servlet's JAX-RS application registers |
 | `components.schemas` | the records those annotations name (such as `ServerConfig`), and each reactor's input and output |
 | `x-semoss-servlets` | each servlet prefix and the SDK module it is published under (`"/api": "monolith"`) |
-| `x-semoss-pixels` | version 1: every general reactor in the `prerna` packages, its contract inferred from what it declares and refined by `@PixelInput` and `@PixelOutput` |
+| `x-semoss-reactor` | version 1: every general reactor in the `prerna` packages that declares something about itself, with the contract it declares |
 | `x-semoss-inferred` | on a reactor whose contract is inferred in part |
 | `x-internal`, `x-internal-reason` | on an operation or reactor marked `@Internal` |
 
@@ -65,47 +65,85 @@ application and SDK module name, and the tests check it against `web.xml`.
 
 ## Publishing a reactor
 
-Every general reactor is published with no changes, its contract inferred from what
-it already declares (`prerna.reactor.ReactorContract` in Semoss):
-
-| Contract | Inferred from |
-|---|---|
-| inputs | `keysToGet`, by canonical name (before any `,alias`) |
-| required inputs | `keyRequired`; with none, nothing is required, as `organizeKeys()` checks |
-| input types | `getKeyTypeForMCP` (string, integer, number, boolean, array, object) |
-| descriptions | `getDescriptionForKey` and `getReactorDescription`, or a placeholder |
-| output | nothing: published as any value unless declared |
-
-Refine what inference cannot see with annotations from `prerna.openapi`:
+A reactor describes itself by overriding `getReactorDefinition()` (Semoss,
+`prerna.reactor.ReactorDefinition`). Its MCP tool, its help text and the SDKs all read
+the same definition. It starts from `keysToGet` and `keyRequired`, so a reactor only
+adds what it knows, and it can use anything the constructor set:
 
 ```java
-@PixelOutput(value = String.class, description = "The id of the current insight")
-@PixelInput(name = "ids", type = List.class, items = String.class, description = "The job ids")
-@PixelInput(name = "value", type = Object.class)   // any value
-public class SomeReactor extends AbstractReactor { ... }
+@Override
+public ReactorDefinition getReactorDefinition() {
+	return super.getReactorDefinition()
+			.description("Stages or unstages files in " + this.target.getLabelWithArticle() + "'s git repository")
+			.key(PATHS_KEY, key -> key.list(String.class).description("The repo-relative file paths"))
+			.key(ReactorKeysEnum.COMMENT_KEY, "The commit message")
+			.key("value", key -> key.type(Object.class))          // any value
+			.output(String.class, "The refreshed status");
+}
+
+@Override
+public ReactorDefinition getReactorDefinition() {
+	return super.getReactorDefinition()
+			.noKeys()                                            // takes no input on purpose
+			.outputSchema(responseSchema());                     // a JSON Schema, used as is
+}
 ```
 
+| Contract | Read from |
+|---|---|
+| description | `description(...)`, or a placeholder |
+| inputs | `keysToGet`, by canonical name (before any `,alias`) |
+| required inputs | `keyRequired`, or `key.required(...)`; with neither, nothing is required, as `organizeKeys()` checks |
+| input types and descriptions | `key(...)`; a key the definition leaves out keeps the shared `ReactorKeysEnum` description and the default type |
+| no inputs | `noKeys()` declares an empty input on purpose |
+| output | `output(...)`, `outputList(...)` or `outputSchema(...)`; without one, any value |
+
+A subclass calls `super.getReactorDefinition()` and adds to its parent's. The
+definition is metadata only: `keysToGet` and `keyRequired` still decide how a call's
+inputs are read. Reactors that still override the deprecated `getReactorDescription`,
+`getDescriptionForKey` or `getKeyTypeForMCP` are read through the definition too.
+
+- **What is published:** every general reactor that declares something about itself,
+  by overriding `getReactorDefinition()` or one of those methods, on it or a parent, or
+  by being marked `@Internal`. A reactor that declares nothing is not published and is
+  not reported.
 - **What is left out:**
   - Frame-specific reactors, the R, Python, SQL and graph versions `ReactorFactory` keeps per frame type. They share the general reactor's name, which is what Pixel calls.
   - `@Hidden` reactors.
-- **Skipped reactors:** a reactor whose contract cannot be read (its constructor fails, a key or name is not an identifier, or two classes claim one name) is left out and listed with the reason in `target/generator/skipped.txt`. The list is the same on every run. A reactor with `@PixelInput` or `@PixelOutput` fails the export instead, as does a `@PixelInput` for a key the reactor does not have.
-- **Flagged contracts:** a reactor with anything inferred gets `"x-semoss-inferred": true`, which the SDK notes in its TSDoc.
+- **Skipped reactors:** a published reactor whose contract cannot be read (its constructor fails, a key or name is not an identifier, or two classes claim one name) is left out and listed with the reason in `target/generator/skipped.txt`. The list is the same on every run.
+- **Failed exports:** a definition that is wrong fails the export: an empty key or a key listed twice in the reactor's `keysToGet`, a key it describes that is not in `keysToGet`, or `noKeys()` on a reactor with keys. The export reads every reactor first and then lists each wrong definition with the class whose code made the mistake, which may be a parent. A parent describes only the keys all its reactors take; text several reactors share can live in the parent as a constant, and a reactor that does not take its parent's keys starts from `startDefinition()` instead of `super.getReactorDefinition()`.
+- **Flagged contracts:** a reactor with anything inferred gets `"x-semoss-inferred": true`, which the SDK notes in its TSDoc. A reactor with no keys counts as inferred unless its definition says `noKeys()`.
+
+## MCP
+
+The same definition builds each reactor's MCP tool. A reactor with a declared output
+gets an `outputSchema`; since MCP structured results are objects, an output that is
+not one (a list, a string) is wrapped as `{ "result": ... }` and the schema is marked
+`"x-semoss-wrap-result": true`. `MCPReaper` answers `tools/call` for such a tool with
+`structuredContent` in that shape, beside the usual text content.
+
+`initialize` answers with the client's protocol version when the server speaks it
+(`2025-11-25`, `2025-06-18`, `2025-03-26`, `2024-11-05`), and with `2025-11-25`
+otherwise.
 
 ## Tests
 
 - `OpenApiExporterTest` checks:
   - that two exports are identical and skip the same reactors;
-  - what the current code publishes (`/api/config`, every general reactor, and the pinned
-    types of the three annotated pilot reactors);
+  - what the current code publishes (`/api/config`, the general reactors that declare
+    metadata, and the pinned types of the three pilot reactors);
   - on fixtures in `test/openapi/fixtures`:
     - unannotated and `@Hidden` methods are left out;
-    - `@Hidden` and frame-specific reactors are left out;
-    - inferred and annotated reactors are read correctly;
+    - reactors that declare nothing, `@Hidden` reactors and frame-specific reactors are left out;
+    - inferred, defined, keyless and JSON Schema output reactors are read correctly;
     - unreadable and twice-named reactors are skipped and reported;
     - `@Internal` ones get `x-internal`;
-    - a duplicate `operationId`, or a bad `@PixelInput` (`test/openapi/badfixtures`), fails;
+    - a duplicate `operationId`, or a definition naming a missing key (`test/openapi/badfixtures`), fails;
   - that every servlet's application constructs, and that `SERVLETS` matches
     `WebContent/WEB-INF/web.xml`.
-- In Semoss, `ReactorContractTest` covers the inference rules and the annotations.
+- `MCPReaperStructuredContentTest` checks the `structuredContent` a tool call returns.
+- In Semoss, `ReactorContractTest` covers the contract rules, `ReactorDefinitionTest`
+  covers what the MCP tool and help text read, and `InternalMCPTest` covers the
+  protocol version and capabilities `initialize` answers with.
 - `ServerConfigContractTest` checks that `ServerConfig` documents exactly the keys
   `ServerConfigurationResource` puts.
