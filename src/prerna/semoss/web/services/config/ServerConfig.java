@@ -48,8 +48,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 public record ServerConfig(@Schema(description = "Whether R is enabled", requiredMode = REQUIRED) boolean r,
 		@Schema(description = "Whether Python is enabled", requiredMode = REQUIRED) boolean python,
 		@Schema(description = "Whether security is enabled; always true", requiredMode = REQUIRED) boolean security,
-		@Schema(description = "Whether anonymous users may use the platform", requiredMode = REQUIRED) boolean anonymousUsers,
-		@Schema(description = "Whether anonymous users may upload data", requiredMode = REQUIRED) boolean anonymousUserUploadData,
 
 		@Schema(description = "Whether only admins may add projects", requiredMode = REQUIRED) boolean adminOnlyProjectAdd,
 		@Schema(description = "Whether only admins may delete projects", requiredMode = REQUIRED) boolean adminOnlyProjectDelete,
