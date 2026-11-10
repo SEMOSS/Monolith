@@ -59,6 +59,14 @@ import com.google.gson.JsonSyntaxException;
 import com.google.gson.ToNumberPolicy;
 import com.google.gson.internal.LinkedTreeMap;
 
+import io.swagger.v3.oas.annotations.Hidden;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.annotation.security.PermitAll;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -96,6 +104,24 @@ import prerna.sablecc2.comm.PixelJobManager;
 import prerna.sablecc2.comm.PixelJobRunner;
 import prerna.sablecc2.comm.PixelJobStatus;
 import prerna.sablecc2.om.execptions.SemossMCPException;
+import prerna.semoss.web.openapi.CommonSchemas.ErrorMessage;
+import prerna.semoss.web.services.local.NameServerSchemas.EngineAgentRunStreamingRequest;
+import prerna.semoss.web.services.local.NameServerSchemas.EngineAgentRunStreamingResult;
+import prerna.semoss.web.services.local.NameServerSchemas.EngineAllRow;
+import prerna.semoss.web.services.local.NameServerSchemas.EngineGetPipelineRequest;
+import prerna.semoss.web.services.local.NameServerSchemas.EngineGetPipelineResult;
+import prerna.semoss.web.services.local.NameServerSchemas.EngineGetSearchInsightsResultsRequest;
+import prerna.semoss.web.services.local.NameServerSchemas.EngineJobLines;
+import prerna.semoss.web.services.local.NameServerSchemas.EngineJobRequest;
+import prerna.semoss.web.services.local.NameServerSchemas.EnginePartialResult;
+import prerna.semoss.web.services.local.NameServerSchemas.EnginePixelError;
+import prerna.semoss.web.services.local.NameServerSchemas.EnginePixelJobStreamingResult;
+import prerna.semoss.web.services.local.NameServerSchemas.EnginePixelResponse;
+import prerna.semoss.web.services.local.NameServerSchemas.EnginePixelUnexpectedError;
+import prerna.semoss.web.services.local.NameServerSchemas.EngineRunPixelAsyncResult;
+import prerna.semoss.web.services.local.NameServerSchemas.EngineRunPixelRequest;
+import prerna.semoss.web.services.local.NameServerSchemas.EngineRunPythonRequest;
+import prerna.semoss.web.services.local.NameServerSchemas.EngineSearchInsightRow;
 import prerna.semoss.web.services.remote.CentralNameServer;
 import prerna.util.ChromeDriverUtility;
 import prerna.util.Constants;
@@ -119,6 +145,8 @@ public class NameServer {
 	@GET
 	@Path("playsheets")
 	@Produces("application/json")
+	@Operation(operationId = "playsheets", summary = "List the legacy playsheets", description = "Returns each legacy playsheet name with the class that implements it.")
+	@ApiResponse(responseCode = "200", description = "Each playsheet name mapped to its class name", content = @Content(mediaType = "application/json", schema = @Schema(types = "object", description = "Playsheet names mapped to class names; the keys are the playsheet names", additionalPropertiesSchema = String.class)))
 	public StreamingOutput getPlaySheets(@Context HttpServletRequest request) {
 		Map<String, String> hashTable = new HashMap<>();
 		List<String> sheetNames = PlaySheetRDFMapBasedEnum.getAllSheetNames();
@@ -222,7 +250,11 @@ public class NameServer {
 	@GET
 	@Path("/downloadFile")
 	@Produces(MediaType.APPLICATION_OCTET_STREAM)
-	public Response downloadFile(@QueryParam("insightId") String insightId, @QueryParam("fileKey") String fileKey) {
+	@Operation(operationId = "downloadFile", summary = "Download an exported file", description = "Downloads a file an insight exported, such as a CSV or Excel export. Both the insight id and the file key are needed.")
+	@ApiResponse(responseCode = "200", description = "The file, as an attachment", content = @Content(mediaType = "application/octet-stream", schema = @Schema(types = "string", format = "binary")))
+	@ApiResponse(responseCode = "400", description = "The insight or the file was not found", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	public Response downloadFile(@Parameter(description = "The insight that exported the file") @QueryParam("insightId") String insightId,
+			@Parameter(description = "The key of the exported file") @QueryParam("fileKey") String fileKey) {
 		// for "security"
 		// require the person to have both the insight id
 		// and the file id
@@ -265,6 +297,12 @@ public class NameServer {
 	@Path("/runPixel")
 	@Consumes({ "application/x-www-form-urlencoded", "application/json" })
 	@Produces("application/json;charset=utf-8")
+	@Operation(operationId = "runPixel", summary = "Run pixel", description = "Runs pixel in an insight, or in a new insight, and waits for the results.")
+	@RequestBody(required = true, content = { @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = EngineRunPixelRequest.class)), @Content(mediaType = "application/json", schema = @Schema(implementation = EngineRunPixelRequest.class)) })
+	@ApiResponse(responseCode = "200", description = "The result of each statement", content = @Content(mediaType = "application/json", schema = @Schema(implementation = EnginePixelResponse.class)))
+	@ApiResponse(responseCode = "400", description = "The body could not be read, no expression was passed, or the insight was not found", content = @Content(mediaType = "application/json", schema = @Schema(implementation = EnginePixelError.class)))
+	@ApiResponse(responseCode = "401", description = "There is no user in the session", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "The results could not be written", content = @Content(mediaType = "application/json", schema = @Schema(implementation = EnginePixelUnexpectedError.class)))
 	public Response runPixelSync(@Context HttpServletRequest request) {
 		// I need to do a couple of things here
 		// I need to get the basic blocking queue as a singleton
@@ -474,6 +512,12 @@ public class NameServer {
 	@Path("/runPython")
 	@Consumes({ "application/x-www-form-urlencoded", "application/json" })
 	@Produces("application/json;charset=utf-8")
+	@Operation(operationId = "runPython", summary = "Run Python", description = "Runs Python source in an insight, or in a new insight, as the pixel Py(code=...), and waits for the results.")
+	@RequestBody(required = true, content = { @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = EngineRunPythonRequest.class)), @Content(mediaType = "application/json", schema = @Schema(implementation = EngineRunPythonRequest.class)) })
+	@ApiResponse(responseCode = "200", description = "The result of the Py statement", content = @Content(mediaType = "application/json", schema = @Schema(implementation = EnginePixelResponse.class)))
+	@ApiResponse(responseCode = "400", description = "The body could not be read, no code was passed, or the insight was not found", content = @Content(mediaType = "application/json", schema = @Schema(implementation = EnginePixelError.class)))
+	@ApiResponse(responseCode = "401", description = "There is no user in the session", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "The results could not be written", content = @Content(mediaType = "application/json", schema = @Schema(implementation = EnginePixelUnexpectedError.class)))
 	public Response runPython(@Context HttpServletRequest request) {
 		HttpSession session = request.getSession(false);
 		String sessionId = null;
@@ -636,6 +680,8 @@ public class NameServer {
 	@Path("/runReactorMCP")
 	@Consumes({ "application/json" })
 	@Produces("application/json;charset=utf-8")
+	// Hidden: takes a JSON-RPC request body, and no client calls it
+	@Hidden
 	public Response runReactorMCP(@Context HttpServletRequest request) {
 		/*
 		 * Simpler way of running pixel reactor { "jsonrpc": "2.0", "id":
@@ -851,6 +897,11 @@ public class NameServer {
 	@POST
 	@Path("/getPipeline")
 	@Produces("application/json;charset=utf-8")
+	@Operation(operationId = "getPipeline", summary = "Read an insight's pipeline", description = "Parses the insight's recipe into the pipeline of operations each step runs.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = EngineGetPipelineRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The recipe and its parsed routines", content = @Content(mediaType = "application/json", schema = @Schema(implementation = EngineGetPipelineResult.class)))
+	@ApiResponse(responseCode = "400", description = "The insight was not found, or its recipe could not be parsed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = EnginePixelError.class)))
+	@ApiResponse(responseCode = "401", description = "There is no user in the session", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response getPixelPipelinePlan(@Context HttpServletRequest request) {
 		HttpSession session = request.getSession(false);
 		String sessionId = null;
@@ -965,6 +1016,11 @@ public class NameServer {
 	@Path("runPixelAsync")
 	@Consumes({ "application/x-www-form-urlencoded", "application/json" })
 	@Produces("application/json;charset=utf-8")
+	@Operation(operationId = "runPixelAsync", summary = "Start running pixel", description = "Starts running pixel in an insight, or in a new insight, and returns the job id at once. Poll status, console or pixelJobStreaming with it, then read the results with result.")
+	@RequestBody(required = true, content = { @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = EngineRunPixelRequest.class)), @Content(mediaType = "application/json", schema = @Schema(implementation = EngineRunPixelRequest.class)) })
+	@ApiResponse(responseCode = "200", description = "The started job", content = @Content(mediaType = "application/json", schema = @Schema(implementation = EngineRunPixelAsyncResult.class)))
+	@ApiResponse(responseCode = "400", description = "The body could not be read, no expression was passed, or the insight was not found", content = @Content(mediaType = "application/json", schema = @Schema(implementation = EnginePixelError.class)))
+	@ApiResponse(responseCode = "401", description = "There is no user in the session", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response runPixelAsync(@Context HttpServletRequest request) {
 		HttpSession session = request.getSession(false);
 		String sessionId = null;
@@ -1138,6 +1194,9 @@ public class NameServer {
 	@POST
 	@Path("/result")
 	@Produces("application/json")
+	@Operation(operationId = "result", summary = "Read the results of a pixel job", description = "Returns the results of a job runPixelAsync started in this session, then forgets the job. Returns the JSON string \"NULL\" when this session did not start the job or already read it.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = EngineJobRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The result of each statement, or the JSON string \"NULL\"", content = @Content(mediaType = "application/json", schema = @Schema(oneOf = { EnginePixelResponse.class, String.class })))
 	public StreamingOutput result(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		HttpSession session = request.getSession(true);
 		String jobId = WebUtility.inputSQLSanitizer(form.getFirst("jobId"));
@@ -1167,6 +1226,9 @@ public class NameServer {
 	@POST
 	@Path("/status")
 	@Produces("application/json")
+	@Operation(operationId = "status", summary = "Read the status of a pixel job", description = "Returns the status of a job runPixelAsync started in this session.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = EngineJobRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The job status", content = @Content(mediaType = "application/json", schema = @Schema(types = "string", description = "The job status (Created, Submitted, Canceled, InProgress, ProgressComplete, Streaming, Complete, Paused, Error or UnknownJob), or \"NULL\" when this session did not start the job")))
 	public Response status(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		Object dataReturn = "NULL";
 		HttpSession session = request.getSession(true);
@@ -1192,6 +1254,9 @@ public class NameServer {
 	@POST
 	@Path("/console")
 	@Produces("application/json")
+	@Operation(operationId = "console", summary = "Read a pixel job's console output", description = "Returns the job status and the lines the job printed since the last call.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = EngineJobRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The status and the new lines", content = @Content(mediaType = "application/json", schema = @Schema(implementation = EngineJobLines.class)))
 	public Response console(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		String jobId = WebUtility.inputSQLSanitizer(form.getFirst("jobId"));
 		// HttpSession session = request.getSession(true);
@@ -1216,6 +1281,9 @@ public class NameServer {
 	@POST
 	@Path("/error")
 	@Produces("application/json")
+	@Operation(operationId = "error", summary = "Read a pixel job's errors", description = "Returns the job status and the error lines the job printed since the last call.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = EngineJobRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The status and the new error lines", content = @Content(mediaType = "application/json", schema = @Schema(implementation = EngineJobLines.class)))
 	public Response error(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		String jobId = WebUtility.inputSQLSanitizer(form.getFirst("jobId"));
 		// HttpSession session = request.getSession(true);
@@ -1241,6 +1309,9 @@ public class NameServer {
 	@Path("/partial")
 	@Produces("application/json")
 	@Deprecated
+	@Operation(operationId = "partial", summary = "Read a pixel job's text output", description = "Deprecated: use pixelJobStreaming. Returns the job status, all the text the job streamed and the text added since the last call.", deprecated = true)
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = EngineJobRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The status and the text output", content = @Content(mediaType = "application/json", schema = @Schema(implementation = EnginePartialResult.class)))
 	public Response partial(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		String jobId = WebUtility.inputSQLSanitizer(form.getFirst("jobId"));
 		// HttpSession session = request.getSession(true);
@@ -1258,6 +1329,9 @@ public class NameServer {
 	@POST
 	@Path("/pixelJobStreaming")
 	@Produces("application/json")
+	@Operation(operationId = "pixelJobStreaming", summary = "Read a pixel job's stream messages", description = "Returns the job status and the stream messages, such as chunks of a model's answer, the job sent since the last call.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = EngineJobRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The status and the new stream messages", content = @Content(mediaType = "application/json", schema = @Schema(implementation = EnginePixelJobStreamingResult.class)))
 	public Response pixelJobStreaming(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		String jobId = WebUtility.inputSQLSanitizer(form.getFirst("jobId"));
 		// HttpSession session = request.getSession(true);
@@ -1280,6 +1354,12 @@ public class NameServer {
 	@POST
 	@Path("/agentRunStreaming")
 	@Produces("application/json")
+	@Operation(operationId = "agentRunStreaming", summary = "Read an agent run's stream", description = "Returns the run's current state and drains the events it sent since the last call. Only the run's owner can read it.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = EngineAgentRunStreamingRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The run and its new events", content = @Content(mediaType = "application/json", schema = @Schema(implementation = EngineAgentRunStreamingResult.class)))
+	@ApiResponse(responseCode = "400", description = "No run id was passed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no user in the session", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "404", description = "The user has no run with this id", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response agentRunStreaming(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		String runId = WebUtility.inputSQLSanitizer(form.getFirst("runId"));
 		if (runId == null || runId.trim().isEmpty()) {
@@ -1326,6 +1406,9 @@ public class NameServer {
 	@POST
 	@Path("/terminate")
 	@Produces("application/json")
+	@Operation(operationId = "terminate", summary = "Stop a pixel job", description = "Cancels a running pixel job and clears its output.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = EngineJobRequest.class)))
+	@ApiResponse(responseCode = "200", description = "Always \"success\"", content = @Content(mediaType = "application/json", schema = @Schema(types = "string", description = "Always \"success\"")))
 	public StreamingOutput terminate(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		String jobId = WebUtility.inputSQLSanitizer(form.getFirst("jobId"));
 		// HttpSession session = request.getSession(true);
@@ -1350,8 +1433,11 @@ public class NameServer {
 	@GET
 	@Path("mediawiki/tags")
 	@Produces("application/json")
-	public StreamingOutput getMediaWikiTagsForSearchTerm(@QueryParam("searchTerm") String searchTerm,
-			@QueryParam("numResults") int numResults) {
+	@Operation(operationId = "tags", summary = "Search Wikipedia for tags", description = "Legacy: searches Wikipedia and returns each matching page as a productontology.org URL with a short description.")
+	@ApiResponse(responseCode = "200", description = "Each productontology.org URL mapped to its description; empty when nothing was searched or the search failed", content = @Content(mediaType = "application/json", schema = @Schema(types = "object", description = "productontology.org URLs mapped to descriptions; the keys are the URLs", additionalPropertiesSchema = String.class)))
+	public StreamingOutput getMediaWikiTagsForSearchTerm(
+			@Parameter(description = "The text to search Wikipedia for") @QueryParam("searchTerm") String searchTerm,
+			@Parameter(description = "The most results to return") @QueryParam("numResults") int numResults) {
 
 		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
 
@@ -1455,6 +1541,8 @@ public class NameServer {
 	@GET
 	@Path("all")
 	@Produces("application/json")
+	@Operation(operationId = "all", summary = "List the user's engines", description = "Returns every engine the user can access. Without a user in the session, returns the JSON string \"Not properly authenticated\" instead.")
+	@ApiResponse(responseCode = "200", description = "The engines", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = EngineAllRow.class))))
 	public StreamingOutput printEngines(@Context HttpServletRequest request) {
 		List<Map<String, Object>> engines = null;
 		HttpSession session = request.getSession(false);
@@ -1472,6 +1560,8 @@ public class NameServer {
 	@GET
 	@Path("add")
 	@Produces("application/json")
+	// Hidden: returns no body, and no client calls it
+	@Hidden
 	public void addEngine(@Context HttpServletRequest request, @QueryParam("api") String api,
 			@QueryParam("database") String database) {
 //		// would be cool to give this as an HTML
@@ -1503,7 +1593,10 @@ public class NameServer {
 	@GET
 	@Path("central/context/getAutoCompleteResults")
 	@Produces("application/json")
-	public StreamingOutput getAutoCompleteResults(@QueryParam("completeTerm") String searchString,
+	@Operation(operationId = "getAutoCompleteResults", summary = "Suggest insight names", description = "Returns up to 15 names of insights the user can access that match the text.")
+	@ApiResponse(responseCode = "200", description = "The matching insight names", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(types = "string", description = "An insight name"))))
+	public StreamingOutput getAutoCompleteResults(
+			@Parameter(description = "The text the insight names should match") @QueryParam("completeTerm") String searchString,
 			@Context HttpServletRequest request) {
 
 		searchString = WebUtility.inputSanitizer(searchString);
@@ -1529,6 +1622,9 @@ public class NameServer {
 	@POST
 	@Path("central/context/getSearchInsightsResults")
 	@Produces("application/json")
+	@Operation(operationId = "getSearchInsightsResults", summary = "Search the user's insights", description = "Returns the insights the user can access whose names match the text. When filterData is not valid JSON, returns an errorMessage object instead, with status 200.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = EngineGetSearchInsightsResultsRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The matching insights, or an errorMessage object when filterData is not valid", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = EngineSearchInsightRow.class))))
 	public StreamingOutput getSearchInsightsResults(MultivaluedMap<String, String> form,
 			@Context HttpServletRequest request) {
 		Gson gson = new Gson();

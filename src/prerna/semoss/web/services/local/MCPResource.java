@@ -61,10 +61,21 @@ import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.sse.Sse;
 import jakarta.ws.rs.sse.SseEventSink;
+import io.swagger.v3.oas.annotations.Hidden;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.extensions.Extension;
+import io.swagger.v3.oas.annotations.extensions.ExtensionProperty;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import prerna.auth.User;
 import prerna.mcp.MCPReaper;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
+import prerna.semoss.web.services.local.MCPResourceSchemas.ExtMcpCommsRequest;
+import prerna.semoss.web.services.local.MCPResourceSchemas.ExtMcpCommsResponse;
 import prerna.util.Constants;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
@@ -106,7 +117,16 @@ public class MCPResource {
 	@Path("/comms")
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
-	public void commsHttp(@PathParam("toolbox_id") String toolbox_id, @QueryParam("access_key") String access,
+	@Operation(operationId = "comms", summary = "Send an MCP message to a toolbox", description = "The MCP server endpoint of a toolbox, which MCP clients connect to: takes one MCP JSON-RPC 2.0 message (initialize, tools/list, tools/call, resources/list, prompts/list, or a notification) and answers it, following the MCP streamable HTTP transport. Only the JSON-RPC fields Monolith reads and writes are modeled. A request whose Accept header selects text/event-stream is answered as a server-sent event instead.", extensions = @Extension(properties = @ExtensionProperty(name = "x-semoss-sdk-skip", value = "MCP server endpoint: MCP clients connect to it over the MCP transport")))
+	@Parameter(name = "Authorization", in = ParameterIn.HEADER, description = "Bearer <ACCESS_KEY>:<SECRET_KEY>, the user's access key pair; not needed when the session already has a signed-in user", schema = @Schema(types = "string"))
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(required = true, description = "One MCP JSON-RPC 2.0 message", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ExtMcpCommsRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The JSON-RPC response; a text/event-stream request gets it as one server-sent event", content = {
+			@Content(mediaType = "application/json", schema = @Schema(implementation = ExtMcpCommsResponse.class)),
+			@Content(mediaType = "text/event-stream", schema = @Schema(types = "string", description = "Server-sent events whose data is an MCP JSON-RPC 2.0 response")) })
+	@ApiResponse(responseCode = "202", description = "The message was a notification, which gets no body")
+	public void commsHttp(
+			@Parameter(description = "The toolbox (project) whose tools the MCP server exposes") @PathParam("toolbox_id") String toolbox_id,
+			@Parameter(description = "Not read; authenticate with the Authorization header") @QueryParam("access_key") String access,
 			@Context HttpServletRequest request, @Context HttpServletResponse response) {
 		classLogger.info("Running tool via streamable http... {}", toolbox_id);
 
@@ -145,6 +165,8 @@ public class MCPResource {
 	 * @param is
 	 * @param request
 	 */
+	// Hidden: the text/event-stream variant of POST /comms, which shares its path and method; commsHttp documents both
+	@Hidden
 	@POST
 	@Path("/comms")
 	@Consumes(MediaType.APPLICATION_JSON)

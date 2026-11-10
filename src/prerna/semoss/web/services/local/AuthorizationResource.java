@@ -42,10 +42,18 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.Response;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityQueryUtils;
 import prerna.graph.utility.MsGraphUtility;
 import prerna.io.connector.ms.MicrosoftGraphUserLookup;
+import prerna.semoss.web.openapi.CommonSchemas.ErrorMessage;
+import prerna.semoss.web.services.local.AuthorizationResourceSchemas.AuthorizationSearchForUserRow;
 import prerna.util.Constants;
 import prerna.web.services.util.WebUtility;
 
@@ -71,9 +79,16 @@ public class AuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("searchForUser")
-	public Response searchForUser(@Context HttpServletRequest request, @QueryParam("searchTerm") String searchTerm,
-			@QueryParam("limit") long limit, @QueryParam("offset") long offset,
-			@QueryParam(MicrosoftGraphUserLookup.LOOKUP_PARAM) String msGraphLookup) {
+	@Operation(operationId = "searchForUser", summary = "Search for users", description = "Searches the Microsoft directory when it is available, else the security database, for users whose id, username, name or email matches the search term, one page at a time.")
+	@ApiResponse(responseCode = "200", description = "One page of matching users", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AuthorizationSearchForUserRow.class))))
+	@ApiResponse(responseCode = "400", description = "The directory cannot be searched with this session", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "The session has no user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "The search failed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	public Response searchForUser(@Context HttpServletRequest request,
+			@Parameter(description = "The text to search for; empty matches every user") @QueryParam("searchTerm") String searchTerm,
+			@Parameter(description = "The page size; 0 or less returns every remaining match") @QueryParam("limit") long limit,
+			@Parameter(description = "How many users earlier pages already returned") @QueryParam("offset") long offset,
+			@Parameter(description = "\"false\" to search the security database even when the Microsoft directory is available; defaults to the directory") @QueryParam(MicrosoftGraphUserLookup.LOOKUP_PARAM) String msGraphLookup) {
 
 		User user = null;
 		try {

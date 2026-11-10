@@ -43,6 +43,7 @@ import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.Response;
+import io.swagger.v3.oas.annotations.Hidden;
 import prerna.web.services.util.WebUtility;
 
 @Path("/function-{functionId}")
@@ -58,6 +59,8 @@ public class FunctionEngineResource {
 	@Path("/execute")
 	@Consumes({ "application/x-www-form-urlencoded", "application/json" })
 	@Produces("application/json;charset=utf-8")
+	// Hidden: takes a path parameter and a JSON or form body, and no client calls it
+	@Hidden
 	public Response execute(@Context HttpServletRequest request, @PathParam("functionId") String functionId) {
 		functionId = WebUtility.inputSanitizer(functionId);
 
@@ -91,6 +94,8 @@ public class FunctionEngineResource {
 	@GET
 	@Path("/definition")
 	@Produces("application/json;charset=utf-8")
+	// Hidden: takes a path parameter, and no client calls it
+	@Hidden
 	public Response getDefinition(@Context HttpServletRequest request, @PathParam("functionId") String functionId) {
 		functionId = WebUtility.inputSanitizer(functionId);
 

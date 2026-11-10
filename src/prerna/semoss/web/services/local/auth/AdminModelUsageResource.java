@@ -30,6 +30,12 @@ package prerna.semoss.web.services.local.auth;
 import java.util.HashMap;
 import java.util.Map;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.annotation.security.PermitAll;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.GET;
@@ -43,7 +49,12 @@ import prerna.auth.AuthProvider;
 import prerna.auth.access.ModelUsageLimit;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityModelUsageLimitUtils;
+import prerna.semoss.web.openapi.CommonSchemas.ErrorMessage;
 import prerna.semoss.web.services.local.ResourceUtility;
+import prerna.semoss.web.services.local.auth.AdminModelUsageResourceSchemas.AuthAdminModelUsageLimitBody;
+import prerna.semoss.web.services.local.auth.AdminModelUsageResourceSchemas.AuthAdminModelUsageSetPlatformDefaultRequest;
+import prerna.semoss.web.services.local.auth.AdminModelUsageResourceSchemas.AuthAdminModelUsageSetTeamTotalRequest;
+import prerna.semoss.web.services.local.auth.EngineAuthorizationResourceSchemas.AuthEngineUnexpectedError;
 import prerna.util.ValueUtils;
 import prerna.web.services.util.WebUtility;
 
@@ -71,6 +82,12 @@ public class AdminModelUsageResource {
 	@GET
 	@Produces("application/json")
 	@Path("/getPlatformDefault")
+	@Operation(operationId = "getPlatformDefault", summary = "Read the General Platform Limit", description = "Returns the platform default model usage limit, which applies to everyone with no other limit on a model. Admins only.")
+	@ApiResponse(responseCode = "200", description = "The General Platform Limit", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthAdminModelUsageLimitBody.class)))
+	@ApiResponse(responseCode = "400", description = "The limit could not be read", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthEngineUnexpectedError.class)))
 	public Response getPlatformDefault(@Context HttpServletRequest request) {
 		return ResourceUtility.respondAsAdmin(request, "read the General Platform Limit",
 				user -> usageLimitBody(SecurityModelUsageLimitUtils.getPlatformDefault()));
@@ -79,6 +96,13 @@ public class AdminModelUsageResource {
 	@POST
 	@Produces("application/json")
 	@Path("/setPlatformDefault")
+	@Operation(operationId = "setPlatformDefault", summary = "Set the General Platform Limit", description = "Replaces the platform default model usage limit, or removes it when usageLimit is empty, and returns the saved limit. Admins only.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthAdminModelUsageSetPlatformDefaultRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The saved General Platform Limit", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthAdminModelUsageLimitBody.class)))
+	@ApiResponse(responseCode = "400", description = "The usage limit is not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthEngineUnexpectedError.class)))
 	public Response setPlatformDefault(@Context HttpServletRequest request) {
 		String usageLimit = request.getParameter(USAGE_LIMIT);
 		return ResourceUtility.respondAsAdmin(request, "set the General Platform Limit",
@@ -96,8 +120,14 @@ public class AdminModelUsageResource {
 	@GET
 	@Produces("application/json")
 	@Path("/getTeamTotal")
-	public Response getTeamTotal(@Context HttpServletRequest request, @QueryParam("groupId") String groupId,
-			@QueryParam("type") String type) {
+	@Operation(operationId = "getTeamTotal", summary = "Read a team's Team Total", description = "Returns the model usage total of a group across all models. Admins only.")
+	@ApiResponse(responseCode = "200", description = "The group's Team Total", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthAdminModelUsageLimitBody.class)))
+	@ApiResponse(responseCode = "400", description = "The group id or type is missing", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthEngineUnexpectedError.class)))
+	public Response getTeamTotal(@Context HttpServletRequest request, @Parameter(description = "The group id", required = true) @QueryParam("groupId") String groupId,
+			@Parameter(description = "The group type, such as the login provider of the group", required = true) @QueryParam("type") String type) {
 		String group = WebUtility.inputSQLSanitizer(groupId);
 		String groupType = AuthProvider.getProviderLabel(WebUtility.inputSQLSanitizer(type));
 		return ResourceUtility
@@ -110,6 +140,13 @@ public class AdminModelUsageResource {
 	@POST
 	@Produces("application/json")
 	@Path("/setTeamTotal")
+	@Operation(operationId = "setTeamTotal", summary = "Set a team's Team Total", description = "Replaces the model usage total of a group across all models, or removes it when usageLimit is empty, and returns the saved limit. Admins only.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthAdminModelUsageSetTeamTotalRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The group's saved Team Total", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthAdminModelUsageLimitBody.class)))
+	@ApiResponse(responseCode = "400", description = "The group id or type is missing, or the usage limit is not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthEngineUnexpectedError.class)))
 	public Response setTeamTotal(@Context HttpServletRequest request) {
 		String groupId = WebUtility.inputSQLSanitizer(request.getParameter("groupId"));
 		String groupType = AuthProvider.getProviderLabel(WebUtility.inputSQLSanitizer(request.getParameter("type")));

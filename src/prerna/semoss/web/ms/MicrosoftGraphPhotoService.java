@@ -30,6 +30,12 @@ package prerna.semoss.web.ms;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
@@ -71,6 +77,11 @@ public class MicrosoftGraphPhotoService {
 	@GET
 	@Path("/photo")
 	@Produces("image/jpeg")
+	@Operation(operationId = "photo", summary = "Read a person's Microsoft profile photo", description = "Returns the Microsoft profile photo of the person with the given email, read with the signed in user's own Microsoft login. 404 when there is none to show or Collaboration is off.")
+	@Parameter(name = "email", in = ParameterIn.QUERY, description = "The email of the person whose photo to read", required = true, schema = @Schema(types = "string"))
+	@ApiResponse(responseCode = "200", description = "The photo", content = @Content(mediaType = "image/jpeg", schema = @Schema(types = "string", format = "binary", description = "The JPEG photo")))
+	@ApiResponse(responseCode = "401", description = "There is no session")
+	@ApiResponse(responseCode = "404", description = "There is no photo to show, or Collaboration is off")
 	public Response photo(@Context HttpServletRequest req) {
 		// off unless Collaboration is (COLLABORATION_DATABASE_ENABLED in RDF_Map), the same check its reactors make
 		if (!Utility.isCollaborationDatabaseEnabled() || !CollaborationDbUtils.isInitalized()) {

@@ -42,11 +42,25 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import prerna.auth.AccessPermissionEnum;
 import prerna.auth.AuthProvider;
 import prerna.auth.utils.SecurityGroupEngineUtils;
 import prerna.auth.utils.SecurityModelUsageLimitUtils;
+import prerna.semoss.web.openapi.CommonSchemas.ErrorMessage;
+import prerna.semoss.web.openapi.CommonSchemas.Success;
 import prerna.semoss.web.services.local.ResourceUtility;
+import prerna.semoss.web.services.local.auth.GroupEngineAuthorizationResourceSchemas.AuthGroupEngineAddRequest;
+import prerna.semoss.web.services.local.auth.GroupEngineAuthorizationResourceSchemas.AuthGroupEngineEditRequest;
+import prerna.semoss.web.services.local.auth.GroupEngineAuthorizationResourceSchemas.AuthGroupEngineRemoveRequest;
+import prerna.semoss.web.services.local.auth.GroupProjectAuthorizationResourceSchemas.AuthGroupTargetAccessPage;
+import prerna.semoss.web.services.local.auth.GroupProjectAuthorizationResourceSchemas.AuthGroupTargetAvailableRow;
+import prerna.semoss.web.services.local.auth.GroupProjectAuthorizationResourceSchemas.AuthGroupTargetPermission;
 import prerna.util.ValueUtils;
 import prerna.web.services.util.WebUtility;
 
@@ -74,8 +88,14 @@ public class GroupEngineAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getGroupAppPermission")
-	public Response getGroupAppPermission(@Context HttpServletRequest request, @QueryParam("groupId") String groupId,
-			@QueryParam("type") String type, @QueryParam("appId") String appId) {
+	@Operation(operationId = "getGroupAppPermission", summary = "Read a group's permission on an engine", description = "Returns the permission level a group has on an engine, with no permission when it has none.")
+	@ApiResponse(responseCode = "200", description = "The group's permission", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthGroupTargetPermission.class)))
+	@ApiResponse(responseCode = "400", description = "A required input is missing or not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	public Response getGroupAppPermission(@Context HttpServletRequest request, @Parameter(description = "The group id", required = true) @QueryParam("groupId") String groupId,
+			@Parameter(description = "The group type, the login provider the group comes from", required = true) @QueryParam("type") String type, @Parameter(description = "The engine id", required = true) @QueryParam("appId") String appId) {
 		String groupType = AuthProvider.getProviderLabel(WebUtility.inputSanitizer(type));
 		String engine = WebUtility.inputSanitizer(appId);
 		String group = WebUtility.inputSQLSanitizer(groupId);
@@ -105,6 +125,13 @@ public class GroupEngineAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("addGroupEnginePermission")
+	@Operation(operationId = "addGroupEnginePermission", summary = "Give a group access to an engine", description = "Gives a group a permission level on an engine. On a model, usageLimit sets the team usage limit. The user must be able to manage its access.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthGroupEngineAddRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The access was given", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "A required input is missing or not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response addGroupEnginePermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		String groupId = WebUtility.inputSQLSanitizer(form.getFirst("groupId"));
 		String type = AuthProvider.getProviderLabel(WebUtility.inputSanitizer(form.getFirst("type")));
@@ -141,6 +168,13 @@ public class GroupEngineAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("editGroupAppPermission")
+	@Operation(operationId = "editGroupAppPermission", summary = "Change a group's permission on an engine", description = "Changes the permission level a group has on an engine. The user must be able to manage its access.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthGroupEngineEditRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The permission was changed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "A required input is missing or not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response editGroupAppPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		String groupId = WebUtility.inputSQLSanitizer(form.getFirst("groupId"));
 		String type = AuthProvider.getProviderLabel(WebUtility.inputSanitizer(form.getFirst("type")));
@@ -171,6 +205,13 @@ public class GroupEngineAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("removeGroupAppPermission")
+	@Operation(operationId = "removeGroupAppPermission", summary = "Take a group's access to an engine away", description = "Removes a group's access to an engine. The user must be able to manage its access.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthGroupEngineRemoveRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The access was removed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "A required input is missing or not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response removeGroupAppPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		String groupId = WebUtility.inputSQLSanitizer(form.getFirst("groupId"));
 		String type = AuthProvider.getProviderLabel(WebUtility.inputSanitizer(form.getFirst("type")));
@@ -190,9 +231,15 @@ public class GroupEngineAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getGroupsWithAccessToEngine")
+	@Operation(operationId = "getGroupsWithAccessToEngine", summary = "List the groups with access to an engine", description = "Returns a page of the groups that have access to an engine, and how many there are in total. The user must be able to view it.")
+	@ApiResponse(responseCode = "200", description = "The groups with access", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthGroupTargetAccessPage.class)))
+	@ApiResponse(responseCode = "400", description = "A required input is missing or not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response getAllGroupsWithAccessToEngine(@Context HttpServletRequest request,
-			@QueryParam("engineId") String engineId, @QueryParam("limit") long limit,
-			@QueryParam("offset") long offset) {
+			@Parameter(description = "The engine id", required = true) @QueryParam("engineId") String engineId, @Parameter(description = "The page size; 0 or less for all") @QueryParam("limit") long limit,
+			@Parameter(description = "How many groups to skip") @QueryParam("offset") long offset) {
 		String engine = WebUtility.inputSanitizer(engineId);
 		return ResourceUtility.respond(request, "list the groups with access to engine " + engine, user -> {
 			if (engine == null || engine.isEmpty()) {
@@ -222,9 +269,15 @@ public class GroupEngineAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getAvailableGroupsForEngine")
+	@Operation(operationId = "getAvailableGroupsForEngine", summary = "List the groups that can be given access to an engine", description = "Returns the groups that do not have access to an engine yet, for its owners to choose from.")
+	@ApiResponse(responseCode = "200", description = "The groups without access", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AuthGroupTargetAvailableRow.class))))
+	@ApiResponse(responseCode = "400", description = "A required input is missing or not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response getAvailableGroupsForEngine(@Context HttpServletRequest request,
-			@QueryParam("engineId") String engineId, @QueryParam("searchTerm") String searchTerm,
-			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+			@Parameter(description = "The engine id", required = true) @QueryParam("engineId") String engineId, @Parameter(description = "Text to match against the group id") @QueryParam("searchTerm") String searchTerm,
+			@Parameter(description = "The page size; 0 or less for all") @QueryParam("limit") long limit, @Parameter(description = "How many groups to skip") @QueryParam("offset") long offset) {
 		String engine = WebUtility.inputSanitizer(engineId);
 		String term = WebUtility.inputSQLSanitizer(searchTerm);
 		return ResourceUtility.respond(request, "list the groups that can be given access to engine " + engine,

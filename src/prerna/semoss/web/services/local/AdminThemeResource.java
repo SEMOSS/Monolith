@@ -31,6 +31,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.annotation.security.PermitAll;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.GET;
@@ -42,6 +49,12 @@ import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import prerna.auth.User;
+import prerna.semoss.web.openapi.CommonSchemas.ErrorText;
+import prerna.semoss.web.services.local.AdminThemeResourceSchemas.AdminThemesActiveTheme;
+import prerna.semoss.web.services.local.AdminThemeResourceSchemas.AdminThemesCreateRequest;
+import prerna.semoss.web.services.local.AdminThemeResourceSchemas.AdminThemesEditRequest;
+import prerna.semoss.web.services.local.AdminThemeResourceSchemas.AdminThemesIdRequest;
+import prerna.semoss.web.services.local.AdminThemeResourceSchemas.AdminThemesTheme;
 import prerna.theme.AbstractThemeUtils;
 import prerna.theme.AdminThemeUtils;
 import prerna.web.services.util.WebUtility;
@@ -59,6 +72,9 @@ public class AdminThemeResource {
 	@GET
 	@Path("/getActiveAdminTheme")
 	@Produces("application/json")
+	@Operation(operationId = "getActiveAdminTheme", summary = "Read the active admin theme", description = "Returns the active admin theme, or an empty object when none is active. Needs no admin rights.")
+	@ApiResponse(responseCode = "200", description = "The active theme", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AdminThemesActiveTheme.class)))
+	@ApiResponse(responseCode = "400", description = "The theming database was not found", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorText.class)))
 	public Response getActiveAdminTheme(@Context HttpServletRequest request) {
 		try {
 			checkInit();
@@ -75,8 +91,12 @@ public class AdminThemeResource {
 	@GET
 	@Path("/getAdminThemes")
 	@Produces("application/json")
-	public Response getAdminThemes(@Context HttpServletRequest request, @QueryParam("limit") Integer limit,
-			@QueryParam("offset") Integer offset) {
+	@Operation(operationId = "getAdminThemes", summary = "List the admin themes", description = "Lists a page of the admin themes. Admins only.")
+	@ApiResponse(responseCode = "200", description = "The themes; empty when the read fails", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AdminThemesTheme.class))))
+	@ApiResponse(responseCode = "400", description = "The theming database was not found", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorText.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorText.class)))
+	public Response getAdminThemes(@Context HttpServletRequest request, @Parameter(description = "How many themes to return; the call fails without it", required = true) @QueryParam("limit") Integer limit,
+			@Parameter(description = "How many themes to skip; the call fails without it", required = true) @QueryParam("offset") Integer offset) {
 		try {
 			checkInit();
 		} catch (IllegalAccessException e) {
@@ -106,6 +126,11 @@ public class AdminThemeResource {
 	@POST
 	@Path("/createAdminTheme")
 	@Produces("application/json")
+	@Operation(operationId = "createAdminTheme", summary = "Create an admin theme", description = "Creates an admin theme, optionally making it the active one. Admins only.")
+	@RequestBody(required = true, content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AdminThemesCreateRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The theme was created", content = @Content(mediaType = "application/json", schema = @Schema(types = "boolean", description = "Always true")))
+	@ApiResponse(responseCode = "400", description = "The theming database was not found ({error}), or the change failed (false)", content = @Content(mediaType = "application/json", schema = @Schema(oneOf = { ErrorText.class, Boolean.class })))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorText.class)))
 	public Response createAdminTheme(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		try {
 			checkInit();
@@ -144,6 +169,11 @@ public class AdminThemeResource {
 	@POST
 	@Path("/editAdminTheme")
 	@Produces("application/json")
+	@Operation(operationId = "editAdminTheme", summary = "Edit an admin theme", description = "Replaces an admin theme's name, theme map and active flag. Admins only.")
+	@RequestBody(required = true, content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AdminThemesEditRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The theme was saved", content = @Content(mediaType = "application/json", schema = @Schema(types = "boolean", description = "Always true")))
+	@ApiResponse(responseCode = "400", description = "The theming database was not found ({error}), or the change failed (false)", content = @Content(mediaType = "application/json", schema = @Schema(oneOf = { ErrorText.class, Boolean.class })))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorText.class)))
 	public Response editAdminTheme(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		try {
 			checkInit();
@@ -183,6 +213,11 @@ public class AdminThemeResource {
 	@POST
 	@Path("/deleteAdminTheme")
 	@Produces("application/json")
+	@Operation(operationId = "deleteAdminTheme", summary = "Delete an admin theme", description = "Deletes an admin theme. Admins only.")
+	@RequestBody(required = true, content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AdminThemesIdRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The theme was deleted", content = @Content(mediaType = "application/json", schema = @Schema(types = "boolean", description = "Always true")))
+	@ApiResponse(responseCode = "400", description = "The theming database was not found ({error}), or the change failed (false)", content = @Content(mediaType = "application/json", schema = @Schema(oneOf = { ErrorText.class, Boolean.class })))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorText.class)))
 	public Response deleteAdminTheme(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		try {
 			checkInit();
@@ -219,6 +254,11 @@ public class AdminThemeResource {
 	@POST
 	@Path("/setActiveAdminTheme")
 	@Produces("application/json")
+	@Operation(operationId = "setActiveAdminTheme", summary = "Make an admin theme the active one", description = "Makes an admin theme the active one, and every other theme inactive. Admins only.")
+	@RequestBody(required = true, content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AdminThemesIdRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The theme is now active", content = @Content(mediaType = "application/json", schema = @Schema(types = "boolean", description = "Always true")))
+	@ApiResponse(responseCode = "400", description = "The theming database was not found ({error}), or the change failed (false)", content = @Content(mediaType = "application/json", schema = @Schema(oneOf = { ErrorText.class, Boolean.class })))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorText.class)))
 	public Response setActiveAdminTheme(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		try {
 			checkInit();
@@ -255,6 +295,10 @@ public class AdminThemeResource {
 	@POST
 	@Path("/setAllAdminThemesInactive")
 	@Produces("application/json")
+	@Operation(operationId = "setAllAdminThemesInactive", summary = "Make every admin theme inactive", description = "Makes every admin theme inactive, so the default theme applies. Admins only.")
+	@ApiResponse(responseCode = "200", description = "Every theme is now inactive", content = @Content(mediaType = "application/json", schema = @Schema(types = "boolean", description = "Always true")))
+	@ApiResponse(responseCode = "400", description = "The theming database was not found ({error}), or the change failed (false)", content = @Content(mediaType = "application/json", schema = @Schema(oneOf = { ErrorText.class, Boolean.class })))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorText.class)))
 	public Response setAllAdminThemesInactive(@Context HttpServletRequest request) {
 		try {
 			checkInit();

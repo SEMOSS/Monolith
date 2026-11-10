@@ -33,6 +33,13 @@ import java.util.Map;
 
 import com.google.gson.Gson;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.annotation.security.PermitAll;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.HttpServletRequest;
@@ -56,7 +63,26 @@ import prerna.sablecc2.om.GenRowStruct;
 import prerna.sablecc2.om.PixelDataType;
 import prerna.sablecc2.om.ReactorKeysEnum;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
+import prerna.semoss.web.openapi.CommonSchemas.ErrorMessage;
+import prerna.semoss.web.openapi.CommonSchemas.Success;
 import prerna.semoss.web.services.local.ResourceUtility;
+import prerna.semoss.web.services.local.auth.EngineAuthorizationResourceSchemas.AuthEngineAddUserPermissionRequest;
+import prerna.semoss.web.services.local.auth.EngineAuthorizationResourceSchemas.AuthEngineApproveAccessRequestsRequest;
+import prerna.semoss.web.services.local.auth.EngineAuthorizationResourceSchemas.AuthEngineDenyAccessRequestsRequest;
+import prerna.semoss.web.services.local.auth.EngineAuthorizationResourceSchemas.AuthEngineEditUserPermissionRequest;
+import prerna.semoss.web.services.local.auth.EngineAuthorizationResourceSchemas.AuthEngineGetEnginesRequest;
+import prerna.semoss.web.services.local.auth.EngineAuthorizationResourceSchemas.AuthEngineGetEnginesRow;
+import prerna.semoss.web.services.local.auth.EngineAuthorizationResourceSchemas.AuthEngineGetUserEnginePermission;
+import prerna.semoss.web.services.local.auth.EngineAuthorizationResourceSchemas.AuthEngineRemoveUserPermissionRequest;
+import prerna.semoss.web.services.local.auth.EngineAuthorizationResourceSchemas.AuthEngineRemoveUserPermissionsRequest;
+import prerna.semoss.web.services.local.auth.EngineAuthorizationResourceSchemas.AuthEngineSetDiscoverableRequest;
+import prerna.semoss.web.services.local.auth.EngineAuthorizationResourceSchemas.AuthEngineSetFavoriteRequest;
+import prerna.semoss.web.services.local.auth.EngineAuthorizationResourceSchemas.AuthEngineSetGlobalRequest;
+import prerna.semoss.web.services.local.auth.EngineAuthorizationResourceSchemas.AuthEngineSetVisibilityRequest;
+import prerna.semoss.web.services.local.auth.EngineAuthorizationResourceSchemas.AuthEngineUnexpectedError;
+import prerna.semoss.web.services.local.auth.EngineAuthorizationResourceSchemas.AuthEngineUserPermissionsRequest;
+import prerna.semoss.web.services.local.auth.EngineAuthorizationResourceSchemas.AuthEngineUsersNoCredentialsRow;
+import prerna.semoss.web.services.local.auth.EngineAuthorizationResourceSchemas.AuthEngineUsersPage;
 import prerna.web.services.util.WebUtility;
 
 @Path("/auth/engine")
@@ -82,12 +108,18 @@ public class EngineAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getEngines")
-	public Response getEngines(@Context HttpServletRequest request, @QueryParam("engineId") List<String> engineFilter,
-			@QueryParam("engineTypes") List<String> engineTypes, @QueryParam("filterWord") String searchTerm,
-			@QueryParam("limit") Integer limit, @QueryParam("offset") Integer offset,
-			@QueryParam("onlyFavorites") Boolean favoritesOnly, @QueryParam("metaKeys") List<String> metaKeys,
+	@Operation(operationId = "getEnginesGet", summary = "List the engines the user can access", description = "Returns the engines the user can access, with their metadata unless noMeta is set. The query string version of getEngines.")
+	@ApiResponse(responseCode = "200", description = "The engines", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AuthEngineGetEnginesRow.class))))
+	@ApiResponse(responseCode = "400", description = "The filters are not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthEngineUnexpectedError.class)))
+	public Response getEngines(@Context HttpServletRequest request, @Parameter(description = "Engine ids to keep; repeat for each") @QueryParam("engineId") List<String> engineFilter,
+			@Parameter(description = "Engine types to keep; repeat for each") @QueryParam("engineTypes") List<String> engineTypes, @Parameter(description = "Text to find in the engine id, name or display name") @QueryParam("filterWord") String searchTerm,
+			@Parameter(description = "The most rows to return; 0 or less for all") @QueryParam("limit") Integer limit, @Parameter(description = "The rows to skip") @QueryParam("offset") Integer offset,
+			@Parameter(description = "True to return only the engines the user favorited") @QueryParam("onlyFavorites") Boolean favoritesOnly, @Parameter(description = "Metadata keys to add to each engine; repeat for each") @QueryParam("metaKeys") List<String> metaKeys,
 //			@QueryParam("metaFilters") Map<String, Object> metaFilters,
-			@QueryParam("noMeta") Boolean noMeta, @QueryParam("userT") Boolean includeUserTracking) {
+			@Parameter(description = "True to leave out the engines' metadata") @QueryParam("noMeta") Boolean noMeta, @Parameter(description = "True to add the upvote counts") @QueryParam("userT") Boolean includeUserTracking) {
 		String term = WebUtility.inputSQLSanitizer(searchTerm);
 		List<String> engines = WebUtility.inputSanitizer(engineFilter);
 		List<String> types = WebUtility.inputSanitizer(engineTypes);
@@ -163,6 +195,13 @@ public class EngineAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("getEngines")
+	@Operation(operationId = "getEngines", summary = "List the engines the user can access", description = "Returns the engines the user can access, with their metadata unless noMeta is set. Takes the filters as a form, so metaFilters can be sent.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthEngineGetEnginesRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The engines", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AuthEngineGetEnginesRow.class))))
+	@ApiResponse(responseCode = "400", description = "The filters are not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthEngineUnexpectedError.class)))
 	public Response getEnginesPOST(@Context HttpServletRequest request) {
 		return ResourceUtility.respond(request, "list the engines they can access", user -> {
 			MyEnginesReactor reactor = new MyEnginesReactor();
@@ -253,8 +292,14 @@ public class EngineAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getUserEnginePermission")
+	@Operation(operationId = "getUserEnginePermission", summary = "Read the user's permission on an engine", description = "Returns the user's best permission on the engine, or DISCOVERABLE when they have none but the engine is discoverable.")
+	@ApiResponse(responseCode = "200", description = "The user's permission", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthEngineGetUserEnginePermission.class)))
+	@ApiResponse(responseCode = "400", description = "The request is not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user has no access to the engine", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthEngineUnexpectedError.class)))
 	public Response getUserEnginePermission(@Context HttpServletRequest request,
-			@QueryParam("engineId") String engineId) {
+			@Parameter(description = "The engine id") @QueryParam("engineId") String engineId) {
 		String engine = WebUtility.inputSanitizer(engineId);
 		String action = "read their permission on engine " + engine;
 		return ResourceUtility.respond(request, action, user -> {
@@ -285,10 +330,16 @@ public class EngineAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getEngineUsers")
-	public Response getEngineUsers(@Context HttpServletRequest request, @QueryParam("engineId") String engineId,
-			@QueryParam("userId") String userId, @QueryParam("searchTerm") String searchTerm,
-			@QueryParam("permission") String permission, @QueryParam("limit") long limit,
-			@QueryParam("offset") long offset) {
+	@Operation(operationId = "getEngineUsers", summary = "List the people with access to an engine", description = "Returns a page of the people with access to the engine, with how many match. On a model, each has their usage_limit.")
+	@ApiResponse(responseCode = "200", description = "A page of the engine's people", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthEngineUsersPage.class)))
+	@ApiResponse(responseCode = "400", description = "The request is not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user cannot view the engine", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthEngineUnexpectedError.class)))
+	public Response getEngineUsers(@Context HttpServletRequest request, @Parameter(description = "The engine id") @QueryParam("engineId") String engineId,
+			@Parameter(description = "Text to find in the people's id, name, username or email, used when searchTerm is not given") @QueryParam("userId") String userId, @Parameter(description = "Text to find in the people's id, name, username or email") @QueryParam("searchTerm") String searchTerm,
+			@Parameter(description = "The permission level to keep: OWNER, EDIT or READ_ONLY") @QueryParam("permission") String permission, @Parameter(description = "The most rows to return; 0 or less for all") @QueryParam("limit") long limit,
+			@Parameter(description = "The rows to skip") @QueryParam("offset") long offset) {
 		String engine = WebUtility.inputSanitizer(engineId);
 		String member = WebUtility.inputSQLSanitizer(userId);
 		String term = WebUtility.inputSQLSanitizer(searchTerm);
@@ -317,6 +368,13 @@ public class EngineAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("addEngineUserPermission")
+	@Operation(operationId = "addEngineUserPermission", summary = "Add a person to an engine", description = "Gives a person a permission level on the engine, and on a model optionally a usage limit, which only the model's owners give.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthEngineAddUserPermissionRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The change was made", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The person cannot be added, such as when they already have access", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not change the engine's access, or only admins may on this server", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthEngineUnexpectedError.class)))
 	public Response addEngineUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		String newUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
@@ -348,6 +406,13 @@ public class EngineAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("addEngineUserPermissions")
+	@Operation(operationId = "addEngineUserPermissions", summary = "Add people to an engine", description = "Gives several people permission levels on the engine, in one batch. People picked from the Microsoft directory are added as users first.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthEngineUserPermissionsRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The change was made", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The people cannot be added, such as when some already have access", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not change the engine's access, or only admins may on this server", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthEngineUnexpectedError.class)))
 	public Response addEngineUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		return ResourceUtility.respond(request, "add users to engine " + engineId, user -> {
@@ -382,6 +447,13 @@ public class EngineAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("editEngineUserPermission")
+	@Operation(operationId = "editEngineUserPermission", summary = "Change a person's access to an engine", description = "Changes a person's permission level on the engine, and on a model their usage limit when usageLimit is sent.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthEngineEditUserPermissionRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The change was made", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The access cannot be changed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not change the engine's access, or only admins may on this server", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthEngineUnexpectedError.class)))
 	public Response editEngineUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		String existingUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
@@ -422,6 +494,13 @@ public class EngineAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("editEngineUserPermissions")
+	@Operation(operationId = "editEngineUserPermissions", summary = "Change people's access to an engine", description = "Changes several people's permission levels on the engine, in one batch.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthEngineUserPermissionsRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The change was made", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The access cannot be changed, such as when some people have no access", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not change the engine's access, or only admins may on this server", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthEngineUnexpectedError.class)))
 	public Response editEngineUserPermissions(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
@@ -447,6 +526,13 @@ public class EngineAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("removeEngineUserPermission")
+	@Operation(operationId = "removeEngineUserPermission", summary = "Remove a person from an engine", description = "Removes a person's access to the engine.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthEngineRemoveUserPermissionRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The change was made", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The person cannot be removed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not change the engine's access, or only admins may on this server", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthEngineUnexpectedError.class)))
 	public Response removeEngineUserPermission(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		String existingUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
@@ -473,6 +559,13 @@ public class EngineAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("removeEngineUserPermissions")
+	@Operation(operationId = "removeEngineUserPermissions", summary = "Remove people from an engine", description = "Removes several people's access to the engine.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthEngineRemoveUserPermissionsRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The change was made", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The people cannot be removed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not change the engine's access, or only admins may on this server", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthEngineUnexpectedError.class)))
 	public Response removeEngineUserPermissions(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
@@ -499,6 +592,13 @@ public class EngineAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("setEngineGlobal")
+	@Operation(operationId = "setEngineGlobal", summary = "Make an engine public or private", description = "Sets whether everyone on the server can use the engine.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthEngineSetGlobalRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The change was made", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The engine cannot be changed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not change the engine, or only admins may on this server", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthEngineUnexpectedError.class)))
 	public Response setEngineGlobal(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		boolean isPublic = Boolean.parseBoolean(form.getFirst("public"));
@@ -524,6 +624,13 @@ public class EngineAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("setEngineDiscoverable")
+	@Operation(operationId = "setEngineDiscoverable", summary = "Make an engine discoverable or not", description = "Sets whether people without access can find the engine and request access.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthEngineSetDiscoverableRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The change was made", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The engine cannot be changed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not change the engine, or only admins may on this server", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthEngineUnexpectedError.class)))
 	public Response setEngineDiscoverable(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		boolean isDiscoverable = Boolean.parseBoolean(form.getFirst("discoverable"));
@@ -549,6 +656,13 @@ public class EngineAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("setEngineVisibility")
+	@Operation(operationId = "setEngineVisibility", summary = "Show or hide an engine for the user", description = "Sets whether the engine shows in the user's own engine lists.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthEngineSetVisibilityRequest.class)))
+	@ApiResponse(responseCode = "200", description = "Always true", content = @Content(mediaType = "application/json", schema = @Schema(types = "boolean", description = "Always true")))
+	@ApiResponse(responseCode = "400", description = "The engine cannot be changed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user has no access to the engine", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthEngineUnexpectedError.class)))
 	public Response setEngineVisibility(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		boolean visible = Boolean.parseBoolean(form.getFirst("visibility"));
@@ -569,6 +683,13 @@ public class EngineAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("setEngineFavorite")
+	@Operation(operationId = "setEngineFavorite", summary = "Favorite or unfavorite an engine", description = "Sets whether the user favorited the engine.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthEngineSetFavoriteRequest.class)))
+	@ApiResponse(responseCode = "200", description = "Always true", content = @Content(mediaType = "application/json", schema = @Schema(types = "boolean", description = "Always true")))
+	@ApiResponse(responseCode = "400", description = "The engine cannot be changed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user has no access to the engine", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthEngineUnexpectedError.class)))
 	public Response setEngineFavorite(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
 		boolean isFavorite = Boolean.parseBoolean(form.getFirst("isFavorite"));
@@ -589,10 +710,16 @@ public class EngineAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getEngineUsersNoCredentials")
+	@Operation(operationId = "getEngineUsersNoCredentials", summary = "Find people to add to an engine", description = "Returns people with no access to the engine, from the security database or, when the Microsoft directory is used, from the directory.")
+	@ApiResponse(responseCode = "200", description = "The people with no access", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AuthEngineUsersNoCredentialsRow.class))))
+	@ApiResponse(responseCode = "400", description = "The search failed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user cannot view the engine, or the directory search needs a Microsoft login", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthEngineUnexpectedError.class)))
 	public Response getEngineUsersNoCredentials(@Context HttpServletRequest request,
-			@QueryParam("engineId") String engineId, @QueryParam("searchTerm") String searchTerm,
-			@QueryParam("limit") long limit, @QueryParam("offset") long offset,
-			@QueryParam(MicrosoftGraphUserLookup.LOOKUP_PARAM) String msGraphLookup) {
+			@Parameter(description = "The engine id") @QueryParam("engineId") String engineId, @Parameter(description = "Text to find in the people's id, name, username or email") @QueryParam("searchTerm") String searchTerm,
+			@Parameter(description = "The most rows to return; 0 or less for all") @QueryParam("limit") long limit, @Parameter(description = "The rows to skip") @QueryParam("offset") long offset,
+			@Parameter(description = "True to search the Microsoft directory instead of the security database, when it is enabled") @QueryParam(MicrosoftGraphUserLookup.LOOKUP_PARAM) String msGraphLookup) {
 		String engine = WebUtility.inputSanitizer(engineId);
 		String term = WebUtility.inputSQLSanitizer(searchTerm);
 		return ResourceUtility.respond(request, "find people to add to engine " + engine, user -> {
@@ -615,6 +742,13 @@ public class EngineAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("approveEngineUserAccessRequest")
+	@Operation(operationId = "approveEngineUserAccessRequest", summary = "Approve access requests to an engine", description = "Approves the access requests, giving each person the permission level in their request.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthEngineApproveAccessRequestsRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The change was made", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The requests cannot be approved", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not change the engine's access, or only admins may on this server", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthEngineUnexpectedError.class)))
 	public Response approveEngineUserAccessRequest(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
@@ -642,6 +776,13 @@ public class EngineAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("denyEngineUserAccessRequest")
+	@Operation(operationId = "denyEngineUserAccessRequest", summary = "Deny access requests to an engine", description = "Denies the access requests.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthEngineDenyAccessRequestsRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The change was made", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The requests cannot be denied", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not change the engine's access, or only admins may on this server", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthEngineUnexpectedError.class)))
 	public Response denyEngineUserAccessRequest(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));

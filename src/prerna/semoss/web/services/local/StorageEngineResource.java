@@ -42,6 +42,7 @@ import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.Response;
+import io.swagger.v3.oas.annotations.Hidden;
 import prerna.web.services.util.WebUtility;
 
 @Path("/storage-{storageId}")
@@ -57,6 +58,8 @@ public class StorageEngineResource {
 	@Path("/list")
 	@Consumes({ "application/x-www-form-urlencoded", "application/json" })
 	@Produces("application/json;charset=utf-8")
+	// Hidden: takes a path parameter and a JSON or form body, and no client calls it
+	@Hidden
 	public Response list(@Context HttpServletRequest request, @PathParam("storageId") String storageId) {
 		storageId = WebUtility.inputSanitizer(storageId);
 
@@ -85,6 +88,8 @@ public class StorageEngineResource {
 	@Path("/listDetails")
 	@Consumes({ "application/x-www-form-urlencoded", "application/json" })
 	@Produces("application/json;charset=utf-8")
+	// Hidden: takes a path parameter and a JSON or form body, and no client calls it
+	@Hidden
 	public Response listDetails(@Context HttpServletRequest request, @PathParam("storageId") String storageId) {
 		storageId = WebUtility.inputSanitizer(storageId);
 
@@ -113,6 +118,8 @@ public class StorageEngineResource {
 	@Path("/delete")
 	@Consumes({ "application/x-www-form-urlencoded", "application/json" })
 	@Produces("application/json;charset=utf-8")
+	// Hidden: takes a path parameter and a JSON or form body, and no client calls it
+	@Hidden
 	public Response delete(@Context HttpServletRequest request, @PathParam("storageId") String storageId) {
 		storageId = WebUtility.inputSanitizer(storageId);
 

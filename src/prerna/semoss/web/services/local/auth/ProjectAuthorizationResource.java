@@ -46,6 +46,13 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import prerna.auth.access.ModelUsageLimit;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityAdminUtils;
@@ -59,7 +66,30 @@ import prerna.sablecc2.om.GenRowStruct;
 import prerna.sablecc2.om.PixelDataType;
 import prerna.sablecc2.om.ReactorKeysEnum;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
+import prerna.semoss.web.openapi.CommonSchemas.ErrorMessage;
+import prerna.semoss.web.openapi.CommonSchemas.Success;
 import prerna.semoss.web.services.local.ResourceUtility;
+import prerna.semoss.web.services.local.auth.ProjectAuthorizationResourceSchemas.AuthProjectAddUserPermissionRequest;
+import prerna.semoss.web.services.local.auth.ProjectAuthorizationResourceSchemas.AuthProjectApproveUserAccessRequest;
+import prerna.semoss.web.services.local.auth.ProjectAuthorizationResourceSchemas.AuthProjectDenyUserAccessRequest;
+import prerna.semoss.web.services.local.auth.ProjectAuthorizationResourceSchemas.AuthProjectEditUserPermissionRequest;
+import prerna.semoss.web.services.local.auth.ProjectAuthorizationResourceSchemas.AuthProjectGetProjectsRequest;
+import prerna.semoss.web.services.local.auth.ProjectAuthorizationResourceSchemas.AuthProjectGetProjectsRow;
+import prerna.semoss.web.services.local.auth.ProjectAuthorizationResourceSchemas.AuthProjectMembersPage;
+import prerna.semoss.web.services.local.auth.ProjectAuthorizationResourceSchemas.AuthProjectPropagateDependencyPermissionRequest;
+import prerna.semoss.web.services.local.auth.ProjectAuthorizationResourceSchemas.AuthProjectPropagateDependencyPermissionsRequest;
+import prerna.semoss.web.services.local.auth.ProjectAuthorizationResourceSchemas.AuthProjectPropagationResult;
+import prerna.semoss.web.services.local.auth.ProjectAuthorizationResourceSchemas.AuthProjectPropagationResults;
+import prerna.semoss.web.services.local.auth.ProjectAuthorizationResourceSchemas.AuthProjectRemoveUserPermissionRequest;
+import prerna.semoss.web.services.local.auth.ProjectAuthorizationResourceSchemas.AuthProjectRemoveUserPermissionsRequest;
+import prerna.semoss.web.services.local.auth.ProjectAuthorizationResourceSchemas.AuthProjectSetDiscoverableRequest;
+import prerna.semoss.web.services.local.auth.ProjectAuthorizationResourceSchemas.AuthProjectSetFavoriteRequest;
+import prerna.semoss.web.services.local.auth.ProjectAuthorizationResourceSchemas.AuthProjectSetGlobalRequest;
+import prerna.semoss.web.services.local.auth.ProjectAuthorizationResourceSchemas.AuthProjectSetTemplateRequest;
+import prerna.semoss.web.services.local.auth.ProjectAuthorizationResourceSchemas.AuthProjectSetVisibilityRequest;
+import prerna.semoss.web.services.local.auth.ProjectAuthorizationResourceSchemas.AuthProjectUserCandidate;
+import prerna.semoss.web.services.local.auth.ProjectAuthorizationResourceSchemas.AuthProjectUserPermission;
+import prerna.semoss.web.services.local.auth.ProjectAuthorizationResourceSchemas.AuthProjectUserPermissionsRequest;
 import prerna.web.services.util.WebUtility;
 
 @Path("/auth/project")
@@ -89,12 +119,21 @@ public class ProjectAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getProjects")
+	@Operation(operationId = "getProjectsGet", summary = "List the user's projects", description = "Returns the projects the signed in user can access: those they or their groups have a permission on, and public ones, with their metadata unless noMeta is true.")
+	@ApiResponse(responseCode = "200", description = "The projects", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AuthProjectGetProjectsRow.class))))
+	@ApiResponse(responseCode = "400", description = "The request is not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response getProjectsGET(@Context HttpServletRequest request,
-			@QueryParam("projectId") List<String> projectFilter, @QueryParam("filterWord") String searchTerm,
-			@QueryParam("limit") Integer limit, @QueryParam("offset") Integer offset,
-			@QueryParam("onlyFavorites") Boolean favoritesOnly, @QueryParam("metaKeys") List<String> metaKeys,
+			@Parameter(description = "Only these project ids") @QueryParam("projectId") List<String> projectFilter,
+			@Parameter(description = "Text to search the project ids and names for") @QueryParam("filterWord") String searchTerm,
+			@Parameter(description = "The most projects to return") @QueryParam("limit") Integer limit,
+			@Parameter(description = "How many projects to skip") @QueryParam("offset") Integer offset,
+			@Parameter(description = "When true, only the user's favorite projects") @QueryParam("onlyFavorites") Boolean favoritesOnly,
+			@Parameter(description = "The metadata keys to add to each project") @QueryParam("metaKeys") List<String> metaKeys,
 			// @QueryParam("metaFilters") Map<String, Object> metaFilters,
-			@QueryParam("noMeta") Boolean noMeta, @QueryParam("userT") Boolean includeUserTracking) {
+			@Parameter(description = "When true, no metadata is added to the projects") @QueryParam("noMeta") Boolean noMeta,
+			@Parameter(description = "Whether to include user tracking information") @QueryParam("userT") Boolean includeUserTracking) {
 		String term = WebUtility.inputSQLSanitizer(searchTerm);
 		List<String> projects = WebUtility.inputSanitizer(projectFilter);
 		List<String> keys = WebUtility.inputSanitizer(metaKeys);
@@ -162,6 +201,12 @@ public class ProjectAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("getProjects")
+	@Operation(operationId = "getProjects", summary = "List the user's projects", description = "Returns the projects the signed in user can access, as getProjectsGet does, with the filters sent as a form, which takes metaFilters but not onlyFavorites.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthProjectGetProjectsRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The projects", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AuthProjectGetProjectsRow.class))))
+	@ApiResponse(responseCode = "400", description = "The request is not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response getProjectsPOST(@Context HttpServletRequest request) {
 		return ResourceUtility.respond(request, "list the projects they can access", user -> {
 			MyProjectsReactor reactor = new MyProjectsReactor();
@@ -243,8 +288,15 @@ public class ProjectAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getUserProjectPermission")
+	@Operation(operationId = "getUserProjectPermission", summary = "Read the user's permission on a project", description = "Returns the signed in user's permission on a project, or DISCOVERABLE when they have none and the project is discoverable.")
+	@ApiResponse(responseCode = "200", description = "The permission", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthProjectUserPermission.class)))
+	@ApiResponse(responseCode = "400", description = "The request is not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response getUserProjectPermission(@Context HttpServletRequest request,
-			@QueryParam("projectId") String projectId, @QueryParam("searchTerm") String searchTerm) {
+			@Parameter(description = "The project id") @QueryParam("projectId") String projectId,
+			@Parameter(description = "Not used") @QueryParam("searchTerm") String searchTerm) {
 		String project = WebUtility.inputSanitizer(projectId);
 		String action = "read their permission on project " + project;
 		return ResourceUtility.respond(request, action, user -> {
@@ -274,10 +326,19 @@ public class ProjectAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getProjectUsers")
-	public Response getProjectUsers(@Context HttpServletRequest request, @QueryParam("projectId") String projectId,
-			@QueryParam("userId") String userId, @QueryParam("searchTerm") String searchTerm,
-			@QueryParam("permission") String permission, @QueryParam("limit") long limit,
-			@QueryParam("offset") long offset) {
+	@Operation(operationId = "getProjectUsers", summary = "List the people with access to a project", description = "Returns a page of the people with a permission on a project the signed in user can view, and how many match in all.")
+	@ApiResponse(responseCode = "200", description = "The page of people", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthProjectMembersPage.class)))
+	@ApiResponse(responseCode = "400", description = "The request is not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	public Response getProjectUsers(@Context HttpServletRequest request,
+			@Parameter(description = "The project id") @QueryParam("projectId") String projectId,
+			@Parameter(description = "Text to search the people's ids, names, user names and emails for, used when searchTerm is not sent") @QueryParam("userId") String userId,
+			@Parameter(description = "Text to search the people's ids, names, user names and emails for") @QueryParam("searchTerm") String searchTerm,
+			@Parameter(description = "Only people with this permission: OWNER, EDIT or READ_ONLY") @QueryParam("permission") String permission,
+			@Parameter(description = "The most people to return; 0 or less for all") @QueryParam("limit") long limit,
+			@Parameter(description = "How many people to skip") @QueryParam("offset") long offset) {
 		String project = WebUtility.inputSanitizer(projectId);
 		String member = WebUtility.inputSQLSanitizer(userId);
 		String term = WebUtility.inputSQLSanitizer(searchTerm);
@@ -304,6 +365,13 @@ public class ProjectAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("addProjectUserPermission")
+	@Operation(operationId = "addProjectUserPermission", summary = "Give a person access to a project", description = "Gives a person a permission on a project. Only admins may do it when adding access is limited to admins.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthProjectAddUserPermissionRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The person was given access", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The request is not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response addProjectUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		String newUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
@@ -334,6 +402,13 @@ public class ProjectAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("propagateProjectDependencyPermission")
+	@Operation(operationId = "propagateProjectDependencyPermission", summary = "Give a person access to a project's dependencies", description = "Gives a person the requested permission on each engine and project a project depends on, or sends an access request to its owners when the requester cannot share it. Only a model's owners set a usage limit that differs from the current one.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthProjectPropagateDependencyPermissionRequest.class)))
+	@ApiResponse(responseCode = "200", description = "What was done for each dependency", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthProjectPropagationResult.class)))
+	@ApiResponse(responseCode = "400", description = "The request is not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response propagateProjectDependencyPermission(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		String newUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
@@ -373,6 +448,13 @@ public class ProjectAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("propagateProjectDependencyPermissions")
+	@Operation(operationId = "propagateProjectDependencyPermissions", summary = "Give people access to a project's dependencies", description = "Does what propagateProjectDependencyPermission does for each person sent.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthProjectPropagateDependencyPermissionsRequest.class)))
+	@ApiResponse(responseCode = "200", description = "What was done for each person", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthProjectPropagationResults.class)))
+	@ApiResponse(responseCode = "400", description = "The request is not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response propagateProjectDependencyPermissions(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
@@ -419,6 +501,13 @@ public class ProjectAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("editProjectUserPermission")
+	@Operation(operationId = "editProjectUserPermission", summary = "Change a person's permission on a project", description = "Changes the permission a person has on a project.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthProjectEditUserPermissionRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The permission was changed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The request is not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response editProjectUserPermission(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		String existingUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
@@ -448,6 +537,13 @@ public class ProjectAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("editProjectUserPermissions")
+	@Operation(operationId = "editProjectUserPermissions", summary = "Change people's permissions on a project", description = "Changes the permissions several people have on a project.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthProjectUserPermissionsRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The permissions were changed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The request is not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response editProjectUserPermissions(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
@@ -474,6 +570,13 @@ public class ProjectAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("removeProjectUserPermission")
+	@Operation(operationId = "removeProjectUserPermission", summary = "Remove a person from a project", description = "Removes a person's permission on a project.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthProjectRemoveUserPermissionRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The person was removed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The request is not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response removeProjectUserPermission(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		String existingUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
@@ -500,6 +603,13 @@ public class ProjectAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("setProjectTemplate")
+	@Operation(operationId = "setProjectTemplate", summary = "Set whether a project is a template", description = "Sets whether users who can view a project may clone it as a template.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthProjectSetTemplateRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The project was changed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The request is not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response setProjectTemplate(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		String projectIdInput = form.getFirst("projectId");
 		String templateInput = form.getFirst("template");
@@ -527,6 +637,13 @@ public class ProjectAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("setProjectGlobal")
+	@Operation(operationId = "setProjectGlobal", summary = "Make a project public or private", description = "Sets whether a project is public. Only admins may do it when making projects public is limited to admins.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthProjectSetGlobalRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The project was changed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The request is not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response setProjectGlobal(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		boolean isPublic = Boolean.parseBoolean(form.getFirst("public"));
@@ -552,6 +669,13 @@ public class ProjectAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("setProjectDiscoverable")
+	@Operation(operationId = "setProjectDiscoverable", summary = "Set whether a project is discoverable", description = "Sets whether users without access can discover a project. Only admins may do it when it is limited to admins.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthProjectSetDiscoverableRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The project was changed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The request is not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response setProjectDiscoverable(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		boolean isDiscoverable = Boolean.parseBoolean(form.getFirst("discoverable"));
@@ -578,6 +702,13 @@ public class ProjectAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("setProjectVisibility")
+	@Operation(operationId = "setProjectVisibility", summary = "Show or hide a project for the user", description = "Sets whether a project shows in the signed in user's project lists.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthProjectSetVisibilityRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The visibility was set", content = @Content(mediaType = "application/json", schema = @Schema(types = "boolean", description = "Always true")))
+	@ApiResponse(responseCode = "400", description = "The request is not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response setProjectVisibility(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		boolean visible = Boolean.parseBoolean(form.getFirst("visibility"));
@@ -598,6 +729,13 @@ public class ProjectAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("setProjectFavorite")
+	@Operation(operationId = "setProjectFavorite", summary = "Favorite or unfavorite a project", description = "Sets whether a project is one of the signed in user's favorites.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthProjectSetFavoriteRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The favorite was set", content = @Content(mediaType = "application/json", schema = @Schema(types = "boolean", description = "Always true")))
+	@ApiResponse(responseCode = "400", description = "The request is not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response setProjectFavorite(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		boolean isFavorite = Boolean.parseBoolean(form.getFirst("isFavorite"));
@@ -618,10 +756,18 @@ public class ProjectAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getProjectUsersNoCredentials")
+	@Operation(operationId = "getProjectUsersNoCredentials", summary = "Find people to add to a project", description = "Returns people who have no permission on a project yet, from the security database or, when it is enabled and asked for, the Microsoft directory. A directory search is paged with offset 0 to start and any other offset to continue.")
+	@ApiResponse(responseCode = "200", description = "The people", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AuthProjectUserCandidate.class))))
+	@ApiResponse(responseCode = "400", description = "The request is not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response getProjectUsersNoCredentials(@Context HttpServletRequest request,
-			@QueryParam("projectId") String projectId, @QueryParam("searchTerm") String searchTerm,
-			@QueryParam("limit") long limit, @QueryParam("offset") long offset,
-			@QueryParam(MicrosoftGraphUserLookup.LOOKUP_PARAM) String msGraphLookup) {
+			@Parameter(description = "The project id") @QueryParam("projectId") String projectId,
+			@Parameter(description = "Text to search the people's ids, names, user names and emails for") @QueryParam("searchTerm") String searchTerm,
+			@Parameter(description = "The most people to return; 0 or less for all, or one directory page") @QueryParam("limit") long limit,
+			@Parameter(description = "How many people to skip; for a directory search, 0 starts the search and anything else continues it") @QueryParam("offset") long offset,
+			@Parameter(description = "false to search the security database instead of the Microsoft directory, when the directory is enabled; the directory is searched by default") @QueryParam(MicrosoftGraphUserLookup.LOOKUP_PARAM) String msGraphLookup) {
 		String project = WebUtility.inputSanitizer(projectId);
 		String term = WebUtility.inputSQLSanitizer(searchTerm);
 		return ResourceUtility.respond(request, "find people to add to project " + project, user -> {
@@ -644,6 +790,13 @@ public class ProjectAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("approveProjectUserAccessRequest")
+	@Operation(operationId = "approveProjectUserAccessRequest", summary = "Approve access requests to a project", description = "Gives each requester the permission they asked for and marks their requests approved.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthProjectApproveUserAccessRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The requests were approved", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The request is not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response approveProjectUserAccessRequest(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
@@ -671,6 +824,13 @@ public class ProjectAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("denyProjectUserAccessRequest")
+	@Operation(operationId = "denyProjectUserAccessRequest", summary = "Deny access requests to a project", description = "Marks access requests to a project denied.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthProjectDenyUserAccessRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The requests were denied", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The request is not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response denyProjectUserAccessRequest(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
@@ -698,6 +858,13 @@ public class ProjectAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("addProjectUserPermissions")
+	@Operation(operationId = "addProjectUserPermissions", summary = "Give people access to a project", description = "Gives several people permissions on a project. People picked from the Microsoft directory are added to the security database first.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthProjectUserPermissionsRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The people were given access", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The request is not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response addProjectUserPermissions(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
@@ -730,6 +897,13 @@ public class ProjectAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("removeProjectUserPermissions")
+	@Operation(operationId = "removeProjectUserPermissions", summary = "Remove people from a project", description = "Removes several people's permissions on a project.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthProjectRemoveUserPermissionsRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The people were removed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The request is not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response removeProjectUserPermissions(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));

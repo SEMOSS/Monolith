@@ -38,6 +38,12 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.json.JSONObject;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.annotation.security.PermitAll;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.HttpServletRequest;
@@ -58,7 +64,24 @@ import prerna.auth.utils.SecurityUserAccessKeyUtils;
 import prerna.auth.utils.SecurityUserUtils;
 import prerna.auth.utils.UserRegistrationEmailService;
 import prerna.date.SemossDate;
+import prerna.semoss.web.openapi.CommonSchemas.ErrorMessage;
+import prerna.semoss.web.openapi.CommonSchemas.Success;
 import prerna.semoss.web.services.local.ResourceUtility;
+import prerna.semoss.web.services.local.auth.UserAuthorizationResourceSchemas.AuthUserAccessKeyRow;
+import prerna.semoss.web.services.local.auth.UserAuthorizationResourceSchemas.AuthUserChangePasswordRequest;
+import prerna.semoss.web.services.local.auth.UserAuthorizationResourceSchemas.AuthUserCreateAccessKeyRequest;
+import prerna.semoss.web.services.local.auth.UserAuthorizationResourceSchemas.AuthUserCreatedAccessKey;
+import prerna.semoss.web.services.local.auth.UserAuthorizationResourceSchemas.AuthUserDeleteAccessKeyRequest;
+import prerna.semoss.web.services.local.auth.UserAuthorizationResourceSchemas.AuthUserEditUserBody;
+import prerna.semoss.web.services.local.auth.UserAuthorizationResourceSchemas.AuthUserEditUserForm;
+import prerna.semoss.web.services.local.auth.UserAuthorizationResourceSchemas.AuthUserEditUserResult;
+import prerna.semoss.web.services.local.auth.UserAuthorizationResourceSchemas.AuthUserPasswordResult;
+import prerna.semoss.web.services.local.auth.UserAuthorizationResourceSchemas.AuthUserResetPasswordRequest;
+import prerna.semoss.web.services.local.auth.UserAuthorizationResourceSchemas.AuthUserSetUserMetadataBody;
+import prerna.semoss.web.services.local.auth.UserAuthorizationResourceSchemas.AuthUserSetUserMetadataForm;
+import prerna.semoss.web.services.local.auth.UserAuthorizationResourceSchemas.AuthUserSetUserMetadataResult;
+import prerna.semoss.web.services.local.auth.UserAuthorizationResourceSchemas.AuthUserSetupResetPasswordRequest;
+import prerna.semoss.web.services.local.auth.UserAuthorizationResourceSchemas.AuthUserSetupResetPasswordResult;
 import prerna.usertracking.AuditEventType;
 import prerna.usertracking.UserAuditTrailUtils;
 import prerna.util.Constants;
@@ -84,6 +107,15 @@ public class UserAuthorizationResource {
 	@Path("/editUser")
 	@Produces("application/json")
 	@Consumes({ "application/json", "application/x-www-form-urlencoded" })
+	@Operation(operationId = "editUser", summary = "Edit my user details", description = "Changes the signed in user's display name and email address, sent as a JSON body or as a JSON-encoded user form field, and echoes the details back.")
+	@RequestBody(required = true, content = {
+			@Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthUserEditUserForm.class)),
+			@Content(mediaType = "application/json", schema = @Schema(implementation = AuthUserEditUserBody.class)) })
+	@ApiResponse(responseCode = "200", description = "The details sent, as saved", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthUserEditUserResult.class)))
+	@ApiResponse(responseCode = "400", description = "The details cannot be read, or the email is not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error; also carries techErrorMessage", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response editUser(@Context HttpServletRequest request) {
 		return ResourceUtility.respond(request, "edit their user details", user -> {
 			Map<String, Object> userInfo = null;
@@ -141,6 +173,9 @@ public class UserAuthorizationResource {
 	@Produces("application/json")
 	@Path("/deleteUser")
 	@Consumes({ "application/json", "application/x-www-form-urlencoded" })
+	@Operation(operationId = "deleteUser", summary = "Delete my user (not implemented)", description = "Not implemented: answers with no content for a signed in user and deletes nothing.")
+	@ApiResponse(responseCode = "204", description = "Nothing was done")
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response deleteUser(@Context HttpServletRequest request) {
 		User user = null;
 		try {
@@ -167,6 +202,15 @@ public class UserAuthorizationResource {
 	@Produces("application/json")
 	@Path("createUserAccessKey")
 	@Consumes({ "application/json", "application/x-www-form-urlencoded" })
+	@Operation(operationId = "createUserAccessKey", summary = "Create an access key", description = "Creates an access key for the signed in user's primary login, and returns its secret, which is shown only this once.")
+	@RequestBody(required = true, content = {
+			@Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthUserCreateAccessKeyRequest.class)),
+			@Content(mediaType = "application/json", schema = @Schema(implementation = AuthUserCreateAccessKeyRequest.class)) })
+	@ApiResponse(responseCode = "200", description = "The new access key", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthUserCreatedAccessKey.class)))
+	@ApiResponse(responseCode = "400", description = "The name or description is too long, or the body cannot be read", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "Access keys are not allowed for the user's login", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error; also carries techErrorMessage", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response createUserAccessKey(@Context HttpServletRequest request) {
 		return ResourceUtility.respond(request, "create an access key", user -> {
 			AccessToken token = user.getPrimaryLoginToken();
@@ -225,6 +269,13 @@ public class UserAuthorizationResource {
 	@Produces("application/json")
 	@Path("deleteUserAccessKey")
 	@Consumes({ "application/json", "application/x-www-form-urlencoded" })
+	@Operation(operationId = "deleteUserAccessKey", summary = "Delete an access key", description = "Deletes one of the signed in user's access keys.")
+	@RequestBody(required = true, content = {
+			@Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthUserDeleteAccessKeyRequest.class)),
+			@Content(mediaType = "application/json", schema = @Schema(implementation = AuthUserDeleteAccessKeyRequest.class)) })
+	@ApiResponse(responseCode = "200", description = "The key was deleted", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The key is missing or was not deleted ({success: false}), or the request failed", content = @Content(mediaType = "application/json", schema = @Schema(oneOf = { Success.class, ErrorMessage.class })))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response deleteUserAccessKey(@Context HttpServletRequest request) {
 		User user = null;
 		try {
@@ -295,6 +346,12 @@ public class UserAuthorizationResource {
 	@GET
 	@Path("/getUserAccessKeys")
 	@Produces("application/json")
+	@Operation(operationId = "getUserAccessKeys", summary = "List my access keys", description = "Lists the signed in user's access keys, without their secrets.")
+	@ApiResponse(responseCode = "200", description = "The access keys", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AuthUserAccessKeyRow.class))))
+	@ApiResponse(responseCode = "400", description = "The request could not be read", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error; also carries techErrorMessage", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response getUserAccessKeys(@Context HttpServletRequest request) {
 		return ResourceUtility.respond(request, "list their access keys",
 				user -> SecurityUserAccessKeyUtils.getUserAccessKeyInfo(user.getPrimaryLoginToken()));
@@ -313,6 +370,14 @@ public class UserAuthorizationResource {
 	@Produces("application/json")
 	@Path("/setupResetPassword")
 	@Consumes({ "application/json", "application/x-www-form-urlencoded" })
+	@Operation(operationId = "setupResetPassword", summary = "Send a password reset email", description = "Sends a password reset link to a user's email. Works without signing in.")
+	@RequestBody(required = true, content = {
+			@Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthUserSetupResetPasswordRequest.class)),
+			@Content(mediaType = "application/json", schema = @Schema(implementation = AuthUserSetupResetPasswordRequest.class)) })
+	@ApiResponse(responseCode = "200", description = "The email was sent", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthUserSetupResetPasswordResult.class)))
+	@ApiResponse(responseCode = "400", description = "The JSON body cannot be read", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "Users may not change their password, or the user cannot reset it", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "The email could not be sent", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response setupResetPassword(@Context ServletContext context, @Context HttpServletRequest request) {
 		// do we allow users to change their password?
 		try {
@@ -411,6 +476,13 @@ public class UserAuthorizationResource {
 	@Produces("application/json")
 	@Path("/resetPassword")
 	@Consumes({ "application/json", "application/x-www-form-urlencoded" })
+	@Operation(operationId = "resetPassword", summary = "Reset a password with a reset token", description = "Sets a new password with the token from a password reset email, and sends a confirmation email. Works without signing in.")
+	@RequestBody(required = true, content = {
+			@Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthUserResetPasswordRequest.class)),
+			@Content(mediaType = "application/json", schema = @Schema(implementation = AuthUserResetPasswordRequest.class)) })
+	@ApiResponse(responseCode = "200", description = "The password was reset", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthUserPasswordResult.class)))
+	@ApiResponse(responseCode = "400", description = "The JSON body cannot be read", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "Users may not change their password, or the token or password is not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response resetPassword(@Context ServletContext context, @Context HttpServletRequest request) {
 		// do we allow users to change their password?
 		try {
@@ -498,6 +570,15 @@ public class UserAuthorizationResource {
 	@POST
 	@Path("setUserMetadata")
 	@Produces("application/json")
+	@Operation(operationId = "setUserMetadata", summary = "Set my user metadata", description = "Sets one metadata key on the signed in user to a value or a list of values.")
+	@RequestBody(required = true, content = {
+			@Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthUserSetUserMetadataForm.class)),
+			@Content(mediaType = "application/json", schema = @Schema(implementation = AuthUserSetUserMetadataBody.class)) })
+	@ApiResponse(responseCode = "200", description = "The metadata was set", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthUserSetUserMetadataResult.class)))
+	@ApiResponse(responseCode = "400", description = "metaKey or metaValue is missing, or the body cannot be read", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error; also carries techErrorMessage", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response setUserMetadata(@Context HttpServletRequest request) {
 		return ResourceUtility.respond(request, "set their user metadata", user -> {
 			String metaKey = null;
@@ -557,6 +638,13 @@ public class UserAuthorizationResource {
 	@Produces("application/json")
 	@Consumes({ "application/json", "application/x-www-form-urlencoded" })
 	@Path("/changePassword")
+	@Operation(operationId = "changePassword", summary = "Change my password", description = "Changes the signed in user's password after checking the current one. NATIVE logins only.")
+	@RequestBody(required = true, content = {
+			@Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthUserChangePasswordRequest.class)),
+			@Content(mediaType = "application/json", schema = @Schema(implementation = AuthUserChangePasswordRequest.class)) })
+	@ApiResponse(responseCode = "200", description = "The password was changed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthUserPasswordResult.class)))
+	@ApiResponse(responseCode = "400", description = "A JSON body is missing a field ({success: false}) or cannot be read", content = @Content(mediaType = "application/json", schema = @Schema(oneOf = { AuthUserPasswordResult.class, ErrorMessage.class })))
+	@ApiResponse(responseCode = "401", description = "The current password is wrong or the new one not valid ({success: false}), or there is no signed in NATIVE user or the change failed", content = @Content(mediaType = "application/json", schema = @Schema(oneOf = { AuthUserPasswordResult.class, ErrorMessage.class })))
 	public Response changePassword(@Context ServletContext context, @Context HttpServletRequest request) {
 		User user = null;
 		String userId = null;

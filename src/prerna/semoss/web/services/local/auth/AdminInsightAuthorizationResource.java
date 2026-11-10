@@ -47,12 +47,36 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import prerna.auth.AccessToken;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.engine.impl.InsightAdministrator;
 import prerna.project.api.IProject;
+import prerna.semoss.web.openapi.CommonSchemas.ErrorMessage;
+import prerna.semoss.web.openapi.CommonSchemas.Success;
 import prerna.semoss.web.services.local.ResourceUtility;
+import prerna.semoss.web.services.local.auth.AdminInsightAuthorizationResourceSchemas.AuthAdminInsightDeleteRequest;
+import prerna.semoss.web.services.local.auth.AdminInsightAuthorizationResourceSchemas.AuthAdminInsightDenyRequestsRequest;
+import prerna.semoss.web.services.local.auth.AdminInsightAuthorizationResourceSchemas.AuthAdminInsightGetInsightsRow;
+import prerna.semoss.web.services.local.auth.AdminInsightAuthorizationResourceSchemas.AuthAdminInsightGrantAllRequest;
+import prerna.semoss.web.services.local.auth.AdminInsightAuthorizationResourceSchemas.AuthAdminInsightPermissionRequest;
+import prerna.semoss.web.services.local.auth.AdminInsightAuthorizationResourceSchemas.AuthAdminInsightProjectInsightRow;
+import prerna.semoss.web.services.local.auth.AdminInsightAuthorizationResourceSchemas.AuthAdminInsightProjectUserRequest;
+import prerna.semoss.web.services.local.auth.AdminInsightAuthorizationResourceSchemas.AuthAdminInsightUserAccessRow;
+import prerna.semoss.web.services.local.auth.InsightAuthorizationResourceSchemas.AuthInsightApproveRequestsRequest;
+import prerna.semoss.web.services.local.auth.InsightAuthorizationResourceSchemas.AuthInsightMembersPage;
+import prerna.semoss.web.services.local.auth.InsightAuthorizationResourceSchemas.AuthInsightRemoveUserRequest;
+import prerna.semoss.web.services.local.auth.InsightAuthorizationResourceSchemas.AuthInsightRemoveUsersRequest;
+import prerna.semoss.web.services.local.auth.InsightAuthorizationResourceSchemas.AuthInsightSetGlobalRequest;
+import prerna.semoss.web.services.local.auth.InsightAuthorizationResourceSchemas.AuthInsightUserNoCredentialsRow;
+import prerna.semoss.web.services.local.auth.InsightAuthorizationResourceSchemas.AuthInsightUserPermissionRequest;
+import prerna.semoss.web.services.local.auth.InsightAuthorizationResourceSchemas.AuthInsightUserPermissionsRequest;
 import prerna.util.Constants;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
@@ -73,9 +97,12 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Produces("application/json")
 	@Path("getInsights")
-	public Response getInsights(@Context HttpServletRequest request, @QueryParam("projectId") String projectId,
-			@QueryParam("searchTerm") String searchTerm, @QueryParam("limit") long limit,
-			@QueryParam("offset") long offset) {
+	@Operation(operationId = "getInsights", summary = "Search all insights", description = "Returns every insight, optionally only those of one project or whose name matches a search term, a page at a time. Admins only.")
+	@ApiResponse(responseCode = "200", description = "The insights", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AuthAdminInsightGetInsightsRow.class))))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	public Response getInsights(@Context HttpServletRequest request, @Parameter(description = "Only the insights of this project") @QueryParam("projectId") String projectId,
+			@Parameter(description = "Text to match against the insight name") @QueryParam("searchTerm") String searchTerm, @Parameter(description = "The page size; 0 or less for all") @QueryParam("limit") long limit,
+			@Parameter(description = "How many rows to skip") @QueryParam("offset") long offset) {
 		projectId = WebUtility.inputSQLSanitizer(projectId);
 		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
 
@@ -112,8 +139,11 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Produces("application/json")
 	@Path("getProjectInsights")
-	public Response getProjectInsights(@Context HttpServletRequest request, @QueryParam("projectId") String projectId,
-			@QueryParam("searchTerm") String searchTerm) {
+	@Operation(operationId = "getProjectInsights", summary = "List the insights of a project", description = "Returns every insight of a project. Admins only.")
+	@ApiResponse(responseCode = "200", description = "The insights", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AuthAdminInsightProjectInsightRow.class))))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	public Response getProjectInsights(@Context HttpServletRequest request, @Parameter(description = "The project id") @QueryParam("projectId") String projectId,
+			@Parameter(description = "Not used") @QueryParam("searchTerm") String searchTerm) {
 		projectId = WebUtility.inputSQLSanitizer(projectId);
 		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
 
@@ -144,6 +174,10 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("getAllProjectInsightUsers")
+	@Operation(operationId = "getAllProjectInsightUsers", summary = "List a user's access to a project's insights", description = "Returns every insight of a project with the permission one user has on it. Admins only.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthAdminInsightProjectUserRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The insights", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AuthAdminInsightUserAccessRow.class))))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response getAllProjectInsightUsers(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		String projectId = WebUtility.inputSQLSanitizer(form.getFirst("projectId"));
@@ -176,6 +210,10 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("deleteProjectInsights")
+	@Operation(operationId = "deleteProjectInsights", summary = "Delete insights of a project", description = "Deletes insights from a project and from the security database. Admins only.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthAdminInsightDeleteRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The insights were deleted", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, the user is not an admin, or the insights could not be deleted", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response deleteProjectInsights(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -225,10 +263,13 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Produces("application/json")
 	@Path("getInsightUsers")
-	public Response getInsightUsers(@Context HttpServletRequest request, @QueryParam("projectId") String projectId,
-			@QueryParam("insightId") String insightId, @QueryParam("userId") String userId,
-			@QueryParam("permission") String permission, @QueryParam("limit") long limit,
-			@QueryParam("offset") long offset) {
+	@Operation(operationId = "getInsightUsers", summary = "List the users of an insight", description = "Returns a page of the users who have access to an insight, optionally filtered by user id and permission, and how many match in total. Admins only.")
+	@ApiResponse(responseCode = "200", description = "The users", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthInsightMembersPage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	public Response getInsightUsers(@Context HttpServletRequest request, @Parameter(description = "The id of the project the insight belongs to") @QueryParam("projectId") String projectId,
+			@Parameter(description = "The insight id") @QueryParam("insightId") String insightId, @Parameter(description = "Text to match against the user id") @QueryParam("userId") String userId,
+			@Parameter(description = "Only users with this permission level, such as OWNER, EDIT or READ_ONLY") @QueryParam("permission") String permission, @Parameter(description = "The page size; 0 or less for all") @QueryParam("limit") long limit,
+			@Parameter(description = "How many users to skip") @QueryParam("offset") long offset) {
 		projectId = WebUtility.inputSQLSanitizer(projectId);
 		userId = WebUtility.inputSQLSanitizer(userId);
 		insightId = WebUtility.inputSQLSanitizer(insightId);
@@ -269,6 +310,11 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("addInsightUserPermission")
+	@Operation(operationId = "addInsightUserPermission", summary = "Give a user access to an insight", description = "Gives a user a permission level on an insight. Admins only.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthInsightUserPermissionRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The access was given", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The change could not be made", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response addInsightUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -319,6 +365,11 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("/grantAllProjectInsights")
+	@Operation(operationId = "grantAllProjectInsights", summary = "Give a user access to every insight of a project", description = "Gives a user one permission level on every insight of a project, changing the level on the ones they already have access to. Admins only.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthAdminInsightGrantAllRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The access was given", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The change could not be made", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response grantAllProjectInsights(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -364,6 +415,11 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("/grantNewUsersInsightAccess")
+	@Operation(operationId = "grantNewUsersInsightAccess", summary = "Give everyone without access an insight", description = "Gives everyone who has no access to an insight one permission level on it. It is a one time grant, not a rule for people who join later. Admins only.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthAdminInsightPermissionRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The access was given", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The change could not be made", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response grantNewUsersInsightAccess(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
@@ -410,6 +466,11 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("addAllUsers")
+	@Operation(operationId = "addAllUsers", summary = "Give everyone access to an insight", description = "Gives everyone one permission level on an insight, changing the level of those who already have access. Admins only.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthAdminInsightPermissionRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The access was given", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The change could not be made", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response addAllUsers(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -457,6 +518,11 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("editInsightUserPermission")
+	@Operation(operationId = "editInsightUserPermission", summary = "Change a user's permission on an insight", description = "Changes the permission level a user has on an insight. Admins only.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthInsightUserPermissionRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The permission was changed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The change could not be made", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response editInsightUserPermission(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
@@ -509,6 +575,11 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("editInsightUserPermissions")
+	@Operation(operationId = "editInsightUserPermissions", summary = "Change users' permissions on an insight", description = "Changes the permission levels of several users on an insight at once. Admins only.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthInsightUserPermissionsRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The permissions were changed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The change could not be made", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response editInsightUserPermissions(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		User user = null;
@@ -556,6 +627,11 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("updateInsightUserPermissions")
+	@Operation(operationId = "updateInsightUserPermissions", summary = "Change everyone with access to an insight to one level", description = "Changes every user who has access to an insight to one permission level. Admins only.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthAdminInsightPermissionRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The permissions were changed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The change could not be made", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response updateAppUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -601,6 +677,11 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("removeInsightUserPermission")
+	@Operation(operationId = "removeInsightUserPermission", summary = "Take a user's access to an insight away", description = "Removes a user's access to an insight. Admins only.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthInsightRemoveUserRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The access was removed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The change could not be made", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response removeInsightUserPermission(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
@@ -651,6 +732,11 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("setInsightGlobal")
+	@Operation(operationId = "setInsightGlobal", summary = "Make an insight public or private", description = "Sets whether an insight is public within its project, in the security database and the project's insights database. Admins only.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthInsightSetGlobalRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The insight was changed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The change could not be made", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response setInsightGlobal(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -702,10 +788,13 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Produces("application/json")
 	@Path("getInsightUsersNoCredentials")
+	@Operation(operationId = "getInsightUsersNoCredentials", summary = "List the users without access to an insight", description = "Returns the users who do not have access to an insight. Admins only. The search term, limit and offset are read but not applied.")
+	@ApiResponse(responseCode = "200", description = "The users", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AuthInsightUserNoCredentialsRow.class))))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response getInsightUsersNoCredentials(@Context HttpServletRequest request,
-			@QueryParam("projectId") String projectId, @QueryParam("insightId") String insightId,
-			@QueryParam("searchTerm") String searchTerm, @QueryParam("limit") long limit,
-			@QueryParam("offset") long offset) {
+			@Parameter(description = "The id of the project the insight belongs to") @QueryParam("projectId") String projectId, @Parameter(description = "The insight id") @QueryParam("insightId") String insightId,
+			@Parameter(description = "Not used") @QueryParam("searchTerm") String searchTerm, @Parameter(description = "Not used") @QueryParam("limit") long limit,
+			@Parameter(description = "Not used") @QueryParam("offset") long offset) {
 		projectId = WebUtility.inputSQLSanitizer(projectId);
 		insightId = WebUtility.inputSQLSanitizer(insightId);
 		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
@@ -739,6 +828,11 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("addInsightUserPermissions")
+	@Operation(operationId = "addInsightUserPermissions", summary = "Give users access to an insight", description = "Gives several users permission levels on an insight at once. Admins only.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthInsightUserPermissionsRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The access was given", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The change could not be made", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response addInsightUserPermissions(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
@@ -785,6 +879,11 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("removeInsightUserPermissions")
+	@Operation(operationId = "removeInsightUserPermissions", summary = "Take users' access to an insight away", description = "Removes several users' access to an insight at once. Admins only.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthInsightRemoveUsersRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The access was removed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The change could not be made", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response removeInsightUserPermissions(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
@@ -831,6 +930,11 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("approveInsightUserAccessRequest")
+	@Operation(operationId = "approveInsightUserAccessRequest", summary = "Approve requests for access to an insight", description = "Approves requests for access to an insight, giving each requester the level named. Admins only.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthInsightApproveRequestsRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The requests were approved", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The change could not be made", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response approveInsightUserAccessRequest(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
@@ -883,6 +987,11 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("denyInsightUserAccessRequest")
+	@Operation(operationId = "denyInsightUserAccessRequest", summary = "Deny requests for access to an insight", description = "Denies requests for access to an insight. Admins only.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthAdminInsightDenyRequestsRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The requests were denied", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The change could not be made", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response denyInsightUserAccessRequest(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;

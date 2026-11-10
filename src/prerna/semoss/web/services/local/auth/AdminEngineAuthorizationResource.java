@@ -36,6 +36,13 @@ import org.apache.logging.log4j.Logger;
 
 import com.google.gson.Gson;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.annotation.security.PermitAll;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.HttpServletRequest;
@@ -59,7 +66,26 @@ import prerna.sablecc2.om.GenRowStruct;
 import prerna.sablecc2.om.PixelDataType;
 import prerna.sablecc2.om.ReactorKeysEnum;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
+import prerna.semoss.web.openapi.CommonSchemas.ErrorMessage;
+import prerna.semoss.web.openapi.CommonSchemas.Success;
 import prerna.semoss.web.services.local.ResourceUtility;
+import prerna.semoss.web.services.local.auth.AdminEngineAuthorizationResourceSchemas.AuthAdminEngineEditUserPermissionRequest;
+import prerna.semoss.web.services.local.auth.AdminEngineAuthorizationResourceSchemas.AuthAdminEngineGetAllUserEnginesRow;
+import prerna.semoss.web.services.local.auth.AdminEngineAuthorizationResourceSchemas.AuthAdminEngineGetEnginesRequest;
+import prerna.semoss.web.services.local.auth.AdminEngineAuthorizationResourceSchemas.AuthAdminEngineGetEnginesRow;
+import prerna.semoss.web.services.local.auth.AdminEngineAuthorizationResourceSchemas.AuthAdminEngineGetUserEnginesNoCredentialsRow;
+import prerna.semoss.web.services.local.auth.AdminEngineAuthorizationResourceSchemas.AuthAdminEngineGrantAllEnginesRequest;
+import prerna.semoss.web.services.local.auth.AdminEngineAuthorizationResourceSchemas.AuthAdminEnginePermissionLevelRequest;
+import prerna.semoss.web.services.local.auth.EngineAuthorizationResourceSchemas.AuthEngineAddUserPermissionRequest;
+import prerna.semoss.web.services.local.auth.EngineAuthorizationResourceSchemas.AuthEngineApproveAccessRequestsRequest;
+import prerna.semoss.web.services.local.auth.EngineAuthorizationResourceSchemas.AuthEngineDenyAccessRequestsRequest;
+import prerna.semoss.web.services.local.auth.EngineAuthorizationResourceSchemas.AuthEngineRemoveUserPermissionRequest;
+import prerna.semoss.web.services.local.auth.EngineAuthorizationResourceSchemas.AuthEngineRemoveUserPermissionsRequest;
+import prerna.semoss.web.services.local.auth.EngineAuthorizationResourceSchemas.AuthEngineSetDiscoverableRequest;
+import prerna.semoss.web.services.local.auth.EngineAuthorizationResourceSchemas.AuthEngineSetGlobalRequest;
+import prerna.semoss.web.services.local.auth.EngineAuthorizationResourceSchemas.AuthEngineUserPermissionsRequest;
+import prerna.semoss.web.services.local.auth.EngineAuthorizationResourceSchemas.AuthEngineUsersNoCredentialsRow;
+import prerna.semoss.web.services.local.auth.EngineAuthorizationResourceSchemas.AuthEngineUsersPage;
 import prerna.util.Constants;
 import prerna.web.services.util.WebUtility;
 
@@ -86,15 +112,18 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Produces("application/json")
 	@Path("getEngines")
+	@Operation(operationId = "getEnginesGet", summary = "List the engines on the server", description = "Returns every engine on the server, or those the permission user can access, with their metadata unless noMeta is set. The query string version of getEngines. Admins only.")
+	@ApiResponse(responseCode = "200", description = "The engines", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AuthAdminEngineGetEnginesRow.class))))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response getEnginesGET(@Context HttpServletRequest request,
-			@QueryParam("engineId") List<String> engineFilter, @QueryParam("engineTypes") List<String> engineTypes,
-			@QueryParam("filterWord") String searchTerm, @QueryParam("limit") Integer limit,
-			@QueryParam("offset") Integer offset, @QueryParam("metaKeys") List<String> metaKeys,
+			@Parameter(description = "Engine ids to keep; repeat for each") @QueryParam("engineId") List<String> engineFilter, @Parameter(description = "Engine types to keep; repeat for each") @QueryParam("engineTypes") List<String> engineTypes,
+			@Parameter(description = "Text to find in the engine id, name or display name") @QueryParam("filterWord") String searchTerm, @Parameter(description = "The most rows to return; 0 or less for all") @QueryParam("limit") Integer limit,
+			@Parameter(description = "The rows to skip") @QueryParam("offset") Integer offset, @Parameter(description = "Metadata keys to add to each engine; repeat for each") @QueryParam("metaKeys") List<String> metaKeys,
 //			@QueryParam("metaFilters") Map<String, Object> metaFilters,
-			@QueryParam("noMeta") Boolean noMeta, @QueryParam("userT") Boolean includeUserTracking,
-			@QueryParam("permissionUser") String permissionUser,
-			@QueryParam("effectivePermissions") List<Integer> effectivePermissions,
-			@QueryParam("createdBy") String createdBy, @QueryParam("createdByMe") Boolean createdByMe) {
+			@Parameter(description = "True to leave out the engines' metadata") @QueryParam("noMeta") Boolean noMeta, @Parameter(description = "True to add the upvote counts") @QueryParam("userT") Boolean includeUserTracking,
+			@Parameter(description = "Keep the engines this user id can access") @QueryParam("permissionUser") String permissionUser,
+			@Parameter(description = "Permission levels (1 owner, 2 edit, 3 read only) the permission user must have; repeat for each") @QueryParam("effectivePermissions") List<Integer> effectivePermissions,
+			@Parameter(description = "JSON-encoded list of creators to keep, each {\"id\": string, \"type\": string}") @QueryParam("createdBy") String createdBy, @Parameter(description = "True to keep only the engines the signed in user created") @QueryParam("createdByMe") Boolean createdByMe) {
 		engineFilter = WebUtility.inputSanitizer(engineFilter);
 		engineTypes = WebUtility.inputSanitizer(engineTypes);
 		metaKeys = WebUtility.inputSanitizer(metaKeys);
@@ -202,6 +231,10 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("getEngines")
+	@Operation(operationId = "getEngines", summary = "List the engines on the server", description = "Returns every engine on the server, or those the permission user can access, with their metadata unless noMeta is set. Takes the filters as a form, so metaFilters can be sent. Admins only.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthAdminEngineGetEnginesRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The engines", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AuthAdminEngineGetEnginesRow.class))))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response getEnginesPOST(@Context HttpServletRequest request) {
 		User user = null;
 		try {
@@ -325,9 +358,12 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Path("/getAllUserEngines")
 	@Produces("application/json")
-	public Response getAllUserEngines(@Context HttpServletRequest request, @QueryParam("userId") String userId,
-			@QueryParam("engineTypes") List<String> engineTypes, @QueryParam("searchTerm") String searchTerm,
-			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+	@Operation(operationId = "getAllUserEngines", summary = "List the engines a user has access to", description = "Returns the engines the user has a direct permission on. Admins only.")
+	@ApiResponse(responseCode = "200", description = "The user's engines", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AuthAdminEngineGetAllUserEnginesRow.class))))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	public Response getAllUserEngines(@Context HttpServletRequest request, @Parameter(description = "The user id") @QueryParam("userId") String userId,
+			@Parameter(description = "Engine types to keep; repeat for each") @QueryParam("engineTypes") List<String> engineTypes, @Parameter(description = "Text to find in the engine id, name or display name") @QueryParam("searchTerm") String searchTerm,
+			@Parameter(description = "The most rows to return; 0 or less for all") @QueryParam("limit") long limit, @Parameter(description = "The rows to skip") @QueryParam("offset") long offset) {
 		userId = WebUtility.inputSQLSanitizer(userId);
 		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
 		engineTypes = WebUtility.inputSanitizer(engineTypes);
@@ -351,10 +387,13 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Path("/getUserEnginesNoCredentials")
 	@Produces("application/json")
+	@Operation(operationId = "getUserEnginesNoCredentials", summary = "List the engines a user has no access to", description = "Returns the engines the user has no direct permission on, to grant them new access. Admins only.")
+	@ApiResponse(responseCode = "200", description = "The engines the user has no access to", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AuthAdminEngineGetUserEnginesNoCredentialsRow.class))))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response getUserEnginesNoCredentials(@Context HttpServletRequest request,
-			@QueryParam("userId") String userId, @QueryParam("engineTypes") List<String> engineTypes,
-			@QueryParam("searchTerm") String searchTerm, @QueryParam("limit") long limit,
-			@QueryParam("offset") long offset) {
+			@Parameter(description = "The user id") @QueryParam("userId") String userId, @Parameter(description = "Engine types to keep; repeat for each") @QueryParam("engineTypes") List<String> engineTypes,
+			@Parameter(description = "Text to find in the engine id, name or display name") @QueryParam("searchTerm") String searchTerm, @Parameter(description = "The most rows to return; 0 or less for all") @QueryParam("limit") long limit,
+			@Parameter(description = "The rows to skip") @QueryParam("offset") long offset) {
 		userId = WebUtility.inputSQLSanitizer(userId);
 		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
 		engineTypes = WebUtility.inputSanitizer(engineTypes);
@@ -378,6 +417,11 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Path("/grantAllEngines")
 	@Produces("application/json")
+	@Operation(operationId = "grantAllEngines", summary = "Give a user a level on every engine", description = "Gives the user the permission level on every engine of the given types. Admins only.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthAdminEngineGrantAllEnginesRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The change was made", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The access cannot be given", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response grantAllEngines(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -426,6 +470,11 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Path("/grantNewUsersEngineAccess")
 	@Produces("application/json")
+	@Operation(operationId = "grantNewUsersEngineAccess", summary = "Give new users access to an engine", description = "Gives every new user the permission level on the engine. Admins only.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthAdminEnginePermissionLevelRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The change was made", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The access cannot be given", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response grantNewUsersEngineAccess(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
@@ -476,10 +525,13 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Produces("application/json")
 	@Path("getEngineUsers")
-	public Response getEngineUsers(@Context HttpServletRequest request, @QueryParam("engineId") String engineId,
-			@QueryParam("userId") String userId, @QueryParam("searchTerm") String searchTerm,
-			@QueryParam("permission") String permission, @QueryParam("limit") long limit,
-			@QueryParam("offset") long offset) {
+	@Operation(operationId = "getEngineUsers", summary = "List the people with access to an engine", description = "Returns a page of the people with access to the engine, with how many match. On a model, each has their usage_limit. Admins only.")
+	@ApiResponse(responseCode = "200", description = "A page of the engine's people", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthEngineUsersPage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	public Response getEngineUsers(@Context HttpServletRequest request, @Parameter(description = "The engine id") @QueryParam("engineId") String engineId,
+			@Parameter(description = "Text to find in the people's id, name, username or email, used when searchTerm is not given") @QueryParam("userId") String userId, @Parameter(description = "Text to find in the people's id, name, username or email") @QueryParam("searchTerm") String searchTerm,
+			@Parameter(description = "The permission level to keep: OWNER, EDIT or READ_ONLY") @QueryParam("permission") String permission, @Parameter(description = "The most rows to return; 0 or less for all") @QueryParam("limit") long limit,
+			@Parameter(description = "The rows to skip") @QueryParam("offset") long offset) {
 		engineId = WebUtility.inputSanitizer(engineId);
 		userId = WebUtility.inputSQLSanitizer(userId);
 		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
@@ -518,6 +570,11 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("addEngineUserPermission")
+	@Operation(operationId = "addEngineUserPermission", summary = "Add a person to an engine", description = "Gives a person a permission level on the engine, and on a model optionally a usage limit. Admins only.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthEngineAddUserPermissionRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The change was made", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The person cannot be added, such as when they already have access", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response addEngineUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		Map<String, Object> ret = new HashMap<String, Object>();
 
@@ -565,6 +622,11 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("addEngineUserPermissions")
+	@Operation(operationId = "addEngineUserPermissions", summary = "Add people to an engine", description = "Gives several people permission levels on the engine, in one batch. People picked from the Microsoft directory are added as users first. Admins only.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthEngineUserPermissionsRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The change was made", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The people cannot be added, such as when some already have access", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response addEngineUserPermissions(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -613,6 +675,11 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("addAllUsers")
+	@Operation(operationId = "addAllUsers", summary = "Add every user to an engine", description = "Gives every user on the server the permission level on the engine. Admins only.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthAdminEnginePermissionLevelRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The change was made", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The users cannot be added", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response addAllUsers(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -660,6 +727,11 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("editEngineUserPermission")
+	@Operation(operationId = "editEngineUserPermission", summary = "Change a person's access to an engine", description = "Changes a person's permission level on the engine, and on a model their usage limit when usageLimit is sent. Admins only.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthAdminEngineEditUserPermissionRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The change was made", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The access cannot be changed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response editEngineUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		Map<String, Object> ret = new HashMap<String, Object>();
 
@@ -714,6 +786,11 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("editEngineUserPermissions")
+	@Operation(operationId = "editEngineUserPermissions", summary = "Change people's access to an engine", description = "Changes several people's permission levels on the engine, in one batch. Admins only.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthEngineUserPermissionsRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The change was made", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The access cannot be changed, such as when some people have no access", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response editEngineUserPermissions(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		User user = null;
@@ -759,6 +836,11 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("updateEngineUserPermissions")
+	@Operation(operationId = "updateEngineUserPermissions", summary = "Change everyone's access to an engine", description = "Changes the permission level of everyone with access to the engine. Admins only.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthAdminEnginePermissionLevelRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The change was made", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The access cannot be changed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response updateEngineUserPermissions(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
@@ -804,6 +886,11 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("removeEngineUserPermission")
+	@Operation(operationId = "removeEngineUserPermission", summary = "Remove a person from an engine", description = "Removes a person's access to the engine. Admins only.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthEngineRemoveUserPermissionRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The change was made", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The person cannot be removed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response removeEngineUserPermission(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
@@ -851,6 +938,11 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("removeEngineUserPermissions")
+	@Operation(operationId = "removeEngineUserPermissions", summary = "Remove people from an engine", description = "Removes several people's access to the engine. Admins only.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthEngineRemoveUserPermissionsRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The change was made", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The people cannot be removed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response removeEngineUserPermissions(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
@@ -890,6 +982,11 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("setEngineGlobal")
+	@Operation(operationId = "setEngineGlobal", summary = "Make an engine public or private", description = "Sets whether everyone on the server can use the engine. Admins only.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthEngineSetGlobalRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The change was made", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "The engine could not be changed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response setEngineGlobal(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -936,6 +1033,11 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("setEngineDiscoverable")
+	@Operation(operationId = "setEngineDiscoverable", summary = "Make an engine discoverable or not", description = "Sets whether people without access can find the engine and request access. Admins only.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthEngineSetDiscoverableRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The change was made", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "The engine could not be changed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response setEngineDiscoverable(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
 		User user = null;
@@ -982,10 +1084,15 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@GET
 	@Produces("application/json")
 	@Path("getEngineUsersNoCredentials")
+	@Operation(operationId = "getEngineUsersNoCredentials", summary = "Find people to add to an engine", description = "Returns people with no access to the engine, from the security database or, when the Microsoft directory is used, from the directory. Admins only.")
+	@ApiResponse(responseCode = "200", description = "The people with no access", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AuthEngineUsersNoCredentialsRow.class))))
+	@ApiResponse(responseCode = "400", description = "The directory search needs a Microsoft login, or it failed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response getEngineUsersNoCredentials(@Context HttpServletRequest request,
-			@QueryParam("engineId") String engineId, @QueryParam("searchTerm") String searchTerm,
-			@QueryParam("limit") long limit, @QueryParam("offset") long offset,
-			@QueryParam(MicrosoftGraphUserLookup.LOOKUP_PARAM) String msGraphLookup) {
+			@Parameter(description = "The engine id") @QueryParam("engineId") String engineId, @Parameter(description = "Text to find in the people's id, name, username or email") @QueryParam("searchTerm") String searchTerm,
+			@Parameter(description = "The most rows to return; 0 or less for all") @QueryParam("limit") long limit, @Parameter(description = "The rows to skip") @QueryParam("offset") long offset,
+			@Parameter(description = "True to search the Microsoft directory instead of the security database, when it is enabled") @QueryParam(MicrosoftGraphUserLookup.LOOKUP_PARAM) String msGraphLookup) {
 		engineId = WebUtility.inputSanitizer(engineId);
 		searchTerm = WebUtility.inputSQLSanitizer(searchTerm);
 
@@ -1035,6 +1142,11 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("approveEngineUserAccessRequest")
+	@Operation(operationId = "approveEngineUserAccessRequest", summary = "Approve access requests to an engine", description = "Approves the access requests, giving each person the permission level in their request. Admins only.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthEngineApproveAccessRequestsRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The change was made", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The requests cannot be approved", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response approveEngineUserAccessRequest(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;
@@ -1086,6 +1198,11 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	@POST
 	@Produces("application/json")
 	@Path("denyEngineUserAccessRequest")
+	@Operation(operationId = "denyEngineUserAccessRequest", summary = "Deny access requests to an engine", description = "Denies the access requests. Admins only.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthEngineDenyAccessRequestsRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The change was made", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The requests cannot be denied", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response denyEngineUserAccessRequest(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		SecurityAdminUtils adminUtils = null;

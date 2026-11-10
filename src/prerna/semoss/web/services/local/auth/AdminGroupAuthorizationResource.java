@@ -27,6 +27,13 @@
  *******************************************************************************/
 package prerna.semoss.web.services.local.auth;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.annotation.security.PermitAll;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.GET;
@@ -42,7 +49,26 @@ import prerna.auth.utils.SecurityGroupManagerUtils;
 import prerna.auth.utils.SecurityModelUsageLimitUtils;
 import prerna.graph.utility.MsGraphUtility;
 import prerna.io.connector.ms.MicrosoftGraphUserLookup;
+import prerna.semoss.web.openapi.CommonSchemas.ErrorMessage;
 import prerna.semoss.web.services.local.ResourceUtility;
+import prerna.semoss.web.services.local.auth.AdminGroupAuthorizationResourceSchemas.AdminGroupAddEnginePermissionRequest;
+import prerna.semoss.web.services.local.auth.AdminGroupAuthorizationResourceSchemas.AdminGroupAddGroupRequest;
+import prerna.semoss.web.services.local.auth.AdminGroupAuthorizationResourceSchemas.AdminGroupAvailableEngineRow;
+import prerna.semoss.web.services.local.auth.AdminGroupAuthorizationResourceSchemas.AdminGroupAvailableProjectRow;
+import prerna.semoss.web.services.local.auth.AdminGroupAuthorizationResourceSchemas.AdminGroupDeleteGroupRequest;
+import prerna.semoss.web.services.local.auth.AdminGroupAuthorizationResourceSchemas.AdminGroupEditGroupDetailsRequest;
+import prerna.semoss.web.services.local.auth.AdminGroupAuthorizationResourceSchemas.AdminGroupEnginePermissionRequest;
+import prerna.semoss.web.services.local.auth.AdminGroupAuthorizationResourceSchemas.AdminGroupGetGroupsRow;
+import prerna.semoss.web.services.local.auth.AdminGroupAuthorizationResourceSchemas.AdminGroupProjectPermissionRequest;
+import prerna.semoss.web.services.local.auth.AdminGroupAuthorizationResourceSchemas.AdminGroupRemoveEnginePermissionRequest;
+import prerna.semoss.web.services.local.auth.AdminGroupAuthorizationResourceSchemas.AdminGroupRemoveProjectPermissionRequest;
+import prerna.semoss.web.services.local.auth.AdminGroupAuthorizationResourceSchemas.AuthGroupAddMemberRequest;
+import prerna.semoss.web.services.local.auth.AdminGroupAuthorizationResourceSchemas.AuthGroupDetails;
+import prerna.semoss.web.services.local.auth.AdminGroupAuthorizationResourceSchemas.AuthGroupEngineRow;
+import prerna.semoss.web.services.local.auth.AdminGroupAuthorizationResourceSchemas.AuthGroupNonMemberRow;
+import prerna.semoss.web.services.local.auth.AdminGroupAuthorizationResourceSchemas.AuthGroupPersonRequest;
+import prerna.semoss.web.services.local.auth.AdminGroupAuthorizationResourceSchemas.AuthGroupPersonRow;
+import prerna.semoss.web.services.local.auth.AdminGroupAuthorizationResourceSchemas.AuthGroupProjectRow;
 import prerna.util.ValueUtils;
 import prerna.web.services.util.WebUtility;
 
@@ -71,21 +97,32 @@ public class AdminGroupAuthorizationResource {
 	 * Groups
 	 */
 
+	@Operation(operationId = "getGroups", summary = "List the groups", description = "Admins only. Lists every group, custom and login provider groups, sorted by type and id, one page at a time. Custom groups carry their member count.")
+	@ApiResponse(responseCode = "200", description = "The groups", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AdminGroupGetGroupsRow.class))))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error; techErrorMessage carries its cause", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	@GET
 	@Path("/getGroups")
 	@Produces("application/json")
-	public Response getGroups(@Context HttpServletRequest request, @QueryParam("searchTerm") String searchTerm,
-			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+	public Response getGroups(@Context HttpServletRequest request, @Parameter(description = "Text to search for; leave out for everything") @QueryParam("searchTerm") String searchTerm,
+			@Parameter(description = "The page size; 0 or less for all") @QueryParam("limit") long limit, @Parameter(description = "How many rows to skip") @QueryParam("offset") long offset) {
 		String term = WebUtility.inputSQLSanitizer(searchTerm);
 		return ResourceUtility.respondAsAdmin(request, "list the groups", AdminSecurityGroupUtils::getInstance,
 				(user, adminGroupUtils) -> adminGroupUtils.getGroups(term, limit, offset));
 	}
 
+	@Operation(operationId = "getGroupDetails", summary = "Read a group", description = "Admins only. Returns the details of one group.")
+	@ApiResponse(responseCode = "200", description = "The group", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthGroupDetails.class)))
+	@ApiResponse(responseCode = "400", description = "The group does not exist", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error; techErrorMessage carries its cause", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	@GET
 	@Path("/getGroupDetails")
 	@Produces("application/json")
-	public Response getGroupDetails(@Context HttpServletRequest request, @QueryParam("groupId") String groupId,
-			@QueryParam("type") String type) {
+	public Response getGroupDetails(@Context HttpServletRequest request, @Parameter(description = "The group id") @QueryParam("groupId") String groupId,
+			@Parameter(description = "The group type, CUSTOM or a login provider") @QueryParam("type") String type) {
 		String group = WebUtility.inputSQLSanitizer(groupId);
 		String groupType = AuthProvider.getProviderLabel(WebUtility.inputSQLSanitizer(type));
 		return ResourceUtility.respondAsAdmin(request, "read the details of group " + group,
@@ -93,10 +130,15 @@ public class AdminGroupAuthorizationResource {
 				(user, adminGroupUtils) -> adminGroupUtils.getGroupDetails(group, groupType));
 	}
 
+	@Operation(operationId = "getNumGroups", summary = "Count the groups", description = "Admins only. Counts the groups matching the search, for paging getGroups.")
+	@ApiResponse(responseCode = "200", description = "The number of groups", content = @Content(mediaType = "application/json", schema = @Schema(types = "integer", format = "int64", description = "The number of groups")))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error; techErrorMessage carries its cause", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	@GET
 	@Path("/getNumGroups")
 	@Produces("application/json")
-	public Response getNumGroups(@Context HttpServletRequest request, @QueryParam("searchTerm") String searchTerm) {
+	public Response getNumGroups(@Context HttpServletRequest request, @Parameter(description = "Text to search for; leave out for everything") @QueryParam("searchTerm") String searchTerm) {
 		String term = WebUtility.inputSQLSanitizer(searchTerm);
 		return ResourceUtility.respondAsAdmin(request, "count the groups", AdminSecurityGroupUtils::getInstance,
 				(user, adminGroupUtils) -> {
@@ -105,6 +147,13 @@ public class AdminGroupAuthorizationResource {
 				});
 	}
 
+	@Operation(operationId = "addGroup", summary = "Add a group", description = "Admins only. Adds a custom group, or a group from a login provider.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AdminGroupAddGroupRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The group was added", content = @Content(mediaType = "application/json", schema = @Schema(types = "boolean", description = "Always true")))
+	@ApiResponse(responseCode = "400", description = "The group id or type is missing, or the group already exists", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error; techErrorMessage carries its cause", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	@POST
 	@Produces("application/json")
 	@Path("/addGroup")
@@ -121,6 +170,13 @@ public class AdminGroupAuthorizationResource {
 				});
 	}
 
+	@Operation(operationId = "deleteGroup", summary = "Delete a group", description = "Admins only. Deletes a group and everything it was given.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AdminGroupDeleteGroupRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The group was deleted", content = @Content(mediaType = "application/json", schema = @Schema(types = "boolean", description = "Always true")))
+	@ApiResponse(responseCode = "400", description = "The group id is missing, or the group does not exist", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error; techErrorMessage carries its cause", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	@POST
 	@Produces("application/json")
 	@Path("/deleteGroup")
@@ -135,6 +191,13 @@ public class AdminGroupAuthorizationResource {
 				});
 	}
 
+	@Operation(operationId = "editGroupDetails", summary = "Edit a group", description = "Admins only. Renames a group or changes its description, carrying its access over to the new id.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AdminGroupEditGroupDetailsRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The group was changed", content = @Content(mediaType = "application/json", schema = @Schema(types = "boolean", description = "Always true")))
+	@ApiResponse(responseCode = "400", description = "A required input is missing, or the group cannot be changed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error; techErrorMessage carries its cause", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	@POST
 	@Produces("application/json")
 	@Path("/editGroupDetails")
@@ -157,12 +220,18 @@ public class AdminGroupAuthorizationResource {
 	 * Group Members For Custom Groups
 	 */
 
+	@Operation(operationId = "getGroupMembers", summary = "List the members of a custom group", description = "Admins only. Lists a custom group's members, sorted by name, one page at a time.")
+	@ApiResponse(responseCode = "200", description = "The members", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AuthGroupPersonRow.class))))
+	@ApiResponse(responseCode = "400", description = "The group id is missing, or the group does not exist or is not a custom group", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error; techErrorMessage carries its cause", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	@GET
 	@Path("/getGroupMembers")
 	@Produces("application/json")
-	public Response getGroupMembers(@Context HttpServletRequest request, @QueryParam("groupId") String groupId,
-			@QueryParam("searchTerm") String searchTerm, @QueryParam("limit") long limit,
-			@QueryParam("offset") long offset) {
+	public Response getGroupMembers(@Context HttpServletRequest request, @Parameter(description = "The group id") @QueryParam("groupId") String groupId,
+			@Parameter(description = "Text to search for; leave out for everything") @QueryParam("searchTerm") String searchTerm, @Parameter(description = "The page size; 0 or less for all") @QueryParam("limit") long limit,
+			@Parameter(description = "How many rows to skip") @QueryParam("offset") long offset) {
 		String group = WebUtility.inputSQLSanitizer(groupId);
 		String term = WebUtility.inputSQLSanitizer(searchTerm);
 		return ResourceUtility.respondAsAdmin(request, "list the members of group " + group,
@@ -170,11 +239,17 @@ public class AdminGroupAuthorizationResource {
 						.getGroupMembers(ValueUtils.requireNonBlank(group, GROUP_ID_REQUIRED), term, limit, offset));
 	}
 
+	@Operation(operationId = "getNumMembersInGroup", summary = "Count the members of a custom group", description = "Admins only. Counts the members matching the search, for paging getGroupMembers.")
+	@ApiResponse(responseCode = "200", description = "The number of members", content = @Content(mediaType = "application/json", schema = @Schema(types = "integer", format = "int64", description = "The number of members")))
+	@ApiResponse(responseCode = "400", description = "The group id is missing, or the group does not exist or is not a custom group", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error; techErrorMessage carries its cause", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	@GET
 	@Path("/getNumMembersInGroup")
 	@Produces("application/json")
-	public Response getNumMembersInGroup(@Context HttpServletRequest request, @QueryParam("groupId") String groupId,
-			@QueryParam("searchTerm") String searchTerm) {
+	public Response getNumMembersInGroup(@Context HttpServletRequest request, @Parameter(description = "The group id") @QueryParam("groupId") String groupId,
+			@Parameter(description = "Text to search for; leave out for everything") @QueryParam("searchTerm") String searchTerm) {
 		String group = WebUtility.inputSQLSanitizer(groupId);
 		String term = WebUtility.inputSQLSanitizer(searchTerm);
 		return ResourceUtility.respondAsAdmin(request, "count the members of group " + group,
@@ -182,13 +257,19 @@ public class AdminGroupAuthorizationResource {
 						.getNumMembersInGroup(ValueUtils.requireNonBlank(group, GROUP_ID_REQUIRED), term));
 	}
 
+	@Operation(operationId = "getNonGroupMembers", summary = "Search for people to add to a custom group", description = "Admins only. Lists users who are not members of the group yet, from the security database or, when it is available and msGraphLookup is not false, from the Microsoft directory.")
+	@ApiResponse(responseCode = "200", description = "The people", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AuthGroupNonMemberRow.class))))
+	@ApiResponse(responseCode = "400", description = "The group id is missing, or the group does not exist or is not a custom group", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error; techErrorMessage carries its cause", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	@GET
 	@Path("/getNonGroupMembers")
 	@Produces("application/json")
-	public Response getNonGroupMembers(@Context HttpServletRequest request, @QueryParam("groupId") String groupId,
-			@QueryParam("searchTerm") String searchTerm, @QueryParam("limit") long limit,
-			@QueryParam("offset") long offset,
-			@QueryParam(MicrosoftGraphUserLookup.LOOKUP_PARAM) String msGraphLookup) {
+	public Response getNonGroupMembers(@Context HttpServletRequest request, @Parameter(description = "The group id") @QueryParam("groupId") String groupId,
+			@Parameter(description = "Text to search for; leave out for everything") @QueryParam("searchTerm") String searchTerm, @Parameter(description = "The page size; 0 or less for all") @QueryParam("limit") long limit,
+			@Parameter(description = "How many rows to skip") @QueryParam("offset") long offset,
+			@Parameter(description = "true to search the Microsoft directory, false for the security database; leave out to use the directory whenever it is available") @QueryParam(MicrosoftGraphUserLookup.LOOKUP_PARAM) String msGraphLookup) {
 		String group = WebUtility.inputSQLSanitizer(groupId);
 		String term = WebUtility.inputSQLSanitizer(searchTerm);
 		return ResourceUtility.respondAsAdmin(request, "search for people to add to group " + group,
@@ -208,6 +289,13 @@ public class AdminGroupAuthorizationResource {
 	 * who is not in the security database yet is added to it, with the details the
 	 * directory holds for them.
 	 */
+	@Operation(operationId = "addGroupMember", summary = "Add a member to a custom group", description = "Admins only. Adds a person to a custom group. A person picked from the Microsoft directory who is not in the security database yet is added to it, with the details the directory holds for them.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthGroupAddMemberRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The member was added", content = @Content(mediaType = "application/json", schema = @Schema(types = "boolean", description = "Always true")))
+	@ApiResponse(responseCode = "400", description = "A required input is missing, the end date cannot be read, the group is not a custom group, or the person is already a member", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error; techErrorMessage carries its cause", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	@POST
 	@Produces("application/json")
 	@Path("/addGroupMember")
@@ -226,6 +314,13 @@ public class AdminGroupAuthorizationResource {
 				});
 	}
 
+	@Operation(operationId = "deleteGroupMember", summary = "Remove a member from a custom group", description = "Admins only. Takes a person out of a custom group.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthGroupPersonRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The member was removed", content = @Content(mediaType = "application/json", schema = @Schema(types = "boolean", description = "Always true")))
+	@ApiResponse(responseCode = "400", description = "A required input is missing, the group is not a custom group, or the person is not a member", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error; techErrorMessage carries its cause", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	@POST
 	@Produces("application/json")
 	@Path("/deleteGroupMember")
@@ -247,10 +342,16 @@ public class AdminGroupAuthorizationResource {
 	 * Group Managers For Custom Groups
 	 */
 
+	@Operation(operationId = "getGroupManagers", summary = "List the managers of a custom group", description = "Admins only. Lists a custom group's managers, sorted by name.")
+	@ApiResponse(responseCode = "200", description = "The managers", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AuthGroupPersonRow.class))))
+	@ApiResponse(responseCode = "400", description = "The group id is missing, or the group does not exist or is not a custom group", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error; techErrorMessage carries its cause", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	@GET
 	@Path("/getGroupManagers")
 	@Produces("application/json")
-	public Response getGroupManagers(@Context HttpServletRequest request, @QueryParam("groupId") String groupId) {
+	public Response getGroupManagers(@Context HttpServletRequest request, @Parameter(description = "The group id") @QueryParam("groupId") String groupId) {
 		String group = WebUtility.inputSQLSanitizer(groupId);
 		return ResourceUtility.respondAsAdmin(request, "list the managers of group " + group,
 				AdminSecurityGroupUtils::getInstance, (user, adminGroupUtils) -> SecurityGroupManagerUtils
@@ -262,6 +363,13 @@ public class AdminGroupAuthorizationResource {
 	 * directory who is not in the security database yet is added to it, with the
 	 * details the directory holds for them.
 	 */
+	@Operation(operationId = "addGroupManager", summary = "Make someone a manager of a custom group", description = "Admins only. Makes a person a manager of a custom group. A person picked from the Microsoft directory who is not in the security database yet is added to it, with the details the directory holds for them.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthGroupPersonRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The manager was added", content = @Content(mediaType = "application/json", schema = @Schema(types = "boolean", description = "Always true")))
+	@ApiResponse(responseCode = "400", description = "A required input is missing, the group is not a custom group, or the person already manages it", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error; techErrorMessage carries its cause", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	@POST
 	@Produces("application/json")
 	@Path("/addGroupManager")
@@ -279,6 +387,13 @@ public class AdminGroupAuthorizationResource {
 				});
 	}
 
+	@Operation(operationId = "removeGroupManager", summary = "Remove a manager of a custom group", description = "Admins only. Stops a person managing a custom group.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthGroupPersonRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The manager was removed", content = @Content(mediaType = "application/json", schema = @Schema(types = "boolean", description = "Always true")))
+	@ApiResponse(responseCode = "400", description = "A required input is missing, the group is not a custom group, or the person does not manage it", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error; techErrorMessage carries its cause", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	@POST
 	@Produces("application/json")
 	@Path("/removeGroupManager")
@@ -302,6 +417,13 @@ public class AdminGroupAuthorizationResource {
 	 * Group Project Permissions
 	 */
 
+	@Operation(operationId = "addGroupProjectPermission", summary = "Give a group access to a project", description = "Admins only. Gives a group access to a project at a permission level.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AdminGroupProjectPermissionRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The access was given", content = @Content(mediaType = "application/json", schema = @Schema(types = "boolean", description = "Always true")))
+	@ApiResponse(responseCode = "400", description = "A required input is missing or the permission is not a whole number, or the group already has access", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error; techErrorMessage carries its cause", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	@POST
 	@Produces("application/json")
 	@Path("/addGroupProjectPermission")
@@ -322,6 +444,13 @@ public class AdminGroupAuthorizationResource {
 				});
 	}
 
+	@Operation(operationId = "editGroupProjectPermission", summary = "Change a group's access to a project", description = "Admins only. Changes the permission level or end date of a group's access to a project.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AdminGroupProjectPermissionRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The access was changed", content = @Content(mediaType = "application/json", schema = @Schema(types = "boolean", description = "Always true")))
+	@ApiResponse(responseCode = "400", description = "A required input is missing or the permission is not a whole number, or the group has no access", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error; techErrorMessage carries its cause", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	@POST
 	@Produces("application/json")
 	@Path("/editGroupProjectPermission")
@@ -343,6 +472,13 @@ public class AdminGroupAuthorizationResource {
 				});
 	}
 
+	@Operation(operationId = "removeGroupProjectPermission", summary = "Take away a group's access to a project", description = "Admins only. Takes away a group's access to a project.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AdminGroupRemoveProjectPermissionRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The access was taken away", content = @Content(mediaType = "application/json", schema = @Schema(types = "boolean", description = "Always true")))
+	@ApiResponse(responseCode = "400", description = "A required input is missing, or the group has no access", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error; techErrorMessage carries its cause", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	@POST
 	@Produces("application/json")
 	@Path("/removeGroupProjectPermission")
@@ -361,13 +497,19 @@ public class AdminGroupAuthorizationResource {
 				});
 	}
 
+	@Operation(operationId = "getProjectsForGroup", summary = "List the projects a group has access to", description = "Admins only. Lists the projects the group holds a grant on, with the grant, sorted by name, one page at a time.")
+	@ApiResponse(responseCode = "200", description = "The projects", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AuthGroupProjectRow.class))))
+	@ApiResponse(responseCode = "400", description = "The group id is missing, or the group does not exist", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error; techErrorMessage carries its cause", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	@GET
 	@Path("/getProjectsForGroup")
 	@Produces("application/json")
-	public Response getProjectsForGroup(@Context HttpServletRequest request, @QueryParam("groupId") String groupId,
-			@QueryParam("groupType") String groupType, @QueryParam("searchTerm") String searchTerm,
-			@QueryParam("limit") long limit, @QueryParam("offset") long offset,
-			@QueryParam("onlyApps") boolean onlyApps) {
+	public Response getProjectsForGroup(@Context HttpServletRequest request, @Parameter(description = "The group id") @QueryParam("groupId") String groupId,
+			@Parameter(description = "The group type, CUSTOM or a login provider") @QueryParam("groupType") String groupType, @Parameter(description = "Text to search for; leave out for everything") @QueryParam("searchTerm") String searchTerm,
+			@Parameter(description = "The page size; 0 or less for all") @QueryParam("limit") long limit, @Parameter(description = "How many rows to skip") @QueryParam("offset") long offset,
+			@Parameter(description = "True to keep only the projects with a portal") @QueryParam("onlyApps") boolean onlyApps) {
 		String group = WebUtility.inputSQLSanitizer(groupId);
 		String type = AuthProvider.getProviderLabel(WebUtility.inputSQLSanitizer(groupType));
 		String term = WebUtility.inputSQLSanitizer(searchTerm);
@@ -378,12 +520,18 @@ public class AdminGroupAuthorizationResource {
 								onlyApps));
 	}
 
+	@Operation(operationId = "getNumProjectsForGroup", summary = "Count the projects a group has access to", description = "Admins only. Counts the projects matching the search, for paging getProjectsForGroup.")
+	@ApiResponse(responseCode = "200", description = "The number of projects", content = @Content(mediaType = "application/json", schema = @Schema(types = "integer", format = "int64", description = "The number of projects")))
+	@ApiResponse(responseCode = "400", description = "The group id is missing, or the group does not exist", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error; techErrorMessage carries its cause", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	@GET
 	@Path("/getNumProjectsForGroup")
 	@Produces("application/json")
-	public Response getNumProjectsForGroup(@Context HttpServletRequest request, @QueryParam("groupId") String groupId,
-			@QueryParam("groupType") String groupType, @QueryParam("searchTerm") String searchTerm,
-			@QueryParam("onlyApps") boolean onlyApps) {
+	public Response getNumProjectsForGroup(@Context HttpServletRequest request, @Parameter(description = "The group id") @QueryParam("groupId") String groupId,
+			@Parameter(description = "The group type, CUSTOM or a login provider") @QueryParam("groupType") String groupType, @Parameter(description = "Text to search for; leave out for everything") @QueryParam("searchTerm") String searchTerm,
+			@Parameter(description = "True to keep only the projects with a portal") @QueryParam("onlyApps") boolean onlyApps) {
 		String group = WebUtility.inputSQLSanitizer(groupId);
 		String type = AuthProvider.getProviderLabel(WebUtility.inputSQLSanitizer(groupType));
 		String term = WebUtility.inputSQLSanitizer(searchTerm);
@@ -392,13 +540,19 @@ public class AdminGroupAuthorizationResource {
 						ValueUtils.requireNonBlank(group, GROUP_ID_REQUIRED), type, term, onlyApps));
 	}
 
+	@Operation(operationId = "getAvailableProjectsForGroup", summary = "List the projects a group can be given", description = "Admins only. Lists the projects the group has no access to yet, sorted by name, one page at a time.")
+	@ApiResponse(responseCode = "200", description = "The projects", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AdminGroupAvailableProjectRow.class))))
+	@ApiResponse(responseCode = "400", description = "The group id is missing, or the group does not exist", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error; techErrorMessage carries its cause", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	@GET
 	@Path("/getAvailableProjectsForGroup")
 	@Produces("application/json")
 	public Response getAvailableProjectsForGroup(@Context HttpServletRequest request,
-			@QueryParam("groupId") String groupId, @QueryParam("groupType") String groupType,
-			@QueryParam("searchTerm") String searchTerm, @QueryParam("limit") long limit,
-			@QueryParam("offset") long offset, @QueryParam("onlyApps") boolean onlyApps) {
+			@Parameter(description = "The group id") @QueryParam("groupId") String groupId, @Parameter(description = "The group type, CUSTOM or a login provider") @QueryParam("groupType") String groupType,
+			@Parameter(description = "Text to search for; leave out for everything") @QueryParam("searchTerm") String searchTerm, @Parameter(description = "The page size; 0 or less for all") @QueryParam("limit") long limit,
+			@Parameter(description = "How many rows to skip") @QueryParam("offset") long offset, @Parameter(description = "True to keep only the projects with a portal") @QueryParam("onlyApps") boolean onlyApps) {
 		String group = WebUtility.inputSQLSanitizer(groupId);
 		String type = AuthProvider.getProviderLabel(WebUtility.inputSQLSanitizer(groupType));
 		String term = WebUtility.inputSQLSanitizer(searchTerm);
@@ -421,6 +575,13 @@ public class AdminGroupAuthorizationResource {
 	 * empty for no limit defined) is the team limit, with shared and each-member
 	 * rules.
 	 */
+	@Operation(operationId = "addGroupEnginePermission", summary = "Give a group access to an engine", description = "Admins only. Gives a group access to an engine at a permission level. On a model, usageLimit sets the team limit, with shared and each-member rules.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AdminGroupAddEnginePermissionRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The access was given", content = @Content(mediaType = "application/json", schema = @Schema(types = "boolean", description = "Always true")))
+	@ApiResponse(responseCode = "400", description = "A required input is missing, the permission is not a whole number, the usage limit cannot be read, or the group already has access", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error; techErrorMessage carries its cause", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	@POST
 	@Produces("application/json")
 	@Path("/addGroupEnginePermission")
@@ -448,6 +609,13 @@ public class AdminGroupAuthorizationResource {
 				});
 	}
 
+	@Operation(operationId = "editGroupEnginePermission", summary = "Change a group's access to an engine", description = "Admins only. Changes the permission level or end date of a group's access to an engine.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AdminGroupEnginePermissionRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The access was changed", content = @Content(mediaType = "application/json", schema = @Schema(types = "boolean", description = "Always true")))
+	@ApiResponse(responseCode = "400", description = "A required input is missing or the permission is not a whole number, or the group has no access", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error; techErrorMessage carries its cause", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	@POST
 	@Produces("application/json")
 	@Path("/editGroupEnginePermission")
@@ -469,6 +637,13 @@ public class AdminGroupAuthorizationResource {
 				});
 	}
 
+	@Operation(operationId = "removeGroupEnginePermission", summary = "Take away a group's access to an engine", description = "Admins only. Takes away a group's access to an engine.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AdminGroupRemoveEnginePermissionRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The access was taken away", content = @Content(mediaType = "application/json", schema = @Schema(types = "boolean", description = "Always true")))
+	@ApiResponse(responseCode = "400", description = "A required input is missing, or the group has no access", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error; techErrorMessage carries its cause", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	@POST
 	@Produces("application/json")
 	@Path("/removeGroupEnginePermission")
@@ -487,12 +662,18 @@ public class AdminGroupAuthorizationResource {
 				});
 	}
 
+	@Operation(operationId = "getEnginesForGroup", summary = "List the engines a group has access to", description = "Admins only. Lists the engines the group holds a grant on, with the grant, sorted by name, one page at a time.")
+	@ApiResponse(responseCode = "200", description = "The engines", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AuthGroupEngineRow.class))))
+	@ApiResponse(responseCode = "400", description = "The group id is missing, or the group does not exist", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error; techErrorMessage carries its cause", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	@GET
 	@Path("/getEnginesForGroup")
 	@Produces("application/json")
-	public Response getEnginesForGroup(@Context HttpServletRequest request, @QueryParam("groupId") String groupId,
-			@QueryParam("groupType") String groupType, @QueryParam("searchTerm") String searchTerm,
-			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+	public Response getEnginesForGroup(@Context HttpServletRequest request, @Parameter(description = "The group id") @QueryParam("groupId") String groupId,
+			@Parameter(description = "The group type, CUSTOM or a login provider") @QueryParam("groupType") String groupType, @Parameter(description = "Text to search for; leave out for everything") @QueryParam("searchTerm") String searchTerm,
+			@Parameter(description = "The page size; 0 or less for all") @QueryParam("limit") long limit, @Parameter(description = "How many rows to skip") @QueryParam("offset") long offset) {
 		String group = WebUtility.inputSQLSanitizer(groupId);
 		String type = AuthProvider.getProviderLabel(WebUtility.inputSQLSanitizer(groupType));
 		String term = WebUtility.inputSQLSanitizer(searchTerm);
@@ -501,11 +682,17 @@ public class AdminGroupAuthorizationResource {
 						ValueUtils.requireNonBlank(group, GROUP_ID_REQUIRED), type, term, limit, offset));
 	}
 
+	@Operation(operationId = "getNumEnginesForGroup", summary = "Count the engines a group has access to", description = "Admins only. Counts the engines matching the search, for paging getEnginesForGroup.")
+	@ApiResponse(responseCode = "200", description = "The number of engines", content = @Content(mediaType = "application/json", schema = @Schema(types = "integer", format = "int64", description = "The number of engines")))
+	@ApiResponse(responseCode = "400", description = "The group id is missing, or the group does not exist", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error; techErrorMessage carries its cause", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	@GET
 	@Path("/getNumEnginesForGroup")
 	@Produces("application/json")
-	public Response getNumEnginesForGroup(@Context HttpServletRequest request, @QueryParam("groupId") String groupId,
-			@QueryParam("groupType") String groupType, @QueryParam("searchTerm") String searchTerm) {
+	public Response getNumEnginesForGroup(@Context HttpServletRequest request, @Parameter(description = "The group id") @QueryParam("groupId") String groupId,
+			@Parameter(description = "The group type, CUSTOM or a login provider") @QueryParam("groupType") String groupType, @Parameter(description = "Text to search for; leave out for everything") @QueryParam("searchTerm") String searchTerm) {
 		String group = WebUtility.inputSQLSanitizer(groupId);
 		String type = AuthProvider.getProviderLabel(WebUtility.inputSQLSanitizer(groupType));
 		String term = WebUtility.inputSQLSanitizer(searchTerm);
@@ -514,13 +701,19 @@ public class AdminGroupAuthorizationResource {
 						.getNumEnginesForGroup(ValueUtils.requireNonBlank(group, GROUP_ID_REQUIRED), type, term));
 	}
 
+	@Operation(operationId = "getAvailableEnginesForGroup", summary = "List the engines a group can be given", description = "Admins only. Lists the engines the group has no access to yet, sorted by name, one page at a time.")
+	@ApiResponse(responseCode = "200", description = "The engines", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AdminGroupAvailableEngineRow.class))))
+	@ApiResponse(responseCode = "400", description = "The group id is missing, or the group does not exist", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error; techErrorMessage carries its cause", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	@GET
 	@Path("/getAvailableEnginesForGroup")
 	@Produces("application/json")
 	public Response getAvailableEnginesForGroup(@Context HttpServletRequest request,
-			@QueryParam("groupId") String groupId, @QueryParam("groupType") String groupType,
-			@QueryParam("searchTerm") String searchTerm, @QueryParam("limit") long limit,
-			@QueryParam("offset") long offset) {
+			@Parameter(description = "The group id") @QueryParam("groupId") String groupId, @Parameter(description = "The group type, CUSTOM or a login provider") @QueryParam("groupType") String groupType,
+			@Parameter(description = "Text to search for; leave out for everything") @QueryParam("searchTerm") String searchTerm, @Parameter(description = "The page size; 0 or less for all") @QueryParam("limit") long limit,
+			@Parameter(description = "How many rows to skip") @QueryParam("offset") long offset) {
 		String group = WebUtility.inputSQLSanitizer(groupId);
 		String type = AuthProvider.getProviderLabel(WebUtility.inputSQLSanitizer(groupType));
 		String term = WebUtility.inputSQLSanitizer(searchTerm);

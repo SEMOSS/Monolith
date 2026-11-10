@@ -45,12 +45,20 @@ import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.Response;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import prerna.auth.utils.SecurityUpdateUtils;
 import prerna.engine.api.IDatabaseEngine;
 import prerna.engine.api.IRawSelectWrapper;
 import prerna.query.querystruct.SelectQueryStruct;
 import prerna.query.querystruct.selectors.QueryColumnSelector;
 import prerna.rdf.engine.wrappers.WrapperManager;
+import prerna.semoss.web.openapi.CommonSchemas.ErrorMessage;
+import prerna.semoss.web.services.config.AdminConfigServiceSchemas.AdminConfigSetInitialAdminsRequest;
+import prerna.semoss.web.services.config.AdminConfigServiceSchemas.AdminConfigSetInitialAdminsResult;
 import prerna.util.Constants;
 import prerna.util.SocialPropertiesUtil;
 import prerna.util.SystemEngineRegistry;
@@ -64,6 +72,11 @@ public class AdminConfigService {
 
 	@POST
 	@Path("/setInitialAdmins")
+	@Operation(operationId = "setInitialAdmins", summary = "Register the first admins", description = "Registers the given user ids as admins, only while no user exists yet, and returns the login page to go to next.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AdminConfigSetInitialAdminsRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The admins were registered; or, with errorMessage, no ids were sent", content = @Content(mediaType = "application/json", schema = @Schema(oneOf = {
+			AdminConfigSetInitialAdminsResult.class, ErrorMessage.class })))
+	@ApiResponse(responseCode = "400", description = "An initial admin is already set, or that could not be checked", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response setInitialAdmins(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
 		IDatabaseEngine engine = SystemEngineRegistry.getSecurityDb();

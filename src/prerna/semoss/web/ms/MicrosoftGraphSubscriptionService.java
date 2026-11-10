@@ -38,6 +38,12 @@ import java.util.UUID;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
@@ -53,6 +59,13 @@ import prerna.io.connector.ms.MicrosoftGraphSubscriptionRegistry;
 import prerna.io.connector.ms.MicrosoftGraphSubscriptionRegistry.Subscription;
 import prerna.io.connector.ms.MicrosoftLoginUtils;
 import prerna.semoss.web.app.MicrosoftGraphApplication;
+import prerna.semoss.web.ms.MicrosoftGraphSubscriptionServiceSchemas.MsGraphAvailable;
+import prerna.semoss.web.ms.MicrosoftGraphSubscriptionServiceSchemas.MsGraphError;
+import prerna.semoss.web.ms.MicrosoftGraphSubscriptionServiceSchemas.MsGraphRenewRequest;
+import prerna.semoss.web.ms.MicrosoftGraphSubscriptionServiceSchemas.MsGraphSubscribeRequest;
+import prerna.semoss.web.ms.MicrosoftGraphSubscriptionServiceSchemas.MsGraphSubscriptionDetails;
+import prerna.semoss.web.ms.MicrosoftGraphSubscriptionServiceSchemas.MsGraphSubscriptions;
+import prerna.semoss.web.ms.MicrosoftGraphSubscriptionServiceSchemas.MsGraphUnsubscribeResult;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.ValueUtils;
 import prerna.web.services.util.WebUtility;
@@ -121,6 +134,9 @@ public class MicrosoftGraphSubscriptionService {
 	 */
 	@GET
 	@Path("/available")
+	@Operation(operationId = "available", summary = "Check Microsoft Graph subscriptions can be made", description = "Preflight for the signed in user: whether they have a Microsoft login, whether this deployment asks for a scope that allows subscribing, and whether Microsoft can reach it over public https, with the reasons when not.")
+	@ApiResponse(responseCode = "200", description = "What is and is not in place", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MsGraphAvailable.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MsGraphError.class)))
 	public Response available(@Context HttpServletRequest req) {
 		User user = null;
 		try {
@@ -182,6 +198,12 @@ public class MicrosoftGraphSubscriptionService {
 	 */
 	@POST
 	@Path("/subscribe")
+	@Operation(operationId = "subscribe", summary = "Subscribe to Microsoft Graph changes", description = "Creates a Graph subscription to the signed in user's mailbox or calendar with their Microsoft login, and records it. Graph must be able to reach this deployment to validate it.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = MsGraphSubscribeRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The subscription", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MsGraphSubscriptionDetails.class)))
+	@ApiResponse(responseCode = "400", description = "No Microsoft login, a missing or unsupported resource, or Graph refused it", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MsGraphError.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MsGraphError.class)))
+	@ApiResponse(responseCode = "500", description = "The subscription could not be created or recorded", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MsGraphError.class)))
 	public Response subscribe(@Context HttpServletRequest req) {
 		User user;
 		try {
@@ -270,6 +292,13 @@ public class MicrosoftGraphSubscriptionService {
 	 */
 	@POST
 	@Path("/renew")
+	@Operation(operationId = "renew", summary = "Renew a Microsoft Graph subscription", description = "Pushes back the expiry of one of the signed in user's subscriptions. It must be renewed before it expires.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = MsGraphRenewRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The subscription as it is now", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MsGraphSubscriptionDetails.class)))
+	@ApiResponse(responseCode = "400", description = "No Microsoft login, or no subscriptionId", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MsGraphError.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MsGraphError.class)))
+	@ApiResponse(responseCode = "404", description = "The user has no such subscription recorded", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MsGraphError.class)))
+	@ApiResponse(responseCode = "500", description = "The subscription could not be renewed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MsGraphError.class)))
 	public Response renew(@Context HttpServletRequest req) {
 		User user;
 		try {
@@ -322,6 +351,13 @@ public class MicrosoftGraphSubscriptionService {
 	 */
 	@DELETE
 	@Path("/subscription")
+	@Operation(operationId = "subscription", summary = "Stop a Microsoft Graph subscription", description = "Deletes one of the signed in user's subscriptions at Graph, then forgets it.")
+	@Parameter(name = "subscriptionId", in = ParameterIn.QUERY, description = "The subscription to stop", required = true, schema = @Schema(types = "string"))
+	@ApiResponse(responseCode = "200", description = "What was stopped", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MsGraphUnsubscribeResult.class)))
+	@ApiResponse(responseCode = "400", description = "No Microsoft login, or no subscriptionId", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MsGraphError.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MsGraphError.class)))
+	@ApiResponse(responseCode = "404", description = "The user has no such subscription recorded", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MsGraphError.class)))
+	@ApiResponse(responseCode = "500", description = "The subscription could not be stopped", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MsGraphError.class)))
 	public Response unsubscribe(@Context HttpServletRequest req) {
 		User user;
 		try {
@@ -373,6 +409,10 @@ public class MicrosoftGraphSubscriptionService {
 	 */
 	@GET
 	@Path("/subscriptions")
+	@Operation(operationId = "subscriptions", summary = "List the Microsoft Graph subscriptions", description = "Returns the signed in user's subscriptions as this deployment recorded them and as Graph holds them; the two differ when one has expired or was made elsewhere.")
+	@ApiResponse(responseCode = "200", description = "The subscriptions", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MsGraphSubscriptions.class)))
+	@ApiResponse(responseCode = "400", description = "The user has no Microsoft login", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MsGraphError.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MsGraphError.class)))
 	public Response subscriptions(@Context HttpServletRequest req) {
 		User user;
 		try {

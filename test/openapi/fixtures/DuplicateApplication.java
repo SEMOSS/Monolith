@@ -35,21 +35,27 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.core.Application;
 import jakarta.ws.rs.core.Response;
 
-/** An application whose resource uses one operationId twice. */
+/** An application whose two resources publish the same qualified operationId. */
 public class DuplicateApplication extends Application {
 
-	@Path("/twice")
-	public static class DuplicateResource {
+	/** Publishes {@code dup.twice.same}: the parameter-only segment is left out. */
+	@Path("/twice/{id}")
+	public static class FirstResource {
 
 		@GET
-		@Path("/a")
+		@Path("/same")
 		@Operation(operationId = "same", summary = "First")
 		public Response first() {
 			return Response.ok().build();
 		}
+	}
+
+	/** Also publishes {@code dup.twice.same}. */
+	@Path("/twice")
+	public static class SecondResource {
 
 		@GET
-		@Path("/b")
+		@Path("/same")
 		@Operation(operationId = "same", summary = "Second")
 		public Response second() {
 			return Response.ok().build();
@@ -58,6 +64,6 @@ public class DuplicateApplication extends Application {
 
 	@Override
 	public Set<Object> getSingletons() {
-		return Set.of(new DuplicateResource());
+		return Set.of(new FirstResource(), new SecondResource());
 	}
 }

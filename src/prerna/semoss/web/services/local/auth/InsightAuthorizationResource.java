@@ -44,12 +44,34 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import prerna.auth.AccessPermissionEnum;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityInsightUtils;
 import prerna.auth.utils.SecurityProjectUtils;
+import prerna.semoss.web.openapi.CommonSchemas.ErrorMessage;
+import prerna.semoss.web.openapi.CommonSchemas.Success;
 import prerna.semoss.web.services.local.ResourceUtility;
+import prerna.semoss.web.services.local.auth.InsightAuthorizationResourceSchemas.AuthInsightApproveRequestsRequest;
+import prerna.semoss.web.services.local.auth.InsightAuthorizationResourceSchemas.AuthInsightDenyRequestsRequest;
+import prerna.semoss.web.services.local.auth.InsightAuthorizationResourceSchemas.AuthInsightEditableInsightRow;
+import prerna.semoss.web.services.local.auth.InsightAuthorizationResourceSchemas.AuthInsightGetInsightsRow;
+import prerna.semoss.web.services.local.auth.InsightAuthorizationResourceSchemas.AuthInsightMembersPage;
+import prerna.semoss.web.services.local.auth.InsightAuthorizationResourceSchemas.AuthInsightRemoveUserRequest;
+import prerna.semoss.web.services.local.auth.InsightAuthorizationResourceSchemas.AuthInsightRemoveUsersRequest;
+import prerna.semoss.web.services.local.auth.InsightAuthorizationResourceSchemas.AuthInsightSetFavoriteRequest;
+import prerna.semoss.web.services.local.auth.InsightAuthorizationResourceSchemas.AuthInsightSetGlobalRequest;
+import prerna.semoss.web.services.local.auth.InsightAuthorizationResourceSchemas.AuthInsightSetVisibilityRequest;
+import prerna.semoss.web.services.local.auth.InsightAuthorizationResourceSchemas.AuthInsightUserNoCredentialsRow;
+import prerna.semoss.web.services.local.auth.InsightAuthorizationResourceSchemas.AuthInsightUserPermission;
+import prerna.semoss.web.services.local.auth.InsightAuthorizationResourceSchemas.AuthInsightUserPermissionRequest;
+import prerna.semoss.web.services.local.auth.InsightAuthorizationResourceSchemas.AuthInsightUserPermissionsRequest;
 import prerna.web.services.util.WebUtility;
 
 @Path("/auth/insight")
@@ -66,9 +88,15 @@ public class InsightAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getInsights")
-	public Response getInsights(@Context HttpServletRequest request, @QueryParam("projectId") String projectId,
-			@QueryParam("searchTerm") String searchTerm, @QueryParam("limit") String limit,
-			@QueryParam("offset") String offset) {
+	@Operation(operationId = "getInsights", summary = "Search the insights the user can see", description = "Returns the insights the user can see, optionally only those of one project or whose name matches a search term, a page at a time.")
+	@ApiResponse(responseCode = "200", description = "The insights", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AuthInsightGetInsightsRow.class))))
+	@ApiResponse(responseCode = "400", description = "A required input is missing or not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	public Response getInsights(@Context HttpServletRequest request, @Parameter(description = "Only the insights of this project") @QueryParam("projectId") String projectId,
+			@Parameter(description = "Text to match against the insight name") @QueryParam("searchTerm") String searchTerm, @Parameter(description = "The page size; empty or 0 for all") @QueryParam("limit") String limit,
+			@Parameter(description = "How many rows to skip") @QueryParam("offset") String offset) {
 		String project = WebUtility.inputSanitizer(projectId);
 		String term = WebUtility.inputSQLSanitizer(searchTerm);
 		String offsetValue = WebUtility.inputSanitizer(offset);
@@ -94,8 +122,14 @@ public class InsightAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getProjectInsights")
-	public Response getProjectInsights(@Context HttpServletRequest request, @QueryParam("projectId") String projectId,
-			@QueryParam("searchTerm") String searchTerm) {
+	@Operation(operationId = "getProjectInsights", summary = "List the insights the user can edit in a project", description = "Returns the insights of a project the user can edit: all of them for a project owner, the ones they own or edit for a project editor, and none otherwise.")
+	@ApiResponse(responseCode = "200", description = "The insights", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AuthInsightEditableInsightRow.class))))
+	@ApiResponse(responseCode = "400", description = "A required input is missing or not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	public Response getProjectInsights(@Context HttpServletRequest request, @Parameter(description = "The project id") @QueryParam("projectId") String projectId,
+			@Parameter(description = "Not used") @QueryParam("searchTerm") String searchTerm) {
 		String project = WebUtility.inputSanitizer(projectId);
 		return ResourceUtility.respond(request, "list the insights they can edit in project " + project,
 				user -> SecurityInsightUtils.getUserEditableInsights(user, project));
@@ -111,8 +145,14 @@ public class InsightAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getUserInsightPermission")
+	@Operation(operationId = "getUserInsightPermission", summary = "Read the user's permission on an insight", description = "Returns the permission level the signed in user has on an insight; 403 when they have none.")
+	@ApiResponse(responseCode = "200", description = "The user's permission", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthInsightUserPermission.class)))
+	@ApiResponse(responseCode = "400", description = "A required input is missing or not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response getUserInsightPermission(@Context HttpServletRequest request,
-			@QueryParam("projectId") String projectId, @QueryParam("insightId") String insightId) {
+			@Parameter(description = "The id of the project the insight belongs to") @QueryParam("projectId") String projectId, @Parameter(description = "The insight id") @QueryParam("insightId") String insightId) {
 		String project = WebUtility.inputSanitizer(projectId);
 		String insight = WebUtility.inputSanitizer(insightId);
 		return ResourceUtility.respond(request,
@@ -138,10 +178,16 @@ public class InsightAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getInsightUsers")
-	public Response getInsightUsers(@Context HttpServletRequest request, @QueryParam("projectId") String projectId,
-			@QueryParam("insightId") String insightId, @QueryParam("userId") String userId,
-			@QueryParam("permission") String permission, @QueryParam("limit") long limit,
-			@QueryParam("offset") long offset) {
+	@Operation(operationId = "getInsightUsers", summary = "List the users of an insight", description = "Returns a page of the users who have access to an insight, optionally filtered by user id and permission, and how many match in total.")
+	@ApiResponse(responseCode = "200", description = "The users", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthInsightMembersPage.class)))
+	@ApiResponse(responseCode = "400", description = "A required input is missing or not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	public Response getInsightUsers(@Context HttpServletRequest request, @Parameter(description = "The id of the project the insight belongs to") @QueryParam("projectId") String projectId,
+			@Parameter(description = "The insight id") @QueryParam("insightId") String insightId, @Parameter(description = "Text to match against the user id") @QueryParam("userId") String userId,
+			@Parameter(description = "Only users with this permission level, such as OWNER, EDIT or READ_ONLY") @QueryParam("permission") String permission, @Parameter(description = "The page size; 0 or less for all") @QueryParam("limit") long limit,
+			@Parameter(description = "How many users to skip") @QueryParam("offset") long offset) {
 		String project = WebUtility.inputSanitizer(projectId);
 		String memberId = WebUtility.inputSQLSanitizer(userId);
 		String insight = WebUtility.inputSanitizer(insightId);
@@ -169,6 +215,13 @@ public class InsightAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("addInsightUserPermission")
+	@Operation(operationId = "addInsightUserPermission", summary = "Give a user access to an insight", description = "Gives a user a permission level on an insight, and read only access to its project when they have none.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthInsightUserPermissionRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The access was given", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "A required input is missing or not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response addInsightUserPermission(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		String newUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
@@ -200,6 +253,13 @@ public class InsightAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("editInsightUserPermission")
+	@Operation(operationId = "editInsightUserPermission", summary = "Change a user's permission on an insight", description = "Changes the permission level a user has on an insight.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthInsightUserPermissionRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The permission was changed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "A required input is missing or not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response editInsightUserPermission(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		String existingUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
@@ -228,6 +288,13 @@ public class InsightAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("editInsightUserPermissions")
+	@Operation(operationId = "editInsightUserPermissions", summary = "Change users' permissions on an insight", description = "Changes the permission levels of several users on an insight at once. Limited to admins when only admins may add insight access.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthInsightUserPermissionsRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The permissions were changed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "A required input is missing or not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this, such as when only admins may change insight access", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response editInsightUserPermissions(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
@@ -259,6 +326,13 @@ public class InsightAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("removeInsightUserPermission")
+	@Operation(operationId = "removeInsightUserPermission", summary = "Take a user's access to an insight away", description = "Removes a user's access to an insight.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthInsightRemoveUserRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The access was removed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "A required input is missing or not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response removeInsightUserPermission(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		String existingUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
@@ -284,6 +358,13 @@ public class InsightAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("setInsightGlobal")
+	@Operation(operationId = "setInsightGlobal", summary = "Make an insight public or private", description = "Sets whether an insight is public within its project. Only admins may make an insight public when the server limits that to admins.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthInsightSetGlobalRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The insight was changed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "A required input is missing or not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this, such as when only admins may change insight access", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response setInsightGlobal(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
@@ -328,6 +409,13 @@ public class InsightAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("setInsightFavorite")
+	@Operation(operationId = "setInsightFavorite", summary = "Mark an insight a favorite", description = "Marks or unmarks an insight as one of the user's favorites.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthInsightSetFavoriteRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The favorite was saved", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "A required input is missing or not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response setInsightFavorite(@Context HttpServletRequest request, MultivaluedMap<String, String> form,
 			String appId) {
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
@@ -354,6 +442,13 @@ public class InsightAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("setInsightVisibility")
+	@Operation(operationId = "setInsightVisibility", summary = "Show or hide an insight", description = "Shows or hides an insight in the user's own lists.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthInsightSetVisibilityRequest.class)))
+	@ApiResponse(responseCode = "200", description = "Always true", content = @Content(mediaType = "application/json", schema = @Schema(types = "boolean", description = "Always true")))
+	@ApiResponse(responseCode = "400", description = "A required input is missing or not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response setInsightVisibility(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
@@ -375,10 +470,16 @@ public class InsightAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getInsightUsersNoCredentials")
+	@Operation(operationId = "getInsightUsersNoCredentials", summary = "List the users without access to an insight", description = "Returns the users who do not have access to an insight yet, optionally matching a search term. The user must be able to view the insight.")
+	@ApiResponse(responseCode = "200", description = "The users", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AuthInsightUserNoCredentialsRow.class))))
+	@ApiResponse(responseCode = "400", description = "A required input is missing or not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response getInsightUsersNoCredentials(@Context HttpServletRequest request,
-			@QueryParam("projectId") String projectId, @QueryParam("insightId") String insightId,
-			@QueryParam("searchTerm") String searchTerm, @QueryParam("limit") long limit,
-			@QueryParam("offset") long offset) {
+			@Parameter(description = "The id of the project the insight belongs to") @QueryParam("projectId") String projectId, @Parameter(description = "The insight id") @QueryParam("insightId") String insightId,
+			@Parameter(description = "Text to match against the user's id, name, username or email") @QueryParam("searchTerm") String searchTerm, @Parameter(description = "The page size; 0 or less for all") @QueryParam("limit") long limit,
+			@Parameter(description = "How many users to skip") @QueryParam("offset") long offset) {
 		String project = WebUtility.inputSanitizer(projectId);
 		String insight = WebUtility.inputSanitizer(insightId);
 		String term = WebUtility.inputSQLSanitizer(searchTerm);
@@ -397,6 +498,13 @@ public class InsightAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("addInsightUserPermissions")
+	@Operation(operationId = "addInsightUserPermissions", summary = "Give users access to an insight", description = "Gives several users permission levels on an insight at once. Limited to admins when only admins may add insight access.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthInsightUserPermissionsRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The access was given", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "A required input is missing or not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this, such as when only admins may change insight access", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response addInsightUserPermissions(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
@@ -429,6 +537,13 @@ public class InsightAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("removeInsightUserPermissions")
+	@Operation(operationId = "removeInsightUserPermissions", summary = "Take users' access to an insight away", description = "Removes several users' access to an insight at once. Limited to admins when only admins may add insight access.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthInsightRemoveUsersRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The access was removed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "A required input is missing or not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this, such as when only admins may change insight access", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response removeInsightUserPermissions(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
@@ -460,6 +575,13 @@ public class InsightAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("approveInsightUserAccessRequest")
+	@Operation(operationId = "approveInsightUserAccessRequest", summary = "Approve requests for access to an insight", description = "Approves requests for access to an insight, giving each requester the level named. Limited to admins when only admins may add insight access.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthInsightApproveRequestsRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The requests were approved", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "A required input is missing or not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this, such as when only admins may change insight access", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response approveInsightUserAccessRequest(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
@@ -492,6 +614,13 @@ public class InsightAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("denyInsightUserAccessRequest")
+	@Operation(operationId = "denyInsightUserAccessRequest", summary = "Deny requests for access to an insight", description = "Denies requests for access to an insight. Limited to admins when only admins may add insight access.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthInsightDenyRequestsRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The requests were denied", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "A required input is missing or not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this, such as when only admins may change insight access", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response denyInsightUserAccessRequest(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));

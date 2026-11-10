@@ -34,6 +34,14 @@ import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.Response;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import prerna.semoss.web.services.config.HealthResourceSchemas.HealthDetails;
+import prerna.semoss.web.services.config.HealthResourceSchemas.HealthLiveness;
+import prerna.semoss.web.services.config.HealthResourceSchemas.HealthReadiness;
 import prerna.util.Constants;
 import prerna.util.SystemEngineRegistry;
 import prerna.util.Utility;
@@ -62,6 +70,8 @@ public class HealthResource {
 	@GET
 	@Path("/")
 	@Produces("application/json")
+	@Operation(operationId = "liveness", summary = "Check the server is up", description = "Liveness probe: answers whenever the servlet container is serving requests, without checking anything downstream.")
+	@ApiResponse(responseCode = "200", description = "The server is up", content = @Content(mediaType = "application/json", schema = @Schema(implementation = HealthLiveness.class)))
 	public Response liveness() {
 		Map<String, Object> status = new HashMap<>();
 		status.put("status", "UP");
@@ -77,6 +87,9 @@ public class HealthResource {
 	@GET
 	@Path("/ready")
 	@Produces("application/json")
+	@Operation(operationId = "ready", summary = "Check startup has finished", description = "Readiness probe: whether the server finished a successful startup.")
+	@ApiResponse(responseCode = "200", description = "Startup is complete", content = @Content(mediaType = "application/json", schema = @Schema(implementation = HealthReadiness.class)))
+	@ApiResponse(responseCode = "503", description = "The server is still starting, or startup failed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = HealthReadiness.class)))
 	public Response readiness() {
 		boolean complete = DBLoader.isStartupComplete();
 
@@ -96,6 +109,9 @@ public class HealthResource {
 	@GET
 	@Path("/details")
 	@Produces("application/json")
+	@Operation(operationId = "details", summary = "Check the system databases", description = "Reports whether each required and enabled system database is connected. Databases whose feature is off are reported as DISABLED and do not affect the overall status.")
+	@ApiResponse(responseCode = "200", description = "Every required and enabled database is connected", content = @Content(mediaType = "application/json", schema = @Schema(implementation = HealthDetails.class)))
+	@ApiResponse(responseCode = "503", description = "A required or enabled database is not connected", content = @Content(mediaType = "application/json", schema = @Schema(implementation = HealthDetails.class)))
 	public Response health() {
 		Map<String, Object> resources = new HashMap<>();
 		boolean healthy = true;

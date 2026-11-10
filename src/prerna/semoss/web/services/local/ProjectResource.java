@@ -55,6 +55,13 @@ import org.json.JSONObject;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import io.swagger.v3.oas.annotations.Hidden;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.annotation.security.PermitAll;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.HttpServletRequest;
@@ -96,6 +103,12 @@ import prerna.sablecc2.PixelRunner;
 import prerna.sablecc2.PixelStreamUtility;
 import prerna.sablecc2.om.NounStore;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
+import prerna.semoss.web.openapi.CommonSchemas.ErrorMessage;
+import prerna.semoss.web.openapi.CommonSchemas.ErrorText;
+import prerna.semoss.web.openapi.CommonSchemas.Success;
+import prerna.semoss.web.services.local.ProjectResourceSchemas.ProjectImageUploadRequest;
+import prerna.semoss.web.services.local.ProjectResourceSchemas.ProjectImageUploadResult;
+import prerna.semoss.web.services.local.ProjectResourceSchemas.ProjectUpdateSmssFileRequest;
 import prerna.upload.CatalogImageUploader;
 import prerna.util.AssetUtility;
 import prerna.util.Constants;
@@ -155,7 +168,13 @@ public class ProjectResource {
 	@POST
 	@Path("/updateSmssFile")
 	@Produces("application/json;charset=utf-8")
-	public Response updateSmssFile(@Context HttpServletRequest request, @PathParam("projectId") String projectId) {
+	@Operation(operationId = "updateSmssFile", summary = "Replace a project's smss file", description = "Replaces the smss file of a project the user owns (or any project, for an admin) and reopens the project with it. The project id, name and type cannot change; the old file is restored when the project cannot reopen with the new one.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = ProjectUpdateSmssFileRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The smss file was replaced", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The project id is invalid, the current smss file cannot be found, the new file changes the project id, name or type, or the project could not be reopened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user is not the project's owner", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorText.class)))
+	public Response updateSmssFile(@Context HttpServletRequest request,
+			@Parameter(description = "The project id") @PathParam("projectId") String projectId) {
 		// not required for containment. projectExists/userIsOwner below resolve
 		// projectId against the PROJECT table on both the admin and non-admin branch,
 		// so a traversal value is rejected before it reaches the smss file path
@@ -286,6 +305,8 @@ public class ProjectResource {
 	@POST
 	@Path("/runReactor/{reactorName}")
 	@Produces("application/json;charset=utf-8")
+	// Hidden: has a path parameter and a JSON request body, and no client calls it
+	@Hidden
 	public Response runReactor(@Context HttpServletRequest request, @PathParam("projectId") String projectId,
 			@PathParam("reactorName") String reactorName) {
 		projectId = WebUtility.inputSanitizer(projectId);
@@ -368,6 +389,8 @@ public class ProjectResource {
 	@GET
 	@Path("/landing")
 	@Produces(MediaType.TEXT_HTML)
+	// Hidden: has a path parameter and answers with HTML, and no client calls it
+	@Hidden
 	public Response getProjectLandingPage(@Context final Request coreRequest, @Context HttpServletRequest request,
 			@PathParam("projectId") String projectId) {
 		User user = null;
@@ -437,6 +460,8 @@ public class ProjectResource {
 	@GET
 	@Path("/downloadProjectAsset/{relPath}")
 	@Produces({ MediaType.TEXT_HTML, MediaType.APPLICATION_OCTET_STREAM })
+	// Hidden: has path parameters and answers with a file, and no client calls it
+	@Hidden
 	public Response downloadProjectAsset(@Context final Request coreRequest, @Context HttpServletRequest request,
 			@PathParam("projectId") String projectId, @PathParam("relPath") String relPath) {
 		// not required for containment. canAccessProject below resolves projectId
@@ -517,6 +542,8 @@ public class ProjectResource {
 	@GET
 	@Path("/embedLogo")
 	@Produces({ MediaType.TEXT_HTML, MediaType.APPLICATION_OCTET_STREAM })
+	// Hidden: has a path parameter and answers with an image file, and no client calls it
+	@Hidden
 	public Response getEmbedUrl(@Context final Request coreRequest, @Context HttpServletRequest request,
 			@PathParam("projectId") String projectId, @QueryParam("insightId") String insightId) {
 
@@ -619,8 +646,17 @@ public class ProjectResource {
 	@Path("/image/upload")
 	@Consumes(MediaType.MULTIPART_FORM_DATA)
 	@Produces(MediaType.APPLICATION_JSON)
+	@Operation(operationId = "upload", summary = "Set a project's catalog image", description = "Replaces the catalog image of a project the user can edit with one PNG, JPEG or GIF of at most 10 MiB, sent as the only part of a multipart form.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(required = true, content = @Content(mediaType = "multipart/form-data", schema = @Schema(implementation = ProjectImageUploadRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The image was stored", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ProjectImageUploadResult.class)))
+	@ApiResponse(responseCode = "400", description = "The project id is invalid, or the form is not exactly one valid image in the file field", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The project does not exist or the user cannot edit it", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "413", description = "The image is larger than 10 MiB, or the form has too many parts", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "415", description = "The request is not multipart, or the image is not a PNG, JPEG or GIF", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "The image could not be stored", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response uploadImage(@Context ServletContext context, @Context HttpServletRequest request,
-			@PathParam("projectId") String projectId) {
+			@Parameter(description = "The project id") @PathParam("projectId") String projectId) {
 		return CatalogImageUploader.upload(context, request, projectId, true);
 	}
 
@@ -629,6 +665,8 @@ public class ProjectResource {
 	@Path("/projectImage/upload")
 	@Consumes(MediaType.MULTIPART_FORM_DATA)
 	@Produces(MediaType.APPLICATION_JSON)
+	// Hidden: has a path parameter and a multipart request body, and no client calls it (image/upload is the same upload)
+	@Hidden
 	public Response uploadProjectImage(@Context ServletContext context, @Context HttpServletRequest request,
 			@PathParam("projectId") String projectId) {
 		return uploadImage(context, request, projectId);
@@ -642,8 +680,14 @@ public class ProjectResource {
 	@Path("/projectImage/download")
 	@Produces({ "image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml",
 			MediaType.APPLICATION_OCTET_STREAM })
+	@Operation(operationId = "download", summary = "Download a project's catalog image", description = "Returns the catalog image of a project the user can view or discover, or the stock image when it has none. Honors If-None-Match.")
+	@Parameter(name = "theme", in = ParameterIn.QUERY, description = "The theme of the stock image to fall back to", required = false, schema = @Schema(types = "string", allowableValues = { "light", "dark" }))
+	@ApiResponse(responseCode = "200", description = "The image", content = { @Content(mediaType = "image/png", schema = @Schema(types = "string", format = "binary")), @Content(mediaType = "image/jpeg", schema = @Schema(types = "string", format = "binary")), @Content(mediaType = "image/gif", schema = @Schema(types = "string", format = "binary")), @Content(mediaType = "image/webp", schema = @Schema(types = "string", format = "binary")), @Content(mediaType = "image/svg+xml", schema = @Schema(types = "string", format = "binary")), @Content(mediaType = "application/octet-stream", schema = @Schema(types = "string", format = "binary")) })
+	@ApiResponse(responseCode = "304", description = "The image has not changed since the If-None-Match entity tag")
+	@ApiResponse(responseCode = "400", description = "The project id is invalid, or the image could not be found", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user cannot view or discover the project", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorText.class)))
 	public Response downloadProjectImage(@Context final Request coreRequest, @Context HttpServletRequest request,
-			@PathParam("projectId") String projectId) {
+			@Parameter(description = "The project id") @PathParam("projectId") String projectId) {
 		// not required for containment. canAccessOrDiscoverableProject below resolves
 		// projectId against the PROJECT table on both the view and discoverable branch,
 		// so a traversal value is rejected before it reaches the image path
@@ -738,6 +782,8 @@ public class ProjectResource {
 	@Path("/insightImage/download")
 	@Produces({ "image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml",
 			MediaType.APPLICATION_OCTET_STREAM })
+	// Hidden: has a path parameter and answers with an image file, and no client calls it
+	@Hidden
 	public Response downloadInsightImage(@Context final Request coreRequest, @Context HttpServletRequest request,
 			@PathParam("projectId") String projectId, @QueryParam("rdbmsId") String id,
 			@QueryParam("params") String params) {
@@ -909,6 +955,8 @@ public class ProjectResource {
 	@GET
 	@Path("/jdbc")
 	@Produces(MediaType.APPLICATION_OCTET_STREAM)
+	// Hidden: has a path parameter and answers with a file, and no client calls it
+	@Hidden
 	public StreamingOutput getJDBCOutput(@PathParam("projectId") String projectId,
 			@QueryParam("insightId") String insightId, @QueryParam("sql") String sql, @QueryParam("open") String open,
 			@Context HttpServletRequest request, @Context ResourceContext resourceContext) {
@@ -1029,6 +1077,8 @@ public class ProjectResource {
 	@POST
 	@Path("/jdbc_json")
 	@Produces(MediaType.APPLICATION_JSON)
+	// Hidden: has a path parameter and reads the SQL from a raw body, and no client calls it
+	@Hidden
 	public StreamingOutput getJDBCJsonOutput(@PathParam("projectId") String projectId,
 			@QueryParam("insightId") String insightId, @QueryParam("sql") String sql,
 			@Context HttpServletRequest request, @Context ResourceContext resourceContext) {
@@ -1135,6 +1185,8 @@ public class ProjectResource {
 	@GET
 	@Path("/jdbc_csv")
 	@Produces(MediaType.TEXT_PLAIN + ";charset=utf-8")
+	// Hidden: has a path parameter and answers with CSV text, and no client calls it
+	@Hidden
 	public StreamingOutput getJDBCCSVOutput(@PathParam("projectId") String projectId,
 			@QueryParam("insightId") String insightId, @QueryParam("sql") String sql,
 			@Context HttpServletRequest request, @Context ResourceContext resourceContext) {

@@ -37,6 +37,7 @@ import org.apache.logging.log4j.Logger;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
+import io.swagger.v3.oas.annotations.Hidden;
 import jakarta.annotation.security.PermitAll;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
@@ -98,6 +99,8 @@ public class OldEngineResource {
 	@GET
 	@Path("insight")
 	@Produces("application/json")
+	// Hidden: reached only through the /engine/e-{engine} locator, which has a path parameter, and no client calls it
+	@Hidden
 	public Response getInsightParams(@QueryParam("insight") String insightId) {
 		insightId = WebUtility.inputSanitizer(insightId);
 
@@ -130,6 +133,8 @@ public class OldEngineResource {
 	@POST
 	@Path("output")
 	@Produces("application/json")
+	// Hidden: reached only through the /engine/e-{engine} locator, which has a path parameter, and no client calls it
+	@Hidden
 	public Response createOutput(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		HttpSession session = request.getSession(true);
 		User user = ((User) session.getAttribute(Constants.SESSION_USER));
@@ -182,6 +187,8 @@ public class OldEngineResource {
 	@POST
 	@Path("/commitFormData")
 	@Produces("application/json")
+	// Hidden: reached only through the /engine/e-{engine} locator, which has a path parameter, and no client calls it
+	@Hidden
 	public Response commitFormData(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		String userId = null;
 		try {
@@ -230,6 +237,8 @@ public class OldEngineResource {
 	@POST
 	@Path("/getAuditLogForEngine")
 	@Produces("application/json")
+	// Hidden: reached only through the /engine/e-{engine} locator, which has a path parameter, and no client calls it
+	@Hidden
 	public Response getAuditLogForEngine(MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 		Gson gson = new Gson();
 		Map<String, Object> auditInfo = null;

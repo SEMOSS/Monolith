@@ -37,8 +37,17 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.Response;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import prerna.om.ThreadStore;
 import prerna.rpa.config.JobConfigKeys;
+import prerna.semoss.web.openapi.CommonSchemas.ErrorMessage;
+import prerna.semoss.web.services.local.SchedulerResourceSchemas.ScheduleExecutePixelError;
+import prerna.semoss.web.services.local.SchedulerResourceSchemas.ScheduleExecutePixelRequest;
+import prerna.semoss.web.services.local.SchedulerResourceSchemas.ScheduleExecutePixelResult;
 import prerna.web.requests.OverrideParametersServletRequest;
 
 @Path("/schedule")
@@ -48,6 +57,11 @@ public class SchedulerResource {
 	@POST
 	@Path("/executePixel")
 	@Produces("application/json")
+	@Operation(operationId = "executePixel", summary = "Run a scheduled job's pixel", description = "Runs the pixel in scheduler mode in a new insight, as the scheduler does for a job, then ends the session.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = ScheduleExecutePixelRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The results of the pixel's steps", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ScheduleExecutePixelResult.class)))
+	@ApiResponse(responseCode = "401", description = "The session has no user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "The results could not be collected", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ScheduleExecutePixelError.class)))
 	public Response executePixel(@Context HttpServletRequest request) {
 		// we will flush the user object inside
 		// and make sure the

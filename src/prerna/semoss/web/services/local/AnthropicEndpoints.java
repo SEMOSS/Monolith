@@ -60,6 +60,7 @@ import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.StreamingOutput;
+import io.swagger.v3.oas.annotations.Hidden;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityEngineUtils;
 import prerna.engine.api.IModelEngine;
@@ -116,6 +117,8 @@ public class AnthropicEndpoints {
 	 * [{"role": "user", "content": "Hello"}], "system": "optional system prompt",
 	 * "stream": false, "tools": [...], "temperature": 0.7 }
 	 */
+	// Hidden: JSON request body and a JSON or SSE stream response, and no client calls it
+	@Hidden
 	@POST
 	@Path("/v1/messages")
 	@Consumes({ "application/json" })

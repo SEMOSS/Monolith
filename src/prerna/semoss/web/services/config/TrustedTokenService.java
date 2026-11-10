@@ -47,10 +47,20 @@ import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.Response;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import prerna.auth.utils.SecurityAPIUserUtils;
 import prerna.auth.utils.SecurityTokenUtils;
 import prerna.cluster.util.ClusterUtil;
 import prerna.date.SemossDate;
+import prerna.semoss.web.services.config.TrustedTokenServiceSchemas.TokenGetTokenError;
+import prerna.semoss.web.services.config.TrustedTokenServiceSchemas.TokenGetTokenRequest;
+import prerna.semoss.web.services.config.TrustedTokenServiceSchemas.TokenGetTokenResult;
 import prerna.util.Constants;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
@@ -70,6 +80,10 @@ public class TrustedTokenService {
 
 	@GET
 	@Path("/getToken")
+	@Operation(operationId = "getTokenGet", summary = "Get a trusted token without a secret", description = "Returns the trusted token for the calling IP address, issuing one when there is none. Refused when the server checks API user credentials, which only the POST form sends.")
+	@Parameter(name = "client_id", in = ParameterIn.QUERY, description = "The API client id to record on the token", schema = @Schema(types = "string"))
+	@ApiResponse(responseCode = "200", description = "The token", content = @Content(mediaType = "application/json", schema = @Schema(implementation = TokenGetTokenResult.class)))
+	@ApiResponse(responseCode = "401", description = "The server requires the POST form with client credentials", content = @Content(mediaType = "application/json", schema = @Schema(implementation = TokenGetTokenError.class)))
 	public Response getTokenGet(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
 		if (SecurityAPIUserUtils.getApplicationAPIUserTokenCheck()) {
@@ -96,6 +110,10 @@ public class TrustedTokenService {
 
 	@POST
 	@Path("/getToken")
+	@Operation(operationId = "getToken", summary = "Get a trusted token", description = "Returns the trusted token for the calling IP address, issuing one when there is none. When the server checks API user credentials, the client id and secret key must be valid.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = TokenGetTokenRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The token", content = @Content(mediaType = "application/json", schema = @Schema(implementation = TokenGetTokenResult.class)))
+	@ApiResponse(responseCode = "401", description = "The client id and secret key do not match", content = @Content(mediaType = "application/json", schema = @Schema(implementation = TokenGetTokenError.class)))
 	public Response getTokenPost(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
 		String clientId = WebUtility.inputSanitizer(request.getParameter("client_id"));

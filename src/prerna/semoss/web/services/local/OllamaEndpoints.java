@@ -62,6 +62,7 @@ import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.StreamingOutput;
+import io.swagger.v3.oas.annotations.Hidden;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityEngineUtils;
 import prerna.engine.api.IModelEngine;
@@ -96,6 +97,8 @@ public class OllamaEndpoints {
 	private static final Gson GSON = new GsonBuilder().setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE)
 			.disableHtmlEscaping().create();
 
+	// Hidden: JSON request body and a JSON or ndjson stream response, and no client calls it
+	@Hidden
 	@POST
 	@Path("/api/chat")
 	@Consumes({ "application/json" })
@@ -104,6 +107,8 @@ public class OllamaEndpoints {
 		return chat(request);
 	}
 
+	// Hidden: JSON request body and a JSON or ndjson stream response, and no client calls it
+	@Hidden
 	@POST
 	@Path("/chat")
 	@Consumes({ "application/json" })
@@ -386,6 +391,8 @@ public class OllamaEndpoints {
 				.header("Connection", "keep-alive").entity(output).build();
 	}
 
+	// Hidden: JSON request body and a JSON or ndjson stream response, and no client calls it
+	@Hidden
 	@POST
 	@Path("/api/generate")
 	@Consumes({ "application/json" })
@@ -394,6 +401,8 @@ public class OllamaEndpoints {
 		return generate(request);
 	}
 
+	// Hidden: JSON request body and a JSON or ndjson stream response, and no client calls it
+	@Hidden
 	@POST
 	@Path("/generate")
 	@Consumes({ "application/json" })
@@ -636,6 +645,8 @@ public class OllamaEndpoints {
 				.header("Connection", "keep-alive").entity(output).build();
 	}
 
+	// Hidden: JSON request body, and no client calls it
+	@Hidden
 	@POST
 	@Path("/embeddings")
 	@Consumes({ "application/json" })
