@@ -55,6 +55,15 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.extensions.Extension;
+import io.swagger.v3.oas.annotations.extensions.ExtensionProperty;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.headers.Header;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.ws.rs.DELETE;
@@ -67,6 +76,18 @@ import prerna.auth.utils.SecurityExternalConnectorsUtils;
 import prerna.io.connector.github.GitHubAppClient;
 import prerna.io.connector.github.GitHubProjectSync;
 import prerna.semoss.web.app.GitHubApplication;
+import prerna.semoss.web.github.GitHubServiceSchemas.GitHubAvailable;
+import prerna.semoss.web.github.GitHubServiceSchemas.GitHubError;
+import prerna.semoss.web.github.GitHubServiceSchemas.GitHubInstallBranches;
+import prerna.semoss.web.github.GitHubServiceSchemas.GitHubInstallInstallations;
+import prerna.semoss.web.github.GitHubServiceSchemas.GitHubInstallRepos;
+import prerna.semoss.web.github.GitHubServiceSchemas.GitHubInstallSelectRequest;
+import prerna.semoss.web.github.GitHubServiceSchemas.GitHubInstallSelectResult;
+import prerna.semoss.web.github.GitHubServiceSchemas.GitHubOk;
+import prerna.semoss.web.github.GitHubServiceSchemas.GitHubProjectBranchRequest;
+import prerna.semoss.web.github.GitHubServiceSchemas.GitHubProjectBranchResult;
+import prerna.semoss.web.github.GitHubServiceSchemas.GitHubProjectLink;
+import prerna.semoss.web.github.GitHubServiceSchemas.GitHubWebhookResult;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
@@ -115,6 +136,9 @@ public class GitHubService {
 	 */
 	@GET
 	@Path("/available")
+	@Operation(operationId = "available", summary = "Check a GitHub App is configured", description = "Pre-flight for the connect screen: whether this instance has a GitHub App configured. Never exposes credentials.")
+	@ApiResponse(responseCode = "200", description = "Whether an app is configured", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubAvailable.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
 	public Response available(@Context HttpServletRequest req) {
 		try {
 			ResourceUtility.getUser(req);
@@ -134,6 +158,10 @@ public class GitHubService {
 	 */
 	@GET
 	@Path("/install/app")
+	@Operation(operationId = "app", summary = "Install the GitHub App for a project", description = "Browser navigation: remembers the project in the session and redirects to GitHub's install page for the configured app.")
+	@Parameter(name = "projectId", in = ParameterIn.QUERY, description = "The project to connect", required = true, schema = @Schema(types = "string"))
+	@ApiResponse(responseCode = "303", description = "To GitHub's install page", headers = @Header(name = "Location", description = "Where the browser is sent", schema = @Schema(types = "string")))
+	@ApiResponse(responseCode = "400", description = "No projectId, or no GitHub App is configured", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
 	public Response installApp(@Context HttpServletRequest req) {
 		// 1. Grab the projectId the frontend passed in
 		String projectId = req.getParameter("projectId");
@@ -166,6 +194,13 @@ public class GitHubService {
 	 */
 	@GET
 	@Path("/install/callback")
+	@Operation(operationId = "callback", summary = "Finish a GitHub App install", description = "Where GitHub redirects the browser after an install; not called by clients. Confirms the installation is the user's (authorizing with GitHub first when needed), then links the single granted repository or sends the user to the repository picker.")
+	@Parameter(name = "installation_id", in = ParameterIn.QUERY, description = "The installation GitHub created", required = true, schema = @Schema(types = "string"))
+	@Parameter(name = "setup_action", in = ParameterIn.QUERY, description = "What GitHub did, such as install or update", schema = @Schema(types = "string"))
+	@ApiResponse(responseCode = "303", description = "Back to the project, to the repository picker, or to GitHub to authorize first", headers = @Header(name = "Location", description = "Where the browser is sent", schema = @Schema(types = "string")))
+	@ApiResponse(responseCode = "400", description = "A missing or invalid installation, an expired session, or the link could not be saved", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
+	@ApiResponse(responseCode = "401", description = "GitHub authorization is needed (needsAuth)", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
+	@ApiResponse(responseCode = "403", description = "The installation is not accessible to this user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
 	public Response installCallback(@Context HttpServletRequest req) {
 		// 1. Extract what GitHub sent back
 		String installationId = req.getParameter("installation_id");
@@ -305,6 +340,12 @@ public class GitHubService {
 	 */
 	@GET
 	@Path("/user/authorize")
+	@Operation(operationId = "authorize", summary = "Authorize with GitHub", description = "Browser navigation: redirects to GitHub to authorize the app for the user, so the installation and repository pickers only show what they can access.")
+	@Parameter(name = "projectId", in = ParameterIn.QUERY, description = "The project; the user must own it", required = true, schema = @Schema(types = "string"))
+	@ApiResponse(responseCode = "303", description = "To GitHub's authorization page", headers = @Header(name = "Location", description = "Where the browser is sent", schema = @Schema(types = "string")))
+	@ApiResponse(responseCode = "400", description = "No projectId, or no GitHub App is configured", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or GitHub authorization is needed (needsAuth)", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
+	@ApiResponse(responseCode = "403", description = "The user does not own the project", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
 	public Response userAuthorize(@Context HttpServletRequest req) {
 		String projectId = req.getParameter("projectId");
 		GitHubProjectGuard.requireProjectOwner(req, projectId);
@@ -347,6 +388,13 @@ public class GitHubService {
 	 */
 	@GET
 	@Path("/user/callback")
+	@Operation(operationId = "callback", summary = "Finish authorizing with GitHub", description = "Where GitHub redirects the browser after the user authorizes the app; not called by clients. Keeps the user token in the session, then resumes a pending install or returns to the project.")
+	@Parameter(name = "code", in = ParameterIn.QUERY, description = "The one-time code GitHub sent", required = true, schema = @Schema(types = "string"))
+	@Parameter(name = "state", in = ParameterIn.QUERY, description = "The state sent to GitHub: a CSRF nonce and the project id", required = true, schema = @Schema(types = "string"))
+	@ApiResponse(responseCode = "303", description = "Back to the project, or a resumed install's redirect", headers = @Header(name = "Location", description = "Where the browser is sent", schema = @Schema(types = "string")))
+	@ApiResponse(responseCode = "400", description = "A missing code or state, an invalid state, the code could not be exchanged, or a resumed install failed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
+	@ApiResponse(responseCode = "401", description = "GitHub authorization is needed again (needsAuth)", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
+	@ApiResponse(responseCode = "403", description = "A resumed installation is not accessible to this user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
 	public Response userCallback(@Context HttpServletRequest req) {
 		String code = req.getParameter("code");
 		String state = req.getParameter("state");
@@ -408,6 +456,13 @@ public class GitHubService {
 	 */
 	@GET
 	@Path("/install/installations")
+	@Operation(operationId = "installations", summary = "List the GitHub App installations", description = "Lists the installations of the app the user can access, so a project can be linked to one already installed.")
+	@Parameter(name = "projectId", in = ParameterIn.QUERY, description = "The project; the user must own it", required = true, schema = @Schema(types = "string"))
+	@ApiResponse(responseCode = "200", description = "The installations", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubInstallInstallations.class)))
+	@ApiResponse(responseCode = "400", description = "No projectId, or no GitHub App is configured", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or GitHub authorization is needed (needsAuth)", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
+	@ApiResponse(responseCode = "403", description = "The user does not own the project", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
+	@ApiResponse(responseCode = "502", description = "GitHub could not be read", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
 	public Response installInstallations(@Context HttpServletRequest req) {
 		String projectId = req.getParameter("projectId");
 		GitHubProjectGuard.requireProjectOwner(req, projectId);
@@ -454,6 +509,14 @@ public class GitHubService {
 	 */
 	@GET
 	@Path("/install/repos")
+	@Operation(operationId = "repos", summary = "List an installation's repositories", description = "Lists the repositories of an installation the user can access, for the repository picker.")
+	@Parameter(name = "projectId", in = ParameterIn.QUERY, description = "The project; the user must own it", required = true, schema = @Schema(types = "string"))
+	@Parameter(name = "installationId", in = ParameterIn.QUERY, description = "The installation", required = true, schema = @Schema(types = "string"))
+	@ApiResponse(responseCode = "200", description = "The repositories", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubInstallRepos.class)))
+	@ApiResponse(responseCode = "400", description = "No projectId or installationId", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or GitHub authorization is needed (needsAuth)", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
+	@ApiResponse(responseCode = "403", description = "The user does not own the project", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
+	@ApiResponse(responseCode = "502", description = "GitHub could not be read", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
 	public Response installRepos(@Context HttpServletRequest req) {
 		// Reading an installation's repos is part of linking a project, so it
 		// requires owner access to that project.
@@ -499,6 +562,15 @@ public class GitHubService {
 	 */
 	@GET
 	@Path("/install/branches")
+	@Operation(operationId = "branches", summary = "List a repository's branches", description = "Lists the branches of a repository the user can access, for the branch picker.")
+	@Parameter(name = "projectId", in = ParameterIn.QUERY, description = "The project; the user must own it", required = true, schema = @Schema(types = "string"))
+	@Parameter(name = "installationId", in = ParameterIn.QUERY, description = "The installation", required = true, schema = @Schema(types = "string"))
+	@Parameter(name = "repoFullName", in = ParameterIn.QUERY, description = "The owner/name of the repository", required = true, schema = @Schema(types = "string"))
+	@ApiResponse(responseCode = "200", description = "The branches", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubInstallBranches.class)))
+	@ApiResponse(responseCode = "400", description = "No projectId, installationId or repoFullName", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or GitHub authorization is needed (needsAuth)", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
+	@ApiResponse(responseCode = "403", description = "The user does not own the project, or cannot access the repository", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
+	@ApiResponse(responseCode = "502", description = "GitHub could not be read", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
 	public Response installBranches(@Context HttpServletRequest req) {
 		// listing a repo's branches is part of linking/configuring a project, so it
 		// requires owner access to that project
@@ -549,6 +621,14 @@ public class GitHubService {
 	 */
 	@POST
 	@Path("/install/select")
+	@Operation(operationId = "select", summary = "Link a project to a repository", description = "Creates or re-points a project's repository link, after checking the user can access the repository in the installation.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = GitHubInstallSelectRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The linked repository", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubInstallSelectResult.class)))
+	@ApiResponse(responseCode = "400", description = "Missing or non-numeric inputs, no GitHub App configured, or the repository is not in the installation", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or GitHub authorization is needed (needsAuth)", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
+	@ApiResponse(responseCode = "403", description = "The user does not own the project", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
+	@ApiResponse(responseCode = "500", description = "The link could not be saved", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
+	@ApiResponse(responseCode = "502", description = "GitHub could not be read", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
 	public Response selectRepo(@Context HttpServletRequest req) {
 		String projectId = req.getParameter("projectId");
 		GitHubProjectGuard.requireProjectOwner(req, projectId);
@@ -636,6 +716,12 @@ public class GitHubService {
 	 */
 	@GET
 	@Path("/project/link")
+	@Operation(operationId = "link", summary = "Read a project's GitHub link", description = "Returns the repository a project is linked to, or linked false when there is none.")
+	@Parameter(name = "projectId", in = ParameterIn.QUERY, description = "The project; the user must own it", required = true, schema = @Schema(types = "string"))
+	@ApiResponse(responseCode = "200", description = "The link", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubProjectLink.class)))
+	@ApiResponse(responseCode = "400", description = "No projectId", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or GitHub authorization is needed (needsAuth)", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
+	@ApiResponse(responseCode = "403", description = "The user does not own the project", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
 	public Response getLink(@Context HttpServletRequest req) {
 		String projectId = req.getParameter("projectId");
 		GitHubProjectGuard.requireProjectOwner(req, projectId);
@@ -658,6 +744,13 @@ public class GitHubService {
 	 */
 	@DELETE
 	@Path("/project/link")
+	@Operation(operationId = "linkDelete", summary = "Disconnect a project from GitHub", description = "Removes a project's repository link. Does not uninstall the GitHub App.")
+	@Parameter(name = "projectId", in = ParameterIn.QUERY, description = "The project; the user must own it", required = true, schema = @Schema(types = "string"))
+	@ApiResponse(responseCode = "200", description = "The link was removed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubOk.class)))
+	@ApiResponse(responseCode = "400", description = "No projectId", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
+	@ApiResponse(responseCode = "403", description = "The user does not own the project", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
+	@ApiResponse(responseCode = "500", description = "The link could not be removed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
 	public Response disconnect(@Context HttpServletRequest req) {
 		String projectId = req.getParameter("projectId");
 		GitHubProjectGuard.requireProjectOwner(req, projectId);
@@ -681,6 +774,13 @@ public class GitHubService {
 	 */
 	@POST
 	@Path("/project/branch")
+	@Operation(operationId = "branch", summary = "Set a project's tracked branch", description = "Sets the branch the push webhook syncs the project to.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = GitHubProjectBranchRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The tracked branch", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubProjectBranchResult.class)))
+	@ApiResponse(responseCode = "400", description = "No projectId or branch, or the project is not linked", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or GitHub authorization is needed (needsAuth)", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
+	@ApiResponse(responseCode = "403", description = "The user does not own the project", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
+	@ApiResponse(responseCode = "500", description = "The branch could not be saved", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
 	public Response setBranch(@Context HttpServletRequest req) {
 		String projectId = req.getParameter("projectId");
 		GitHubProjectGuard.requireProjectOwner(req, projectId);
@@ -719,6 +819,12 @@ public class GitHubService {
 	 */
 	@POST
 	@Path("/webhook")
+	@Operation(operationId = "webhook", summary = "Receive GitHub webhook events", description = "Webhook GitHub posts events to; not called by clients. Verifies the X-Hub-Signature-256 HMAC with the app's webhook secret, then syncs every project linked to the pushed repository in the background. Events other than push are acknowledged and ignored.", extensions = @Extension(properties = @ExtensionProperty(name = "x-semoss-sdk-skip", value = "Webhook: GitHub calls it, not clients")))
+	@Parameter(name = "X-Hub-Signature-256", in = ParameterIn.HEADER, description = "sha256= and the HMAC-SHA256 of the raw body, keyed with the app's webhook secret", required = true, schema = @Schema(types = "string"))
+	@Parameter(name = "X-GitHub-Event", in = ParameterIn.HEADER, description = "The event type; only push is acted on", schema = @Schema(types = "string"))
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/json", schema = @Schema(types = "object", description = "GitHub's webhook payload for the event, passed through as GitHub defines it; a push reads ref, after, pusher, repository and commits")))
+	@ApiResponse(responseCode = "200", description = "The delivery was handled or ignored", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubWebhookResult.class)))
+	@ApiResponse(responseCode = "401", description = "The signature is missing or invalid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
 	public Response webhook(@Context HttpServletRequest req) throws IOException {
 		// 1. Read the exact raw body (the signature is an HMAC over these bytes)
 		String body = readBody(req);

@@ -52,6 +52,7 @@ import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.StreamingOutput;
+import io.swagger.v3.oas.annotations.Hidden;
 import prerna.auth.User;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
@@ -75,6 +76,8 @@ public class ModelEngineResource {
 	@Path("/llm")
 	@Consumes({ "application/x-www-form-urlencoded", "application/json" })
 	@Produces("application/json;charset=utf-8")
+	// Hidden: takes a path parameter and a JSON or form body, and no client calls it
+	@Hidden
 	public Response llm(@Context HttpServletRequest request, @PathParam("modelId") String modelId) {
 		modelId = WebUtility.inputSanitizer(modelId);
 
@@ -123,6 +126,8 @@ public class ModelEngineResource {
 	@Path("/llmStreaming")
 	@Consumes({ "application/x-www-form-urlencoded", "application/json" })
 	@Produces("text/event-stream")
+	// Hidden: takes a path parameter and a JSON or form body and streams text/event-stream, and no client calls it
+	@Hidden
 	public Response llmStreaming(@Context HttpServletRequest request, @PathParam("modelId") String modelId) {
 		modelId = WebUtility.inputSanitizer(modelId);
 
@@ -254,6 +259,8 @@ public class ModelEngineResource {
 	@Path("/embeddings")
 	@Consumes({ "application/x-www-form-urlencoded", "application/json" })
 	@Produces("application/json;charset=utf-8")
+	// Hidden: takes a path parameter and a JSON or form body, and no client calls it
+	@Hidden
 	public Response embeddings(@Context HttpServletRequest request, @PathParam("modelId") String modelId) {
 		modelId = WebUtility.inputSanitizer(modelId);
 
@@ -286,6 +293,8 @@ public class ModelEngineResource {
 	@Path("/vision")
 	@Consumes({ "application/x-www-form-urlencoded", "application/json" })
 	@Produces("application/json;charset=utf-8")
+	// Hidden: takes a path parameter and a JSON or form body, and no client calls it
+	@Hidden
 	public Response vision(@Context HttpServletRequest request, @PathParam("modelId") String modelId) {
 		modelId = WebUtility.inputSanitizer(modelId);
 

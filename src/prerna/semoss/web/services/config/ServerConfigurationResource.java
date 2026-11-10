@@ -68,6 +68,7 @@ import prerna.ds.py.PyUtils;
 import prerna.io.connector.ConnectorScopeAccess;
 import prerna.io.connector.ms.MicrosoftGraphUserLookup;
 import prerna.reactor.cluster.VersionReactor;
+import prerna.semoss.web.services.config.ServerConfigurationResourceSchemas.ConfigEndpointsList;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.theme.AdminThemeUtils;
 import prerna.util.Constants;
@@ -365,6 +366,8 @@ public class ServerConfigurationResource {
 	@GET
 	@Path("/fetchCsrf")
 	@Produces("application/json")
+	@Operation(operationId = "fetchCsrf", summary = "Start a session", description = "Creates a session for the caller, so a CSRF token can be issued with it, and answers true.")
+	@ApiResponse(responseCode = "200", description = "Always true", content = @Content(mediaType = "application/json", schema = @Schema(types = "boolean", description = "Always true")))
 	public Response fetchCsrf(@Context HttpServletRequest request, @Context HttpServletResponse response) {
 		// create the session
 		request.getSession(true);
@@ -392,6 +395,8 @@ public class ServerConfigurationResource {
 	@GET
 	@Path("/endpoints")
 	@Produces("application/json")
+	@Operation(operationId = "endpoints", summary = "List the REST endpoints", description = "Lists every REST endpoint this application registers, sorted by path. The Admin resources are only listed for an admin.")
+	@ApiResponse(responseCode = "200", description = "The endpoints", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ConfigEndpointsList.class)))
 	public Response listEndpoints(@Context HttpServletRequest request, @Context Application application) {
 		// admin gating: callers who are not a logged-in admin do not see
 		// endpoints from resources whose simple class name starts with

@@ -41,6 +41,14 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.extensions.Extension;
+import io.swagger.v3.oas.annotations.extensions.ExtensionProperty;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
@@ -55,6 +63,9 @@ import prerna.io.connector.ms.calendar.MicrosoftCalendarHelper;
 import prerna.io.connector.ms.outlook.MicrosoftOutlookMailHelper;
 import prerna.io.connector.ms.outlook.MicrosoftOutlookMessageMapper;
 import prerna.semoss.web.app.MicrosoftGraphApplication;
+import prerna.semoss.web.ms.MicrosoftGraphNotificationServiceSchemas.MsGraphNotificationAck;
+import prerna.semoss.web.ms.MicrosoftGraphNotificationServiceSchemas.MsGraphNotificationBatch;
+import prerna.semoss.web.ms.MicrosoftGraphSubscriptionServiceSchemas.MsGraphError;
 import prerna.web.services.util.WebUtility;
 
 /**
@@ -129,6 +140,12 @@ public class MicrosoftGraphNotificationService {
 	 */
 	@POST
 	@Path("/notifications/messages")
+	@Operation(operationId = "messages", summary = "Receive mailbox change notifications", description = "Webhook Microsoft Graph posts mailbox change notifications to; not called by clients. Answers Graph's validation handshake, or acknowledges a batch whose client state matches a recorded subscription and reads each changed message in the background.", extensions = @Extension(properties = @ExtensionProperty(name = "x-semoss-sdk-skip", value = "Webhook: Microsoft Graph calls it, not clients")))
+	@Parameter(name = "validationToken", in = ParameterIn.QUERY, description = "Sent by Graph while a subscription is being created; echoed back as plain text", schema = @Schema(types = "string"))
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/json", schema = @Schema(implementation = MsGraphNotificationBatch.class)))
+	@ApiResponse(responseCode = "200", description = "The validation token, echoed back", content = @Content(mediaType = "text/plain", schema = @Schema(types = "string", description = "The validation token")))
+	@ApiResponse(responseCode = "202", description = "The delivery was acknowledged", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MsGraphNotificationAck.class)))
+	@ApiResponse(responseCode = "400", description = "The body is not JSON", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MsGraphError.class)))
 	public Response messages(@Context HttpServletRequest req) throws IOException {
 		return receive(req, true);
 	}
@@ -145,6 +162,12 @@ public class MicrosoftGraphNotificationService {
 	 */
 	@POST
 	@Path("/notifications/events")
+	@Operation(operationId = "events", summary = "Receive calendar change notifications", description = "Webhook Microsoft Graph posts calendar change notifications to; not called by clients. Answers Graph's validation handshake, or acknowledges a batch whose client state matches a recorded subscription and reads each changed event in the background.", extensions = @Extension(properties = @ExtensionProperty(name = "x-semoss-sdk-skip", value = "Webhook: Microsoft Graph calls it, not clients")))
+	@Parameter(name = "validationToken", in = ParameterIn.QUERY, description = "Sent by Graph while a subscription is being created; echoed back as plain text", schema = @Schema(types = "string"))
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/json", schema = @Schema(implementation = MsGraphNotificationBatch.class)))
+	@ApiResponse(responseCode = "200", description = "The validation token, echoed back", content = @Content(mediaType = "text/plain", schema = @Schema(types = "string", description = "The validation token")))
+	@ApiResponse(responseCode = "202", description = "The delivery was acknowledged", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MsGraphNotificationAck.class)))
+	@ApiResponse(responseCode = "400", description = "The body is not JSON", content = @Content(mediaType = "application/json", schema = @Schema(implementation = MsGraphError.class)))
 	public Response events(@Context HttpServletRequest req) throws IOException {
 		return receive(req, false);
 	}

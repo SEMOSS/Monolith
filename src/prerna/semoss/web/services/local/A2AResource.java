@@ -92,6 +92,7 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.sse.Sse;
 import jakarta.ws.rs.sse.SseEventSink;
+import io.swagger.v3.oas.annotations.Hidden;
 import prerna.auth.User;
 import prerna.engine.impl.model.inferencetracking.ModelInferenceLogsUtils;
 import prerna.om.Insight;
@@ -133,6 +134,8 @@ public class A2AResource {
 		SSE_EXECUTOR = executor;
 	}
 
+	// Hidden: path parameter, and no client calls it
+	@Hidden
 	@GET
 	@Path("/.well-known/agent-card.json")
 	@Produces(MediaType.APPLICATION_JSON)
@@ -148,6 +151,8 @@ public class A2AResource {
 				securitySchemes(), securityRequirements()));
 	}
 
+	// Hidden: path parameter and a JSON-RPC request body, and no client calls it
+	@Hidden
 	@POST
 	@Path("/rpc")
 	@Consumes(MediaType.APPLICATION_JSON)
@@ -189,6 +194,8 @@ public class A2AResource {
 		}
 	}
 
+	// Hidden: path parameter, a JSON-RPC request body and an SSE stream response, and no client calls it
+	@Hidden
 	@POST
 	@Path("/rpc")
 	@Consumes(MediaType.APPLICATION_JSON)

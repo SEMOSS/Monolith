@@ -37,6 +37,10 @@ import javax.naming.InvalidNameException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.annotation.security.PermitAll;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
@@ -56,6 +60,11 @@ import prerna.forms.FormBuilder;
 import prerna.forms.FormFactory;
 import prerna.masterdatabase.utility.MasterDatabaseUtility;
 import prerna.rdf.engine.wrappers.WrapperManager;
+import prerna.semoss.web.form.FormResourceSchemas.FormCertifyInstanceRequest;
+import prerna.semoss.web.form.FormResourceSchemas.FormGetUserInstanceAuthResult;
+import prerna.semoss.web.form.FormResourceSchemas.FormModifyUserAccessRequest;
+import prerna.semoss.web.form.FormResourceSchemas.FormRenameInstanceRequest;
+import prerna.semoss.web.openapi.CommonSchemas.ErrorMessage;
 import prerna.util.Constants;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
@@ -71,6 +80,10 @@ public class FormResource {
 	@POST
 	@Path("/modifyUserAccess")
 	@Produces("application/json")
+	@Operation(operationId = "modifyUserAccess", summary = "Grant or revoke form access", description = "Lets a form admin grant a user access to a form instance, or revoke one or all of a user's access.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = FormModifyUserAccessRequest.class)))
+	@ApiResponse(responseCode = "200", description = "Always \"success\"", content = @Content(mediaType = "application/json", schema = @Schema(types = "string", description = "Always \"success\"")))
+	@ApiResponse(responseCode = "400", description = "The user could not be identified or is not a form admin (an errorMessage object), or addOrRemove is not Add or Remove, or the change failed (a JSON string)", content = @Content(mediaType = "application/json", schema = @Schema(oneOf = { ErrorMessage.class, String.class })))
 	public Response modifyUserAccess(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		String cacId;
 		try {
@@ -143,6 +156,10 @@ public class FormResource {
 	@POST
 	@Path("/renameInstance")
 	@Produces("application/json")
+	@Operation(operationId = "renameInstance", summary = "Rename a form instance", description = "Lets a form admin change an instance's URI, optionally deleting the original.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = FormRenameInstanceRequest.class)))
+	@ApiResponse(responseCode = "200", description = "Always \"success\"", content = @Content(mediaType = "application/json", schema = @Schema(types = "string", description = "Always \"success\"")))
+	@ApiResponse(responseCode = "400", description = "The user could not be identified or is not a form admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response renameInstance(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		String cacId;
 		try {
@@ -182,6 +199,10 @@ public class FormResource {
 	@POST
 	@Path("/certifyInstance")
 	@Produces("application/json")
+	@Operation(operationId = "certifyInstance", summary = "Certify a form instance", description = "Lets the system admin of an instance certify it.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = FormCertifyInstanceRequest.class)))
+	@ApiResponse(responseCode = "200", description = "Always \"success\"", content = @Content(mediaType = "application/json", schema = @Schema(types = "string", description = "Always \"success\"")))
+	@ApiResponse(responseCode = "400", description = "The user could not be identified or is not the instance's system admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response certifyInstance(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
 		String cacId;
 		try {
@@ -219,6 +240,9 @@ public class FormResource {
 	@POST
 	@Path("/getUserInstanceAuth")
 	@Produces("applicaiton/json")
+	@Operation(operationId = "getUserInstanceAuth", summary = "List the user's form instances", description = "Returns the form instances the signed in CAC or SAML user can access, and which of them the user administers.")
+	@ApiResponse(responseCode = "200", description = "The user's instances", content = @Content(mediaType = "application/json", schema = @Schema(implementation = FormGetUserInstanceAuthResult.class)))
+	@ApiResponse(responseCode = "400", description = "The user could not be identified", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response getUserInstanceAuth(@Context HttpServletRequest request) throws InvalidNameException {
 		/*
 		 * Get the specific instances this user has access to

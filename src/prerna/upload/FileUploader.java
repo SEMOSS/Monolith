@@ -61,6 +61,12 @@ import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
@@ -78,6 +84,10 @@ import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.ThreadStore;
 import prerna.project.api.IProject;
+import prerna.semoss.web.openapi.CommonSchemas.ErrorMessage;
+import prerna.upload.FileUploaderSchemas.UploadFileFilesRequest;
+import prerna.upload.FileUploaderSchemas.UploadFileHeaderCheckRequest;
+import prerna.upload.FileUploaderSchemas.UploadFileSavedFile;
 import prerna.util.AssetUtility;
 import prerna.util.Constants;
 import prerna.util.EngineUtility;
@@ -116,6 +126,11 @@ public class FileUploader extends AbstractUploader {
 	@Path("/headerCheck")
 	@Produces(MediaType.APPLICATION_JSON)
 	@Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+	@Operation(operationId = "headerCheck", summary = "Check column headers before an upload", description = "Reports the headers that are reserved words, contain one of +%@; or are repeated within their file or sheet.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = UploadFileHeaderCheckRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The invalid headers, with why each is invalid: for EXCEL a list with one object per workbook, in the order sent, mapping sheet name to header to reason; otherwise an object mapping file name to header to reason. Files and sheets without invalid headers are left out", content = @Content(mediaType = "application/json", schema = @Schema(types = {
+			"object", "array" }, description = "Keyed by the caller's own file, sheet and header names, so the keys are not fixed")))
+	@ApiResponse(responseCode = "400", description = "userHeaders is not valid JSON of the expected shape", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response checkUserDefinedHeaders(MultivaluedMap<String, String> form) {
 		Gson gson = new Gson();
 
@@ -265,10 +280,17 @@ public class FileUploader extends AbstractUploader {
 	@Path("baseUpload")
 	@Produces(MediaType.APPLICATION_JSON)
 	@Consumes(MediaType.MULTIPART_FORM_DATA)
+	@Operation(operationId = "baseUpload", summary = "Upload files", description = "Saves the files of a multipart form to the insight's folder, or, when given, to a project's app folder (projectId \"user\" for the user's asset project), an engine's folder or the user's asset space, under an optional relative path.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "multipart/form-data", schema = @Schema(implementation = UploadFileFilesRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The saved files", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = UploadFileSavedFile.class))))
+	@ApiResponse(responseCode = "400", description = "The insight is not open for a signed in user, an id is invalid, the user may not publish or edit the insight, project or engine, a virus was found, or the upload failed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "422", description = "Both a projectId and an engineId were given", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response baseUpload(@Context ServletContext context, @Context HttpServletRequest request,
-			@QueryParam("insightId") String insightId, @QueryParam("path") String relativePath,
-			@QueryParam("projectId") String projectId, @QueryParam("engineId") String engineId,
-			@QueryParam("userSpace") boolean userSpace) {
+			@Parameter(description = "The id of an insight open in this session", required = true) @QueryParam("insightId") String insightId,
+			@Parameter(description = "The folder to save to, relative to the target folder") @QueryParam("path") String relativePath,
+			@Parameter(description = "Save to this project's app folder; \"user\" for the user's asset project") @QueryParam("projectId") String projectId,
+			@Parameter(description = "Save to this engine's folder") @QueryParam("engineId") String engineId,
+			@Parameter(description = "Save to the user's asset space, when no projectId or engineId is given") @QueryParam("userSpace") boolean userSpace) {
 
 		// the insightId check is not required for containment. insightId is only used
 		// as
@@ -460,8 +482,13 @@ public class FileUploader extends AbstractUploader {
 	@Path("userAssetsUpload")
 	@Produces(MediaType.APPLICATION_JSON)
 	@Consumes(MediaType.MULTIPART_FORM_DATA)
+	@Operation(operationId = "userAssetsUpload", summary = "Upload files to the user's assets", description = "Saves the files of a multipart form to the user's asset space, under an optional relative path.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "multipart/form-data", schema = @Schema(implementation = UploadFileFilesRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The saved files", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = UploadFileSavedFile.class))))
+	@ApiResponse(responseCode = "400", description = "The insight is not open for a signed in user, the user may not publish, a virus was found, or the upload failed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response userAssetsUpload(@Context ServletContext context, @Context HttpServletRequest request,
-			@QueryParam("insightId") String insightId, @QueryParam("path") String relativePath) {
+			@Parameter(description = "The id of an insight open in this session", required = true) @QueryParam("insightId") String insightId,
+			@Parameter(description = "The folder to save to, relative to the user's asset space") @QueryParam("path") String relativePath) {
 
 		// the insightId check is not required for containment. insightId is only used
 		// as
@@ -518,9 +545,14 @@ public class FileUploader extends AbstractUploader {
 	@Path("projectAssetsUpload")
 	@Produces(MediaType.APPLICATION_JSON)
 	@Consumes(MediaType.MULTIPART_FORM_DATA)
+	@Operation(operationId = "projectAssetsUpload", summary = "Upload files to a project's assets", description = "Saves the files of a multipart form to the assets folder of a project the user can edit, under an optional relative path, and commits them to the project's git repository.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "multipart/form-data", schema = @Schema(implementation = UploadFileFilesRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The saved files", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = UploadFileSavedFile.class))))
+	@ApiResponse(responseCode = "400", description = "The insight is not open for a signed in user, the project id is missing or invalid, the user may not publish or edit the project, a virus was found, or the upload failed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response projectAssetsUpload(@Context ServletContext context, @Context HttpServletRequest request,
-			@QueryParam("insightId") String insightId, @QueryParam("path") String relativePath,
-			@QueryParam("projectId") String projectId) {
+			@Parameter(description = "The id of an insight open in this session", required = true) @QueryParam("insightId") String insightId,
+			@Parameter(description = "The folder to save to, relative to the project's assets folder") @QueryParam("path") String relativePath,
+			@Parameter(description = "The project id", required = true) @QueryParam("projectId") String projectId) {
 
 		// neither id check is required for containment. insightId is only an
 		// InsightStore key, and checkProjectEditPermission below resolves projectId
@@ -589,9 +621,14 @@ public class FileUploader extends AbstractUploader {
 	@Path("engineAssetsUpload")
 	@Produces(MediaType.APPLICATION_JSON)
 	@Consumes(MediaType.MULTIPART_FORM_DATA)
+	@Operation(operationId = "engineAssetsUpload", summary = "Upload files to an engine's assets", description = "Saves the files of a multipart form to the assets folder of an engine the user can edit, under an optional relative path, and commits them to the engine's git repository.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "multipart/form-data", schema = @Schema(implementation = UploadFileFilesRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The saved files", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = UploadFileSavedFile.class))))
+	@ApiResponse(responseCode = "400", description = "The insight is not open for a signed in user, the engine id is missing or invalid, the user may not publish or edit the engine, a virus was found, or the upload failed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response engineAssetsUpload(@Context ServletContext context, @Context HttpServletRequest request,
-			@QueryParam("insightId") String insightId, @QueryParam("path") String relativePath,
-			@QueryParam("engineId") String engineId) {
+			@Parameter(description = "The id of an insight open in this session", required = true) @QueryParam("insightId") String insightId,
+			@Parameter(description = "The folder to save to, relative to the engine's assets folder") @QueryParam("path") String relativePath,
+			@Parameter(description = "The engine id", required = true) @QueryParam("engineId") String engineId) {
 
 		// neither id check is required for containment. insightId is only an
 		// InsightStore key, and checkEngineEditPermission below resolves engineId

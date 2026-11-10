@@ -42,6 +42,7 @@ import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.Response;
+import io.swagger.v3.oas.annotations.Hidden;
 import prerna.web.services.util.WebUtility;
 
 @Path("/vector-{vectorId}")
@@ -58,6 +59,8 @@ public class VectorEngineResource {
 	@Path("/query")
 	@Consumes({ "application/x-www-form-urlencoded", "application/json" })
 	@Produces("application/json;charset=utf-8")
+	// Hidden: takes a path parameter and a JSON or form body, and no client calls it
+	@Hidden
 	public Response query(@Context HttpServletRequest request, @PathParam("vectorId") String vectorId) {
 		vectorId = WebUtility.inputSanitizer(vectorId);
 
@@ -91,6 +94,8 @@ public class VectorEngineResource {
 	@Path("/listDocuments")
 	@Consumes({ "application/x-www-form-urlencoded", "application/json" })
 	@Produces("application/json;charset=utf-8")
+	// Hidden: takes a path parameter and a JSON or form body, and no client calls it
+	@Hidden
 	public Response listDocuments(@Context HttpServletRequest request, @PathParam("vectorId") String vectorId) {
 		vectorId = WebUtility.inputSanitizer(vectorId);
 
@@ -118,6 +123,8 @@ public class VectorEngineResource {
 	@Path("/removeDocument")
 	@Consumes({ "application/x-www-form-urlencoded", "application/json" })
 	@Produces("application/json;charset=utf-8")
+	// Hidden: takes a path parameter and a JSON or form body, and no client calls it
+	@Hidden
 	public Response removeDocument(@Context HttpServletRequest request, @PathParam("vectorId") String vectorId) {
 		vectorId = WebUtility.inputSanitizer(vectorId);
 

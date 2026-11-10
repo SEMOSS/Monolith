@@ -70,9 +70,8 @@ class OpenApiExporterTest {
 		JsonNode doc = OpenApiExporter.read(OpenApiExporter.export());
 
 		assertEquals("3.1.0", doc.path("openapi").asText());
-		assertEquals(List.of("/api/config"), names(doc.path("paths")));
 		JsonNode config = doc.path("paths").path("/api/config").path("get");
-		assertEquals("config", config.path("operationId").asText());
+		assertEquals("monolith.config", config.path("operationId").asText());
 		assertEquals("#/components/schemas/ServerConfig", config.path("responses").path("200").path("content")
 				.path("application/json").path("schema").path("$ref").asText());
 		assertFalse(config.has("x-internal"));
@@ -102,6 +101,35 @@ class OpenApiExporterTest {
 		assertFalse(echoValue.has("type"), "Echo's value is any value");
 		assertFalse(contains(schemas.path("Reactor.Echo.Input").path("required"), "value"));
 		assertFalse(schemas.path("Reactor.Echo.Output").has("type"), "an undeclared output is any value");
+
+		List<String> operationIds = new ArrayList<>();
+		doc.path("paths").forEach(item -> item.forEach(operation -> operationIds.add(operation.path("operationId").asText())));
+		assertEquals(operationIds.size(), new java.util.HashSet<>(operationIds).size(), "operationIds are unique");
+		for (String operationId : operationIds) {
+			assertTrue(operationId.matches("^[A-Za-z]+(\\.[A-Za-z_][A-Za-z0-9_]*)+$"),
+					"published operationIds are qualified by module: " + operationId);
+		}
+
+		// every operation is tagged with its module, and each tag is listed once
+		List<String> listed = new ArrayList<>();
+		doc.path("tags").forEach(tag -> {
+			listed.add(tag.path("name").asText());
+			assertTrue(tag.path("description").asText().startsWith("Operations under /"), tag.toString());
+		});
+		assertEquals(listed.stream().distinct().sorted().toList(), listed, "tags are listed once, sorted by name");
+		java.util.Set<String> used = new java.util.TreeSet<>();
+		doc.path("paths").forEach(item -> item.forEach(operation -> {
+			JsonNode operationTags = operation.path("tags");
+			assertEquals(1, operationTags.size(), operation.path("operationId").asText() + " has one tag");
+			assertEquals(OpenApiExporter.moduleOf(operation.path("operationId").asText()), operationTags.get(0).asText());
+			used.add(operationTags.get(0).asText());
+		}));
+		assertEquals(List.copyOf(used), listed, "the document lists exactly the tags its operations use");
+		assertEquals("monolith", doc.path("paths").path("/api/config").path("get").path("tags").get(0).asText());
+
+		JsonNode server = doc.path("servers").get(0);
+		assertEquals("{contextPath}", server.path("url").asText());
+		assertEquals("/Monolith", server.path("variables").path("contextPath").path("default").asText());
 
 		Map<String, String> modules = new TreeMap<>();
 		doc.path("x-semoss-servlets").fields().forEachRemaining(e -> modules.put(e.getKey(), e.getValue().asText()));
@@ -196,12 +224,127 @@ class OpenApiExporterTest {
 	}
 
 	@Test
-	void rejectsTwoOperationsWithTheSameIdInOneServlet() {
+	void qualifiesEachOperationIdByItsModule() throws Exception {
+		List<Servlet> servlets = List.of(new Servlet("/nm", "nm", "openapi.fixtures.NamingApplication"));
+		JsonNode paths = OpenApiExporter.read(OpenApiExporter.export(servlets, FIXTURE_REACTORS)).path("paths");
+
+		assertEquals("nm.project.getProjects", paths.path("/nm/project/getProjects").path("post").path("operationId").asText());
+		assertEquals("nm.project.getProjectsGet", paths.path("/nm/project/getProjects").path("get").path("operationId").asText(),
+				"a GET whose path has a POST adds Get");
+		assertEquals("nm.admin.project.getProjects",
+				paths.path("/nm/admin/project/getProjects").path("post").path("operationId").asText(),
+				"the same name in another module is its own operation");
+		assertEquals("nm.e.type", paths.path("/nm/e-{engineId}/type").path("get").path("operationId").asText(),
+				"a segment keeps its literal part without the parameter");
+		assertEquals("nm.e.byName", paths.path("/nm/e-{engineId}/{name}").path("get").path("operationId").asText(),
+				"a parameter as the last segment takes the chosen name");
+		assertEquals("nm.project.sub.list", paths.path("/nm/project/sub/list").path("get").path("operationId").asText(),
+				"operations of a sub-resource are published");
+		assertEquals("nm.browserSessions.steps",
+				paths.path("/nm/browser-sessions/{id}/steps").path("get").path("operationId").asText(),
+				"a kebab-case segment is a lower camel module");
+		assertEquals("nm.browserSessions.images.engine.delete",
+				paths.path("/nm/browser-sessions/{id}/images/engine/delete").path("post").path("operationId").asText());
+		assertEquals("nm.browserSessions.images.project.delete",
+				paths.path("/nm/browser-sessions/{id}/images/project/delete").path("post").path("operationId").asText(),
+				"one resource may use a name in two modules");
+
+		assertEquals("nm.project", paths.path("/nm/project/getProjects").path("get").path("tags").get(0).asText(),
+				"an operation is tagged with its module");
+		assertEquals("nm.project.sub", paths.path("/nm/project/sub/list").path("get").path("tags").get(0).asText());
+		assertEquals("nm.e", paths.path("/nm/e-{engineId}/{name}").path("get").path("tags").get(0).asText());
+	}
+
+	@Test
+	void rejectsAnOperationThatDeclaresItsOwnTags() {
+		List<Servlet> servlets = List.of(new Servlet("/tg", "tg", "openapi.fixtures.TaggedApplication"));
+
+		IllegalStateException error = assertThrows(IllegalStateException.class,
+				() -> OpenApiExporter.export(servlets, FIXTURE_REACTORS));
+		assertTrue(error.getMessage().contains("GET /tg/tagged/list: declares tags"), error.getMessage());
+	}
+
+	@Test
+	void describesEachTagByThePathsItsOperationsAreUnder() throws Exception {
+		List<Servlet> servlets = List.of(new Servlet("/nm", "nm", "openapi.fixtures.NamingApplication"));
+		JsonNode tags = OpenApiExporter.read(OpenApiExporter.export(servlets, FIXTURE_REACTORS)).path("tags");
+
+		Map<String, String> descriptions = new TreeMap<>();
+		tags.forEach(tag -> descriptions.put(tag.path("name").asText(), tag.path("description").asText()));
+		assertEquals("Operations under /nm/project", descriptions.get("nm.project"));
+		assertEquals("Operations under /nm/e-{engineId}", descriptions.get("nm.e"));
+		assertEquals("Operations under /nm/browser-sessions/{id}", descriptions.get("nm.browserSessions"));
+	}
+
+	@Test
+	void rejectsTwoOperationsPublishedUnderOneId() {
 		List<Servlet> servlets = List.of(new Servlet("/dup", "dup", "openapi.fixtures.DuplicateApplication"));
 
 		IllegalStateException error = assertThrows(IllegalStateException.class,
 				() -> OpenApiExporter.export(servlets, FIXTURE_REACTORS));
-		assertTrue(error.getMessage().contains("Two operations in /dup are named \"same\""), error.getMessage());
+		assertTrue(error.getMessage().contains("Two operations are published as \"dup.twice.same\""), error.getMessage());
+	}
+
+	@Test
+	void rejectsAnOperationIdThatIsNotTheLastPathSegment() {
+		List<Servlet> servlets = List.of(new Servlet("/mm", "mm", "openapi.fixtures.MismatchApplication"));
+
+		IllegalStateException error = assertThrows(IllegalStateException.class,
+				() -> OpenApiExporter.export(servlets, FIXTURE_REACTORS));
+		assertTrue(error.getMessage().contains("the operationId must be \"list\""), error.getMessage());
+	}
+
+	@Test
+	void namesEveryMethodButThePlainOneWithASuffix() {
+		Servlet servlet = new Servlet("/api", "monolith", "unused");
+		assertEquals("Get", OpenApiExporter.methodSuffix("get", java.util.Set.of("get", "post")));
+		assertEquals("", OpenApiExporter.methodSuffix("post", java.util.Set.of("get", "post")));
+		assertEquals("", OpenApiExporter.methodSuffix("get", java.util.Set.of("get", "delete")),
+				"without a POST the GET keeps the plain name");
+		assertEquals("Delete", OpenApiExporter.methodSuffix("delete", java.util.Set.of("get", "delete")));
+		assertEquals("", OpenApiExporter.methodSuffix("delete", java.util.Set.of("delete")));
+
+		assertEquals("monolith.auth.project.getProjectsGet",
+				OpenApiExporter.qualifiedId(servlet, "/api/auth/project/getProjects", "getProjectsGet", "Get", "GET"));
+		IllegalStateException error = assertThrows(IllegalStateException.class,
+				() -> OpenApiExporter.qualifiedId(servlet, "/api/auth/project/getProjects", "getProjects", "Get", "GET"));
+		assertTrue(error.getMessage().contains("\"getProjectsGet\""), error.getMessage());
+	}
+
+	@Test
+	void marksWhatNoSdkShouldCall() throws Exception {
+		com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+		java.util.function.Function<String, com.fasterxml.jackson.databind.node.ObjectNode> operation = json -> {
+			try {
+				return (com.fasterxml.jackson.databind.node.ObjectNode) mapper.readTree(json);
+			} catch (Exception e) {
+				throw new IllegalStateException(e);
+			}
+		};
+
+		var redirect = operation.apply("{\"responses\":{\"302\":{\"description\":\"Away\"}}}");
+		OpenApiExporter.markSdkSkip(redirect, "GET /redirect");
+		assertEquals("Browser navigation: it only redirects", redirect.path(OpenApiExporter.SDK_SKIP).asText());
+
+		var page = operation.apply("{\"responses\":{\"200\":{\"content\":{\"text/html\":{}}}}}");
+		OpenApiExporter.markSdkSkip(page, "GET /page");
+		assertEquals("Browser navigation: it answers with an HTML page", page.path(OpenApiExporter.SDK_SKIP).asText());
+
+		var json = operation.apply("{\"responses\":{\"200\":{\"content\":{\"application/json\":{}}}}}");
+		OpenApiExporter.markSdkSkip(json, "GET /json");
+		assertFalse(json.has(OpenApiExporter.SDK_SKIP));
+
+		var empty = operation.apply("{\"responses\":{\"204\":{\"description\":\"Done\"}}}");
+		OpenApiExporter.markSdkSkip(empty, "POST /empty");
+		assertFalse(empty.has(OpenApiExporter.SDK_SKIP), "a 2xx without a body is a call that returns nothing");
+
+		var declared = operation.apply(
+				"{\"x-semoss-sdk-skip\":\"Webhook\",\"responses\":{\"200\":{\"content\":{\"application/json\":{}}}}}");
+		OpenApiExporter.markSdkSkip(declared, "POST /webhook");
+		assertEquals("Webhook", declared.path(OpenApiExporter.SDK_SKIP).asText());
+
+		var blank = operation.apply("{\"x-semoss-sdk-skip\":\" \",\"responses\":{}}");
+		assertThrows(IllegalStateException.class, () -> OpenApiExporter.markSdkSkip(blank, "POST /blank"));
 	}
 
 	@Test

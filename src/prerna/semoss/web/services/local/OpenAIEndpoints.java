@@ -65,6 +65,11 @@ import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.StreamingOutput;
+import io.swagger.v3.oas.annotations.Hidden;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityEngineUtils;
 import prerna.engine.api.IModelEngine;
@@ -83,6 +88,8 @@ import prerna.engine.impl.model.usage.ModelUsageLimitException;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.sablecc2.comm.PixelJobManager;
+import prerna.semoss.web.openapi.CommonSchemas.ErrorMessage;
+import prerna.semoss.web.services.local.OpenAIEndpointsSchemas.OpenAIModelList;
 import prerna.util.Constants;
 import prerna.util.Utility;
 import prerna.web.services.util.ModelPixelExecutor;
@@ -100,6 +107,8 @@ public class OpenAIEndpoints {
 	private static final Gson GSON = new GsonBuilder().setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE)
 			.disableHtmlEscaping().create();
 
+	// Hidden: JSON request body and a JSON or SSE stream response, and no client calls it
+	@Hidden
 	@POST
 	@Path("/v1/chat/completions")
 	@Consumes({ "application/json" })
@@ -108,6 +117,8 @@ public class OpenAIEndpoints {
 		return runModelChatCompletion(request);
 	}
 
+	// Hidden: JSON request body and a JSON or SSE stream response, and no client calls it
+	@Hidden
 	@POST
 	@Path("/chat/completions")
 	@Consumes({ "application/json" })
@@ -284,6 +295,8 @@ public class OpenAIEndpoints {
 		}
 	}
 
+	// Hidden: JSON request body and a JSON or SSE stream response, and no client calls it
+	@Hidden
 	@POST
 	@Path("/v1/responses")
 	@Consumes({ "application/json" })
@@ -292,6 +305,8 @@ public class OpenAIEndpoints {
 		return runResponses(request);
 	}
 
+	// Hidden: JSON request body and a JSON or SSE stream response, and no client calls it
+	@Hidden
 	@POST
 	@Path("/responses")
 	@Consumes({ "application/json" })
@@ -464,6 +479,8 @@ public class OpenAIEndpoints {
 				}).build();
 	}
 
+	// Hidden: JSON request body and a JSON or SSE stream response, and no client calls it
+	@Hidden
 	@POST
 	@Path("/v1/images/generations")
 	@Consumes({ "application/json" })
@@ -472,6 +489,8 @@ public class OpenAIEndpoints {
 		return runImagesGenerations(request);
 	}
 
+	// Hidden: JSON request body and a JSON or SSE stream response, and no client calls it
+	@Hidden
 	@POST
 	@Path("/images/generations")
 	@Consumes({ "application/json" })
@@ -639,6 +658,8 @@ public class OpenAIEndpoints {
 	// prerna.engine.impl.model.openai, next to the other format helpers, so the
 	// OpenAIPassthroughReactor can serve this path too
 
+	// Hidden: JSON request body and a JSON or SSE stream response, and no client calls it
+	@Hidden
 	@POST
 	@Path("/completions")
 	@Consumes({ "application/json" })
@@ -881,6 +902,8 @@ public class OpenAIEndpoints {
 		}
 	}
 
+	// Hidden: JSON request body, and no client calls it
+	@Hidden
 	@POST
 	@Path("/v1/embeddings")
 	@Consumes({ "application/json" })
@@ -889,6 +912,8 @@ public class OpenAIEndpoints {
 		return runModelEmbeddings(request);
 	}
 
+	// Hidden: JSON request body, and no client calls it
+	@Hidden
 	@POST
 	@Path("/embeddings")
 	@Consumes({ "application/json" })
@@ -1002,6 +1027,9 @@ public class OpenAIEndpoints {
 	@Path("/v1/models")
 	@Consumes({ "application/json" })
 	@Produces("application/json;charset=utf-8")
+	@Operation(operationId = "models", summary = "List the models (OpenAI v1 path)", description = "Lists every model engine the signed-in user can view, in the OpenAI models list format (as OpenAI's GET /v1/models; only the fields Monolith writes are modeled). The same as /model/openai/models.")
+	@ApiResponse(responseCode = "200", description = "The models, in the OpenAI models list format", content = @Content(mediaType = "application/json", schema = @Schema(implementation = OpenAIModelList.class)))
+	@ApiResponse(responseCode = "401", description = "The session has no signed-in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response listV1Models(@Context HttpServletRequest request) {
 		return listModels(request);
 	}
@@ -1010,6 +1038,9 @@ public class OpenAIEndpoints {
 	@Path("/models")
 	@Consumes({ "application/json" })
 	@Produces("application/json;charset=utf-8")
+	@Operation(operationId = "models", summary = "List the models (OpenAI format)", description = "Lists every model engine the signed-in user can view, in the OpenAI models list format (as OpenAI's GET /v1/models; only the fields Monolith writes are modeled).")
+	@ApiResponse(responseCode = "200", description = "The models, in the OpenAI models list format", content = @Content(mediaType = "application/json", schema = @Schema(implementation = OpenAIModelList.class)))
+	@ApiResponse(responseCode = "401", description = "The session has no signed-in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response listModels(@Context HttpServletRequest request) {
 		// https://platform.openai.com/docs/api-reference/models/list
 		HttpSession session = request.getSession(false);
@@ -1021,6 +1052,8 @@ public class OpenAIEndpoints {
 		return WebUtility.getResponse(OpenAIModelsHelper.listModels(user), 200);
 	}
 
+	// Hidden: path parameter, and no client calls it
+	@Hidden
 	@GET
 	@Path("/v1/models/{modelId}")
 	@Consumes({ "application/json" })
@@ -1029,6 +1062,8 @@ public class OpenAIEndpoints {
 		return retrieveModel(request, modelId);
 	}
 
+	// Hidden: path parameter, and no client calls it
+	@Hidden
 	@GET
 	@Path("/models/{modelId}")
 	@Consumes({ "application/json" })

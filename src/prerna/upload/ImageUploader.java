@@ -53,6 +53,11 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.Response;
+import io.swagger.v3.oas.annotations.Hidden;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityInsightUtils;
@@ -62,6 +67,17 @@ import prerna.engine.api.IEngine;
 import prerna.engine.impl.SmssUtilities;
 import prerna.io.connector.couch.CouchException;
 import prerna.io.connector.couch.CouchUtil;
+import prerna.semoss.web.openapi.CommonSchemas.ErrorMessage;
+import prerna.upload.ImageUploaderSchemas.ImagesDatabaseImageDeleteRequest;
+import prerna.upload.ImageUploaderSchemas.ImagesDatabaseImageDeleteResult;
+import prerna.upload.ImageUploaderSchemas.ImagesEngineDeleteRequest;
+import prerna.upload.ImageUploaderSchemas.ImagesEngineDeleteResult;
+import prerna.upload.ImageUploaderSchemas.ImagesInsightImageDeleteRequest;
+import prerna.upload.ImageUploaderSchemas.ImagesInsightImageDeleteResult;
+import prerna.upload.ImageUploaderSchemas.ImagesProjectImageDeleteRequest;
+import prerna.upload.ImageUploaderSchemas.ImagesProjectImageDeleteResult;
+import prerna.upload.ImageUploaderSchemas.ImagesProjectImageUploadRequest;
+import prerna.upload.ImageUploaderSchemas.ImagesProjectImageUploadResult;
 import prerna.util.AssetUtility;
 import prerna.util.Constants;
 import prerna.util.EngineUtility;
@@ -84,6 +100,8 @@ public class ImageUploader extends AbstractUploader {
 	@POST
 	@Path("/engine/upload")
 	@Produces("application/json")
+	// Hidden: takes a multipart body, and no client calls it
+	@Hidden
 	public Response uploadEngineImage(@Context ServletContext context, @Context HttpServletRequest request)
 			throws SQLException {
 		Map<String, String> returnMap = new HashMap<>();
@@ -275,6 +293,11 @@ public class ImageUploader extends AbstractUploader {
 
 	@POST
 	@Path("/engine/delete")
+	@Operation(operationId = "delete", summary = "Remove an engine's image", description = "Deletes the custom image of an engine the user can edit, so the engine shows the stock image again.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = ImagesEngineDeleteRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The image was removed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ImagesEngineDeleteResult.class)))
+	@ApiResponse(responseCode = "400", description = "There is no signed in user, the engine id is missing or invalid, the user cannot edit the engine, or its folder could not be made", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "The image could not be removed from CouchDB", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response deleteEngineImage(@Context HttpServletRequest request) throws SQLException {
 		Map<String, String> returnMap = new HashMap<>();
 
@@ -423,6 +446,11 @@ public class ImageUploader extends AbstractUploader {
 	@POST
 	@Path("/projectImage/upload")
 	@Produces("application/json")
+	@Operation(operationId = "upload", summary = "Set a project's image", description = "Replaces the image of a project the user can edit with the file of a multipart form.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "multipart/form-data", schema = @Schema(implementation = ImagesProjectImageUploadRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The image was stored", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ImagesProjectImageUploadResult.class)))
+	@ApiResponse(responseCode = "400", description = "There is no signed in user, the form has no file or projectId, or the user cannot edit the project", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "The image could not be stored in CouchDB", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response uploadProjectImage(@Context ServletContext context, @Context HttpServletRequest request)
 			throws SQLException {
 		Map<String, String> returnMap = new HashMap<>();
@@ -558,6 +586,11 @@ public class ImageUploader extends AbstractUploader {
 
 	@POST
 	@Path("/projectImage/delete")
+	@Operation(operationId = "delete", summary = "Remove a project's image", description = "Deletes the custom image of a project the user can edit, so the project shows the stock image again.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = ImagesProjectImageDeleteRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The image was removed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ImagesProjectImageDeleteResult.class)))
+	@ApiResponse(responseCode = "400", description = "There is no signed in user, the project id is missing or invalid, or the user cannot edit the project", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "The image could not be removed from CouchDB", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response deleteProjectImage(@Context HttpServletRequest request) throws SQLException {
 		Map<String, String> returnMap = new HashMap<>();
 
@@ -671,6 +704,8 @@ public class ImageUploader extends AbstractUploader {
 	@POST
 	@Path("/insightImage/upload")
 	@Produces("application/json")
+	// Hidden: takes a multipart body, and no client calls it
+	@Hidden
 	public Response uploadInsightImage(@Context ServletContext context, @Context HttpServletRequest request) {
 		Map<String, String> returnMap = new HashMap<>();
 
@@ -809,6 +844,11 @@ public class ImageUploader extends AbstractUploader {
 
 	@POST
 	@Path("/insightImage/delete")
+	@Operation(operationId = "delete", summary = "Remove an insight's image", description = "Deletes the custom image of an insight the user can edit, so the insight shows the stock image again.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = ImagesInsightImageDeleteRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The image was removed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ImagesInsightImageDeleteResult.class)))
+	@ApiResponse(responseCode = "400", description = "There is no signed in user, an id is missing or invalid, the user cannot edit the insight, or the insight has no custom image", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "The image could not be removed from CouchDB", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response deleteInsightImage(@Context HttpServletRequest request) throws SQLException {
 		Map<String, String> returnMap = new HashMap<>();
 
@@ -920,6 +960,8 @@ public class ImageUploader extends AbstractUploader {
 	@Path("/databaseImage/upload")
 	@Produces("application/json")
 	@Deprecated
+	// Hidden: takes a multipart body, and no client calls it
+	@Hidden
 	public Response uploadDatabaseImage(@Context ServletContext context, @Context HttpServletRequest request)
 			throws SQLException {
 		Map<String, String> returnMap = new HashMap<>();
@@ -1118,6 +1160,11 @@ public class ImageUploader extends AbstractUploader {
 
 	@POST
 	@Path("/databaseImage/delete")
+	@Operation(operationId = "delete", summary = "Remove a database's image", description = "Deletes the custom image of a database the user can edit. Deprecated: use images/engine/delete.", deprecated = true)
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = ImagesDatabaseImageDeleteRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The image was removed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ImagesDatabaseImageDeleteResult.class)))
+	@ApiResponse(responseCode = "400", description = "There is no signed in user, the id is missing or invalid, the user cannot edit the database, or its folder could not be made", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "The image could not be removed from CouchDB", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	@Deprecated
 	public Response deleteDatabaseImage(@Context HttpServletRequest request) throws SQLException {
 		Map<String, String> returnMap = new HashMap<>();

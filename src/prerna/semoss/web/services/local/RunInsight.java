@@ -33,6 +33,7 @@ import java.util.Map;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import io.swagger.v3.oas.annotations.Hidden;
 import jakarta.annotation.security.PermitAll;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.POST;
@@ -65,6 +66,8 @@ public class RunInsight {
 	@POST
 	@Path("/getTableData")
 	@Produces("application/json")
+	// Hidden: reached only through the exec/a-{appId}/i-{insightId} and share/i-{insightId} locators, which have path parameters, and no client calls it
+	@Hidden
 	public Response getInsightData(@Context HttpServletRequest request) {
 		String pixel = "QueryAll()|Collect(-1);FrameHeaders();";
 		return runPixel(request, pixel);
@@ -73,6 +76,8 @@ public class RunInsight {
 	@POST
 	@Path("/getInsightState")
 	@Produces("application/json")
+	// Hidden: reached only through the exec/a-{appId}/i-{insightId} and share/i-{insightId} locators, which have path parameters, and no client calls it
+	@Hidden
 	public Response recreateInsightState(@Context HttpServletRequest request) {
 		PixelRunner pixelRunner = InsightUtility.recreateInsightState(in);
 		return Response.status(200).entity(PixelStreamUtility.collectPixelData(pixelRunner, null))

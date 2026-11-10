@@ -62,6 +62,13 @@ import jakarta.ws.rs.core.EntityTag;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Request;
 import jakarta.ws.rs.core.Response;
+import io.swagger.v3.oas.annotations.Hidden;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityEngineUtils;
@@ -75,6 +82,12 @@ import prerna.io.connector.couch.CouchUtil;
 import prerna.io.connector.secrets.ISecrets;
 import prerna.io.connector.secrets.SecretsFactory;
 import prerna.notifications.NotificationDbUtils;
+import prerna.semoss.web.openapi.CommonSchemas.ErrorMessage;
+import prerna.semoss.web.openapi.CommonSchemas.ErrorText;
+import prerna.semoss.web.openapi.CommonSchemas.Success;
+import prerna.semoss.web.services.local.EngineRouteResourceSchemas.EngineRouteImageUploadRequest;
+import prerna.semoss.web.services.local.EngineRouteResourceSchemas.EngineRouteImageUploadResult;
+import prerna.semoss.web.services.local.EngineRouteResourceSchemas.EngineRouteUpdateSmssFileRequest;
 import prerna.upload.CatalogImageUploader;
 import prerna.util.Constants;
 import prerna.util.DefaultImageGeneratorUtil;
@@ -148,6 +161,8 @@ public class EngineRouteResource {
 	@GET
 	@Path("/type")
 	@Produces("application/json;charset=utf-8")
+	// Hidden: takes a path parameter, and no client calls it
+	@Hidden
 	public Response getEngineType(@Context HttpServletRequest request, @PathParam("engineId") String engineId) {
 		engineId = WebUtility.inputSanitizer(engineId);
 
@@ -202,7 +217,13 @@ public class EngineRouteResource {
 	@POST
 	@Path("/updateSmssFile")
 	@Produces("application/json;charset=utf-8")
-	public Response updateSmssFile(@Context HttpServletRequest request, @PathParam("engineId") String engineId) {
+	@Operation(operationId = "updateSmssFile", summary = "Replace an engine's smss file", description = "Replaces the smss file of an engine the user owns (or any engine, for an admin) and reopens the engine with it. The engine id, name and type cannot change. With a secret store the new values are written there; otherwise the file is rewritten, and restored when the engine cannot reopen with it.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = EngineRouteUpdateSmssFileRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The smss file was replaced", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "The engine id is invalid, the current smss file cannot be found, the new file changes the engine id, name or type, or the engine could not be reopened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user is not the engine's owner", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorText.class)))
+	public Response updateSmssFile(@Context HttpServletRequest request,
+			@Parameter(description = "The engine id") @PathParam("engineId") String engineId) {
 		// not required for containment. engineExists/userIsOwner below resolve engineId
 		// against the ENGINE table on both the admin and non-admin branch, so a
 		// traversal value is rejected before it reaches the smss file path
@@ -403,8 +424,17 @@ public class EngineRouteResource {
 	@Path("/image/upload")
 	@Consumes(MediaType.MULTIPART_FORM_DATA)
 	@Produces(MediaType.APPLICATION_JSON)
+	@Operation(operationId = "upload", summary = "Set an engine's catalog image", description = "Replaces the catalog image of an engine the user can edit with one PNG, JPEG or GIF of at most 10 MiB, sent as the only part of a multipart form.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(required = true, content = @Content(mediaType = "multipart/form-data", schema = @Schema(implementation = EngineRouteImageUploadRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The image was stored", content = @Content(mediaType = "application/json", schema = @Schema(implementation = EngineRouteImageUploadResult.class)))
+	@ApiResponse(responseCode = "400", description = "The engine id is invalid, or the form is not exactly one valid image in the file field", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The engine does not exist or the user cannot edit it", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "413", description = "The image is larger than 10 MiB, or the form has too many parts", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "415", description = "The request is not multipart, or the image is not a PNG, JPEG or GIF", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "The image could not be stored", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response uploadImage(@Context ServletContext context, @Context HttpServletRequest request,
-			@PathParam("engineId") String engineId) {
+			@Parameter(description = "The engine id") @PathParam("engineId") String engineId) {
 		return CatalogImageUploader.upload(context, request, engineId, false);
 	}
 
@@ -430,8 +460,22 @@ public class EngineRouteResource {
 	@Path("/image/download")
 	@Produces({ "image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml",
 			MediaType.APPLICATION_OCTET_STREAM })
+	@Operation(operationId = "download", summary = "Download an engine's catalog image", description = "Returns the catalog image of an engine the user can view or discover, or the stock image when it has none. Honors If-None-Match.")
+	@Parameter(name = "theme", in = ParameterIn.QUERY, description = "The theme of the stock image to fall back to", required = false, schema = @Schema(types = "string", allowableValues = {
+			"light", "dark" }))
+	@ApiResponse(responseCode = "200", description = "The image", content = {
+			@Content(mediaType = "image/png", schema = @Schema(types = "string", format = "binary")),
+			@Content(mediaType = "image/jpeg", schema = @Schema(types = "string", format = "binary")),
+			@Content(mediaType = "image/gif", schema = @Schema(types = "string", format = "binary")),
+			@Content(mediaType = "image/webp", schema = @Schema(types = "string", format = "binary")),
+			@Content(mediaType = "image/svg+xml", schema = @Schema(types = "string", format = "binary")),
+			@Content(mediaType = "application/octet-stream", schema = @Schema(types = "string", format = "binary")) })
+	@ApiResponse(responseCode = "304", description = "The image has not changed since the If-None-Match entity tag")
+	@ApiResponse(responseCode = "400", description = "The engine id is invalid or unknown, or the image could not be found", content = @Content(mediaType = "application/json", schema = @Schema(oneOf = {
+			ErrorMessage.class, ErrorText.class })))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user, or the user cannot view the engine", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorText.class)))
 	public Response imageDownload(@Context final Request coreRequest, @Context HttpServletRequest request,
-			@PathParam("engineId") String engineId) {
+			@Parameter(description = "The engine id") @PathParam("engineId") String engineId) {
 		// not required for containment. getEngineTypeAndSubtype and
 		// canAccessOrDiscoverableEngine below resolve engineId against the ENGINE
 		// table,

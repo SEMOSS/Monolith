@@ -80,7 +80,9 @@ import prerna.reactor.IReactor;
  * <ul>
  * <li>Under {@code paths}: every resource method with a swagger-core
  * {@code @Operation(operationId = ...)}, in the resources each servlet's
- * {@link Application} registers.</li>
+ * {@link Application} registers and the sub-resources their locators return,
+ * each under a qualified, document-wide unique {@code operationId} (see
+ * {@link #readRestOperations}).</li>
  * <li>Under the {@code x-semoss-reactor} extension: every general reactor that
  * declares something about itself ({@link ReactorContract#isDefined}), with the
  * contract it declares ({@link ReactorContract}). A reactor that declares
@@ -88,6 +90,9 @@ import prerna.reactor.IReactor;
  * <li>{@code @Hidden} (swagger-core) on a method, resource or reactor leaves it
  * out. {@link Internal} publishes it with {@code "x-internal": true}, which the
  * SDKs mark as not for general use.</li>
+ * <li>Each operation is tagged with its module, the {@code operationId} without
+ * its last part, so every tool and SDK groups operations the same way
+ * ({@link #tagOperations}).</li>
  * <li>{@code x-semoss-servlets} names the module each servlet's operations are
  * published under, so every SDK groups them the same way.</li>
  * </ul>
@@ -179,6 +184,7 @@ public final class OpenApiExporter {
 	static Result run(List<Servlet> servlets, List<String> reactorPackages) throws Exception {
 		ObjectNode schemas = NODES.objectNode();
 		ObjectNode paths = readRestOperations(servlets, schemas);
+		ArrayNode tags = tagOperations(paths);
 		List<String> skipped = new ArrayList<>();
 		ObjectNode reactorExtension = readReactors(reactorPackages, schemas, skipped);
 		skipped.sort(null);
@@ -186,10 +192,11 @@ public final class OpenApiExporter {
 		ObjectNode root = NODES.objectNode();
 		root.put("openapi", "3.1.0");
 		root.set("info", NODES.objectNode().put("title", "SEMOSS").put("version", "1"));
-		ObjectNode server = NODES.objectNode().put("url", "{module}");
-		server.set("variables", NODES.objectNode().set("module",
+		ObjectNode server = NODES.objectNode().put("url", "{contextPath}");
+		server.set("variables", NODES.objectNode().set("contextPath",
 				NODES.objectNode().put("default", "/Monolith").put("description", "The web app's context path")));
 		root.set("servers", NODES.arrayNode().add(server));
+		root.set("tags", tags);
 		root.set("paths", paths);
 		root.set("components", NODES.objectNode().set("schemas", schemas));
 		ObjectNode servletModules = NODES.objectNode();
@@ -215,6 +222,45 @@ public final class OpenApiExporter {
 	 * REST
 	 */
 
+	/** The module of a qualified {@code operationId}: all of it but its last part. */
+	static String moduleOf(String operationId) {
+		return operationId.substring(0, operationId.lastIndexOf('.'));
+	}
+
+	/**
+	 * Tags every operation with its module, the {@code operationId} without its
+	 * last part ({@code monolith.auth.project.getProjects} is tagged
+	 * {@code monolith.auth.project}), which is how standard tools and every SDK
+	 * group operations.
+	 *
+	 * @return the document's {@code tags}, sorted by name, each describing the
+	 *         paths its operations are under
+	 * @throws IllegalStateException when an annotation declares its own tags; they
+	 *                               come from the path
+	 */
+	static ArrayNode tagOperations(ObjectNode paths) {
+		Map<String, Set<String>> parents = new TreeMap<>();
+		for (Iterator<Map.Entry<String, JsonNode>> it = paths.fields(); it.hasNext();) {
+			Map.Entry<String, JsonNode> path = it.next();
+			String parent = path.getKey().substring(0, Math.max(1, path.getKey().lastIndexOf('/')));
+			for (Iterator<Map.Entry<String, JsonNode>> ops = path.getValue().fields(); ops.hasNext();) {
+				Map.Entry<String, JsonNode> op = ops.next();
+				ObjectNode operation = (ObjectNode) op.getValue();
+				if (operation.has("tags")) {
+					throw new IllegalStateException(op.getKey().toUpperCase() + " " + path.getKey()
+							+ ": declares tags, but an operation's tag is its module, from its path");
+				}
+				String module = moduleOf(operation.path("operationId").asText());
+				operation.set("tags", NODES.arrayNode().add(module));
+				parents.computeIfAbsent(module, m -> new java.util.TreeSet<>()).add(parent);
+			}
+		}
+		ArrayNode tags = NODES.arrayNode();
+		parents.forEach((module, under) -> tags.add(NODES.objectNode().put("name", module)
+				.put("description", "Operations under " + String.join(", ", under))));
+		return tags;
+	}
+
 	/**
 	 * The resource classes a servlet's application registers, by constructing it.
 	 */
@@ -238,89 +284,299 @@ public final class OpenApiExporter {
 	private record AnnotatedOperation(Method method, Class<?> resource) {
 	}
 
+	/** An SDK function or module name. */
+	private static final java.util.regex.Pattern NAME = java.util.regex.Pattern.compile("^[A-Za-z_][A-Za-z0-9_]*$");
+
+	/** A path parameter, as in {@code e-{engineId}}. */
+	private static final java.util.regex.Pattern PATH_PARAMETER = java.util.regex.Pattern.compile("\\{[^}]*\\}");
+
+	/**
+	 * The method of a path that keeps the plain name when the path has several: the
+	 * POST, else the GET. Every other method adds its own name ({@code Get},
+	 * {@code Delete}, {@code Put}, {@code Patch}).
+	 */
+	static String plainMethod(Set<String> methods) {
+		return methods.contains("post") ? "post" : methods.contains("get") ? "get" : null;
+	}
+
+	/** The suffix a method's name takes when another method of its path keeps the plain name. */
+	static String methodSuffix(String httpMethod, Set<String> methods) {
+		if (methods.size() < 2 || httpMethod.equals(plainMethod(methods))) {
+			return "";
+		}
+		return Character.toUpperCase(httpMethod.charAt(0)) + httpMethod.substring(1).toLowerCase();
+	}
+
+	/**
+	 * Reads every annotated operation, and publishes each under a qualified,
+	 * document-wide unique {@code operationId}:
+	 * {@code {servlet module}.{module segments}.{name}}, such as
+	 * {@code monolith.auth.project.getProjects}.
+	 * <ul>
+	 * <li>The name is the {@code operationId} the method declares: the SDK function
+	 * name. It must be the last path segment when that segment is a name, plus
+	 * {@link #methodSuffix} when its path has other methods (a GET beside a POST is
+	 * {@code getProjectsGet}). When the last
+	 * segment is not a name (a path parameter, or the resource root), the method
+	 * chooses one.</li>
+	 * <li>The module segments are the path's other segments, each without its path
+	 * parameters ({@code e-{engineId}} is {@code e}) and in lower camel case
+	 * ({@code browser-sessions} is {@code browserSessions}); a segment that is only a
+	 * parameter is left out.</li>
+	 * </ul>
+	 * Each resource is read on its own, since swagger-core renames an
+	 * {@code operationId} it has seen before.
+	 */
 	private static ObjectNode readRestOperations(List<Servlet> servlets, ObjectNode schemas) throws Exception {
 		ObjectNode paths = NODES.objectNode();
+		Map<String, String> published = new TreeMap<>();
 		for (Servlet servlet : servlets) {
-			// Only resources with an @Operation reach swagger's Reader, so nothing
-			// unannotated is ever introspected.
-			Map<String, AnnotatedOperation> operations = new TreeMap<>();
-			Set<Class<?>> annotated = new LinkedHashSet<>();
 			for (Class<?> resource : resourcesOf(servlet)) {
 				if (resource.isAnnotationPresent(Hidden.class)) {
 					continue;
 				}
-				for (Method method : resource.getMethods()) {
-					Operation operation = method.getAnnotation(Operation.class);
-					if (operation == null || method.isAnnotationPresent(Hidden.class)) {
-						continue;
-					}
-					String operationId = operation.operationId();
-					if (operationId.isEmpty()) {
-						throw new IllegalStateException(resource.getName() + "." + method.getName()
-								+ ": @Operation needs an operationId to be published");
-					}
-					AnnotatedOperation previous = operations.put(operationId, new AnnotatedOperation(method, resource));
-					if (previous != null) {
-						throw new IllegalStateException("Two operations in " + servlet.prefix() + " are named \""
-								+ operationId + "\": " + previous.resource().getName() + "."
-								+ previous.method().getName() + " and " + resource.getName() + "." + method.getName());
-					}
-					annotated.add(resource);
+				// Only resources with an @Operation reach swagger's Reader, so nothing
+				// unannotated is ever introspected.
+				Map<String, List<AnnotatedOperation>> operations = new TreeMap<>();
+				collectOperations(resource, operations, new LinkedHashSet<>());
+				if (operations.isEmpty()) {
+					continue;
 				}
-			}
-			if (annotated.isEmpty()) {
-				continue;
-			}
-
-			SwaggerConfiguration configuration = new SwaggerConfiguration().openAPI31(true)
-					.openAPI(new OpenAPI(io.swagger.v3.oas.models.SpecVersion.V31));
-			OpenAPI read = new Reader(configuration).read(annotated);
-			JsonNode tree = Json31.mapper().valueToTree(read);
-
-			Set<String> found = new LinkedHashSet<>();
-			for (Iterator<Map.Entry<String, JsonNode>> it = tree.path("paths").fields(); it.hasNext();) {
-				Map.Entry<String, JsonNode> pathEntry = it.next();
-				String fullPath = joinPath(servlet.prefix(), pathEntry.getKey());
-				for (Iterator<Map.Entry<String, JsonNode>> ops = pathEntry.getValue().fields(); ops.hasNext();) {
-					Map.Entry<String, JsonNode> op = ops.next();
-					if (!HTTP_METHODS.contains(op.getKey())) {
-						continue;
-					}
-					String operationId = op.getValue().path("operationId").asText("");
-					AnnotatedOperation annotation = operations.get(operationId);
-					if (annotation == null) {
-						// a method without @Operation in an annotated resource
-						continue;
-					}
-					found.add(operationId);
-					ObjectNode operation = (ObjectNode) op.getValue();
-					markInternal(operation, internalOf(annotation.method(), annotation.resource()));
-					ObjectNode pathItem = paths.has(fullPath) ? (ObjectNode) paths.get(fullPath)
-							: paths.putObject(fullPath);
-					if (pathItem.has(op.getKey())) {
-						throw new IllegalStateException(
-								op.getKey().toUpperCase() + " " + fullPath + " is declared twice");
-					}
-					pathItem.set(op.getKey(), operation);
-				}
-			}
-
-			for (String operationId : operations.keySet()) {
-				if (!found.contains(operationId)) {
-					AnnotatedOperation missing = operations.get(operationId);
-					throw new IllegalStateException(missing.resource().getName() + "." + missing.method().getName()
-							+ " has @Operation(operationId = \"" + operationId
-							+ "\") but swagger-core did not read it; check its @GET/@POST and @Path");
-				}
-			}
-
-			for (Iterator<Map.Entry<String, JsonNode>> it = tree.path("components").path("schemas").fields(); it
-					.hasNext();) {
-				Map.Entry<String, JsonNode> schema = it.next();
-				addSchema(schemas, schema.getKey(), schema.getValue());
+				readResource(servlet, resource, operations, paths, schemas, published);
 			}
 		}
 		return paths;
+	}
+
+	/**
+	 * The {@code @Operation} methods of a resource and of the sub-resources its
+	 * locators return (a method with {@code @Path} and no HTTP method), which
+	 * swagger-core reads as part of the resource.
+	 */
+	private static void collectOperations(Class<?> resource, Map<String, List<AnnotatedOperation>> operations,
+			Set<Class<?>> visited) {
+		if (!visited.add(resource) || resource.isAnnotationPresent(Hidden.class)) {
+			return;
+		}
+		for (Method method : resource.getMethods()) {
+			if (method.isAnnotationPresent(Hidden.class)) {
+				continue;
+			}
+			Operation operation = method.getAnnotation(Operation.class);
+			if (operation == null) {
+				if (isLocator(method)) {
+					collectOperations(method.getReturnType(), operations, visited);
+				}
+				continue;
+			}
+			String name = operation.operationId();
+			if (name.isEmpty()) {
+				throw new IllegalStateException(resource.getName() + "." + method.getName()
+						+ ": @Operation needs an operationId to be published");
+			}
+			// One name may be used in several modules of a resource; the published,
+			// qualified ids are checked for uniqueness instead.
+			operations.computeIfAbsent(name, n -> new ArrayList<>()).add(new AnnotatedOperation(method, resource));
+		}
+	}
+
+	/**
+	 * The annotated method swagger-core read as one operation. swagger-core renames
+	 * an operationId it has already seen ({@code delete_1}), so a renamed one is
+	 * matched by its HTTP method and the end of its path.
+	 */
+	private static AnnotatedOperation matchOperation(Map<String, List<AnnotatedOperation>> operations, String readId,
+			String httpMethod, String path) {
+		List<AnnotatedOperation> candidates = operations.get(readId);
+		if (candidates == null) {
+			String base = readId.replaceFirst("_\\d+$", "");
+			candidates = base.equals(readId) ? null : operations.get(base);
+		}
+		if (candidates == null) {
+			return null;
+		}
+		if (candidates.size() == 1) {
+			return candidates.get(0);
+		}
+		// The candidate whose method path is the longest suffix of the read path:
+		// both /models and /v1/models end /model/openai/v1/models.
+		String trimmed = path.replaceAll("/+$", "");
+		List<AnnotatedOperation> matches = new ArrayList<>();
+		int longest = -1;
+		for (AnnotatedOperation candidate : candidates) {
+			jakarta.ws.rs.Path methodPath = candidate.method().getAnnotation(jakarta.ws.rs.Path.class);
+			String suffix = methodPath == null ? "" : ("/" + methodPath.value()).replaceAll("/+", "/").replaceAll("/+$", "");
+			if (!httpMethod.equalsIgnoreCase(httpMethodOf(candidate.method())) || !trimmed.endsWith(suffix)) {
+				continue;
+			}
+			if (suffix.length() > longest) {
+				matches.clear();
+				longest = suffix.length();
+			}
+			if (suffix.length() == longest) {
+				matches.add(candidate);
+			}
+		}
+		if (matches.size() != 1) {
+			throw new IllegalStateException(httpMethod.toUpperCase() + " " + path
+					+ ": cannot tell which method swagger-core read as \"" + readId + "\"");
+		}
+		return matches.get(0);
+	}
+
+	/** The HTTP method of a resource method, or null. */
+	private static String httpMethodOf(Method method) {
+		for (java.lang.annotation.Annotation annotation : method.getAnnotations()) {
+			jakarta.ws.rs.HttpMethod http = annotation.annotationType().getAnnotation(jakarta.ws.rs.HttpMethod.class);
+			if (http != null) {
+				return http.value();
+			}
+		}
+		return null;
+	}
+
+	/** A kebab-case path segment as a module name: {@code browser-sessions} is {@code browserSessions}. */
+	static String lowerCamel(String segment) {
+		StringBuilder name = new StringBuilder();
+		boolean upper = false;
+		for (char c : segment.toCharArray()) {
+			if (c == '-' || c == '.') {
+				upper = name.length() > 0;
+			} else {
+				name.append(upper ? Character.toUpperCase(c) : c);
+				upper = false;
+			}
+		}
+		return name.toString();
+	}
+
+	/** Whether a method is a JAX-RS sub-resource locator: {@code @Path} and no HTTP method. */
+	static boolean isLocator(Method method) {
+		if (!method.isAnnotationPresent(jakarta.ws.rs.Path.class)) {
+			return false;
+		}
+		for (java.lang.annotation.Annotation annotation : method.getAnnotations()) {
+			if (annotation.annotationType().isAnnotationPresent(jakarta.ws.rs.HttpMethod.class)) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	private static void readResource(Servlet servlet, Class<?> resource, Map<String, List<AnnotatedOperation>> operations,
+			ObjectNode paths, ObjectNode schemas, Map<String, String> published) {
+		SwaggerConfiguration configuration = new SwaggerConfiguration().openAPI31(true)
+				.openAPI(new OpenAPI(io.swagger.v3.oas.models.SpecVersion.V31));
+		OpenAPI read = new Reader(configuration).read(Set.of(resource));
+		JsonNode tree = Json31.mapper().valueToTree(read);
+
+		Set<Method> found = new LinkedHashSet<>();
+		for (Iterator<Map.Entry<String, JsonNode>> it = tree.path("paths").fields(); it.hasNext();) {
+			Map.Entry<String, JsonNode> pathEntry = it.next();
+			String fullPath = joinPath(servlet.prefix(), pathEntry.getKey());
+			for (Iterator<Map.Entry<String, JsonNode>> ops = pathEntry.getValue().fields(); ops.hasNext();) {
+				Map.Entry<String, JsonNode> op = ops.next();
+				if (!HTTP_METHODS.contains(op.getKey())) {
+					continue;
+				}
+				String readId = op.getValue().path("operationId").asText("");
+				AnnotatedOperation annotation = matchOperation(operations, readId, op.getKey(), pathEntry.getKey());
+				if (annotation == null) {
+					// a method without @Operation in this resource
+					continue;
+				}
+				if (!found.add(annotation.method())) {
+					throw new IllegalStateException(resource.getName() + "." + annotation.method().getName()
+							+ " was read as two operations");
+				}
+				String name = annotation.method().getAnnotation(Operation.class).operationId();
+				String where = op.getKey().toUpperCase() + " " + fullPath + " (" + resource.getName() + "."
+						+ annotation.method().getName() + ")";
+				Set<String> methods = new java.util.TreeSet<>();
+				pathEntry.getValue().fieldNames().forEachRemaining(m -> {
+					if (HTTP_METHODS.contains(m)) {
+						methods.add(m);
+					}
+				});
+				String qualified = qualifiedId(servlet, fullPath, name, methodSuffix(op.getKey(), methods), where);
+				String previous = published.put(qualified, where);
+				if (previous != null) {
+					throw new IllegalStateException(
+							"Two operations are published as \"" + qualified + "\": " + previous + " and " + where);
+				}
+
+				ObjectNode operation = (ObjectNode) op.getValue();
+				operation.put("operationId", qualified);
+				markInternal(operation, internalOf(annotation.method(), annotation.resource()));
+				markSdkSkip(operation, where);
+				ObjectNode pathItem = paths.has(fullPath) ? (ObjectNode) paths.get(fullPath)
+						: paths.putObject(fullPath);
+				if (pathItem.has(op.getKey())) {
+					throw new IllegalStateException(op.getKey().toUpperCase() + " " + fullPath + " is declared twice");
+				}
+				pathItem.set(op.getKey(), operation);
+			}
+		}
+
+		for (Map.Entry<String, List<AnnotatedOperation>> entry : operations.entrySet()) {
+			for (AnnotatedOperation missing : entry.getValue()) {
+				if (!found.contains(missing.method())) {
+					throw new IllegalStateException(missing.resource().getName() + "." + missing.method().getName()
+							+ " has @Operation(operationId = \"" + entry.getKey()
+							+ "\") but swagger-core did not read it; check its @GET/@POST and @Path");
+				}
+			}
+		}
+
+		for (Iterator<Map.Entry<String, JsonNode>> it = tree.path("components").path("schemas").fields(); it
+				.hasNext();) {
+			Map.Entry<String, JsonNode> schema = it.next();
+			addSchema(schemas, schema.getKey(), schema.getValue());
+		}
+	}
+
+	/**
+	 * The published {@code operationId} of an operation, after checking its name
+	 * against its path; see {@link #readRestOperations}.
+	 *
+	 * @param suffix what the name adds to the last path segment, from
+	 *               {@link #methodSuffix}
+	 */
+	static String qualifiedId(Servlet servlet, String fullPath, String name, String suffix, String where) {
+		if (!NAME.matcher(name).matches()) {
+			throw new IllegalStateException(where + ": \"" + name + "\" cannot be an operationId; use lower camel case");
+		}
+		List<String> segments = new ArrayList<>();
+		for (String segment : fullPath.substring(servlet.prefix().length()).split("/")) {
+			if (!segment.isEmpty()) {
+				segments.add(segment);
+			}
+		}
+		String last = segments.isEmpty() ? "" : segments.get(segments.size() - 1);
+		if (NAME.matcher(last).matches()) {
+			String expected = last + suffix;
+			if (!name.equals(expected)) {
+				throw new IllegalStateException(where + ": the operationId must be \"" + expected + "\""
+						+ (suffix.isEmpty() ? " (the last path segment)"
+								: " (the last path segment plus \"" + suffix
+										+ "\", since another method of the path keeps the plain name)")
+						+ ", got \"" + name + "\"");
+			}
+		}
+
+		StringBuilder qualified = new StringBuilder(servlet.module());
+		for (String segment : segments.subList(0, Math.max(0, segments.size() - 1))) {
+			String module = lowerCamel(PATH_PARAMETER.matcher(segment).replaceAll("").replaceAll("^[-_.]+|[-_.]+$", ""));
+			if (module.isEmpty()) {
+				continue;
+			}
+			if (!NAME.matcher(module).matches()) {
+				throw new IllegalStateException(
+						where + ": the path segment \"" + segment + "\" cannot be a module name");
+			}
+			qualified.append('.').append(module);
+		}
+		return qualified.append('.').append(name).toString();
 	}
 
 	/** The {@link Internal} on a method, else on its class, or null. */
@@ -339,6 +595,48 @@ public final class OpenApiExporter {
 		node.put("x-internal", true);
 		if (!internal.value().isBlank()) {
 			node.put("x-internal-reason", internal.value());
+		}
+	}
+
+	/** Tells SDKs not to generate a call for an operation, with the reason. */
+	static final String SDK_SKIP = "x-semoss-sdk-skip";
+
+	/**
+	 * Adds {@link #SDK_SKIP} to an operation no SDK should generate a call for, so
+	 * every SDK skips the same ones for the same reason. A method declares it for
+	 * an endpoint other servers call (a webhook) with
+	 * {@code @Operation(extensions = @Extension(properties = @ExtensionProperty(name = "x-semoss-sdk-skip", value = "why")))}.
+	 * A browser navigation gets it without declaring it: an operation with no 2xx
+	 * response (it only redirects) or whose 2xx responses are all
+	 * {@code text/html} pages.
+	 */
+	static void markSdkSkip(ObjectNode operation, String where) {
+		JsonNode declared = operation.get(SDK_SKIP);
+		if (declared != null) {
+			if (!declared.isTextual() || declared.asText().isBlank()) {
+				throw new IllegalStateException(where + ": " + SDK_SKIP + " must be a reason");
+			}
+			return;
+		}
+		boolean success = false;
+		boolean page = true;
+		for (Iterator<Map.Entry<String, JsonNode>> it = operation.path("responses").fields(); it.hasNext();) {
+			Map.Entry<String, JsonNode> response = it.next();
+			if (!response.getKey().matches("2\\d\\d")) {
+				continue;
+			}
+			success = true;
+			JsonNode content = response.getValue().path("content");
+			boolean html = content.size() > 0;
+			for (Iterator<String> types = content.fieldNames(); types.hasNext();) {
+				html &= types.next().startsWith("text/html");
+			}
+			page &= html;
+		}
+		if (!success) {
+			operation.put(SDK_SKIP, "Browser navigation: it only redirects");
+		} else if (page) {
+			operation.put(SDK_SKIP, "Browser navigation: it answers with an HTML page");
 		}
 	}
 

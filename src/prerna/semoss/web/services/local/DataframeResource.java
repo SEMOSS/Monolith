@@ -46,6 +46,7 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
+import io.swagger.v3.oas.annotations.Hidden;
 import prerna.om.Insight;
 import prerna.om.OldInsight;
 import prerna.util.Constants;
@@ -91,6 +92,8 @@ public class DataframeResource {
 	@POST
 	@Path("do-{method}")
 	@Produces("application/json")
+	// Hidden: takes a path parameter, and no client calls it
+	@Hidden
 	public Response doMethod(@PathParam("method") String method, MultivaluedMap<String, String> form,
 			@Context HttpServletRequest request) {
 		Gson gson = new Gson();

@@ -67,6 +67,14 @@ import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.NewCookie;
 import jakarta.ws.rs.core.Response;
+import io.swagger.v3.oas.annotations.Hidden;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.SyncUserAssetsThread;
@@ -85,6 +93,29 @@ import prerna.io.connector.salesforce.SalesforceTokenFiller;
 import prerna.io.connector.servicenow.ServiceNowTokenFiller;
 import prerna.security.HttpHelperUtility;
 import prerna.security.PKCEUtil;
+import prerna.semoss.web.openapi.CommonSchemas.ErrorMessage;
+import prerna.semoss.web.openapi.CommonSchemas.Success;
+import prerna.semoss.web.services.local.UserResourceSchemas.AuthChangeADPasswordRequest;
+import prerna.semoss.web.services.local.UserResourceSchemas.AuthChangeADPasswordResult;
+import prerna.semoss.web.services.local.UserResourceSchemas.AuthCreateAPIUserRequest;
+import prerna.semoss.web.services.local.UserResourceSchemas.AuthCreateAPIUserResult;
+import prerna.semoss.web.services.local.UserResourceSchemas.AuthCreateUserRequest;
+import prerna.semoss.web.services.local.UserResourceSchemas.AuthCreateUserResult;
+import prerna.semoss.web.services.local.UserResourceSchemas.AuthGetAllLoginPropertiesResult;
+import prerna.semoss.web.services.local.UserResourceSchemas.AuthLoginLDAPFailure;
+import prerna.semoss.web.services.local.UserResourceSchemas.AuthLoginLDAPRequest;
+import prerna.semoss.web.services.local.UserResourceSchemas.AuthLoginLDAPResult;
+import prerna.semoss.web.services.local.UserResourceSchemas.AuthLoginLinOTPRequest;
+import prerna.semoss.web.services.local.UserResourceSchemas.AuthLoginLinOTPResult;
+import prerna.semoss.web.services.local.UserResourceSchemas.AuthLoginRequest;
+import prerna.semoss.web.services.local.UserResourceSchemas.AuthLoginResult;
+import prerna.semoss.web.services.local.UserResourceSchemas.AuthLogoutFailure;
+import prerna.semoss.web.services.local.UserResourceSchemas.AuthModifyAllLoginPropertiesRequest;
+import prerna.semoss.web.services.local.UserResourceSchemas.AuthModifyLoginPropertiesRequest;
+import prerna.semoss.web.services.local.UserResourceSchemas.AuthResetLinOTPFailCounterRequest;
+import prerna.semoss.web.services.local.UserResourceSchemas.AuthResetLinOTPFailCounterResult;
+import prerna.semoss.web.services.local.UserResourceSchemas.AuthUserinfoProfile;
+import prerna.semoss.web.services.local.UserResourceSchemas.AuthWhoamiResult;
 import prerna.usertracking.AuditErrorCode;
 import prerna.usertracking.AuditEventType;
 import prerna.usertracking.AuditTargetType;
@@ -151,6 +182,8 @@ public class UserResource {
 	 */
 	@GET
 	@Path("/logins")
+	@Operation(operationId = "logins", summary = "List the session's logins", description = "Returns the account name of each login the session holds, keyed by provider in upper case; empty when signed out.")
+	@ApiResponse(responseCode = "200", description = "The session's logins", content = @Content(mediaType = "application/json", schema = @Schema(types = "object", description = "The account name of each login, keyed by provider in upper case, such as NATIVE or MICROSOFT", additionalPropertiesSchema = String.class)))
 	public Response getAllLogins(@Context HttpServletRequest request) {
 		List<NewCookie> newCookies = new ArrayList<>();
 		HttpSession session = request.getSession(false);
@@ -186,8 +219,13 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/logout/{provider}")
-	public Response logout(@PathParam("provider") String provider,
-			@QueryParam("disableRedirect") boolean disableRedirect, @Context HttpServletRequest request,
+	@Operation(operationId = "logoutOfProvider", summary = "Sign out of a provider", description = "Signs the session out of one provider, or of every provider with ALL. Signing out of the last login ends the session, and redirects unless disableRedirect is true.")
+	@ApiResponse(responseCode = "200", description = "Whether a login was removed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "302", description = "The session ended and disableRedirect was not true: redirects to the logout or login page")
+	@ApiResponse(responseCode = "400", description = "The session has no user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthLogoutFailure.class)))
+	public Response logout(
+			@Parameter(description = "The provider to sign out of, such as MICROSOFT, or ALL for every provider") @PathParam("provider") String provider,
+			@Parameter(description = "True to answer with JSON instead of redirecting when the session ends") @QueryParam("disableRedirect") boolean disableRedirect, @Context HttpServletRequest request,
 			@Context HttpServletResponse response) throws IOException {
 		boolean noUser = false;
 		boolean removed = false;
@@ -387,7 +425,10 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/userinfo/{provider}")
-	public Response userinfoGeneric(@PathParam("provider") String provider, @Context HttpServletRequest request) {
+	@Operation(operationId = "userinfoOfProvider", summary = "Read the user's profile at a provider", description = "Reads the session user's profile again from the provider. Answers with an errorMessage asking to sign in when the session has no user or no login for the provider.")
+	@ApiResponse(responseCode = "200", description = "The profile, or an errorMessage asking to sign in to the provider", content = @Content(mediaType = "application/json", schema = @Schema(oneOf = { AuthUserinfoProfile.class, ErrorMessage.class })))
+	public Response userinfoGeneric(
+			@Parameter(description = "The provider's login path, such as ms, google or github") @PathParam("provider") String provider, @Context HttpServletRequest request) {
 		provider = WebUtility.inputSanitizer(provider);
 		AuthProvider providerEnum = AuthProvider.getSocialPropKeysToEnum().getOrDefault(provider.toLowerCase(),
 				AuthProvider.GENERIC);
@@ -574,6 +615,12 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/adfs")
+	@Operation(operationId = "adfs", summary = "Sign in with ADFS", description = "Starts a sign in with ADFS, and finishes it when ADFS sends the user back with a code. A sign in started with disableRedirect=true ends on a page that closes its window; any other is redirected to the main page or the redirect.")
+	@Parameter(name = "disableRedirect", in = ParameterIn.QUERY, description = "\"true\" to end the sign in on a page that closes its window instead of redirecting, as for a sign in in a popup", schema = @Schema(types = "string"))
+	@Parameter(name = "redirect", in = ParameterIn.QUERY, description = "Where to send the user once signed in, instead of the main page", schema = @Schema(types = "string"))
+	@ApiResponse(responseCode = "200", description = "The sign in finished and was started with disableRedirect=true: a page that closes its window", content = @Content(mediaType = "text/html", schema = @Schema(types = "string", description = "An HTML page that closes its window")))
+	@ApiResponse(responseCode = "302", description = "Redirects to ADFS to sign in, or once signed in to the main page or the redirect")
+	@ApiResponse(responseCode = "400", description = "The ADFS login is not allowed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response loginADFS(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
 		// unified OAuth2/OIDC flow - see loginGeneric + AdfsTokenFiller (id_token mode)
@@ -586,6 +633,12 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/dropbox")
+	@Operation(operationId = "dropbox", summary = "Sign in with Dropbox", description = "Starts a sign in with Dropbox, and finishes it when Dropbox sends the user back with a code. A sign in started with disableRedirect=true ends on a page that closes its window; any other is redirected to the main page or the redirect.")
+	@Parameter(name = "disableRedirect", in = ParameterIn.QUERY, description = "\"true\" to end the sign in on a page that closes its window instead of redirecting, as for a sign in in a popup", schema = @Schema(types = "string"))
+	@Parameter(name = "redirect", in = ParameterIn.QUERY, description = "Where to send the user once signed in, instead of the main page", schema = @Schema(types = "string"))
+	@ApiResponse(responseCode = "200", description = "The sign in finished and was started with disableRedirect=true: a page that closes its window", content = @Content(mediaType = "text/html", schema = @Schema(types = "string", description = "An HTML page that closes its window")))
+	@ApiResponse(responseCode = "302", description = "Redirects to Dropbox to sign in, or once signed in to the main page or the redirect")
+	@ApiResponse(responseCode = "400", description = "The Dropbox login is not allowed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response loginDropBox(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
 		// unified OAuth2 flow - see loginGeneric + DropboxTokenFiller
@@ -599,6 +652,12 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/github")
+	@Operation(operationId = "github", summary = "Sign in with GitHub", description = "Starts a sign in with GitHub, and finishes it when GitHub sends the user back with a code. A sign in started with disableRedirect=true ends on a page that closes its window; any other is redirected to the main page or the redirect.")
+	@Parameter(name = "disableRedirect", in = ParameterIn.QUERY, description = "\"true\" to end the sign in on a page that closes its window instead of redirecting, as for a sign in in a popup", schema = @Schema(types = "string"))
+	@Parameter(name = "redirect", in = ParameterIn.QUERY, description = "Where to send the user once signed in, instead of the main page", schema = @Schema(types = "string"))
+	@ApiResponse(responseCode = "200", description = "The sign in finished and was started with disableRedirect=true: a page that closes its window", content = @Content(mediaType = "text/html", schema = @Schema(types = "string", description = "An HTML page that closes its window")))
+	@ApiResponse(responseCode = "302", description = "Redirects to GitHub to sign in, or once signed in to the main page or the redirect")
+	@ApiResponse(responseCode = "400", description = "The GitHub login is not allowed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response loginGithub(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
 		// unified OAuth2 flow - see loginGeneric + GithubTokenFiller
@@ -614,6 +673,12 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/gitlab")
+	@Operation(operationId = "gitlab", summary = "Sign in with GitLab", description = "Starts a sign in with GitLab, and finishes it when GitLab sends the user back with a code. A sign in started with disableRedirect=true ends on a page that closes its window; any other is redirected to the main page or the redirect.")
+	@Parameter(name = "disableRedirect", in = ParameterIn.QUERY, description = "\"true\" to end the sign in on a page that closes its window instead of redirecting, as for a sign in in a popup", schema = @Schema(types = "string"))
+	@Parameter(name = "redirect", in = ParameterIn.QUERY, description = "Where to send the user once signed in, instead of the main page", schema = @Schema(types = "string"))
+	@ApiResponse(responseCode = "200", description = "The sign in finished and was started with disableRedirect=true: a page that closes its window", content = @Content(mediaType = "text/html", schema = @Schema(types = "string", description = "An HTML page that closes its window")))
+	@ApiResponse(responseCode = "302", description = "Redirects to GitLab to sign in, or once signed in to the main page or the redirect")
+	@ApiResponse(responseCode = "400", description = "The GitLab login is not allowed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response loginGitlab(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
 		// unified OAuth2 flow - see loginGeneric + GitLabTokenFiller
@@ -627,6 +692,12 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/google")
+	@Operation(operationId = "google", summary = "Sign in with Google", description = "Starts a sign in with Google, and finishes it when Google sends the user back with a code. A sign in started with disableRedirect=true ends on a page that closes its window; any other is redirected to the main page or the redirect.")
+	@Parameter(name = "disableRedirect", in = ParameterIn.QUERY, description = "\"true\" to end the sign in on a page that closes its window instead of redirecting, as for a sign in in a popup", schema = @Schema(types = "string"))
+	@Parameter(name = "redirect", in = ParameterIn.QUERY, description = "Where to send the user once signed in, instead of the main page", schema = @Schema(types = "string"))
+	@ApiResponse(responseCode = "200", description = "The sign in finished and was started with disableRedirect=true: a page that closes its window", content = @Content(mediaType = "text/html", schema = @Schema(types = "string", description = "An HTML page that closes its window")))
+	@ApiResponse(responseCode = "302", description = "Redirects to Google to sign in, or once signed in to the main page or the redirect")
+	@ApiResponse(responseCode = "400", description = "The Google login is not allowed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response loginGoogle(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
 		// unified OAuth2 flow - see loginGeneric + GoogleTokenFiller
@@ -645,6 +716,8 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login2/jira")
+	// Hidden: answers with a redirect or an HTML page, not JSON, and no client calls it
+	@Hidden
 	public Response loginJiraDynamic(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
 		HttpSession session = initializeOAuthLoginSession(request);
@@ -810,6 +883,12 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/linkedin")
+	@Operation(operationId = "linkedin", summary = "Sign in with LinkedIn", description = "Starts a sign in with LinkedIn, and finishes it when LinkedIn sends the user back with a code. A sign in started with disableRedirect=true ends on a page that closes its window; any other is redirected to the main page or the redirect.")
+	@Parameter(name = "disableRedirect", in = ParameterIn.QUERY, description = "\"true\" to end the sign in on a page that closes its window instead of redirecting, as for a sign in in a popup", schema = @Schema(types = "string"))
+	@Parameter(name = "redirect", in = ParameterIn.QUERY, description = "Where to send the user once signed in, instead of the main page", schema = @Schema(types = "string"))
+	@ApiResponse(responseCode = "200", description = "The sign in finished and was started with disableRedirect=true: a page that closes its window", content = @Content(mediaType = "text/html", schema = @Schema(types = "string", description = "An HTML page that closes its window")))
+	@ApiResponse(responseCode = "302", description = "Redirects to LinkedIn to sign in, or once signed in to the main page or the redirect")
+	@ApiResponse(responseCode = "400", description = "The LinkedIn login is not allowed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response loginLinkedin(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
 		// unified OAuth2 flow - see loginGeneric + LinkedInTokenFiller
@@ -823,6 +902,12 @@ public class UserResource {
 	@Produces("application/json")
 	@Path("/login/ms")
 	@Deprecated
+	@Operation(operationId = "ms", summary = "Sign in with Microsoft (deprecated alias of microsoft)", description = "Starts a sign in with Microsoft, and finishes it when Microsoft sends the user back with a code. A sign in started with disableRedirect=true ends on a page that closes its window; any other is redirected to the main page or the redirect.")
+	@Parameter(name = "disableRedirect", in = ParameterIn.QUERY, description = "\"true\" to end the sign in on a page that closes its window instead of redirecting, as for a sign in in a popup", schema = @Schema(types = "string"))
+	@Parameter(name = "redirect", in = ParameterIn.QUERY, description = "Where to send the user once signed in, instead of the main page", schema = @Schema(types = "string"))
+	@ApiResponse(responseCode = "200", description = "The sign in finished and was started with disableRedirect=true: a page that closes its window", content = @Content(mediaType = "text/html", schema = @Schema(types = "string", description = "An HTML page that closes its window")))
+	@ApiResponse(responseCode = "302", description = "Redirects to Microsoft to sign in, or once signed in to the main page or the redirect")
+	@ApiResponse(responseCode = "400", description = "The Microsoft login is not allowed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response loginMS(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
 		return loginMicrosoft(request, response);
@@ -839,6 +924,12 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/microsoft")
+	@Operation(operationId = "microsoft", summary = "Sign in with Microsoft", description = "Starts a sign in with Microsoft, and finishes it when Microsoft sends the user back with a code. A sign in started with disableRedirect=true ends on a page that closes its window; any other is redirected to the main page or the redirect.")
+	@Parameter(name = "disableRedirect", in = ParameterIn.QUERY, description = "\"true\" to end the sign in on a page that closes its window instead of redirecting, as for a sign in in a popup", schema = @Schema(types = "string"))
+	@Parameter(name = "redirect", in = ParameterIn.QUERY, description = "Where to send the user once signed in, instead of the main page", schema = @Schema(types = "string"))
+	@ApiResponse(responseCode = "200", description = "The sign in finished and was started with disableRedirect=true: a page that closes its window", content = @Content(mediaType = "text/html", schema = @Schema(types = "string", description = "An HTML page that closes its window")))
+	@ApiResponse(responseCode = "302", description = "Redirects to Microsoft to sign in, or once signed in to the main page or the redirect")
+	@ApiResponse(responseCode = "400", description = "The Microsoft login is not allowed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response loginMicrosoft(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
 		// unified OAuth2 flow - see loginGeneric + MicrosoftTokenFiller
@@ -852,6 +943,12 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/okta")
+	@Operation(operationId = "okta", summary = "Sign in with Okta", description = "Starts a sign in with Okta, and finishes it when Okta sends the user back with a code. A sign in started with disableRedirect=true ends on a page that closes its window; any other is redirected to the main page or the redirect.")
+	@Parameter(name = "disableRedirect", in = ParameterIn.QUERY, description = "\"true\" to end the sign in on a page that closes its window instead of redirecting, as for a sign in in a popup", schema = @Schema(types = "string"))
+	@Parameter(name = "redirect", in = ParameterIn.QUERY, description = "Where to send the user once signed in, instead of the main page", schema = @Schema(types = "string"))
+	@ApiResponse(responseCode = "200", description = "The sign in finished and was started with disableRedirect=true: a page that closes its window", content = @Content(mediaType = "text/html", schema = @Schema(types = "string", description = "An HTML page that closes its window")))
+	@ApiResponse(responseCode = "302", description = "Redirects to Okta to sign in, or once signed in to the main page or the redirect")
+	@ApiResponse(responseCode = "400", description = "The Okta login is not allowed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response loginOkta(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
 		// unified OAuth2 flow - see loginGeneric + OktaTokenFiller
@@ -879,6 +976,12 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/salesforce")
+	@Operation(operationId = "salesforce", summary = "Sign in with Salesforce", description = "Starts a sign in with Salesforce, and finishes it when Salesforce sends the user back with a code. A sign in started with disableRedirect=true ends on a page that closes its window; any other is redirected to the main page or the redirect.")
+	@Parameter(name = "disableRedirect", in = ParameterIn.QUERY, description = "\"true\" to end the sign in on a page that closes its window instead of redirecting, as for a sign in in a popup", schema = @Schema(types = "string"))
+	@Parameter(name = "redirect", in = ParameterIn.QUERY, description = "Where to send the user once signed in, instead of the main page", schema = @Schema(types = "string"))
+	@ApiResponse(responseCode = "200", description = "The sign in finished and was started with disableRedirect=true: a page that closes its window", content = @Content(mediaType = "text/html", schema = @Schema(types = "string", description = "An HTML page that closes its window")))
+	@ApiResponse(responseCode = "302", description = "Redirects to Salesforce to sign in, or once signed in to the main page or the redirect")
+	@ApiResponse(responseCode = "400", description = "The Salesforce login is not allowed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response loginSalesforce(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
 		// unified OAuth2 flow - see loginGeneric + SalesforceTokenFiller
@@ -891,6 +994,8 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login2/salesforce")
+	// Hidden: answers with a redirect or an HTML page, not JSON, and no client calls it
+	@Hidden
 	public Response loginSalesforceDynamic(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
 		HttpSession session = initializeOAuthLoginSession(request);
@@ -1021,6 +1126,12 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/servicenow")
+	@Operation(operationId = "servicenow", summary = "Sign in with ServiceNow", description = "Starts a sign in with ServiceNow, and finishes it when ServiceNow sends the user back with a code. A sign in started with disableRedirect=true ends on a page that closes its window; any other is redirected to the main page or the redirect.")
+	@Parameter(name = "disableRedirect", in = ParameterIn.QUERY, description = "\"true\" to end the sign in on a page that closes its window instead of redirecting, as for a sign in in a popup", schema = @Schema(types = "string"))
+	@Parameter(name = "redirect", in = ParameterIn.QUERY, description = "Where to send the user once signed in, instead of the main page", schema = @Schema(types = "string"))
+	@ApiResponse(responseCode = "200", description = "The sign in finished and was started with disableRedirect=true: a page that closes its window", content = @Content(mediaType = "text/html", schema = @Schema(types = "string", description = "An HTML page that closes its window")))
+	@ApiResponse(responseCode = "302", description = "Redirects to ServiceNow to sign in, or once signed in to the main page or the redirect")
+	@ApiResponse(responseCode = "400", description = "The ServiceNow login is not allowed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response loginServiceNow(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
 		// unified OAuth2 flow - see loginGeneric + ServiceNowTokenFiller
@@ -1033,6 +1144,8 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login2/servicenow")
+	// Hidden: answers with a redirect or an HTML page, not JSON, and no client calls it
+	@Hidden
 	public Response loginServiceNowDynamic(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
 		HttpSession session = initializeOAuthLoginSession(request);
@@ -1167,6 +1280,12 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/siteminder")
+	@Operation(operationId = "siteminder", summary = "Sign in with SiteMinder", description = "Starts a sign in with SiteMinder, and finishes it when SiteMinder sends the user back with a code. A sign in started with disableRedirect=true ends on a page that closes its window; any other is redirected to the main page or the redirect.")
+	@Parameter(name = "disableRedirect", in = ParameterIn.QUERY, description = "\"true\" to end the sign in on a page that closes its window instead of redirecting, as for a sign in in a popup", schema = @Schema(types = "string"))
+	@Parameter(name = "redirect", in = ParameterIn.QUERY, description = "Where to send the user once signed in, instead of the main page", schema = @Schema(types = "string"))
+	@ApiResponse(responseCode = "200", description = "The sign in finished and was started with disableRedirect=true: a page that closes its window", content = @Content(mediaType = "text/html", schema = @Schema(types = "string", description = "An HTML page that closes its window")))
+	@ApiResponse(responseCode = "302", description = "Redirects to SiteMinder to sign in, or once signed in to the main page or the redirect")
+	@ApiResponse(responseCode = "400", description = "The SiteMinder login is not allowed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response loginSiteminder(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
 		// unified OAuth2 flow - see loginGeneric + SiteminderTokenFiller
@@ -1179,6 +1298,12 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/surveymonkey")
+	@Operation(operationId = "surveymonkey", summary = "Sign in with SurveyMonkey", description = "Starts a sign in with SurveyMonkey, and finishes it when SurveyMonkey sends the user back with a code. A sign in started with disableRedirect=true ends on a page that closes its window; any other is redirected to the main page or the redirect.")
+	@Parameter(name = "disableRedirect", in = ParameterIn.QUERY, description = "\"true\" to end the sign in on a page that closes its window instead of redirecting, as for a sign in in a popup", schema = @Schema(types = "string"))
+	@Parameter(name = "redirect", in = ParameterIn.QUERY, description = "Where to send the user once signed in, instead of the main page", schema = @Schema(types = "string"))
+	@ApiResponse(responseCode = "200", description = "The sign in finished and was started with disableRedirect=true: a page that closes its window", content = @Content(mediaType = "text/html", schema = @Schema(types = "string", description = "An HTML page that closes its window")))
+	@ApiResponse(responseCode = "302", description = "Redirects to SurveyMonkey to sign in, or once signed in to the main page or the redirect")
+	@ApiResponse(responseCode = "400", description = "The SurveyMonkey login is not allowed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response loginSurveyMonkey(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
 		// unified OAuth2 flow - see loginGeneric + SurveyMonkeyTokenFiller
@@ -1196,6 +1321,12 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/twitter")
+	@Operation(operationId = "twitter", summary = "Sign in with Twitter", description = "Starts a sign in with Twitter, and finishes it when Twitter sends the user back with a code. A sign in started with disableRedirect=true ends on a page that closes its window; any other is redirected to the main page or the redirect.")
+	@Parameter(name = "disableRedirect", in = ParameterIn.QUERY, description = "\"true\" to end the sign in on a page that closes its window instead of redirecting, as for a sign in in a popup", schema = @Schema(types = "string"))
+	@Parameter(name = "redirect", in = ParameterIn.QUERY, description = "Where to send the user once signed in, instead of the main page", schema = @Schema(types = "string"))
+	@ApiResponse(responseCode = "200", description = "The sign in finished and was started with disableRedirect=true: a page that closes its window", content = @Content(mediaType = "text/html", schema = @Schema(types = "string", description = "An HTML page that closes its window")))
+	@ApiResponse(responseCode = "302", description = "Redirects to Twitter to sign in, or once signed in to the main page or the redirect")
+	@ApiResponse(responseCode = "400", description = "The Twitter login is not allowed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response loginTwitter(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
 		// unified OAuth2 + PKCE flow - see loginGeneric + TwitterTokenFiller (X API v2)
@@ -1208,7 +1339,14 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/login/{provider}")
-	public Response loginGeneric(@PathParam("provider") String provider, @Context HttpServletRequest request,
+	@Operation(operationId = "loginWithProvider", summary = "Sign in with an OAuth provider", description = "Starts a sign in with any OAuth provider configured in social.properties, and finishes it when the provider sends the user back with a code. A sign in started with disableRedirect=true ends on a page that closes its window; any other is redirected to the main page or the redirect.")
+	@Parameter(name = "disableRedirect", in = ParameterIn.QUERY, description = "\"true\" to end the sign in on a page that closes its window instead of redirecting, as for a sign in in a popup", schema = @Schema(types = "string"))
+	@Parameter(name = "redirect", in = ParameterIn.QUERY, description = "Where to send the user once signed in, instead of the main page", schema = @Schema(types = "string"))
+	@ApiResponse(responseCode = "200", description = "The sign in finished and was started with disableRedirect=true: a page that closes its window", content = @Content(mediaType = "text/html", schema = @Schema(types = "string", description = "An HTML page that closes its window")))
+	@ApiResponse(responseCode = "302", description = "Redirects to the provider to sign in, or once signed in to the main page or the redirect")
+	@ApiResponse(responseCode = "400", description = "The provider's login is not allowed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	public Response loginGeneric(
+			@Parameter(description = "The provider's login path: its prefix in social.properties, such as google") @PathParam("provider") String provider, @Context HttpServletRequest request,
 			@Context HttpServletResponse response) throws IOException {
 		provider = WebUtility.inputSanitizer(provider);
 		if (socialData.getLoginsAllowed().get(provider) == null || !socialData.getLoginsAllowed().get(provider)) {
@@ -1319,6 +1457,13 @@ public class UserResource {
 	@POST
 	@Produces("application/json")
 	@Path("/login")
+	@Operation(operationId = "login", summary = "Sign in with a username and password", description = "Signs in a native user. Redirects to the main page or the redirect unless disableRedirect is true.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthLoginRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthLoginResult.class)))
+	@ApiResponse(responseCode = "302", description = "Signed in and disableRedirect was not true: redirects to the main page or the redirect")
+	@ApiResponse(responseCode = "400", description = "Native login is not allowed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "The username or password is empty or wrong", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "The sign in failed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response loginNative(@Context HttpServletRequest request, @Context HttpServletResponse response) {
 		Map<String, String> ret = new HashMap<>();
 
@@ -1416,6 +1561,13 @@ public class UserResource {
 	@POST
 	@Produces("application/json")
 	@Path("/loginLDAP")
+	@Operation(operationId = "loginLDAP", summary = "Sign in with LDAP", description = "Signs in a user against the LDAP directory. Redirects to the main page or the redirect unless disableRedirect is true.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthLoginLDAPRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthLoginLDAPResult.class)))
+	@ApiResponse(responseCode = "302", description = "Signed in and disableRedirect was not true: redirects to the main page or the redirect")
+	@ApiResponse(responseCode = "400", description = "LDAP login is not allowed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "The username or password is empty, or the password must be changed first", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthLoginLDAPFailure.class)))
+	@ApiResponse(responseCode = "500", description = "The sign in failed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response loginLDAP(@Context HttpServletRequest request, @Context HttpServletResponse response) {
 		Map<String, Object> ret = new HashMap<>();
 		if (socialData.getLoginsAllowed().get("ldap") == null || !socialData.getLoginsAllowed().get("ldap")) {
@@ -1504,6 +1656,12 @@ public class UserResource {
 	@POST
 	@Produces("application/json")
 	@Path("/changeADPassword")
+	@Operation(operationId = "changeADPassword", summary = "Change an Active Directory password", description = "Changes a user's password in the LDAP directory.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthChangeADPasswordRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The password was changed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthChangeADPasswordResult.class)))
+	@ApiResponse(responseCode = "400", description = "LDAP password change is not configured", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "The username, current password or new password is empty", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "The password could not be changed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response changeADPassword(@Context HttpServletRequest request, @Context HttpServletResponse response) {
 		Map<String, String> ret = new HashMap<>();
 		if ((socialData.getLoginsAllowed().get("ldap") == null || !socialData.getLoginsAllowed().get("ldap"))
@@ -1562,6 +1720,13 @@ public class UserResource {
 	@POST
 	@Produces("application/json")
 	@Path("/loginLinOTP")
+	@Operation(operationId = "loginLinOTP", summary = "Sign in with LinOTP", description = "Signs in with LinOTP in two steps: the username and pin, which asks for the one-time passcode, then the passcode. Redirects to the main page or the redirect once signed in, unless disableRedirect is true.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthLoginLinOTPRequest.class)))
+	@ApiResponse(responseCode = "200", description = "Signed in, or the pin was accepted and the one-time passcode is needed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthLoginLinOTPResult.class)))
+	@ApiResponse(responseCode = "302", description = "Signed in and disableRedirect was not true: redirects to the main page or the redirect")
+	@ApiResponse(responseCode = "400", description = "LinOTP login is not allowed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "The username, pin or passcode is missing or wrong, or the directory password must be changed first", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthLoginLDAPFailure.class)))
+	@ApiResponse(responseCode = "500", description = "The sign in failed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response loginLinOTP(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws ClientProtocolException, IOException {
 		Map<String, Object> returnMap = new HashMap<>();
@@ -1613,6 +1778,12 @@ public class UserResource {
 	@POST
 	@Produces("application/json")
 	@Path("/resetLinOTPFailCounter")
+	@Operation(operationId = "resetLinOTPFailCounter", summary = "Reset a user's LinOTP fail counter", description = "Resets the failed sign in counter of a LinOTP user. Admins only.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthResetLinOTPFailCounterRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The counter was reset", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthResetLinOTPFailCounterResult.class)))
+	@ApiResponse(responseCode = "400", description = "LinOTP login is not allowed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "The username is empty", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "The session user is not an admin, or the counter could not be reset", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response resetLinOTPFailCounter(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws ClientProtocolException, IOException {
 		try {
@@ -1639,6 +1810,11 @@ public class UserResource {
 	@POST
 	@Produces("application/json")
 	@Path("createUser")
+	@Operation(operationId = "createUser", summary = "Register a native user", description = "Creates a native user when native login and registration are allowed.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthCreateUserRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The user was created", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthCreateUserResult.class)))
+	@ApiResponse(responseCode = "400", description = "Native login or registration is not allowed, or the username or email already exists", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "The details are not valid, or the user could not be created", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response createNativeUser(@Context HttpServletRequest request) {
 		Map<String, String> ret = new HashMap<>();
 
@@ -1707,6 +1883,11 @@ public class UserResource {
 	@POST
 	@Produces("application/json")
 	@Path("createAPIUser")
+	@Operation(operationId = "createAPIUser", summary = "Create an API user", description = "Creates an API user and returns its credentials. Only admins may when the server says so.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthCreateAPIUserRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The new API user's credentials", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthCreateAPIUserResult.class)))
+	@ApiResponse(responseCode = "400", description = "API users are not allowed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "Only admins may create API users, and the session user is not one", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response createAPIUser(@Context HttpServletRequest request) {
 		if (socialData.getLoginsAllowed().get("api_user") == null || !socialData.getLoginsAllowed().get("api_user")) {
 			Map<String, String> ret = new HashMap<>();
@@ -1743,6 +1924,8 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/loginsAllowed/")
+	@Operation(operationId = "loginsAllowed", summary = "List the login providers", description = "Returns whether each login provider is enabled.")
+	@ApiResponse(responseCode = "200", description = "Whether each provider is enabled", content = @Content(mediaType = "application/json", schema = @Schema(types = "object", description = "Whether each login provider is enabled, keyed by provider, such as native, ldap or ms", additionalPropertiesSchema = Boolean.class)))
 	public Response loginsAllowed(@Context HttpServletRequest request) {
 		return WebUtility.getResponse(socialData.getLoginsAllowed(), 200);
 	}
@@ -1756,6 +1939,9 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/loginProperties/")
+	@Operation(operationId = "loginProperties", summary = "Read the login properties", description = "Returns the social.properties values grouped by provider. Admins only.")
+	@ApiResponse(responseCode = "200", description = "The properties of each provider", content = @Content(mediaType = "application/json", schema = @Schema(types = "object", description = "Each provider's properties, keyed by the provider prefix; each holds its values keyed by property name without the prefix", additionalPropertiesSchema = Map.class)))
+	@ApiResponse(responseCode = "401", description = "The session has no user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response loginProperties(@Context HttpServletRequest request) {
 		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		if (user == null) {
@@ -1805,7 +1991,13 @@ public class UserResource {
 	@POST
 	@Produces("application/json")
 	@Path("/modifyLoginProperties/{provider}")
-	public synchronized Response modifyLoginProperties(@PathParam("provider") String provider,
+	@Operation(operationId = "modifyLoginPropertiesOfProvider", summary = "Change a provider's login properties", description = "Sets some of one provider's social.properties values. Admins only.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthModifyLoginPropertiesRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The properties were saved", content = @Content(mediaType = "application/json", schema = @Schema(types = "boolean", description = "Always true")))
+	@ApiResponse(responseCode = "400", description = "The session has no user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(types = "string", description = "Why the request failed")))
+	@ApiResponse(responseCode = "500", description = "The properties could not be saved", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	public synchronized Response modifyLoginProperties(
+			@Parameter(description = "The provider prefix in social.properties, such as ms") @PathParam("provider") String provider,
 			MultivaluedMap<String, String> form, @Context HttpServletRequest request) {
 
 		provider = WebUtility.inputSanitizer(provider);
@@ -1853,6 +2045,11 @@ public class UserResource {
 	@POST
 	@Produces("application/json")
 	@Path("/modifyAllLoginProperties")
+	@Operation(operationId = "modifyAllLoginProperties", summary = "Replace the login properties", description = "Replaces the whole social.properties file. Admins only.")
+	@RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthModifyAllLoginPropertiesRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The properties were saved", content = @Content(mediaType = "application/json", schema = @Schema(types = "boolean", description = "Always true")))
+	@ApiResponse(responseCode = "400", description = "The session has no user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(types = "string", description = "Why the request failed")))
+	@ApiResponse(responseCode = "500", description = "The properties could not be saved", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public synchronized Response modifyAllLoginProperties(@Context HttpServletRequest request) {
 		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		if (user == null) {
@@ -1887,6 +2084,10 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/getAllLoginProperties")
+	@Operation(operationId = "getAllLoginProperties", summary = "Read the social.properties file", description = "Returns the whole social.properties file. Admins only.")
+	@ApiResponse(responseCode = "200", description = "The file's content", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthGetAllLoginPropertiesResult.class)))
+	@ApiResponse(responseCode = "400", description = "The session has no user, or the user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(types = "string", description = "Why the request failed")))
+	@ApiResponse(responseCode = "500", description = "The file could not be read", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public synchronized Response getAllLoginProperties(@Context HttpServletRequest request) {
 		User user = (User) request.getSession().getAttribute(Constants.SESSION_USER);
 		if (user == null) {
@@ -1992,6 +2193,8 @@ public class UserResource {
 	@GET
 	@Produces("application/json")
 	@Path("/whoami")
+	@Operation(operationId = "whoami", summary = "Show who the request is signed in as", description = "Returns the container principal and its Windows groups, else the session user's id.")
+	@ApiResponse(responseCode = "200", description = "Who the request is signed in as", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthWhoamiResult.class)))
 	public Response show(@Context HttpServletRequest request, @Context HttpServletResponse response) {
 		Principal principal = request.getUserPrincipal();
 		Map<String, Object> output = new HashMap<>();

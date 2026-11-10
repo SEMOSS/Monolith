@@ -41,10 +41,23 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import prerna.auth.AccessPermissionEnum;
 import prerna.auth.AuthProvider;
 import prerna.auth.utils.SecurityGroupInsightsUtils;
+import prerna.semoss.web.openapi.CommonSchemas.ErrorMessage;
+import prerna.semoss.web.openapi.CommonSchemas.Success;
 import prerna.semoss.web.services.local.ResourceUtility;
+import prerna.semoss.web.services.local.auth.GroupInsightAuthorizationResourceSchemas.AuthGroupInsightGrantRequest;
+import prerna.semoss.web.services.local.auth.GroupInsightAuthorizationResourceSchemas.AuthGroupInsightRemoveRequest;
+import prerna.semoss.web.services.local.auth.GroupProjectAuthorizationResourceSchemas.AuthGroupTargetAccessPage;
+import prerna.semoss.web.services.local.auth.GroupProjectAuthorizationResourceSchemas.AuthGroupTargetAvailableRow;
+import prerna.semoss.web.services.local.auth.GroupProjectAuthorizationResourceSchemas.AuthGroupTargetPermission;
 import prerna.util.ValueUtils;
 import prerna.web.services.util.WebUtility;
 
@@ -71,9 +84,15 @@ public class GroupInsightAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getGroupInsightPermission")
+	@Operation(operationId = "getGroupInsightPermission", summary = "Read a group's permission on an insight", description = "Returns the permission level a group has on an insight, with no permission when it has none.")
+	@ApiResponse(responseCode = "200", description = "The group's permission", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthGroupTargetPermission.class)))
+	@ApiResponse(responseCode = "400", description = "A required input is missing or not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response getGroupInsightPermission(@Context HttpServletRequest request,
-			@QueryParam("groupId") String groupId, @QueryParam("type") String type,
-			@QueryParam("projectId") String projectId, @QueryParam("insightId") String insightId) {
+			@Parameter(description = "The group id", required = true) @QueryParam("groupId") String groupId, @Parameter(description = "The group type, the login provider the group comes from", required = true) @QueryParam("type") String type,
+			@Parameter(description = "The id of the project the insight belongs to", required = true) @QueryParam("projectId") String projectId, @Parameter(description = "The insight id", required = true) @QueryParam("insightId") String insightId) {
 		String project = WebUtility.inputSQLSanitizer(projectId);
 		String groupType = AuthProvider.getProviderLabel(WebUtility.inputSQLSanitizer(type));
 		String insight = WebUtility.inputSQLSanitizer(insightId);
@@ -104,6 +123,13 @@ public class GroupInsightAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("addGroupInsightPermission")
+	@Operation(operationId = "addGroupInsightPermission", summary = "Give a group access to an insight", description = "Gives a group a permission level on an insight. The user must be able to manage its access.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthGroupInsightGrantRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The access was given", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "A required input is missing or not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response addGroupInsightPermission(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		String groupId = WebUtility.inputSQLSanitizer(form.getFirst("groupId"));
@@ -137,6 +163,13 @@ public class GroupInsightAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("editGroupInsightPermission")
+	@Operation(operationId = "editGroupInsightPermission", summary = "Change a group's permission on an insight", description = "Changes the permission level a group has on an insight. The user must be able to manage its access.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthGroupInsightGrantRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The permission was changed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "A required input is missing or not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response editGroupInsightPermission(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		String groupId = WebUtility.inputSQLSanitizer(form.getFirst("groupId"));
@@ -171,6 +204,13 @@ public class GroupInsightAuthorizationResource {
 	@POST
 	@Produces("application/json")
 	@Path("removeGroupInsightPermission")
+	@Operation(operationId = "removeGroupInsightPermission", summary = "Take a group's access to an insight away", description = "Removes a group's access to an insight. The user must be able to manage its access.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(mediaType = "application/x-www-form-urlencoded", schema = @Schema(implementation = AuthGroupInsightRemoveRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The access was removed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Success.class)))
+	@ApiResponse(responseCode = "400", description = "A required input is missing or not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response removeGroupInsightPermission(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		String groupId = WebUtility.inputSQLSanitizer(form.getFirst("groupId"));
@@ -198,9 +238,15 @@ public class GroupInsightAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getGroupsWithAccessToInsight")
+	@Operation(operationId = "getGroupsWithAccessToInsight", summary = "List the groups with access to an insight", description = "Returns a page of the groups that have access to an insight, and how many there are in total. The user must be able to view it.")
+	@ApiResponse(responseCode = "200", description = "The groups with access", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthGroupTargetAccessPage.class)))
+	@ApiResponse(responseCode = "400", description = "A required input is missing or not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response getGroupsWithAccessToInsight(@Context HttpServletRequest request,
-			@QueryParam("projectId") String projectId, @QueryParam("insightId") String insightId,
-			@QueryParam("limit") long limit, @QueryParam("offset") long offset) {
+			@Parameter(description = "The id of the project the insight belongs to", required = true) @QueryParam("projectId") String projectId, @Parameter(description = "The insight id", required = true) @QueryParam("insightId") String insightId,
+			@Parameter(description = "The page size; 0 or less for all") @QueryParam("limit") long limit, @Parameter(description = "How many groups to skip") @QueryParam("offset") long offset) {
 		String project = WebUtility.inputSQLSanitizer(projectId);
 		String insight = WebUtility.inputSQLSanitizer(insightId);
 		return ResourceUtility.respond(request, "list the groups with access to insight " + insight, user -> {
@@ -219,10 +265,16 @@ public class GroupInsightAuthorizationResource {
 	@GET
 	@Produces("application/json")
 	@Path("getAvailableGroupsForInsight")
+	@Operation(operationId = "getAvailableGroupsForInsight", summary = "List the groups that can be given access to an insight", description = "Returns the groups that do not have access to an insight yet, for its owners to choose from.")
+	@ApiResponse(responseCode = "200", description = "The groups without access", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AuthGroupTargetAvailableRow.class))))
+	@ApiResponse(responseCode = "400", description = "A required input is missing or not valid", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "403", description = "The user may not do this", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
+	@ApiResponse(responseCode = "500", description = "An unexpected error happened", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorMessage.class)))
 	public Response getAvailableGroupsForInsight(@Context HttpServletRequest request,
-			@QueryParam("projectId") String projectId, @QueryParam("insightId") String insightId,
-			@QueryParam("searchTerm") String searchTerm, @QueryParam("limit") long limit,
-			@QueryParam("offset") long offset) {
+			@Parameter(description = "The id of the project the insight belongs to", required = true) @QueryParam("projectId") String projectId, @Parameter(description = "The insight id", required = true) @QueryParam("insightId") String insightId,
+			@Parameter(description = "Text to match against the group id") @QueryParam("searchTerm") String searchTerm, @Parameter(description = "The page size; 0 or less for all") @QueryParam("limit") long limit,
+			@Parameter(description = "How many groups to skip") @QueryParam("offset") long offset) {
 		String project = WebUtility.inputSQLSanitizer(projectId);
 		String insight = WebUtility.inputSQLSanitizer(insightId);
 		String term = WebUtility.inputSQLSanitizer(searchTerm);

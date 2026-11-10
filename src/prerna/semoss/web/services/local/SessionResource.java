@@ -53,8 +53,17 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.Response;
+import io.swagger.v3.oas.annotations.Hidden;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import prerna.auth.User;
 import prerna.om.Insight;
+import prerna.semoss.web.openapi.CommonSchemas.TextOutput;
+import prerna.semoss.web.services.local.SessionResourceSchemas.SessionActiveSessions;
+import prerna.semoss.web.services.local.SessionResourceSchemas.SessionCleanResult;
 import prerna.om.InsightStore;
 import prerna.util.Constants;
 import prerna.util.insight.InsightUtility;
@@ -79,6 +88,8 @@ public class SessionResource {
 	@GET
 	@Path("/active")
 	@Produces("application/json;charset=utf-8")
+	@Operation(operationId = "active", summary = "Count the active sessions", description = "Returns how many sessions are active on this server.")
+	@ApiResponse(responseCode = "200", description = "The active session count", content = @Content(mediaType = "application/json", schema = @Schema(implementation = SessionActiveSessions.class)))
 	public Response getActiveSessions(@Context HttpServletRequest request) {
 		Map<String, Object> ret = new HashMap<>();
 		HttpSession session = request.getSession(true);
@@ -136,6 +147,9 @@ public class SessionResource {
 	@POST
 	@Path("/cleanSession")
 	@Produces("application/json;charset=utf-8")
+	@Operation(operationId = "cleanSession", summary = "End this session after a delay", description = "Drops the session's insights, waits 10 seconds, then invalidates the session unless cancelCleanSession was called in the meantime.")
+	@ApiResponse(responseCode = "200", description = "What the clean up did", content = @Content(mediaType = "application/json", schema = @Schema(implementation = SessionCleanResult.class)))
+	@ApiResponse(responseCode = "400", description = "There is no session", content = @Content(mediaType = "application/json", schema = @Schema(implementation = TextOutput.class)))
 	public Response cleanSession(@Context HttpServletRequest request) {
 		// need to compare when this method was called
 		// to a potential cancellation
@@ -216,6 +230,9 @@ public class SessionResource {
 	@POST
 	@Path("/cancelCleanSession")
 	@Produces("application/json;charset=utf-8")
+	@Operation(operationId = "cancelCleanSession", summary = "Cancel a pending session clean up", description = "Keeps the session alive when cleanSession was called before this request.")
+	@ApiResponse(responseCode = "200", description = "Always \"cancel\"", content = @Content(mediaType = "application/json", schema = @Schema(implementation = TextOutput.class)))
+	@ApiResponse(responseCode = "400", description = "There is no session", content = @Content(mediaType = "application/json", schema = @Schema(implementation = TextOutput.class)))
 	public Response cancelCleanSession(@Context HttpServletRequest request) {
 		HttpSession session = request.getSession(false);
 		if (session == null) {
@@ -237,6 +254,8 @@ public class SessionResource {
 	@GET
 	@Path("/invalidateSession")
 	@Produces("application/json;charset=utf-8")
+	// Hidden: answers with a 302 redirect and no JSON body, and no client calls it
+	@Hidden
 	public void invalidateSession(@Context HttpServletRequest request, @Context HttpServletResponse response)
 			throws IOException {
 		String redirectUrl = request.getHeader("referer");
@@ -298,6 +317,9 @@ public class SessionResource {
 	@GET
 	@Path("/insights")
 	@Produces("application/json;charset=utf-8")
+	@Operation(operationId = "insights", summary = "List the session's insights", description = "Returns the ids of the insights open in this session.")
+	@ApiResponse(responseCode = "200", description = "The insight ids", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(types = "string", description = "An insight id"))))
+	@ApiResponse(responseCode = "400", description = "There is no session", content = @Content(mediaType = "application/json", schema = @Schema(implementation = TextOutput.class)))
 	public Response getInsights(@Context HttpServletRequest request) {
 		HttpSession session = request.getSession(false);
 		if (session == null) {

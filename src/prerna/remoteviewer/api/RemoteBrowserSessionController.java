@@ -50,6 +50,12 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import prerna.auth.User;
 import prerna.reactor.playwright.PlaywrightUtility;
 import prerna.reactor.playwright.RecordingMeta;
@@ -57,9 +63,17 @@ import prerna.reactor.playwright.StepsEnvelope;
 import prerna.remoteviewer.model.RemoteBrowserRecordedStep;
 import prerna.remoteviewer.model.RemoteBrowserSessionCreateRequest;
 import prerna.remoteviewer.model.RemoteBrowserSessionCreateResponse;
+import prerna.remoteviewer.api.RemoteBrowserSessionControllerSchemas.BrowserSessionsCloseResult;
+import prerna.remoteviewer.api.RemoteBrowserSessionControllerSchemas.BrowserSessionsCreateRequest;
+import prerna.remoteviewer.api.RemoteBrowserSessionControllerSchemas.BrowserSessionsCreateResponse;
+import prerna.remoteviewer.api.RemoteBrowserSessionControllerSchemas.BrowserSessionsRecordedStep;
+import prerna.remoteviewer.api.RemoteBrowserSessionControllerSchemas.BrowserSessionsRecording;
+import prerna.remoteviewer.api.RemoteBrowserSessionControllerSchemas.BrowserSessionsSaveRecordingRequest;
+import prerna.remoteviewer.api.RemoteBrowserSessionControllerSchemas.BrowserSessionsSaveRecordingResult;
 import prerna.remoteviewer.security.RemoteBrowserUrlSafetyValidator;
 import prerna.remoteviewer.service.RemoteBrowserSession;
 import prerna.remoteviewer.service.RemoteBrowserSessionManager;
+import prerna.semoss.web.openapi.CommonSchemas.ErrorText;
 import prerna.semoss.web.services.local.ResourceUtility;
 
 /**
@@ -91,6 +105,13 @@ public class RemoteBrowserSessionController {
 	@POST
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
+	@Operation(operationId = "createBrowserSession", summary = "Open a remote browser session", description = "Opens (or reuses) the signed-in user's isolated remote browser session and navigates it to the requested URL; the page is streamed over the returned WebSocket.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(required = true, description = "The URL to open and the viewport size", content = @Content(mediaType = "application/json", schema = @Schema(implementation = BrowserSessionsCreateRequest.class)))
+	@ApiResponse(responseCode = "200", description = "The session", content = @Content(mediaType = "application/json", schema = @Schema(implementation = BrowserSessionsCreateResponse.class)))
+	@ApiResponse(responseCode = "400", description = "The body is not valid, url is missing, or the URL is not allowed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorText.class)))
+	@ApiResponse(responseCode = "401", description = "The session has no signed-in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorText.class)))
+	@ApiResponse(responseCode = "429", description = "The user already has the maximum number of concurrent sessions", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorText.class)))
+	@ApiResponse(responseCode = "500", description = "The session could not be created", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorText.class)))
 	public Response createSession(@Context HttpServletRequest request, String body) {
 		User user;
 		try {
@@ -155,8 +176,13 @@ public class RemoteBrowserSessionController {
 	@GET
 	@Path("/{sessionId}/steps")
 	@Produces(MediaType.APPLICATION_JSON)
+	@Operation(operationId = "steps", summary = "Read a browser session's recorded steps", description = "Returns the interactions recorded so far in one of the user's browser sessions.")
+	@ApiResponse(responseCode = "200", description = "The recorded steps, oldest first", content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = BrowserSessionsRecordedStep.class))))
+	@ApiResponse(responseCode = "401", description = "The session has no signed-in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorText.class)))
+	@ApiResponse(responseCode = "403", description = "The session belongs to another user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorText.class)))
+	@ApiResponse(responseCode = "404", description = "Session not found", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorText.class)))
 	public Response getRemoteBrowserRecordedSteps(@Context HttpServletRequest request,
-			@PathParam("sessionId") String sessionId) {
+			@Parameter(description = "The browser session id") @PathParam("sessionId") String sessionId) {
 		User user;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -187,8 +213,14 @@ public class RemoteBrowserSessionController {
 	@GET
 	@Path("/{sessionId}/recording")
 	@Produces(MediaType.APPLICATION_JSON)
+	@Operation(operationId = "recording", summary = "Read a browser session's recording", description = "Returns the replayable Playwright recording of one of the user's browser sessions.")
+	@ApiResponse(responseCode = "200", description = "The recording", content = @Content(mediaType = "application/json", schema = @Schema(implementation = BrowserSessionsRecording.class)))
+	@ApiResponse(responseCode = "401", description = "The session has no signed-in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorText.class)))
+	@ApiResponse(responseCode = "403", description = "The session belongs to another user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorText.class)))
+	@ApiResponse(responseCode = "404", description = "Session not found", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorText.class)))
+	@ApiResponse(responseCode = "500", description = "The recording could not be read", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorText.class)))
 	public Response getRecordingEnvelope(@Context HttpServletRequest request,
-			@PathParam("sessionId") String sessionId) {
+			@Parameter(description = "The browser session id") @PathParam("sessionId") String sessionId) {
 		User user;
 		try {
 			user = ResourceUtility.getUser(request);
@@ -236,7 +268,15 @@ public class RemoteBrowserSessionController {
 	@Path("/{sessionId}/recording/save")
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response saveRecording(@Context HttpServletRequest request, @PathParam("sessionId") String sessionId,
+	@Operation(operationId = "save", summary = "Save a browser session's recording", description = "Writes the session's replayable Playwright recording to a project's recordings folder (keeping the id and creation time of a recording already saved under that name), then clears the session's recording buffer.")
+	@io.swagger.v3.oas.annotations.parameters.RequestBody(required = true, description = "The project and file name to save the recording under, and its metadata", content = @Content(mediaType = "application/json", schema = @Schema(implementation = BrowserSessionsSaveRecordingRequest.class)))
+	@ApiResponse(responseCode = "200", description = "Where the recording was saved", content = @Content(mediaType = "application/json", schema = @Schema(implementation = BrowserSessionsSaveRecordingResult.class)))
+	@ApiResponse(responseCode = "400", description = "The body is not valid, or project or name is missing", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorText.class)))
+	@ApiResponse(responseCode = "401", description = "The session has no signed-in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorText.class)))
+	@ApiResponse(responseCode = "403", description = "The session belongs to another user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorText.class)))
+	@ApiResponse(responseCode = "404", description = "No active recording buffer found", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorText.class)))
+	@ApiResponse(responseCode = "500", description = "The recording could not be saved", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorText.class)))
+	public Response saveRecording(@Context HttpServletRequest request, @Parameter(description = "The browser session id") @PathParam("sessionId") String sessionId,
 			String body) {
 		User user;
 		try {
@@ -319,7 +359,11 @@ public class RemoteBrowserSessionController {
 	@DELETE
 	@Path("/{sessionId}")
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response closeSession(@Context HttpServletRequest request, @PathParam("sessionId") String sessionId) {
+	@Operation(operationId = "closeBrowserSession", summary = "Close a browser session", description = "Closes one of the user's browser sessions; closing a session that does not exist also succeeds.")
+	@ApiResponse(responseCode = "200", description = "The session is closed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = BrowserSessionsCloseResult.class)))
+	@ApiResponse(responseCode = "401", description = "The session has no signed-in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorText.class)))
+	@ApiResponse(responseCode = "403", description = "The session belongs to another user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorText.class)))
+	public Response closeSession(@Context HttpServletRequest request, @Parameter(description = "The browser session id") @PathParam("sessionId") String sessionId) {
 		User user;
 		try {
 			user = ResourceUtility.getUser(request);

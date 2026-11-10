@@ -46,6 +46,13 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.headers.Header;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.ws.rs.DELETE;
@@ -56,6 +63,10 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import prerna.auth.utils.SecurityExternalConnectorsUtils;
 import prerna.io.connector.github.GitHubAppClient;
+import prerna.semoss.web.github.AdminGitHubServiceSchemas.GitHubManifestAppDeleted;
+import prerna.semoss.web.github.AdminGitHubServiceSchemas.GitHubManifestApps;
+import prerna.semoss.web.github.AdminGitHubServiceSchemas.GitHubManifestProjects;
+import prerna.semoss.web.github.GitHubServiceSchemas.GitHubError;
 import prerna.web.services.util.WebUtility;
 
 /**
@@ -91,6 +102,14 @@ public class AdminGitHubService {
 	 */
 	@GET
 	@Path("/manifest/new")
+	@Operation(operationId = "new", summary = "Start creating the GitHub App", description = "Admin only, browser navigation: renders a page that posts this instance's GitHub App manifest to GitHub, where the admin creates the app.")
+	@Parameter(name = "name", in = ParameterIn.QUERY, description = "The app's name; Semoss GitHub App when not sent", schema = @Schema(types = "string"))
+	@Parameter(name = "org", in = ParameterIn.QUERY, description = "The organization to create the app in; the admin's own account when not sent", schema = @Schema(types = "string"))
+	@Parameter(name = "public", in = ParameterIn.QUERY, description = "true to make the app public", schema = @Schema(types = "string"))
+	@ApiResponse(responseCode = "200", description = "A page that submits itself to GitHub", content = @Content(mediaType = "text/html", schema = @Schema(types = "string", description = "The HTML page")))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
+	@ApiResponse(responseCode = "403", description = "The user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
+	@ApiResponse(responseCode = "500", description = "The manifest could not be built", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
 	public Response createApp(@Context HttpServletRequest req) {
 		// Creating a GitHub App is an instance-wide, privileged operation.
 		GitHubAdminGuard.requireAdmin(req);
@@ -144,6 +163,13 @@ public class AdminGitHubService {
 	 */
 	@GET
 	@Path("/manifest/callback")
+	@Operation(operationId = "callback", summary = "Finish creating the GitHub App", description = "Where GitHub redirects the admin's browser after the app is created; not called by clients. Exchanges the code for the app's configuration, saves it, and redirects to the GitHub App settings page with the outcome.")
+	@Parameter(name = "code", in = ParameterIn.QUERY, description = "The one-time code GitHub sent", required = true, schema = @Schema(types = "string"))
+	@Parameter(name = "state", in = ParameterIn.QUERY, description = "The CSRF state sent to GitHub", required = true, schema = @Schema(types = "string"))
+	@ApiResponse(responseCode = "303", description = "To the GitHub App settings page, with githubApp=created or githubApp=error", headers = @Header(name = "Location", description = "Where the browser is sent", schema = @Schema(types = "string")))
+	@ApiResponse(responseCode = "400", description = "A missing code or an invalid state", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
+	@ApiResponse(responseCode = "403", description = "The user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
 	public Response manifestCallback(@Context HttpServletRequest req) {
 		// This persists the app's private key, so it stays admin-only. GitHub
 		// redirects the admin's own browser here, so their session is present.
@@ -208,6 +234,10 @@ public class AdminGitHubService {
 	 */
 	@GET
 	@Path("/manifest/apps")
+	@Operation(operationId = "apps", summary = "List the configured GitHub Apps", description = "Admin only: lists the GitHub App configured on this instance, without its credentials.")
+	@ApiResponse(responseCode = "200", description = "The apps", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubManifestApps.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
+	@ApiResponse(responseCode = "403", description = "The user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
 	public Response listApps(@Context HttpServletRequest req) {
 		// Reading the configured app (and its credentials) is admin-only.
 		GitHubAdminGuard.requireAdmin(req);
@@ -232,6 +262,10 @@ public class AdminGitHubService {
 	 */
 	@GET
 	@Path("/manifest/projects")
+	@Operation(operationId = "projects", summary = "List the projects linked to GitHub", description = "Admin only: lists every project linked to a GitHub repository on this instance.")
+	@ApiResponse(responseCode = "200", description = "The project links", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubManifestProjects.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
+	@ApiResponse(responseCode = "403", description = "The user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
 	public Response listProjects(@Context HttpServletRequest req) {
 		// Reading the instance-wide link table is admin-only.
 		GitHubAdminGuard.requireAdmin(req);
@@ -248,6 +282,14 @@ public class AdminGitHubService {
 	 */
 	@DELETE
 	@Path("/manifest/app")
+	@Operation(operationId = "app", summary = "Remove the GitHub App", description = "Admin only: forgets a configured GitHub App on this instance; an owner still has to delete the registration on GitHub.")
+	@Parameter(name = "appId", in = ParameterIn.QUERY, description = "The app to remove; the configured app when not sent", schema = @Schema(types = "string"))
+	@ApiResponse(responseCode = "200", description = "The removed app", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubManifestAppDeleted.class)))
+	@ApiResponse(responseCode = "400", description = "appId is not a number", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
+	@ApiResponse(responseCode = "401", description = "There is no signed in user", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
+	@ApiResponse(responseCode = "403", description = "The user is not an admin", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
+	@ApiResponse(responseCode = "404", description = "No such GitHub App is configured", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
+	@ApiResponse(responseCode = "500", description = "The app could not be removed", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GitHubError.class)))
 	public Response deleteApp(@Context HttpServletRequest req) {
 		// Deleting the configured app (and its credentials) is admin-only.
 		GitHubAdminGuard.requireAdmin(req);

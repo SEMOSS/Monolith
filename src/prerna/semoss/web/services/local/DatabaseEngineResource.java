@@ -44,6 +44,7 @@ import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.Response;
+import io.swagger.v3.oas.annotations.Hidden;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityEngineUtils;
 import prerna.engine.api.IDatabaseEngine;
@@ -63,6 +64,8 @@ public class DatabaseEngineResource {
 	@GET
 	@Path("/type")
 	@Produces("application/json;charset=utf-8")
+	// Hidden: takes a path parameter, and no client calls it
+	@Hidden
 	public Response getDatabaseType(@Context HttpServletRequest request, @PathParam("databaseId") String databaseId) {
 		databaseId = WebUtility.inputSanitizer(databaseId);
 
@@ -113,6 +116,8 @@ public class DatabaseEngineResource {
 	@POST
 	@Path("/reload")
 	@Produces("application/json;charset=utf-8")
+	// Hidden: takes a path parameter, and no client calls it
+	@Hidden
 	public Response reload(@Context HttpServletRequest request, @PathParam("databaseId") String databaseId) {
 		databaseId = WebUtility.inputSanitizer(databaseId);
 
@@ -129,6 +134,8 @@ public class DatabaseEngineResource {
 	@Path("/query")
 	@Consumes({ "application/x-www-form-urlencoded", "application/json" })
 	@Produces("application/json;charset=utf-8")
+	// Hidden: takes a path parameter and a JSON or form body, and no client calls it
+	@Hidden
 	public Response query(@Context HttpServletRequest request, @PathParam("databaseId") String databaseId) {
 		databaseId = WebUtility.inputSanitizer(databaseId);
 
