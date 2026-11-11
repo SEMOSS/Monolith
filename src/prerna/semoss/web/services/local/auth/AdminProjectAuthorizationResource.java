@@ -44,6 +44,7 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
+import prerna.auth.AccessPermissionEnum;
 import prerna.auth.AccessToken;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.reactors.admin.AdminMyProjectsReactor;
@@ -310,7 +311,7 @@ public class AdminProjectAuthorizationResource {
 		return ResourceUtility.respondAsAdmin(request,
 				"grant all projects to user " + userId + " with permission " + permission,
 				SecurityAdminUtils::getInstance, (user, adminUtils) -> {
-					adminUtils.grantAllProjects(userId, permission, isAddNew, user);
+					adminUtils.grantAllProjects(userId, AccessPermissionEnum.require(permission), isAddNew, user);
 					return success();
 				});
 	}
@@ -326,7 +327,8 @@ public class AdminProjectAuthorizationResource {
 		return ResourceUtility.respondAsAdmin(request,
 				"grant project " + projectId + " to new users with permission " + permission,
 				SecurityAdminUtils::getInstance, (user, adminUtils) -> {
-					adminUtils.grantNewUsersProjectAccess(projectId, permission, user, endDate);
+					String level = AccessPermissionEnum.require(permission);
+					adminUtils.grantNewUsersProjectAccess(projectId, level, user, endDate);
 					return success();
 				});
 	}
@@ -380,7 +382,8 @@ public class AdminProjectAuthorizationResource {
 		return ResourceUtility.respondAsAdmin(request,
 				"add user " + newUserId + " to project " + projectId + " with permission " + permission,
 				SecurityAdminUtils::getInstance, (user, adminUtils) -> {
-					adminUtils.addProjectUser(newUserId, projectId, permission, user, endDate);
+					String level = AccessPermissionEnum.require(permission);
+					adminUtils.addProjectUser(newUserId, projectId, level, user, endDate);
 					return success();
 				});
 	}
@@ -402,7 +405,7 @@ public class AdminProjectAuthorizationResource {
 		return ResourceUtility.respondAsAdmin(request,
 				"add all users to project " + projectId + " with permission " + permission,
 				SecurityAdminUtils::getInstance, (user, adminUtils) -> {
-					adminUtils.addAllProjectUsers(projectId, permission, user, endDate);
+					adminUtils.addAllProjectUsers(projectId, AccessPermissionEnum.require(permission), user, endDate);
 					return success();
 				});
 	}
@@ -426,7 +429,8 @@ public class AdminProjectAuthorizationResource {
 		return ResourceUtility.respondAsAdmin(request,
 				"change the permission of user " + existingUserId + " on project " + projectId + " to " + newPermission,
 				SecurityAdminUtils::getInstance, (user, adminUtils) -> {
-					adminUtils.editProjectUserPermission(existingUserId, projectId, newPermission, user, endDate);
+					String level = AccessPermissionEnum.require(newPermission);
+					adminUtils.editProjectUserPermission(existingUserId, projectId, level, user, endDate);
 					return success();
 				});
 	}
@@ -449,6 +453,7 @@ public class AdminProjectAuthorizationResource {
 				SecurityAdminUtils::getInstance, (user, adminUtils) -> {
 					List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("userpermissions"),
 							List.class);
+					AccessPermissionEnum.requireEach(requests);
 					adminUtils.editProjectUserPermissions(projectId, requests, user, endDate);
 					return success();
 				});
@@ -472,7 +477,8 @@ public class AdminProjectAuthorizationResource {
 		return ResourceUtility.respondAsAdmin(request,
 				"change the permission of every user on project " + projectId + " to " + newPermission,
 				SecurityAdminUtils::getInstance, (user, adminUtils) -> {
-					adminUtils.updateProjectUserPermissions(projectId, newPermission, user, endDate);
+					String level = AccessPermissionEnum.require(newPermission);
+					adminUtils.updateProjectUserPermissions(projectId, level, user, endDate);
 					return success();
 				});
 	}
@@ -614,6 +620,7 @@ public class AdminProjectAuthorizationResource {
 					AccessToken token = user.getAccessToken(user.getPrimaryLogin());
 					String userId = token.getId();
 					String userType = token.getProvider().toString();
+					AccessPermissionEnum.requireEach(requests);
 					adminUtils.approveProjectUserAccessRequests(userId, userType, projectId, requests, endDate);
 					return success();
 				});
@@ -662,6 +669,7 @@ public class AdminProjectAuthorizationResource {
 					// adding user permissions in bulk
 					List<Map<String, String>> permission = new Gson().fromJson(form.getFirst("userpermissions"),
 							List.class);
+					AccessPermissionEnum.requireEach(permission);
 					// users picked from the Microsoft directory may not be in the security db yet
 					if (MicrosoftGraphUserLookup.isEnabled()) {
 						MicrosoftGraphUserLookup.addMissingUsers(user, permission);

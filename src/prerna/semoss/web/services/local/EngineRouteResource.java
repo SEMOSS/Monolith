@@ -65,7 +65,6 @@ import jakarta.ws.rs.core.Response;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityEngineUtils;
-import prerna.auth.utils.SecurityQueryUtils;
 import prerna.cluster.util.ClusterUtil;
 import prerna.engine.api.IEngine;
 import prerna.engine.impl.CaseInsensitiveProperties;
@@ -121,19 +120,17 @@ public class EngineRouteResource {
 	}
 
 	/**
-	 * Verify that the given user is allowed to interact with this engine. The
-	 * engine id is first resolved through any user-specific alias mapping; the user
-	 * is then allowed if they either have explicit view permission or the engine is
+	 * Verify that the given user is allowed to interact with this engine. The user
+	 * is allowed if they either have explicit view permission or the engine is
 	 * marked discoverable.
 	 *
 	 * @param user     the calling user
-	 * @param engineId the engine id (or user alias) being accessed
+	 * @param engineId the engine id being accessed
 	 * @return {@code true} when access is granted
 	 * @throws IllegalAccessException if the engine does not exist or the user has
 	 *                                no view/discoverable access
 	 */
 	private boolean canAccessOrDiscoverableEngine(User user, String engineId) throws IllegalAccessException {
-		engineId = SecurityQueryUtils.testUserEngineIdForAlias(user, engineId);
 		if (!SecurityEngineUtils.userCanViewEngine(user, engineId)
 				&& !SecurityEngineUtils.engineIsDiscoverable(engineId)) {
 			throw new IllegalAccessException("Engine " + engineId + " does not exist or user does not have access");

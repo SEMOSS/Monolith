@@ -59,6 +59,7 @@ import prerna.sablecc2.comm.PixelJobManager;
 import prerna.sablecc2.comm.PixelJobRunner;
 import prerna.sablecc2.comm.PixelJobStatus;
 import prerna.util.Utility;
+import prerna.web.services.util.ModelPixelExecutor;
 import prerna.web.services.util.WebUtility;
 
 @Path("/model-{modelId}")
@@ -196,9 +197,11 @@ public class ModelEngineResource {
 								new OutputStreamWriter(output, StandardCharsets.UTF_8))) {
 							STREAM_LOOP: while (true) {
 								PixelJobRunner jt = manager.getJob(jobId);
-								List<Map<String, Object>> partial = manager.getStreamOut(jobId);
+								// read before the chunks, so a job that has stopped has sent every chunk
+								// this poll drains
 								PixelJobStatus jobStatus = jt == null ? PixelJobStatus.UNKNOWN_JOB
 										: jt.getPixelJobStatus();
+								List<Map<String, Object>> partial = manager.getStreamOut(jobId);
 
 								if (partial != null && !partial.isEmpty()) {
 									for (Map<String, Object> chunk : partial) {
@@ -215,6 +218,15 @@ public class ModelEngineResource {
 											writeChunk(writer, chunk);
 										}
 									}
+									writer.write("data: [DONE]\n\n");
+									writer.flush();
+									break STREAM_LOOP;
+								}
+								String failure = ModelPixelExecutor.streamFailureMessage(jobStatus);
+								if (failure != null) {
+									Map<String, Object> error = new LinkedHashMap<>();
+									error.put("error", failure);
+									writeChunk(writer, error);
 									writer.write("data: [DONE]\n\n");
 									writer.flush();
 									break STREAM_LOOP;

@@ -45,9 +45,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.Executors;
 
 import org.a2aproject.sdk.spec.AgentCapabilities;
 import org.a2aproject.sdk.spec.AgentCard;
@@ -93,6 +91,7 @@ import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.sse.Sse;
 import jakarta.ws.rs.sse.SseEventSink;
 import prerna.auth.User;
+import prerna.auth.utils.SecurityProjectUtils;
 import prerna.engine.impl.model.inferencetracking.ModelInferenceLogsUtils;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
@@ -121,17 +120,8 @@ public class A2AResource {
 	private static final String A2A_PROTOCOL_VERSION = "1.0";
 	private static final String A2A_TRANSPORT_JSONRPC = "JSONRPC";
 
-	private static final ExecutorService SSE_EXECUTOR;
-	static {
-		ThreadPoolExecutor executor = new ThreadPoolExecutor(10, 100, 60L, TimeUnit.SECONDS,
-				new LinkedBlockingQueue<>(), r -> {
-					Thread t = new Thread(r, "a2a-sse-worker");
-					t.setDaemon(true);
-					return t;
-				});
-		executor.allowCoreThreadTimeOut(true);
-		SSE_EXECUTOR = executor;
-	}
+	private static final ExecutorService SSE_EXECUTOR = Executors
+			.newThreadPerTaskExecutor(Thread.ofVirtual().name("a2a-sse-", 0).factory());
 
 	@GET
 	@Path("/.well-known/agent-card.json")
@@ -141,6 +131,11 @@ public class A2AResource {
 			return jsonResponse(Response.Status.NOT_FOUND, errorBody("A2A is disabled"));
 		}
 		Map<String, Object> row = ModelInferenceLogsUtils.getWorkspaceEntry(workspaceId);
+		HttpSession session = request.getSession(false);
+		User user = session == null ? null : (User) session.getAttribute(Constants.SESSION_USER);
+		if (!canUseWorkspace(user, workspaceId, row)) {
+			return jsonResponse(Response.Status.NOT_FOUND, errorBody("Workspace not found"));
+		}
 		String name = stringValue(row, "name", "SEMOSS Workspace Agent");
 		String description = stringValue(row, "description", "SEMOSS workspace-backed agent");
 
@@ -161,6 +156,10 @@ public class A2AResource {
 			A2ARequestContext requestContext = initRequestContext(request);
 			JsonObject rpc = parseRpc(is);
 			Object id = idValue(rpc);
+			if (!canUseWorkspace(requestContext, workspaceId)) {
+				return jsonResponse(Response.Status.FORBIDDEN,
+						jsonRpcError(id, -32000, workspaceDeniedMessage(workspaceId)));
+			}
 			String method = text(rpc, "method");
 			Object result;
 			if (isSendMessageMethod(method)) {
@@ -205,6 +204,11 @@ public class A2AResource {
 				}
 				JsonObject rpc = parseRpc(is);
 				Object responseId = idValue(rpc);
+				if (!canUseWorkspace(requestContext, workspaceId)) {
+					sendSse(eventSink, sse, "error",
+							jsonRpcError(responseId, -32000, workspaceDeniedMessage(workspaceId)));
+					return;
+				}
 				String method = text(rpc, "method");
 				String runId;
 				if (isStreamingMessageMethod(method)) {
@@ -218,7 +222,7 @@ public class A2AResource {
 					}
 					Task task = handleGet(rpc, requestContext);
 					sendSse(eventSink, sse, "task", jsonRpcResult(responseId, streamTask(task)));
-					if (isTerminalTask(task)) {
+					if (endsTheStream(task)) {
 						return;
 					}
 				} else {
@@ -326,7 +330,7 @@ public class A2AResource {
 				Map<String, Object> payload = statusUpdateFromTask(task, null);
 				sendSse(eventSink, sse, "status", jsonRpcResult(responseId, streamStatusUpdate(payload)));
 			}
-			if (isTerminalTask(task)) {
+			if (endsTheStream(task)) {
 				return;
 			}
 			Thread.sleep(1000L);
@@ -352,9 +356,9 @@ public class A2AResource {
 	private A2ARequestContext initRequestContext(HttpServletRequest request) {
 		WebUtility.loggingContext(request);
 		HttpSession session = request.getSession();
-		String authorization = request.getHeader("Authorization");
-		addAuthKeyToSession(session, authorization);
-		Insight insight = getInsight(session, authorization);
+		String cacheKey = MCPResource.insightCacheKey(session, request.getHeader("Authorization"));
+		addAuthKeyToSession(session, cacheKey);
+		Insight insight = getInsight(session, cacheKey);
 		return new A2ARequestContext(insight, session.getId(), ThreadStore.getRouteId(), ThreadStore.getLocalHostname(),
 				ThreadStore.getLocalProtocol(), ThreadStore.getLocalPort());
 	}
@@ -375,8 +379,8 @@ public class A2AResource {
 		ThreadStore.setLocalPort(requestContext.localPort);
 	}
 
-	private static void addAuthKeyToSession(HttpSession session, String authorization) {
-		if (authorization != null) {
+	private static void addAuthKeyToSession(HttpSession session, String cacheKey) {
+		if (cacheKey != null && !cacheKey.equals(session.getId())) {
 			synchronized (session) {
 				@SuppressWarnings("unchecked")
 				Set<String> mcpKeys = (Set<String>) session.getAttribute(MCPResource.MCP_AUTH_KEY);
@@ -384,13 +388,55 @@ public class A2AResource {
 					mcpKeys = new HashSet<>();
 					session.setAttribute(MCPResource.MCP_AUTH_KEY, mcpKeys);
 				}
-				mcpKeys.add(authorization);
+				mcpKeys.add(cacheKey);
 			}
 		}
 	}
 
-	private Insight getInsight(HttpSession session, String authorization) {
-		String key = authorization != null ? authorization : session.getId();
+	/**
+	 * Removes a cached insight, as when the session that opened it ends.
+	 *
+	 * @param key the cache key from {@link MCPResource#insightCacheKey}, or a session
+	 *            id
+	 */
+	public static void clearInsight(String key) {
+		if (key != null) {
+			INSIGHT_MAP.remove(key);
+		}
+	}
+
+	/**
+	 * Returns whether the request's user can use the workspace.
+	 *
+	 * @param requestContext the request's context
+	 * @param workspaceId    the workspace id
+	 * @return true when the workspace is open to the user
+	 */
+	private static boolean canUseWorkspace(A2ARequestContext requestContext, String workspaceId) {
+		User user = requestContext.insight == null ? null : requestContext.insight.getUser();
+		return canUseWorkspace(user, workspaceId, ModelInferenceLogsUtils.getWorkspaceEntry(workspaceId));
+	}
+
+	/**
+	 * Returns whether a user can use a workspace: it exists, is active, and the user
+	 * can view it.
+	 *
+	 * @param user        the user, or null
+	 * @param workspaceId the workspace id
+	 * @param row         the workspace's entry, or null when there is none
+	 * @return true when the workspace is open to the user
+	 */
+	private static boolean canUseWorkspace(User user, String workspaceId, Map<String, Object> row) {
+		return user != null && workspaceId != null && row != null && !Boolean.FALSE.equals(row.get("is_active"))
+				&& SecurityProjectUtils.userCanViewProject(user, workspaceId);
+	}
+
+	private static String workspaceDeniedMessage(String workspaceId) {
+		return "Workspace " + workspaceId + " does not exist or user does not have access to it";
+	}
+
+	private Insight getInsight(HttpSession session, String cacheKey) {
+		String key = cacheKey;
 		Insight existing = INSIGHT_MAP.get(key);
 		if (existing != null && InsightStore.getInstance().get(existing.getInsightId()) != null) {
 			return existing;
@@ -405,9 +451,6 @@ public class A2AResource {
 
 	private Insight initSession(HttpSession session) {
 		User user = (User) session.getAttribute(Constants.SESSION_USER);
-		if (user == null) {
-			user = ThreadStore.getUser();
-		}
 		if (user == null) {
 			throw new SecurityException("A2A requires an authenticated SEMOSS user");
 		}
@@ -709,9 +752,20 @@ public class A2AResource {
 		return task == null ? null : task.id();
 	}
 
-	private static boolean isTerminalTask(Task task) {
-		return task != null && task.status() != null && task.status().state() != null
-				&& task.status().state().isFinal();
+	/**
+	 * Returns whether a task's stream is over: the task has finished, or it is
+	 * waiting on the client, such as for more input, which a new message or
+	 * subscription resumes.
+	 *
+	 * @param task the task
+	 * @return true when the stream should end
+	 */
+	static boolean endsTheStream(Task task) {
+		if (task == null || task.status() == null || task.status().state() == null) {
+			return false;
+		}
+		TaskState state = task.status().state();
+		return state.isFinal() || state.isInterrupted();
 	}
 
 	private static Map<String, Object> metadataFromRun(Map<String, Object> run) {

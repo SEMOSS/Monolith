@@ -937,8 +937,12 @@ public class OpenAIEndpoints {
 					"Bad Request: The 'data' parameter is missing the required 'model' field.");
 		}
 
-		List<String> stringsToEncode = (List<String>) dataMap.remove("input");
-		if (stringsToEncode == null || stringsToEncode.isEmpty()) {
+		List<String> stringsToEncode = embeddingInputs(dataMap.remove("input"));
+		if (stringsToEncode == null) {
+			return ModelPixelExecutor.errorResponse(400,
+					"Bad Request: The 'input' field must be a string or a list of strings.");
+		}
+		if (stringsToEncode.isEmpty()) {
 			return ModelPixelExecutor.errorResponse(400,
 					"Bad Request: The 'data' parameter is missing the required 'input' field.");
 		}
@@ -1068,4 +1072,30 @@ public class OpenAIEndpoints {
 		return ModelPixelExecutor.usageLimitResponse(refusal, body);
 	}
 
+	/**
+	 * Reads an embeddings {@code input}, which is one string or a list of strings.
+	 *
+	 * @param input the request's input value
+	 * @return the strings to embed, empty when there are none, or null for an input
+	 *         of any other type
+	 */
+	private static List<String> embeddingInputs(Object input) {
+		if (input == null) {
+			return List.of();
+		}
+		if (input instanceof String text) {
+			return new ArrayList<>(List.of(text));
+		}
+		if (!(input instanceof List<?> items)) {
+			return null;
+		}
+		List<String> strings = new ArrayList<>();
+		for (Object item : items) {
+			if (!(item instanceof String text)) {
+				return null;
+			}
+			strings.add(text);
+		}
+		return strings;
+	}
 }

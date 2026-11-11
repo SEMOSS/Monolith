@@ -57,7 +57,7 @@ public class DuplicateApplication extends Application {
 	}
 
 	@Override
-	public Set<Object> getSingletons() {
-		return Set.of(new DuplicateResource());
+	public Set<Class<?>> getClasses() {
+		return Set.of(DuplicateResource.class);
 	}
 }
