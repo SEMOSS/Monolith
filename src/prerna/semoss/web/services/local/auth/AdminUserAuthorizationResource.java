@@ -29,6 +29,7 @@ package prerna.semoss.web.services.local.auth;
 
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
@@ -55,6 +56,7 @@ import prerna.auth.utils.SecurityModelUsageLimitUtils;
 import prerna.auth.utils.SecurityUpdateUtils;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
+import prerna.util.ValueUtils;
 import prerna.web.services.util.WebUtility;
 
 @Path("/auth/admin/user")
@@ -67,6 +69,8 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 	 * empty for no limit defined
 	 */
 	private static final String MODEL_USAGE_LIMIT = "modelUsageLimit";
+	private static final String USER_ID_REQUIRED = "The user id ('userId') cannot be null or empty";
+	private static final String TYPE_REQUIRED = "The login type ('type') cannot be null or empty";
 
 	@GET
 	@Path("/isAdminUser")
@@ -97,27 +101,12 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 	@Path("/registerUser")
 	@Produces("application/json")
 	public Response registerUser(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
-		User user = null;
-		try {
-			user = ResourceUtility.getUser(request);
-		} catch (IllegalAccessException e) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
-			return WebUtility.getResponse(errorMap, 401);
-		}
-		Map<String, String> errorRet = new HashMap<>();
-		if (!SecurityAdminUtils.userIsAdmin(user)) {
-			errorRet.put(Constants.ERROR_MESSAGE, "The user doesn't have the permissions to perform this action.");
-			return WebUtility.getResponse(errorRet, 400);
-		}
-
-		boolean success = false;
-		try {
-			String newUserId = form.getFirst("userId");
+		String newUserId = form.getFirst("userId");
+		return ResourceUtility.respondAsAdmin(request, "register user " + newUserId, user -> {
 			if (newUserId == null || newUserId.isEmpty()) {
 				throw new IllegalArgumentException("The user id cannot be null or empty");
 			}
-			String type = WebUtility.inputSanitizer(form.getFirst("type"));
+			String type = requireLoginType(WebUtility.inputSanitizer(form.getFirst("type")));
 			String name = WebUtility.inputSQLSanitizer(form.getFirst("name"));
 			String email = WebUtility.inputSQLSanitizer(form.getFirst("email"));
 			String phone = WebUtility.inputSanitizer(request.getParameter("phone"));
@@ -129,48 +118,21 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 			String password = WebUtility.inputSQLSanitizer(form.getFirst("password"));
 			ModelUsageLimit modelUsageLimit = SecurityModelUsageLimitUtils.readJson(form.getFirst(MODEL_USAGE_LIMIT));
 
-			// validate email & password
+			// each check throws an IllegalArgumentException, answered with 400
 			if (email != null && !email.isEmpty()) {
-				try {
-					AbstractSecurityUtils.validEmail(email, true);
-				} catch (Exception e) {
-					Map<String, String> errorMap = new HashMap<>();
-					errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-					return WebUtility.getResponse(errorMap, 401);
-				}
+				AbstractSecurityUtils.validEmail(email, true);
 			}
 			if (phone != null && !phone.isEmpty()) {
-				try {
-					phone = AbstractSecurityUtils.formatPhone(phone);
-				} catch (Exception e) {
-					Map<String, String> errorMap = new HashMap<>();
-					errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-					return WebUtility.getResponse(errorMap, 401);
-				}
+				phone = AbstractSecurityUtils.formatPhone(phone);
 			}
 			// password is only defined if native type
 			if (password != null && !password.isEmpty()) {
-				try {
-					AbstractSecurityUtils.validPassword(newUserId, AuthProvider.NATIVE, password);
-				} catch (Exception e) {
-					Map<String, String> errorMap = new HashMap<>();
-					errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-					return WebUtility.getResponse(errorMap, 401);
-				}
+				AbstractSecurityUtils.validPassword(newUserId, AuthProvider.NATIVE, password);
 			}
 
-			success = SecurityUpdateUtils.registerUser(newUserId, name, email, password, type, phone, phoneExtension,
+			return SecurityUpdateUtils.registerUser(newUserId, name, email, password, type, phone, phoneExtension,
 					countryCode, newUserAdmin, publisher, exporter, modelUsageLimit);
-		} catch (IllegalArgumentException e) {
-			classLogger.error("Failed to register user.", e);
-			errorRet.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorRet, 400);
-		} catch (Exception e) {
-			classLogger.error("Failed to register user.", e);
-			errorRet.put(Constants.ERROR_MESSAGE, "An unexpected error happened. Please try again.");
-			return WebUtility.getResponse(errorRet, 500);
-		}
-		return WebUtility.getResponse(success, 200);
+		});
 	}
 
 	/**
@@ -197,10 +159,12 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 		}
 
 		String userId = WebUtility.inputSQLSanitizer(form.getFirst("userId"));
+		String type = AuthProvider.getProviderLabel(WebUtility.inputSQLSanitizer(form.getFirst("type")));
 		boolean isPublisher = Boolean.parseBoolean(form.getFirst("isPublisher"));
 
 		try {
-			adminUtils.setUserPublisher(userId, isPublisher);
+			adminUtils.setUserPublisher(ValueUtils.requireNonBlank(userId, USER_ID_REQUIRED),
+					ValueUtils.requireNonBlank(type, TYPE_REQUIRED), isPublisher);
 		} catch (Exception e) {
 			classLogger.error("Failed to update user publisher.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -347,7 +311,13 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 		}
 
 		String userIdToDelete = WebUtility.inputSQLSanitizer(form.getFirst("userId"));
-		String userTypeToDelete = WebUtility.inputSQLSanitizer(form.getFirst("type"));
+		String userTypeToDelete = AuthProvider.getProviderLabel(WebUtility.inputSQLSanitizer(form.getFirst("type")));
+		if (userIdToDelete == null || userIdToDelete.isBlank() || userTypeToDelete == null
+				|| userTypeToDelete.isBlank()) {
+			// a user is an id and a login type; without the type, the last-admin check
+			// below would look for a user that does not exist
+			return ResourceUtility.errorResponse("The user id ('userId') and login type ('type') are required", 400);
+		}
 
 		boolean isDeletedUserAdmin = adminUtils.userIsAdmin(userIdToDelete, userTypeToDelete);
 		if (isDeletedUserAdmin) {
@@ -366,6 +336,26 @@ public class AdminUserAuthorizationResource extends AbstractAdminResource {
 
 		boolean success = adminUtils.deleteUser(userIdToDelete, userTypeToDelete);
 		return WebUtility.getResponse(success, 200);
+	}
+
+	/**
+	 * Returns the label of a login type a request sends, such as NATIVE for
+	 * "native" or MICROSOFT for "ms". Any provider SEMOSS has is accepted, whether
+	 * or not its login is turned on here.
+	 *
+	 * @param type the login type the request sends
+	 * @return the provider's label
+	 * @throws IllegalArgumentException when the type is missing or names no
+	 *                                  provider
+	 */
+	private static String requireLoginType(String type) {
+		String sent = ValueUtils.requireNonBlank(type, TYPE_REQUIRED);
+		AuthProvider provider = AuthProvider.getSocialPropKeysToEnum().get(sent.trim().toLowerCase(Locale.ROOT));
+		if (provider == null) {
+			throw new IllegalArgumentException(
+					"The login type ('type') is not a known login type. Received value = " + sent);
+		}
+		return provider.getLabel();
 	}
 
 	@GET

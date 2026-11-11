@@ -44,6 +44,7 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
+import prerna.auth.AccessPermissionEnum;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityEngineUtils;
@@ -329,7 +330,8 @@ public class EngineAuthorizationResource {
 			if (AbstractSecurityUtils.adminOnlyEngineAddAccess(engineId) && !SecurityAdminUtils.userIsAdmin(user)) {
 				throw new IllegalAccessException(ADMINS_ONLY);
 			}
-			SecurityEngineUtils.addEngineUser(user, newUserId, engineId, permission, endDate,
+			String level = AccessPermissionEnum.require(permission);
+			SecurityEngineUtils.addEngineUser(user, newUserId, engineId, level, endDate,
 					SecurityModelUsageLimitUtils.readJson(usageLimit));
 			Map<String, Object> ret = new HashMap<>();
 			ret.put("success", true);
@@ -357,7 +359,8 @@ public class EngineAuthorizationResource {
 				throw new IllegalAccessException(ADMINS_ONLY);
 			}
 			// adding user permissions in bulk
-			List<Map<String, Object>> permission = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
+			List<Map<String, Object>> permission = AccessPermissionEnum
+					.requireEach(new Gson().fromJson(form.getFirst("userpermissions"), List.class));
 			// users picked from the Microsoft directory may not be in the security db yet
 			if (MicrosoftGraphUserLookup.isEnabled()) {
 				MicrosoftGraphUserLookup.addMissingUsers(user, permission);
@@ -398,12 +401,13 @@ public class EngineAuthorizationResource {
 			if (AbstractSecurityUtils.adminOnlyEngineAddAccess(engineId) && !SecurityAdminUtils.userIsAdmin(user)) {
 				throw new IllegalAccessException(ADMINS_ONLY);
 			}
+			String level = AccessPermissionEnum.require(newPermission);
 			if (usageLimitSent) {
-				SecurityEngineUtils.editEngineUserPermission(user, existingUserId, existingUserType, engineId,
-						newPermission, endDate, SecurityModelUsageLimitUtils.readJson(usageLimit));
+				SecurityEngineUtils.editEngineUserPermission(user, existingUserId, existingUserType, engineId, level,
+						endDate, SecurityModelUsageLimitUtils.readJson(usageLimit));
 			} else {
-				SecurityEngineUtils.editEngineUserPermission(user, existingUserId, existingUserType, engineId,
-						newPermission, endDate);
+				SecurityEngineUtils.editEngineUserPermission(user, existingUserId, existingUserType, engineId, level,
+						endDate);
 			}
 			Map<String, Object> ret = new HashMap<>();
 			ret.put("success", true);
@@ -434,7 +438,7 @@ public class EngineAuthorizationResource {
 				throw new IllegalAccessException(ADMINS_ONLY);
 			}
 			List<Map<String, Object>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
-			SecurityEngineUtils.editEngineUserPermissions(user, engineId, requests);
+			SecurityEngineUtils.editEngineUserPermissions(user, engineId, AccessPermissionEnum.requireEach(requests));
 			Map<String, Object> ret = new HashMap<>();
 			ret.put("success", true);
 			return ret;
@@ -536,8 +540,9 @@ public class EngineAuthorizationResource {
 		boolean isDiscoverable = Boolean.parseBoolean(form.getFirst("discoverable"));
 		String action = "make engine " + engineId + (isDiscoverable ? " discoverable" : " not discoverable");
 		return ResourceUtility.respond(request, action, user -> {
-			if (AbstractSecurityUtils.adminOnlyEngineSetPublic(engineId) && !SecurityAdminUtils.userIsAdmin(user)) {
-				throw new IllegalAccessException("User session is invalid");
+			if (AbstractSecurityUtils.adminOnlyEngineSetDiscoverable(engineId)
+					&& !SecurityAdminUtils.userIsAdmin(user)) {
+				throw new IllegalAccessException(ADMINS_ONLY);
 			}
 			SecurityEngineUtils.setEngineDiscoverable(user, engineId, isDiscoverable);
 			Map<String, Object> ret = new HashMap<>();
@@ -633,6 +638,7 @@ public class EngineAuthorizationResource {
 			}
 			// adding user permissions and updating user access requests in bulk
 			List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("requests"), List.class);
+			AccessPermissionEnum.requireEach(requests);
 			SecurityEngineUtils.approveEngineUserAccessRequests(user, engineId, requests, endDate);
 			Map<String, Object> ret = new HashMap<>();
 			ret.put("success", true);

@@ -268,13 +268,13 @@
       <url-pattern>/*</url-pattern>
    </filter-mapping>
   
-   <!-- Trusted Token Filter -->
+   <!-- API user (robot account) login with its client id and secret -->
    <filter>
-      <filter-name>TrustedTokenFilter</filter-name>
-      <filter-class>prerna.web.conf.TrustedTokenFilter</filter-class>
+      <filter-name>ApiUserLoginFilter</filter-name>
+      <filter-class>prerna.web.conf.ApiUserLoginFilter</filter-class>
    </filter>
    <filter-mapping>
-      <filter-name>TrustedTokenFilter</filter-name>
+      <filter-name>ApiUserLoginFilter</filter-name>
       <url-pattern>/*</url-pattern>
    </filter-mapping>
    
@@ -684,23 +684,6 @@
    <servlet-mapping>
       <servlet-name>MicrosoftGraphApplication</servlet-name>
       <url-pattern>/msgraph/*</url-pattern>
-   </servlet-mapping>
-   <!-- Servlet For External Applications Registering a Trusted Token To Alias User -->
-   <servlet>
-      <servlet-name>TrustedTokenApplication</servlet-name>
-      <servlet-class>org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher</servlet-class>
-      <init-param>
-         <param-name>jakarta.ws.rs.Application</param-name>
-         <param-value>prerna.semoss.web.app.TrustedTokenApplication</param-value>
-      </init-param>
-      <init-param>
-	     <param-name>resteasy.servlet.mapping.prefix</param-name>
-	     <param-value>/token</param-value>
-	  </init-param>
-   </servlet>
-   <servlet-mapping>
-      <servlet-name>TrustedTokenApplication</servlet-name>
-      <url-pattern>/token/*</url-pattern>
    </servlet-mapping>
    <!-- Servlet For Health / Liveness Checks -->
    <servlet>

@@ -128,7 +128,9 @@ public class GitHubService {
 	}
 
 	/**
-	 * Step 1: redirects the user to GitHub to install the GitHub App for a project.
+	 * Step 1: redirects the project's owner to GitHub to install the GitHub App
+	 * for that project. Only the owner may start a link, since the install
+	 * callback links whatever project this remembers.
 	 * <p>
 	 * {@code GET /github/install/app?projectId=...}
 	 */
@@ -137,9 +139,7 @@ public class GitHubService {
 	public Response installApp(@Context HttpServletRequest req) {
 		// 1. Grab the projectId the frontend passed in
 		String projectId = req.getParameter("projectId");
-		if (projectId == null || projectId.isEmpty()) {
-			return WebUtility.getResponse(Map.of("status", "error", "reason", "projectId is required"), 400);
-		}
+		GitHubProjectGuard.requireProjectOwner(req, projectId);
 
 		// 2. Look up the configured app slug (set by the app-manifest flow)
 		Map<String, Object> app = SecurityExternalConnectorsUtils.getGitHubApp();
@@ -202,8 +202,9 @@ public class GitHubService {
 
 	/**
 	 * Links (or routes to the picker for) a freshly installed app, after confirming
-	 * the installation is one the current user can actually access. Shared by the
-	 * install callback and its just-in-time authorization resume.
+	 * the caller still owns the project and the installation is one the current
+	 * user can actually access. Shared by the install callback and its
+	 * just-in-time authorization resume.
 	 *
 	 * @param canReauth whether an expired token may trigger another authorization
 	 *                  redirect (true from the install callback; false on the
@@ -211,6 +212,11 @@ public class GitHubService {
 	 */
 	private Response completeInstallLink(HttpServletRequest req, String projectId, String installationId,
 			String userToken, boolean canReauth) {
+		// ownership is checked again here, not only when the link started: the
+		// session may have changed hands, or lost ownership, during the GitHub round
+		// trip
+		GitHubProjectGuard.requireProjectOwner(req, projectId);
+
 		long installId;
 		try {
 			installId = Long.parseLong(installationId);
@@ -377,11 +383,14 @@ public class GitHubService {
 
 		// If we were sent here to authorize an install callback that needs validation,
 		// resume it now that we have a user token (canReauth=false to avoid a loop).
+		// The project comes from the session: only the nonce in state is checked, so
+		// the project id after it could have been edited on the way back.
 		String pendingInstall = (String) session.getAttribute("github_pending_install_id");
 		if (pendingInstall != null) {
+			String pendingProject = (String) session.getAttribute("github_pending_project_id");
 			session.removeAttribute("github_pending_install_id");
 			session.removeAttribute("github_pending_project_id");
-			return completeInstallLink(req, projectId, pendingInstall, userToken, false);
+			return completeInstallLink(req, pendingProject, pendingInstall, userToken, false);
 		}
 
 		String redirectUrl = GitHubAppClient.publicBaseUrl();

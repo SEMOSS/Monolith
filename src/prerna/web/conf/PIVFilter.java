@@ -33,6 +33,7 @@ import java.security.cert.X509Certificate;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Collection;
 import java.util.List;
 
 import javax.naming.InvalidNameException;
@@ -130,7 +131,8 @@ public class PIVFilter implements Filter {
 							// if email still not valid - check alt names
 							if (email == null || !email.contains("@")) {
 								try {
-									EMAIL_LOOP: for (List<?> altNames : cert.getSubjectAlternativeNames()) {
+									Collection<List<?>> sans = cert.getSubjectAlternativeNames();
+									EMAIL_LOOP: for (List<?> altNames : sans == null ? List.<List<?>>of() : sans) {
 										for (Object alternative : altNames) {
 											if (alternative instanceof String) {
 												String altStr = alternative.toString();

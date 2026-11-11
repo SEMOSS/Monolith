@@ -49,6 +49,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.regex.Pattern;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -65,6 +66,7 @@ import prerna.auth.User;
 import prerna.engine.impl.model.message.MessageInputMedia;
 import prerna.om.Insight;
 import prerna.om.ThreadStore;
+import prerna.reactor.ReactorDefinition;
 import prerna.reactor.agent.mcp.MCPErrorCode;
 import prerna.reactor.agent.mcp.MCPUtility;
 import prerna.sablecc2.PixelRunner;
@@ -79,6 +81,11 @@ public class MCPReaper implements Runnable {
 
 	private static final Logger classLogger = LogManager.getLogger(MCPReaper.class);
 	private static final Map<String, ReentrantLock> INSIGHT_LOCKS = new ConcurrentHashMap<>();
+	// values from the request are placed inside pixels, so each is held to the
+	// characters it legitimately uses: MCP versions are release dates, and tool
+	// names use the characters the MCP spec recommends
+	private static final Pattern PROTOCOL_VERSION_PATTERN = Pattern.compile("\\d{4}-\\d{2}-\\d{2}");
+	private static final Pattern TOOL_NAME_PATTERN = Pattern.compile("[A-Za-z0-9_.-]{1,128}");
 
 	/**
 	 * Removes a lock entry for an insight id from the MCP lock cache.
@@ -200,10 +207,16 @@ public class MCPReaper implements Runnable {
 
 	@Override
 	public void run() {
-		if (this.mode == Mode.HTTP_STREAM) {
-			runHttp();
-		} else {
-			runSse();
+		// every tool call leaves its user, session and job on this thread, which is a
+		// request thread or a pooled SSE worker that serves other connections next
+		try {
+			if (this.mode == Mode.HTTP_STREAM) {
+				runHttp();
+			} else {
+				runSse();
+			}
+		} finally {
+			ThreadStore.remove();
 		}
 	}
 
@@ -434,178 +447,279 @@ public class MCPReaper implements Runnable {
 	}
 
 	/**
-	 * 
-	 * @param json
-	 * @param sessionId
-	 * @param projectId
-	 * @param insight
-	 * @return
+	 * Answers one JSON-RPC request from the MCP client. Every request gets one
+	 * reply with its id and either a result or an error; a notification gets none.
+	 *
+	 * @param json      the request as the client sent it
+	 * @param sessionId the session the toolbox runs in
+	 * @param projectId the toolbox project
+	 * @param insight   the insight the toolbox's pixels run in
+	 * @return the reply, or null for a notification
 	 */
 	private String generateResponse(String json, String sessionId, String projectId, Insight insight) {
-		JSONObject response = new JSONObject();
-		JSONObject root = null;
+		JSONObject root;
 		try {
 			root = new JSONObject(json);
-		} catch (org.json.JSONException e) {
-			/*
-			 * { "jsonrpc": "2.0", "id": null, "error": { "code": -32700, "message":
-			 * "Parse error - Invalid JSON was received by the server" } }
-			 */
-			response.put("id", "null");
-			response.put("jsonrpc", "2.0");
-			JSONObject error = new JSONObject();
-			error.put("code", MCPErrorCode.PARSE_ERROR.getCode());
-			error.put("message", MCPErrorCode.PARSE_ERROR.getDescription());
-			response.put("error", error);
-			return response.toString();
+		} catch (JSONException e) {
+			return errorResponse(JSONObject.NULL, MCPErrorCode.PARSE_ERROR.getCode(),
+					MCPErrorCode.PARSE_ERROR.getDescription());
 		}
 
-		String method = root.getString("method");
+		Object id = root.has("id") ? root.get("id") : JSONObject.NULL;
+		if (!(root.opt("method") instanceof String method)) {
+			return errorResponse(id, MCPErrorCode.INVALID_REQUEST.getCode(),
+					"Invalid Request - Missing or invalid 'method' field");
+		}
 
-		// Handle notifications (no response required)
 		if (isNotification(method)) {
 			handleNotification(method, root);
-			return null; // No response for notifications
+			return null;
 		}
 
 		if (!root.has("id")) {
-			/*
-			 * { "jsonrpc": "2.0", "id": null, "error": { "code": -32600, "message":
-			 * "Invalid Request - Missing required 'id' field" } }
-			 */
-			response.put("id", "null");
-			response.put("jsonrpc", "2.0");
-			JSONObject error = new JSONObject();
-			error.put("code", MCPErrorCode.INVALID_REQUEST.getCode());
-			error.put("message", "Invalid Request - Missing required 'id' field");
-			response.put("error", error);
-			return response.toString();
+			return errorResponse(JSONObject.NULL, MCPErrorCode.INVALID_REQUEST.getCode(),
+					"Invalid Request - Missing required 'id' field");
 		}
 
-		Object id = root.get("id");
+		try {
+			JSONObject response = new JSONObject();
+			response.put("id", id);
+			response.put("jsonrpc", "2.0");
+			response.put("result", dispatch(method, root, sessionId, projectId, insight));
+			return response.toString();
+		} catch (JsonRpcError e) {
+			return errorResponse(id, e.code, e.getMessage());
+		} catch (RuntimeException e) {
+			classLogger.error("Failed to answer the MCP {} request for toolbox {}", method, projectId, e);
+			return errorResponse(id, MCPErrorCode.INTERNAL_ERROR.getCode(),
+					e.getMessage() != null ? e.getMessage() : MCPErrorCode.INTERNAL_ERROR.getDescription());
+		}
+	}
+
+	/**
+	 * Runs one request method and returns its result.
+	 *
+	 * @param method    the request method
+	 * @param root      the whole request
+	 * @param sessionId the session the toolbox runs in
+	 * @param projectId the toolbox project
+	 * @param insight   the insight the toolbox's pixels run in
+	 * @return the result to send
+	 * @throws JsonRpcError when the request is answered with an error
+	 */
+	private Object dispatch(String method, JSONObject root, String sessionId, String projectId, Insight insight)
+			throws JsonRpcError {
+		// {"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}
+		// {"jsonrpc":"2.0","id":0,"result":{"protocolVersion":"2025-06-18",
+		// "serverInfo":{"name":"Stock Prices","version":"1.8.0"},
+		// "capabilities":{"experimental":{},"prompts":{"listChanged":false},
+		// "resources":{"listChanged":false,"subscribe":false},"tools":{"listChanged":false}}}}
+		if (method.equals("initialize")) {
+			if (!root.has("params")) {
+				throw new JsonRpcError(MCPErrorCode.INVALID_REQUEST.getCode(),
+						"Invalid Request - Missing required 'params.protocolVersion' field");
+			}
+			JSONObject params = requireParams(root);
+			if (!params.has("protocolVersion")) {
+				throw new JsonRpcError(MCPErrorCode.INVALID_REQUEST.getCode(),
+						"Invalid Request - Missing required 'protocolVersion' field");
+			}
+			if (!(params.get("protocolVersion") instanceof String protocolVersion)
+					|| !PROTOCOL_VERSION_PATTERN.matcher(protocolVersion).matches()) {
+				throw new JsonRpcError(MCPErrorCode.INVALID_PARAMS.getCode(),
+						"Invalid params - 'protocolVersion' must be a version such as 2025-06-18");
+			}
+			return runJsonPixel(insight,
+					"InitMCP(project='" + projectId + "', protocolVersion='" + protocolVersion + "');", sessionId);
+		}
+		// {"jsonrpc":"2.0","id":1,"method":"ping"}
+		// {"jsonrpc":"2.0","id":1,"result":{}}
+		if (method.equals("ping")) {
+			return new JSONObject();
+		}
+		// {"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}
+		// {"jsonrpc":"2.0","id":2,"result":{"tools":[{"name":"get_stock_price",
+		// "description":"Retrieve the latest closing price for a ticker symbol",
+		// "inputSchema":{"type":"object","properties":{"symbol":{"type":"string"}},"required":["symbol"]}}]}}
+		if (method.equalsIgnoreCase("tools/list")) {
+			return runJsonPixel(insight, "GetMCPTools(project='" + projectId + "');", sessionId);
+		}
+		// {"jsonrpc":"2.0","id":3,"method":"resources/list"}
+		// {"jsonrpc":"2.0","id":3,"result":{"resources":[]}}
+		if (method.equalsIgnoreCase("resources/list")) {
+			return runJsonPixel(insight, "GetMCPResources(project='" + projectId + "');", sessionId);
+		}
+		// {"jsonrpc":"2.0","id":4,"method":"resources/templates/list"}
+		// {"jsonrpc":"2.0","id":4,"result":{"resourceTemplates":[]}}
+		if (method.equalsIgnoreCase("resources/templates/list")) {
+			return runJsonPixel(insight, "GetMCPResourcesTemplates(project='" + projectId + "');", sessionId);
+		}
+		// {"jsonrpc":"2.0","id":5,"method":"prompts/list"}
+		// {"jsonrpc":"2.0","id":5,"result":{"prompts":[]}}
+		if (method.equalsIgnoreCase("prompts/list")) {
+			return runJsonPixel(insight, "GetMCPPrompts(project='" + projectId + "');", sessionId);
+		}
+		// {"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"get_stock_price","arguments":{"symbol":"GOOG"}}}
+		// replies are shown at callTool
+		if (method.equalsIgnoreCase("tools/call")) {
+			return callTool(requireParams(root), sessionId, projectId, insight);
+		}
+		// {"jsonrpc":"2.0","id":7,"method":"completion/complete","params":{}}
+		// {"jsonrpc":"2.0","id":7,"error":{"code":-32601,"message":"Method not found - The method does not exist / is not available"}}
+		throw new JsonRpcError(MCPErrorCode.METHOD_NOT_FOUND.getCode(),
+				MCPErrorCode.METHOD_NOT_FOUND.getDescription());
+	}
+
+	/**
+	 * Runs a tools/call request and returns its MCP tool result.
+	 *
+	 * <pre>
+	 * a text result:
+	 * {"jsonrpc":"2.0","id":6,"result":{"content":[{"type":"text","text":"334.07"}],"isError":false}}
+	 *
+	 * a result the tool's outputSchema describes:
+	 * {"jsonrpc":"2.0","id":6,"result":{"content":[{"type":"text","text":"{\"price\":334.07}"}],
+	 *   "isError":false,"structuredContent":{"price":334.07}}}
+	 *
+	 * a multimodal result:
+	 * {"jsonrpc":"2.0","id":6,"result":{"content":[{"type":"text","text":"The closing prices"},
+	 *   {"type":"image","data":"iVBORw0KGgo...","mimeType":"image/png"}],"isError":false}}
+	 *
+	 * a tool that fails:
+	 * {"jsonrpc":"2.0","id":6,"error":{"code":-32004,"message":"Tool execution failed - Tool ran but failed during execution"}}
+	 * </pre>
+	 *
+	 * @param params    the request's params
+	 * @param sessionId the session the toolbox runs in
+	 * @param projectId the toolbox project
+	 * @param insight   the insight the toolbox's pixels run in
+	 * @return the tool result
+	 * @throws JsonRpcError when the params are invalid or the tool fails
+	 */
+	private Map<String, Object> callTool(JSONObject params, String sessionId, String projectId, Insight insight)
+			throws JsonRpcError {
+		if (!(params.opt("name") instanceof String callName) || !TOOL_NAME_PATTERN.matcher(callName).matches()) {
+			throw new JsonRpcError(MCPErrorCode.INVALID_PARAMS.getCode(),
+					"Invalid params - 'name' must be the name of a tool");
+		}
+		Object arguments = params.opt("arguments");
+		if (arguments == null) {
+			arguments = new JSONObject();
+		} else if (!(arguments instanceof JSONObject)) {
+			throw new JsonRpcError(MCPErrorCode.INVALID_PARAMS.getCode(),
+					"Invalid params - 'arguments' must be an object");
+		}
+		String pixel = "RunMCPTool(project='" + projectId + "'" + ", function='" + callName + "'" + ", paramValues=["
+				+ arguments + "]);";
+
+		classLogger.info("Making call to {}", callName);
+		try {
+			Object retObject = runPixel(insight.getUser(), insight, pixel, sessionId);
+			Map<String, Object> result = buildToolCallResult(retObject, insight);
+			if (isPlainTextResult(result)) {
+				addStructuredContent(result, retObject, outputSchema(insight, projectId, callName, sessionId));
+			}
+			return result;
+		} catch (SemossMCPException e) {
+			throw new JsonRpcError(e.getError().getCode(),
+					e.getMessage() != null ? e.getMessage() : e.getError().getDescription());
+		} catch (Exception e) {
+			throw new JsonRpcError(MCPErrorCode.TOOL_EXECUTION_FAILED.getCode(),
+					e.getMessage() != null ? e.getMessage() : MCPErrorCode.TOOL_EXECUTION_FAILED.getDescription());
+		}
+	}
+
+	/**
+	 * Returns the request's params object.
+	 *
+	 * @param root the whole request
+	 * @return the params
+	 * @throws JsonRpcError when params is missing or is not an object
+	 */
+	private static JSONObject requireParams(JSONObject root) throws JsonRpcError {
+		if (!(root.opt("params") instanceof JSONObject params)) {
+			throw new JsonRpcError(MCPErrorCode.INVALID_PARAMS.getCode(), "Invalid params - 'params' must be an object");
+		}
+		return params;
+	}
+
+	/**
+	 * Runs a pixel whose result is a JSON object, as initialize and the list
+	 * methods do. A failed reactor leaves its error message as the result, so a
+	 * string that is not JSON is answered as that error.
+	 *
+	 * @param insight    the insight the pixel runs in
+	 * @param expression the pixel
+	 * @param sessionId  the session the toolbox runs in
+	 * @return the result object
+	 * @throws JsonRpcError when the pixel does not return a JSON object
+	 */
+	private JSONObject runJsonPixel(Insight insight, String expression, String sessionId) throws JsonRpcError {
+		Object value = runPixel(insight.getUser(), insight, expression, sessionId);
+		if (value instanceof JSONObject json) {
+			return json;
+		}
+		if (value instanceof Map<?, ?> map) {
+			return new JSONObject(map);
+		}
+		if (value instanceof String text) {
+			try {
+				return new JSONObject(text);
+			} catch (JSONException e) {
+				throw new JsonRpcError(MCPErrorCode.INTERNAL_ERROR.getCode(), text);
+			}
+		}
+		throw new JsonRpcError(MCPErrorCode.INTERNAL_ERROR.getCode(), MCPErrorCode.INTERNAL_ERROR.getDescription());
+	}
+
+	/**
+	 * Builds a JSON-RPC error reply.
+	 *
+	 * <pre>
+	 * -32700, a request that is not JSON, so its id cannot be read:
+	 * {"jsonrpc":"2.0","id":null,"error":{"code":-32700,"message":"Parse error - Invalid JSON was received by the server"}}
+	 *
+	 * -32600, a request that is not a valid request:
+	 * {"jsonrpc":"2.0","id":8,"error":{"code":-32600,"message":"Invalid Request - Missing or invalid 'method' field"}}
+	 *
+	 * -32601, a method the toolbox does not have:
+	 * {"jsonrpc":"2.0","id":9,"error":{"code":-32601,"message":"Method not found - The method does not exist / is not available"}}
+	 *
+	 * -32602, params that are missing, of the wrong type, or have characters a pixel cannot safely hold:
+	 * {"jsonrpc":"2.0","id":10,"error":{"code":-32602,"message":"Invalid params - 'name' must be the name of a tool"}}
+	 * {"jsonrpc":"2.0","id":11,"error":{"code":-32602,"message":"Invalid params - 'protocolVersion' must be a version such as 2025-06-18"}}
+	 *
+	 * -32603, a pixel that failed or returned something other than a JSON object:
+	 * {"jsonrpc":"2.0","id":12,"error":{"code":-32603,"message":"Reactor GetMCPPrompts failed"}}
+	 * </pre>
+	 *
+	 * @param id      the request's id, or JSON null when it could not be read
+	 * @param code    the error code
+	 * @param message the error message
+	 * @return the reply
+	 */
+	private static String errorResponse(Object id, int code, String message) {
+		JSONObject error = new JSONObject();
+		error.put("code", code);
+		error.put("message", message);
+		JSONObject response = new JSONObject();
 		response.put("id", id);
 		response.put("jsonrpc", "2.0");
-
-		if (method.equals("initialize")) {
-			// {"jsonrpc":"2.0","id":0,"result":{"protocolVersion":"2024-11-05",
-			// "capabilities":{"experimental":{},"prompts":{"listChanged":false},
-			// "resources":{"subscribe":false,"listChanged":false},
-			// "tools":{"listChanged":false}},
-			// "serverInfo":{"name":"Stock Price Server","version":"1.8.0"}}}
-
-			if (!root.has("params")) {
-				JSONObject error = new JSONObject();
-				error.put("code", MCPErrorCode.INVALID_REQUEST.getCode());
-				error.put("message", "Invalid Request - Missing required 'params.protocolVersion' field");
-				response.put("error", error);
-				return response.toString();
-			}
-			JSONObject params = root.getJSONObject("params");
-			if (!params.has("protocolVersion")) {
-				JSONObject error = new JSONObject();
-				error.put("code", MCPErrorCode.INVALID_REQUEST.getCode());
-				error.put("message", "Invalid Request - Missing required 'protocolVersion' field");
-				response.put("error", error);
-				return response.toString();
-			}
-			String protocolVersion = params.getString("protocolVersion");
-			String expression = "InitMCP(project='" + projectId + "', protocolVersion='" + protocolVersion + "');";
-			JSONObject resultMap = (JSONObject) runPixel(insight.getUser(), insight, expression, sessionId);
-			response.put("result", resultMap);
-		}
-		// {"method":"tools/list","params":{},"jsonrpc":"2.0","id":1}
-		else if (method.equalsIgnoreCase("tools/list")) {
-			// {"jsonrpc":"2.0","id":1,
-			// "result":{
-			// "tools":[{"name":"get_stock_price","description":"\n Retrieve the current
-			// stock price for the given ticker symbol.\n Returns the latest closing price
-			// as a float.\n ",
-			// "inputSchema":{"properties":{"symbol":{"title":"Symbol","type":"string"}},"required":["symbol"],
-			// "title":"get_stock_priceArguments","type":"object"}
-			// }
-			// , {"name":"get_stock_history","description":"\n Retrieve historical data for
-			// a stock given a ticker symbol and a period.\n Returns the historical data as
-			// a CSV formatted string.\n \n Parameters:\n symbol: The stock ticker symbol.\n
-			// period: The period over which to retrieve historical data (e.g., '1mo',
-			// '3mo', '1y').\n ",
-			// "inputSchema":{"properties":{"symbol":{"title":"Symbol","type":"string"},"period":{"default":"1mo","title":"Period","type":"string"}},"required":["symbol"],"title":"get_stock_historyArguments","type":"object"}},{"name":"compare_stocks","description":"\n
-			// Compare the current stock prices of two ticker symbols.\n Returns a formatted
-			// message comparing the two stock prices.\n \n Parameters:\n symbol1: The first
-			// stock ticker symbol.\n symbol2: The second stock ticker symbol.\n
-			// ","inputSchema":{"properties":{"symbol1":{"title":"Symbol1","type":"string"},"symbol2":{"title":"Symbol2","type":"string"}},"required":["symbol1","symbol2"],"title":"compare_stocksArguments","type":"object"}}]}}
-
-			// {"jsonrpc":"2.0",
-			// "result":{"tools":[{"name":"get_stock_price",
-			// "inputSchema":{"title":"get_stock_priceArguments","type":"object",
-			// "properties":{"symbol":{"title":"symbol","type":"string"}},"required":["symbol"]},"description":"\n
-			// Retrieve the current stock price for the given ticker symbol.\n Returns the
-			// latest closing price as a float.\n "}]},
-			// "id":1}
-
-			String expression = "GetMCPTools(project='" + projectId + "');";
-			JSONObject toolMap = (JSONObject) runPixel(insight.getUser(), insight, expression, sessionId);
-			response.put("result", toolMap);
-		}
-		// {"method":"tools/list","params":{},"jsonrpc":"2.0","id":2}
-		else if (method.equalsIgnoreCase("resources/list")) {
-			// {"jsonrpc":"2.0","id":3,"result":{"resources":[]}}
-			String expression = "GetMCPResources(project='" + projectId + "');";
-			JSONObject toolMap = (JSONObject) runPixel(insight.getUser(), insight, expression, sessionId);
-			response.put("result", toolMap);
-		} else if (method.equalsIgnoreCase("resources/templates/list")) {
-			// {"jsonrpc":"2.0","id":3,"result":{"resources":[]}}
-			String expression = "GetMCPResourcesTemplates(project='" + projectId + "');";
-			JSONObject toolMap = (JSONObject) runPixel(insight.getUser(), insight, expression, sessionId);
-			response.put("result", toolMap);
-		}
-		// {"method":"resources/list","params":{},"jsonrpc":"2.0","id":3}
-		else if (method.equalsIgnoreCase("prompts/list")) {
-			// {"jsonrpc":"2.0","id":4,"result":{"prompts":[]}}
-			String expression = "GetMCPPrompts(project='" + projectId + "');";
-			JSONObject toolMap = (JSONObject) runPixel(insight.getUser(), insight, expression, sessionId);
-			response.put("result", toolMap);
-		}
-		// {"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"get_stock_price","arguments":{"symbol":"GOOG"}}}
-		else if (method.equalsIgnoreCase("tools/call")) {
-			// {"jsonrpc":"2.0","id":5,"result":{"content":[{"type":"text","text":"334.07000732421875"}],"isError":false}}
-			// {"jsonrpc":"2.0","id":5,"result":{"content":[{"type":"text","text":"334.07000732421875"}],"isError":false}}
-			String callName = root.getJSONObject("params").getString("name");
-			String arguments = "[" + root.getJSONObject("params").get("arguments") + "]";
-			String pixel = "RunMCPTool(project='" + projectId + "'" + ", function='" + callName + "'" + ", paramValues="
-					+ arguments + ");";
-
-			classLogger.info("Making call to {}", callName);
-			Object retObject = null;
-			try {
-				retObject = runPixel(insight.getUser(), insight, pixel, sessionId);
-				response.put("result", buildToolCallResult(retObject, insight));
-			} catch (SemossMCPException e) {
-				/*
-				 * { "jsonrpc": "2.0", "id": 3, "error": { "code": <example code>, "message":
-				 * <example message> } }
-				 */
-				JSONObject error = new JSONObject();
-				error.put("code", e.getError().getCode());
-				if (e.getMessage() != null) {
-					error.put("message", e.getMessage());
-				} else {
-					error.put("message", e.getError().getDescription());
-				}
-				response.put("error", error);
-			} catch (Exception e) {
-				JSONObject error = new JSONObject();
-				error.put("code", MCPErrorCode.TOOL_EXECUTION_FAILED.getCode());
-				if (e.getMessage() != null) {
-					error.put("message", e.getMessage());
-				} else {
-					error.put("message", MCPErrorCode.TOOL_EXECUTION_FAILED.getDescription());
-				}
-				response.put("error", error);
-			}
-		}
-
-		// {"method":"tools/call","params":{"name":"get_stock_price","arguments":{"symbol":"GOOGL"}},"jsonrpc":"2.0","id":5}
+		response.put("error", error);
 		return response.toString();
+	}
+
+	/** A JSON-RPC error to answer a request with. */
+	private static final class JsonRpcError extends Exception {
+
+		private static final long serialVersionUID = 1L;
+
+		private final int code;
+
+		private JsonRpcError(int code, String message) {
+			super(message);
+			this.code = code;
+		}
 	}
 
 	/**
@@ -722,9 +836,101 @@ public class MCPReaper implements Runnable {
 	}
 
 	/**
-	 * 
-	 * @param method
-	 * @return
+	 * Whether a tool result is a successful single text block, the only kind given
+	 * structured content.
+	 */
+	private static boolean isPlainTextResult(Map<String, Object> result) {
+		return Boolean.FALSE.equals(result.get("isError")) && result.get("content") instanceof List<?> content
+				&& content.size() == 1 && content.get(0) instanceof Map<?, ?> block && "text".equals(block.get("type"));
+	}
+
+	/**
+	 * The outputSchema of a tool in the project's tools/list, or null when it has
+	 * none.
+	 */
+	private JSONObject outputSchema(Insight insight, String projectId, String toolName, String sessionId) {
+		try {
+			Object toolMap = runPixel(insight.getUser(), insight, "GetMCPTools(project='" + projectId + "');",
+					sessionId);
+			JSONArray tools = toolMap instanceof JSONObject json ? json.optJSONArray("tools") : null;
+			for (int i = 0; tools != null && i < tools.length(); i++) {
+				JSONObject tool = tools.optJSONObject(i);
+				if (tool != null && toolName.equals(tool.optString("name"))) {
+					return tool.optJSONObject("outputSchema");
+				}
+			}
+		} catch (Exception e) {
+			classLogger.warn("Could not read the output schema of MCP tool {}: {}", toolName, e.getMessage());
+		}
+		return null;
+	}
+
+	/**
+	 * Adds a tool's output as {@code structuredContent}, which MCP requires to
+	 * match the tool's {@code outputSchema}. An output the schema wraps
+	 * ({@link ReactorDefinition#WRAP_RESULT_MARKER}) goes under
+	 * {@link ReactorDefinition#WRAPPED_RESULT}. An output that does not fit the
+	 * schema's shape stays text only.
+	 *
+	 * @param result       the tool result, given {@code structuredContent} in place
+	 * @param retObject    what the tool returned
+	 * @param outputSchema the tool's output schema, or null
+	 */
+	static void addStructuredContent(Map<String, Object> result, Object retObject, JSONObject outputSchema) {
+		if (outputSchema == null) {
+			return;
+		}
+		boolean wrapped = outputSchema.optBoolean(ReactorDefinition.WRAP_RESULT_MARKER, false);
+		JSONObject properties = outputSchema.optJSONObject("properties");
+		JSONObject valueSchema = wrapped && properties != null
+				? properties.optJSONObject(ReactorDefinition.WRAPPED_RESULT)
+				: outputSchema;
+		String output = retObject == null ? "" : retObject.toString().trim();
+		Object value = structuredValue(output, valueSchema == null ? null : valueSchema.optString("type", null));
+		if (value == null || (!wrapped && !(value instanceof JSONObject))) {
+			classLogger.warn("A tool output does not fit its output schema, so it is returned as text only");
+			return;
+		}
+		result.put("structuredContent",
+				wrapped ? new JSONObject().put(ReactorDefinition.WRAPPED_RESULT, value) : value);
+	}
+
+	/**
+	 * Parses a tool's text output as the JSON value its schema type expects, or
+	 * null.
+	 */
+	private static Object structuredValue(String output, String type) {
+		try {
+			if (output.startsWith("\"") && output.endsWith("\"") && output.length() > 1) {
+				return new JSONArray("[" + output + "]").get(0);
+			}
+			if ("string".equals(type)) {
+				return output;
+			}
+			if (output.startsWith("{")) {
+				return new JSONObject(output);
+			}
+			if (output.startsWith("[")) {
+				return new JSONArray(output);
+			}
+			Object scalar = JSONObject.stringToValue(output);
+			return scalar == JSONObject.NULL ? null : scalar;
+		} catch (JSONException e) {
+			return null;
+		}
+	}
+
+	/**
+	 * Returns whether a method is a notification. A notification gets no reply:
+	 * over HTTP it is answered with 202 and no body, and over SSE no event is sent.
+	 *
+	 * <pre>
+	 * {"jsonrpc":"2.0","method":"notifications/initialized"}
+	 * {"jsonrpc":"2.0","method":"notifications/cancelled","params":{"requestId":6}}
+	 * </pre>
+	 *
+	 * @param method the request method
+	 * @return true for a notification
 	 */
 	private boolean isNotification(String method) {
 		return method.startsWith("notifications/");
@@ -739,17 +945,17 @@ public class MCPReaper implements Runnable {
 		if (method.equals("notifications/initialized")) {
 			classLogger.info("Client initialization complete");
 		} else if (method.equals("notifications/cancelled")) {
-			if (root.has("params") && root.getJSONObject("params").has("requestId")) {
-				Object requestId = root.getJSONObject("params").get("requestId");
-				classLogger.info("Request cancelled: {}", requestId);
+			JSONObject params = root.optJSONObject("params");
+			if (params != null && params.has("requestId")) {
+				classLogger.info("Request cancelled: {}", params.get("requestId"));
 			}
 		} else if (method.equals("notifications/progress")) {
 			if (root.has("params")) {
-				classLogger.info("Progress update: {}", root.getJSONObject("params"));
+				classLogger.info("Progress update: {}", root.opt("params"));
 			}
 		} else if (method.equals("notifications/message")) {
 			if (root.has("params")) {
-				classLogger.info("Message notification: {}", root.getJSONObject("params"));
+				classLogger.info("Message notification: {}", root.opt("params"));
 			}
 		} else if (method.equals("notifications/resources/updated")) {
 			classLogger.info("Resources updated notification received");

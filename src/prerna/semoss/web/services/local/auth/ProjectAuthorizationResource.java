@@ -46,6 +46,8 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
+import prerna.auth.AccessPermissionEnum;
+import prerna.auth.User;
 import prerna.auth.access.ModelUsageLimit;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityAdminUtils;
@@ -314,7 +316,8 @@ public class ProjectAuthorizationResource {
 			if (AbstractSecurityUtils.adminOnlyProjectAddAccess(projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
 				throw new IllegalAccessException(ADMINS_ONLY);
 			}
-			SecurityProjectUtils.addProjectUser(user, newUserId, projectId, permission, endDate);
+			String level = AccessPermissionEnum.require(permission);
+			SecurityProjectUtils.addProjectUser(user, newUserId, projectId, level, endDate);
 			Map<String, Object> ret = new HashMap<>();
 			ret.put("success", true);
 			return ret;
@@ -352,13 +355,15 @@ public class ProjectAuthorizationResource {
 			if (AbstractSecurityUtils.adminOnlyProjectAddAccess(projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
 				throw new IllegalAccessException(ADMINS_ONLY);
 			}
+			requireProjectEditor(user, projectId);
+			String level = AccessPermissionEnum.require(requestedPermission);
 
 			if (usageLimitSent) {
-				return SecurityProjectUtils.propagateProjectPermission(user, projectId, newUserId, newUserType,
-						requestedPermission, endDate, SecurityModelUsageLimitUtils.readJson(usageLimit));
+				return SecurityProjectUtils.propagateProjectPermission(user, projectId, newUserId, newUserType, level,
+						endDate, SecurityModelUsageLimitUtils.readJson(usageLimit));
 			}
-			return SecurityProjectUtils.propagateProjectPermission(user, projectId, newUserId, newUserType,
-					requestedPermission, endDate);
+			return SecurityProjectUtils.propagateProjectPermission(user, projectId, newUserId, newUserType, level,
+					endDate);
 		});
 	}
 
@@ -388,6 +393,9 @@ public class ProjectAuthorizationResource {
 			if (AbstractSecurityUtils.adminOnlyProjectAddAccess(projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
 				throw new IllegalAccessException(ADMINS_ONLY);
 			}
+			requireProjectEditor(user, projectId);
+			// every row is checked before the first one is propagated
+			AccessPermissionEnum.requireEach(requests);
 
 			Map<String, Object> userRet = new HashMap<>();
 			for (Map<String, Object> userRequest : requests) {
@@ -435,7 +443,7 @@ public class ProjectAuthorizationResource {
 				throw new IllegalAccessException(ADMINS_ONLY);
 			}
 			SecurityProjectUtils.editProjectUserPermission(user, existingUserId, existingUserType, projectId,
-					newPermission, endDate);
+					AccessPermissionEnum.require(newPermission), endDate);
 			Map<String, Object> ret = new HashMap<>();
 			ret.put("success", true);
 			return ret;
@@ -462,6 +470,7 @@ public class ProjectAuthorizationResource {
 				throw new IllegalAccessException(ADMINS_ONLY);
 			}
 			List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
+			AccessPermissionEnum.requireEach(requests);
 			SecurityProjectUtils.editProjectUserPermissions(user, projectId, requests, endDate);
 			Map<String, Object> ret = new HashMap<>();
 			ret.put("success", true);
@@ -661,6 +670,7 @@ public class ProjectAuthorizationResource {
 			}
 			// adding user permissions and updating user access requests in bulk
 			List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("requests"), List.class);
+			AccessPermissionEnum.requireEach(requests);
 			SecurityProjectUtils.approveProjectUserAccessRequests(user, projectId, requests, endDate);
 			Map<String, Object> ret = new HashMap<>();
 			ret.put("success", true);
@@ -714,7 +724,8 @@ public class ProjectAuthorizationResource {
 				throw new IllegalAccessException(ADMINS_ONLY);
 			}
 			// adding user permissions in bulk
-			List<Map<String, String>> permission = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
+			List<Map<String, String>> permission = AccessPermissionEnum
+					.requireEach(new Gson().fromJson(form.getFirst("userpermissions"), List.class));
 			// users picked from the Microsoft directory may not be in the security db yet
 			if (MicrosoftGraphUserLookup.isEnabled()) {
 				MicrosoftGraphUserLookup.addMissingUsers(user, permission);
@@ -774,6 +785,22 @@ public class ProjectAuthorizationResource {
 	 */
 	private static String textOf(Object value) {
 		return value == null ? null : value.toString();
+	}
+
+	/**
+	 * Refuses a user who cannot edit the project. Propagating a project's
+	 * permissions gives people access to everything it depends on, so it is
+	 * limited to the project's editors.
+	 *
+	 * @param user      the signed in user
+	 * @param projectId the project
+	 * @throws IllegalAccessException when the user cannot edit the project
+	 */
+	private static void requireProjectEditor(User user, String projectId) throws IllegalAccessException {
+		if (!SecurityProjectUtils.userCanEditProject(user, projectId)) {
+			throw new IllegalAccessException(
+					"Project " + projectId + " does not exist or user does not have access to edit it");
+		}
 	}
 
 }

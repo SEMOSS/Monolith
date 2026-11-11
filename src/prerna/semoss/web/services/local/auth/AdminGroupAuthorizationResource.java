@@ -36,6 +36,7 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.Response;
+import prerna.auth.AccessPermissionEnum;
 import prerna.auth.AuthProvider;
 import prerna.auth.utils.AdminSecurityGroupUtils;
 import prerna.auth.utils.SecurityGroupManagerUtils;
@@ -537,15 +538,17 @@ public class AdminGroupAuthorizationResource {
 	 * only.
 	 *
 	 * @param permission the sanitized parameter
-	 * @throws IllegalArgumentException when it is missing or not a whole number
+	 * @throws IllegalArgumentException when it is missing or is not 1, 2 or 3
 	 */
 	private static int requirePermission(String permission) {
 		String value = ValueUtils.requireNonBlank(permission,
 				"The permission integer value ('permission') cannot be null or empty");
+		int level;
 		try {
-			return Integer.parseInt(value);
+			level = Integer.parseInt(value.trim());
 		} catch (NumberFormatException e) {
 			throw new IllegalArgumentException("Must pass a valid integer value. Received value = " + value);
 		}
+		return AccessPermissionEnum.requireById(level).getId();
 	}
 }

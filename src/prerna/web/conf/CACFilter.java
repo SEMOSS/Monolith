@@ -45,12 +45,10 @@ import javax.naming.ldap.Rdn;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.ASN1Primitive;
-import org.bouncycastle.asn1.ASN1Sequence;
-import org.bouncycastle.asn1.ASN1TaggedObject;
-import org.bouncycastle.asn1.DERUTF8String;
-import org.bouncycastle.asn1.DLSequence;
+import org.bouncycastle.asn1.ASN1String;
+import org.bouncycastle.asn1.x509.GeneralName;
+import org.bouncycastle.asn1.x509.OtherName;
 import org.bouncycastle.cert.jcajce.JcaX509ExtensionUtils;
 
 import jakarta.servlet.Filter;
@@ -81,6 +79,8 @@ import prerna.web.services.util.WebUtility;
 public class CACFilter implements Filter {
 
 	private static final Logger classLogger = LogManager.getLogger(CACFilter.class);
+	// the otherName type of a Microsoft user principal name
+	private static final String UPN_OID = "1.3.6.1.4.1.311.20.2.3";
 
 	// filter init params
 	private static final String AUTO_ADD = "autoAdd";
@@ -185,7 +185,8 @@ public class CACFilter implements Filter {
 							email = null;
 
 							try {
-								EMAIL_LOOP: for (List<?> altNames : cert.getSubjectAlternativeNames()) {
+								Collection<List<?>> sans = cert.getSubjectAlternativeNames();
+								EMAIL_LOOP: for (List<?> altNames : sans == null ? List.<List<?>>of() : sans) {
 									for (Object alternative : altNames) {
 										if (alternative instanceof String) {
 											String altStr = alternative.toString();
@@ -269,51 +270,44 @@ public class CACFilter implements Filter {
 		arg2.doFilter(arg0, arg1);
 	}
 
+	/**
+	 * Returns the user principal name (UPN) from the certificate's otherName
+	 * alternative names, or null when the certificate has none.
+	 *
+	 * @param cert the certificate to read
+	 * @return the UPN, or null
+	 */
 	public String getUPN(X509Certificate cert) {
 		Collection<List<?>> sans;
 		try {
 			sans = JcaX509ExtensionUtils.getSubjectAlternativeNames(cert);
-			// get all subject alt names
-			if (sans != null) {
-				classLogger.info("Subject Alternative Names: {}", sans.toString());
-				for (List<?> l : sans) {
-
-					// expected size is 2
-					if (l.size() == 2) {
-
-						// expected type 0 for the san
-						Integer type = (Integer) l.get(0);
-						if (type == 0) {
-							ASN1Primitive value = ((DLSequence) l.get(1)).toASN1Primitive();
-							ASN1Sequence asn1seq = ASN1Sequence.getInstance(value);
-							ASN1ObjectIdentifier oid = ASN1ObjectIdentifier.getInstance(asn1seq.getObjectAt(0));
-
-							// IF THE OID is the UPN value - grab it and we are good, else continue
-							if (oid.getId().equalsIgnoreCase("1.3.6.1.4.1.311.20.2.3")) {
-								ASN1TaggedObject tag = ASN1TaggedObject
-										.getInstance(asn1seq.getObjectAt(1).toASN1Primitive());
-								if (tag.getTagNo() != 0) {
-									// this should be 0 for UPN
-									continue;
-								}
-								return DERUTF8String.getInstance(tag, true).toString();
-
-							} else {
-								continue;
-							}
-						}
-					}
-				}
-			}
 		} catch (CertificateParsingException e) {
-			// TODO Auto-generated catch block
 			classLogger.error(
 					"Failed to parse the X509 subject alternative names while extracting the UPN from the certificate",
 					e);
+			return null;
 		}
-
+		if (sans == null) {
+			return null;
+		}
+		classLogger.info("Subject Alternative Names: {}", sans);
+		for (List<?> san : sans) {
+			if (san.size() != 2 || !Integer.valueOf(GeneralName.otherName).equals(san.get(0))
+					|| !(san.get(1) instanceof byte[] encoded)) {
+				continue;
+			}
+			try {
+				// the value is the whole encoded GeneralName, not the OtherName inside it
+				OtherName otherName = OtherName
+						.getInstance(GeneralName.getInstance(ASN1Primitive.fromByteArray(encoded)).getName());
+				if (UPN_OID.equals(otherName.getTypeID().getId()) && otherName.getValue() instanceof ASN1String upn) {
+					return upn.getString();
+				}
+			} catch (IOException | IllegalArgumentException e) {
+				classLogger.warn("Skipping a certificate otherName alternative name that could not be read", e);
+			}
+		}
 		return null;
-
 	}
 
 	@Override

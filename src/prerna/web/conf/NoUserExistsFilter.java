@@ -49,7 +49,6 @@ import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.SystemEngineRegistry;
 import prerna.util.Utility;
-import prerna.web.services.util.WebUtility;
 
 public class NoUserExistsFilter implements Filter {
 
@@ -66,10 +65,7 @@ public class NoUserExistsFilter implements Filter {
 		// i do not want to run this query for every single call
 		// just gets annoying
 		if (!NoUserExistsFilter.userDefined) {
-			// this will be the full path of the request
-			// like http://localhost:8080/Monolith_Dev/api/engine/runPixel
-			String fullUrl = WebUtility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
-			if (!ResourceUtility.canAccessWithoutUsers(fullUrl)) {
+			if (!ResourceUtility.canAccessWithoutUsers((HttpServletRequest) arg0)) {
 				boolean hasUser = hasUser();
 				// no users at all registered, we need to send to the admin page
 				if (!hasUser) {

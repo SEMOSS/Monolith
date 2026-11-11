@@ -33,10 +33,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.Executor;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.json.JSONObject;
+import org.json.JSONTokener;
 
 import jakarta.annotation.security.PermitAll;
 import jakarta.servlet.ServletContext;
@@ -59,10 +62,12 @@ import prerna.auth.utils.SecurityUserUtils;
 import prerna.auth.utils.UserRegistrationEmailService;
 import prerna.date.SemossDate;
 import prerna.semoss.web.services.local.ResourceUtility;
+import prerna.theme.AdminThemeUtils;
 import prerna.usertracking.AuditEventType;
 import prerna.usertracking.UserAuditTrailUtils;
 import prerna.util.Constants;
 import prerna.util.SocialPropertiesUtil;
+import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 @Path("/auth/user")
@@ -72,6 +77,29 @@ public class UserAuthorizationResource {
 	private static final Logger classLogger = LogManager.getLogger(UserAuthorizationResource.class);
 
 	private static final String RESET_PASSWORD = "/resetPassword/";
+	private static final Set<String> PASSWORD_RESET_TYPES = Set.of(AuthProvider.NATIVE.name(),
+			AuthProvider.LDAP.name(), AuthProvider.LINOTP.name());
+	private static final String RESET_REQUESTED_MESSAGE = "If an account with that email exists, a password reset link has been sent to it.";
+	private static final String DEFAULT_PRODUCT_NAME = "SEMOSS";
+	final Executor passwordResetSender;
+
+	/**
+	 * Creates the resource the way RESTEasy does, sending password reset emails on
+	 * virtual threads.
+	 */
+	public UserAuthorizationResource() {
+		this(task -> Thread.ofVirtual().name("password-reset-email").start(task));
+	}
+
+	/**
+	 * Creates the resource with the executor that stores the reset token and sends
+	 * the reset email once the request has answered.
+	 *
+	 * @param passwordResetSender runs each password reset email
+	 */
+	UserAuthorizationResource(Executor passwordResetSender) {
+		this.passwordResetSender = passwordResetSender;
+	}
 
 	/**
 	 * Edit user properties. The user information is passed in the request body as a
@@ -302,13 +330,22 @@ public class UserAuthorizationResource {
 	}
 
 	/**
-	 * Set up a password reset request for a user. This will send an email to the
-	 * user with a password reset link.
-	 * 
+	 * Set up a password reset request for a user. When an account with the email
+	 * exists for the login type, it is emailed a link to this application's reset
+	 * page, built from the configured application URL; the request (a
+	 * caller-supplied URL or the Host header) never decides where the reset token
+	 * goes, and the subject comes from the active theme, not the caller. The answer
+	 * is the same whether or not the account exists, so the endpoint cannot be used
+	 * to find out which emails are registered. The token and the email are handled
+	 * on a background thread after the answer, so an existing account does not take
+	 * longer to answer than a missing one.
+	 *
 	 * @param context The servlet context.
 	 * @param request The HTTP request.
-	 * @return A response indicating whether the password reset email was sent
-	 *         successfully.
+	 * @return 200 with the same message whether or not the account exists; 400 for
+	 *         a missing email or a login type that cannot reset passwords; 401 when
+	 *         only administrators may change passwords; 500 when no mail server is
+	 *         configured
 	 */
 	@POST
 	@Produces("application/json")
@@ -331,8 +368,6 @@ public class UserAuthorizationResource {
 
 		String email = null;
 		String type = null;
-		String resetEmailUrl = null;
-		String subject = null;
 
 		String contentType = request.getContentType();
 		if (contentType != null && contentType.startsWith("application/json")) {
@@ -347,8 +382,6 @@ public class UserAuthorizationResource {
 				JSONObject root = new JSONObject(jsonBuffer.toString());
 				email = root.has("email") ? root.getString("email") : null;
 				type = root.has("type") ? root.getString("type") : null;
-				resetEmailUrl = root.has("url") ? root.getString("url") : null;
-				subject = root.has("subject") ? root.getString("subject") : null;
 			} catch (IOException | org.json.JSONException e) {
 				classLogger.error("Failed to setup reset password.", e);
 				Map<String, String> errorMap = new HashMap<String, String>();
@@ -358,47 +391,112 @@ public class UserAuthorizationResource {
 		} else {
 			email = request.getParameter("email");
 			type = request.getParameter("type");
-			resetEmailUrl = request.getParameter("url");
-			subject = request.getParameter("subject");
 		}
 
 		email = WebUtility.inputSQLSanitizer(email);
 		type = WebUtility.inputSQLSanitizer(type);
-		resetEmailUrl = WebUtility.inputSQLSanitizer(resetEmailUrl);
-		subject = WebUtility.inputSQLSanitizer(subject);
 
-		String uniqueToken = null;
-		try {
-			uniqueToken = SecurityPasswordResetUtils.allowUserResetPassword(email, type);
-		} catch (Exception e) {
-			classLogger.error("Failed to setup reset password.", e);
+		if (email == null || (email = email.trim()).isEmpty()) {
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(errorMap, 401);
+			errorMap.put(Constants.ERROR_MESSAGE, "An email is required to reset a password");
+			return WebUtility.getResponse(errorMap, 400);
 		}
-
-		if (resetEmailUrl == null || (resetEmailUrl = resetEmailUrl.trim()).isEmpty()) {
-			String fullUrl = WebUtility.cleanHttpResponse(request.getRequestURL().toString());
-			String contextPath = request.getContextPath();
-			resetEmailUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length()) + RESET_PASSWORD
-					+ "index.html?token=" + uniqueToken;
-		} else {
-			resetEmailUrl += "?token=" + uniqueToken;
-		}
-
-		if (!UserRegistrationEmailService.getInstance().sendPasswordResetRequestEmail(email, resetEmailUrl, subject)) {
+		if (type == null || !PASSWORD_RESET_TYPES.contains(type)) {
 			Map<String, String> errorMap = new HashMap<String, String>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Error occurred sending email to " + email);
-			SecurityPasswordResetUtils.deleteToken(uniqueToken);
+			errorMap.put(Constants.ERROR_MESSAGE, "Passwords can only be reset for NATIVE, LDAP and LINOTP logins");
+			return WebUtility.getResponse(errorMap, 400);
+		}
+		if (SocialPropertiesUtil.getInstance().getSmtpEngine() == null) {
+			classLogger.error("Cannot send password reset emails, no mail server is configured");
+			Map<String, String> errorMap = new HashMap<String, String>();
+			errorMap.put(Constants.ERROR_MESSAGE, "Password reset emails are not available on this server");
 			return WebUtility.getResponse(errorMap, 500);
 		}
 
-		classLogger.info("User has requested a password reset for email = {}", email);
+		if (!SecurityPasswordResetUtils.userEmailExists(email, type)) {
+			classLogger.info("Password reset requested for an email with no {} account", type);
+			return resetRequestedResponse();
+		}
 
+		String accountEmail = email;
+		String accountType = type;
+		passwordResetSender.execute(() -> sendResetEmail(accountEmail, accountType));
+		return resetRequestedResponse();
+	}
+
+	/**
+	 * Stores a reset token for an existing account and emails it the reset link.
+	 * It runs after the request has answered, so failures only reach the log; a
+	 * token whose email did not go out is deleted.
+	 *
+	 * @param email the account's email
+	 * @param type  the account's login type
+	 */
+	private static void sendResetEmail(String email, String type) {
+		String uniqueToken = null;
+		try {
+			uniqueToken = SecurityPasswordResetUtils.allowUserResetPassword(email, type);
+			String resetEmailUrl = Utility.getApplicationUrl() + RESET_PASSWORD + "index.html?token=" + uniqueToken;
+			if (UserRegistrationEmailService.getInstance().sendPasswordResetRequestEmail(email, resetEmailUrl,
+					resetEmailSubject())) {
+				classLogger.info("User has requested a password reset for email = {}", email);
+				return;
+			}
+			classLogger.error("Failed to send the password reset email for a {} account", type);
+		} catch (Exception e) {
+			classLogger.error("Failed to set up the password reset for a {} account", type, e);
+		}
+		if (uniqueToken != null) {
+			try {
+				SecurityPasswordResetUtils.deleteToken(uniqueToken);
+			} catch (RuntimeException e) {
+				classLogger.error("Failed to delete an unsent password reset token", e);
+			}
+		}
+	}
+
+	/**
+	 * Returns the one answer a password reset request gets, whether or not the
+	 * account exists and whether or not its email went out.
+	 *
+	 * @return 200 with {@link #RESET_REQUESTED_MESSAGE}
+	 */
+	private static Response resetRequestedResponse() {
 		Map<String, Object> retMap = new HashMap<>();
 		retMap.put("success", true);
-		retMap.put("message", "Email has been sent to: " + email);
+		retMap.put("message", RESET_REQUESTED_MESSAGE);
 		return WebUtility.getResponse(retMap, 200);
+	}
+
+	/**
+	 * Builds the subject of the password reset email from the active admin theme's
+	 * name, the name the login page shows, so a caller cannot choose the wording of
+	 * an email the server sends to someone else.
+	 *
+	 * @return the subject, such as {@code SEMOSS Reset Password Request}
+	 */
+	private static String resetEmailSubject() {
+		String name = null;
+		if (AdminThemeUtils.getActiveAdminTheme() instanceof Map<?, ?> theme
+				&& theme.get("THEME_MAP") instanceof String themeMap) {
+			try {
+				Object parsed = new JSONTokener(themeMap).nextValue();
+				// some servers store the theme encoded twice, as a JSON string of JSON
+				if (parsed instanceof String encoded) {
+					parsed = new JSONTokener(encoded).nextValue();
+				}
+				if (parsed instanceof JSONObject json && json.opt("name") instanceof String themeName) {
+					name = themeName;
+				}
+			} catch (org.json.JSONException e) {
+				classLogger.warn("The active admin theme map is not valid JSON", e);
+			}
+		}
+		// whitespace runs, line breaks included, become single spaces in a mail header
+		if (name == null || (name = name.replaceAll("\\s+", " ").trim()).isEmpty()) {
+			name = DEFAULT_PRODUCT_NAME;
+		}
+		return name + " Reset Password Request";
 	}
 
 	/**

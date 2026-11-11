@@ -47,6 +47,7 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
+import prerna.auth.AccessPermissionEnum;
 import prerna.auth.AccessToken;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityAdminUtils;
@@ -406,7 +407,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 
 		try {
-			adminUtils.grantAllEngines(userId, permission, isAddNew, engineTypes, user);
+			adminUtils.grantAllEngines(userId, AccessPermissionEnum.require(permission), isAddNew, engineTypes, user);
 		} catch (Exception e) {
 			classLogger.error("Failed to grant all engines.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -445,7 +446,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 
 		try {
-			adminUtils.grantNewUsersEngineAccess(engineId, permission, user, endDate);
+			adminUtils.grantNewUsersEngineAccess(engineId, AccessPermissionEnum.require(permission), user, endDate);
 		} catch (Exception e) {
 			classLogger.error("Failed to grant new users engine access.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -539,7 +540,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		String endDate = null; // form.getFirst("endDate");
 
 		try {
-			adminUtils.addEngineUser(newUserId, engineId, permission, user, endDate,
+			adminUtils.addEngineUser(newUserId, engineId, AccessPermissionEnum.require(permission), user, endDate,
 					SecurityModelUsageLimitUtils.readJson(form.getFirst(USAGE_LIMIT)));
 		} catch (Exception e) {
 			classLogger.error("Failed to add engine user permission.", e);
@@ -583,6 +584,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		// adding user permissions in bulk
 		List<Map<String, Object>> permission = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
+			AccessPermissionEnum.requireEach(permission);
 			// users picked from the Microsoft directory may not be in the security db yet
 			if (MicrosoftGraphUserLookup.isEnabled()) {
 				MicrosoftGraphUserLookup.addMissingUsers(user, permission);
@@ -632,7 +634,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 
 		try {
-			adminUtils.addAllEngineUsers(engineId, permission, user, endDate);
+			adminUtils.addAllEngineUsers(engineId, AccessPermissionEnum.require(permission), user, endDate);
 		} catch (Exception e) {
 			classLogger.error("Failed to add all users.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -682,6 +684,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		String endDate = null; // form.getFirst("endDate");
 
 		try {
+			newPermission = AccessPermissionEnum.require(newPermission);
 			if (form.containsKey(USAGE_LIMIT)) {
 				adminUtils.editEngineUserPermission(existingUserId, engineId, newPermission, user, endDate,
 						SecurityModelUsageLimitUtils.readJson(form.getFirst(USAGE_LIMIT)));
@@ -733,7 +736,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 
 		List<Map<String, Object>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
-			adminUtils.editEngineUserPermissions(engineId, requests, user);
+			adminUtils.editEngineUserPermissions(engineId, AccessPermissionEnum.requireEach(requests), user);
 		} catch (Exception e) {
 			classLogger.error("Failed to update engine user permissions.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -778,7 +781,8 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 
 		try {
-			adminUtils.updateEngineUserPermissions(engineId, newPermission, user, endDate);
+			String level = AccessPermissionEnum.require(newPermission);
+			adminUtils.updateEngineUserPermissions(engineId, level, user, endDate);
 		} catch (Exception e) {
 			classLogger.error("Failed to update engine user permissions.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -1060,6 +1064,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			AccessToken token = user.getAccessToken(user.getPrimaryLogin());
 			String userId = token.getId();
 			String userType = token.getProvider().toString();
+			AccessPermissionEnum.requireEach(requests);
 			adminUtils.approveEngineUserAccessRequests(userId, userType, engineId, requests, endDate);
 		} catch (Exception e) {
 			classLogger.error("Failed to approve engine user access request.", e);

@@ -145,6 +145,12 @@ public class UserResource {
 	private static final String PKCE_VERIFIER_ATTR = "pkce_code_verifier";
 
 	/**
+	 * Session attribute holding the OAuth state between authorize and callback, so
+	 * a callback is accepted only for a login this session started.
+	 */
+	private static final String OAUTH_STATE_ATTR = "oauth_state";
+
+	/**
 	 * Returns the active login providers for the current session user.
 	 *
 	 * @param request inbound HTTP request
@@ -1235,6 +1241,17 @@ public class UserResource {
 		String queryString = getEncodedQueryString(request);
 		if (hasOAuthCode(queryString)) {
 			if (!hasAccessToken(userObj, providerEnum)) {
+				if (!consumeOAuthState(request, prefix)) {
+					classLogger.warn("Refused a {} login callback that does not carry the state this session issued",
+							provider);
+					UserAuditTrailUtils.recordLoginFailed(null, providerEnum.getLabel(),
+							AuditErrorCode.VALIDATION_FAILED, "The login state did not match",
+							WebUtility.getClientIp(request), 400);
+					Map<String, Object> ret = new HashMap<>();
+					ret.put(Constants.ERROR_MESSAGE, "The login could not be verified. Please start the login again.");
+					return WebUtility.getResponse(ret, 400);
+				}
+
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				// oauth code should match [ -~]+ (1 or more ascii)
@@ -1253,7 +1270,7 @@ public class UserResource {
 					if (accessToken == null) {
 						// not authenticated
 						response.setStatus(302);
-						response.sendRedirect(buildProviderAuthorizeRedirect(filler, prefix, session));
+						response.sendRedirect(buildProviderAuthorizeRedirect(filler, prefix, request));
 						return null;
 					}
 
@@ -1275,7 +1292,7 @@ public class UserResource {
 		if (!hasAccessToken(userObj, providerEnum)) {
 			// not authenticated
 			response.setStatus(302);
-			response.sendRedirect(buildProviderAuthorizeRedirect(filler, prefix, session));
+			response.sendRedirect(buildProviderAuthorizeRedirect(filler, prefix, request));
 			return null;
 		}
 
@@ -1284,18 +1301,40 @@ public class UserResource {
 	}
 
 	/**
-	 * Builds a provider's authorize redirect URL, generating and stashing a PKCE
-	 * code verifier (and passing the derived challenge) when the provider uses
-	 * PKCE.
+	 * Takes the state this session issued for the provider and checks that the
+	 * callback returned it. Each state is good for one callback.
+	 *
+	 * @param request the provider's callback request
+	 * @param prefix  social.properties prefix for the provider
+	 * @return true when the callback carries the state this session issued
+	 */
+	private boolean consumeOAuthState(HttpServletRequest request, String prefix) {
+		HttpSession session = request.getSession(false);
+		if (session == null) {
+			return false;
+		}
+		Object issued = session.getAttribute(prefix + OAUTH_STATE_ATTR);
+		session.removeAttribute(prefix + OAUTH_STATE_ATTR);
+		String returned = request.getParameter("state");
+		return issued != null && issued.equals(returned);
+	}
+
+	/**
+	 * Builds a provider's authorize redirect URL. The state it sends is kept in
+	 * the session for the callback to match, and so is a PKCE code verifier
+	 * (whose derived challenge is sent) when the provider uses PKCE.
 	 *
 	 * @param filler  the provider's token filler strategy
 	 * @param prefix  social.properties prefix for the provider
-	 * @param session the login session used to carry the PKCE verifier to the
-	 *                callback
+	 * @param request the request starting the login, whose session carries the
+	 *                state and verifier to the callback
 	 * @return the authorize redirect URL
 	 */
-	private String buildProviderAuthorizeRedirect(IAccessTokenFiller filler, String prefix, HttpSession session) {
+	private String buildProviderAuthorizeRedirect(IAccessTokenFiller filler, String prefix,
+			HttpServletRequest request) {
+		HttpSession session = request.getSession();
 		String state = UUID.randomUUID().toString();
+		session.setAttribute(prefix + OAUTH_STATE_ATTR, state);
 		String codeChallenge = null;
 		if (filler.usesPKCE()) {
 			String codeVerifier = PKCEUtil.generateCodeVerifier();
