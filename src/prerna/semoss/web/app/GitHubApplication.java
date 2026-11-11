@@ -49,15 +49,15 @@ import prerna.semoss.web.github.GitHubService;
 @ApplicationPath("/github")
 public class GitHubApplication extends Application {
 
-	private Set<Object> singletons = new HashSet<Object>();
+	private Set<Class<?>> classes = new HashSet<>();
 
 	public GitHubApplication() {
-		singletons.add(new GitHubService());
-		singletons.add(new AdminGitHubService());
+		classes.add(GitHubService.class);
+		classes.add(AdminGitHubService.class);
 	}
 
 	@Override
-	public Set<Object> getSingletons() {
-		return singletons;
+	public Set<Class<?>> getClasses() {
+		return classes;
 	}
 }

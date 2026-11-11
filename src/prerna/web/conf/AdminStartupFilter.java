@@ -56,21 +56,26 @@ public class AdminStartupFilter implements Filter {
 			throws IOException, ServletException {
 		IRDBMSEngine engine = SystemEngineRegistry.getSecurityDb();
 		String q = "SELECT * FROM SMSS_USER LIMIT 1";
+		boolean hasUser;
 		try (IRawSelectWrapper wrapper = WrapperManager.getInstance().getRawWrapper(engine, q)) {
-			boolean hasUser = wrapper.hasNext();
-			// if there are users, redirect to the main semoss page
-			// we do not want to allow the person to make any admin requests
-			if (hasUser) {
-				if (initialRedirect != null) {
-					String encodedRedirectUrl = Encode.forHtml(initialRedirect);
-					((HttpServletResponse) arg1).setHeader("redirect", encodedRedirectUrl);
-					((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + encodedRedirectUrl);
-				} else {
-					((HttpServletResponse) arg1).sendError(404, "Page Not Found");
-				}
-			}
+			hasUser = wrapper.hasNext();
 		} catch (Exception e) {
 			classLogger.error("Error checking whether an initial admin user exists during startup filtering", e);
+			((HttpServletResponse) arg1).sendError(503, "Unable to verify the initial admin setup");
+			return;
+		}
+
+		// if there are users, redirect to the main semoss page
+		// we do not want to allow the person to make any admin requests
+		if (hasUser) {
+			if (initialRedirect != null) {
+				String encodedRedirectUrl = Encode.forHtml(initialRedirect);
+				((HttpServletResponse) arg1).setHeader("redirect", encodedRedirectUrl);
+				((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + encodedRedirectUrl);
+			} else {
+				((HttpServletResponse) arg1).sendError(404, "Page Not Found");
+			}
+			return;
 		}
 
 		arg2.doFilter(arg0, arg1);

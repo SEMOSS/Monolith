@@ -57,7 +57,15 @@ public class CustomRestCsrfPreventionFilter extends org.apache.catalina.filters.
 		if (excludedPathsParam != null && !excludedPathsParam.trim().isEmpty()) {
 			String[] paths = excludedPathsParam.split(",");
 			for (String path : paths) {
-				this.excludedPaths.add(path.trim());
+				String excluded = path.trim();
+				// a blank entry, such as from a trailing comma, would otherwise exclude every path
+				if (excluded.isEmpty() || excluded.equals("/")) {
+					continue;
+				}
+				if (excluded.endsWith("/")) {
+					excluded = excluded.substring(0, excluded.length() - 1);
+				}
+				this.excludedPaths.add(excluded);
 			}
 		}
 
@@ -124,9 +132,13 @@ public class CustomRestCsrfPreventionFilter extends org.apache.catalina.filters.
 			throws IOException, ServletException {
 		HttpServletRequest httpRequest = (HttpServletRequest) arg0;
 
-		// Check if current path should be excluded
-		String path = httpRequest.getRequestURI().substring(httpRequest.getContextPath().length());
-		boolean shouldExclude = excludedPaths.stream().anyMatch(excludedPath -> path.startsWith(excludedPath));
+		// Match the path the request is served by. Tomcat strips ;params and resolves
+		// .. before mapping, so a check on the raw URI could be met by
+		// /api/ext/..;/engine/runPixel while runPixel is what runs.
+		String pathInfo = httpRequest.getPathInfo();
+		String path = httpRequest.getServletPath() + (pathInfo == null ? "" : pathInfo);
+		boolean shouldExclude = excludedPaths.stream()
+				.anyMatch(excludedPath -> path.equals(excludedPath) || path.startsWith(excludedPath + "/"));
 
 		if (shouldExclude) {
 			// Skip CSRF processing for excluded paths

@@ -112,7 +112,6 @@ public final class OpenApiExporter {
 			new Servlet("/health", "health", "prerna.semoss.web.app.HealthApplication"),
 			new Servlet("/github", "github", "prerna.semoss.web.app.GitHubApplication"),
 			new Servlet("/msgraph", "msgraph", "prerna.semoss.web.app.MicrosoftGraphApplication"),
-			new Servlet("/token", "token", "prerna.semoss.web.app.TrustedTokenApplication"),
 			new Servlet("/adminconfig", "adminConfig", "prerna.semoss.web.app.AdminApplication"));
 
 	/** The packages scanned for reactors. */
@@ -221,13 +220,7 @@ public final class OpenApiExporter {
 	static List<Class<?>> resourcesOf(Servlet servlet) throws Exception {
 		Application application = (Application) Class.forName(servlet.application()).getDeclaredConstructor()
 				.newInstance();
-		List<Class<?>> resources = new ArrayList<>();
-		for (Object singleton : application.getSingletons()) {
-			resources.add(singleton.getClass());
-		}
-		for (Class<?> c : application.getClasses()) {
-			resources.add(c);
-		}
+		List<Class<?>> resources = new ArrayList<>(application.getClasses());
 		resources.sort(Comparator.comparing(Class::getName));
 		return resources;
 	}
@@ -278,10 +271,11 @@ public final class OpenApiExporter {
 			JsonNode tree = Json31.mapper().valueToTree(read);
 
 			Set<String> found = new LinkedHashSet<>();
-			for (Iterator<Map.Entry<String, JsonNode>> it = tree.path("paths").fields(); it.hasNext();) {
+			for (Iterator<Map.Entry<String, JsonNode>> it = tree.path("paths").properties().iterator(); it.hasNext();) {
 				Map.Entry<String, JsonNode> pathEntry = it.next();
 				String fullPath = joinPath(servlet.prefix(), pathEntry.getKey());
-				for (Iterator<Map.Entry<String, JsonNode>> ops = pathEntry.getValue().fields(); ops.hasNext();) {
+				for (Iterator<Map.Entry<String, JsonNode>> ops = pathEntry.getValue().properties().iterator(); ops
+						.hasNext();) {
 					Map.Entry<String, JsonNode> op = ops.next();
 					if (!HTTP_METHODS.contains(op.getKey())) {
 						continue;
@@ -314,8 +308,8 @@ public final class OpenApiExporter {
 				}
 			}
 
-			for (Iterator<Map.Entry<String, JsonNode>> it = tree.path("components").path("schemas").fields(); it
-					.hasNext();) {
+			for (Iterator<Map.Entry<String, JsonNode>> it = tree.path("components").path("schemas").properties()
+					.iterator(); it.hasNext();) {
 				Map.Entry<String, JsonNode> schema = it.next();
 				addSchema(schemas, schema.getKey(), schema.getValue());
 			}
@@ -672,13 +666,14 @@ public final class OpenApiExporter {
 			}
 			JsonNode properties = node.get("properties");
 			if (properties != null && properties.isObject()) {
-				properties.fields().forEachRemaining(property -> {
+				properties.properties().iterator().forEachRemaining(property -> {
 					if (!property.getValue().has("description") && !property.getValue().has("$ref")) {
 						problems.add(where + ".properties." + property.getKey() + ": needs a description");
 					}
 				});
 			}
-			node.fields().forEachRemaining(child -> lint(child.getValue(), where + "." + child.getKey(), problems));
+			node.properties().iterator()
+					.forEachRemaining(child -> lint(child.getValue(), where + "." + child.getKey(), problems));
 		} else if (node.isArray()) {
 			for (int i = 0; i < node.size(); i++) {
 				lint(node.get(i), where + "[" + i + "]", problems);

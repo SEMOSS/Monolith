@@ -37,14 +37,14 @@ import prerna.semoss.web.services.config.AdminConfigService;
 @ApplicationPath("/adminconfig")
 public class AdminApplication extends Application {
 
-	private Set<Object> singletons = new HashSet<Object>();
+	private Set<Class<?>> classes = new HashSet<>();
 
 	public AdminApplication() {
-		singletons.add(new AdminConfigService());
+		classes.add(AdminConfigService.class);
 	}
 
 	@Override
-	public Set<Object> getSingletons() {
-		return singletons;
+	public Set<Class<?>> getClasses() {
+		return classes;
 	}
 }

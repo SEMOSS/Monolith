@@ -28,6 +28,7 @@
 package prerna.web.conf;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
 import org.apache.logging.log4j.LogManager;
@@ -45,15 +46,21 @@ import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityAPIUserUtils;
-import prerna.semoss.web.services.config.TrustedTokenService;
 import prerna.semoss.web.services.local.UserResource;
 import prerna.util.Constants;
 import prerna.util.SocialPropertiesUtil;
-import prerna.web.services.util.WebUtility;
+import prerna.util.Utility;
 
-public class TrustedTokenFilter implements Filter {
+/**
+ * Signs in an API user, a robot account an admin creates, from
+ * {@code Authorization: Basic <client id>:<secret>} on each request. It runs
+ * only while {@code api_user_login} is on. Any other Authorization header is
+ * left to the filters after it, such as {@link UserAccessKeyFilter} for a
+ * person's access keys.
+ */
+public class ApiUserLoginFilter implements Filter {
 
-	private static final Logger classLogger = LogManager.getLogger(TrustedTokenFilter.class);
+	private static final Logger classLogger = LogManager.getLogger(ApiUserLoginFilter.class);
 
 	@Override
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2)
@@ -78,97 +85,45 @@ public class TrustedTokenFilter implements Filter {
 
 		SocialPropertiesUtil socialData = SocialPropertiesUtil.getInstance();
 		if (socialData.getLoginsAllowed().get("api_user") == null || !socialData.getLoginsAllowed().get("api_user")) {
-			// token is not enabled
+			// api user login is not enabled
 			arg2.doFilter(arg0, arg1);
 			return;
 		}
 
-		boolean requireDynamic = SecurityAPIUserUtils.getApplicationRequireDynamicToken();
 		String authValue = request.getHeader("Authorization");
 		if (authValue == null) {
 			authValue = request.getHeader("authorization");
-			if (authValue == null) {
-				// no token? just go through and other filters will validate
-				arg2.doFilter(arg0, arg1);
-				return;
-			}
 		}
-
-		// if we require dynamic, must have Bearer token
-		if (requireDynamic && !authValue.contains("Bearer")) {
-			// no bearer token
+		if (authValue == null || !authValue.startsWith("Basic")) {
 			arg2.doFilter(arg0, arg1);
 			return;
 		}
 
-		// if we do not require dynamic, someone might still be using it
-		// so let us account for that
-		boolean usingDynamic = authValue.contains("Bearer");
-		boolean usingBasic = authValue.contains("Basic");
+		String clientAndSecret;
+		try {
+			clientAndSecret = new String(Base64.getDecoder().decode(authValue.substring("Basic".length()).trim()),
+					StandardCharsets.UTF_8);
+		} catch (IllegalArgumentException e) {
+			classLogger.warn("Ignoring a Basic Authorization header that is not valid base64");
+			arg2.doFilter(arg0, arg1);
+			return;
+		}
 
-		if (usingBasic && !requireDynamic) {
-			authValue = authValue.replace("Basic", "").trim();
-			// this is a base64 encoded username:password
-			byte[] decodedBytes = Base64.getDecoder().decode(WebUtility.inputSQLSanitizer(authValue));
-			String userpass = new String(decodedBytes);
-			if (userpass != null && !userpass.isEmpty()) {
-				String[] split = userpass.split(":");
-				if (split.length == 2) {
-					String clientId = split[0];
-					String secretKey = split[1];
-
-					// can you login?
-					if (SecurityAPIUserUtils.validCredentials(WebUtility.inputSQLSanitizer(clientId),
-							WebUtility.inputSQLSanitizer(secretKey))) {
-						AccessToken token = new AccessToken();
-						token.setId(clientId);
-						token.setProvider(AuthProvider.API_USER);
-						UserResource.addAccessToken(token, request, false);
-						classLogger.info("{} is logging in with provider {} with basic authencation",
-								User.getSingleLogginName(user), token.getProvider());
-					} else {
-						classLogger.error("Could not login as API_USER with invalid credentails using client id = '{}'",
-								clientId);
-					}
-				}
+		// the secret may itself contain a colon, so only the first one separates them
+		String[] split = clientAndSecret.split(":", 2);
+		if (split.length == 2) {
+			String clientId = split[0];
+			if (SecurityAPIUserUtils.validCredentials(clientId, split[1])) {
+				AccessToken token = new AccessToken();
+				token.setId(clientId);
+				token.setProvider(AuthProvider.API_USER);
+				UserResource.addAccessToken(token, request, false);
+				classLogger.info("API user {} is logging in with its client id and secret",
+						Utility.cleanLogString(clientId));
+			} else {
+				classLogger.error("Could not login as API_USER with invalid credentials using client id = '{}'",
+						Utility.cleanLogString(clientId));
 			}
-
-		} else if (usingDynamic || requireDynamic) {
-			authValue = WebUtility.inputSQLSanitizer(authValue.replace("Bearer", "").trim());
-
-			// okay, we have a token
-			// and no current user
-			// we have to validate this stuff
-			String ip = WebUtility.getClientIp(request);
-			Object[] tokenDetails = TrustedTokenService.getTokenForIp(ip);
-			if (tokenDetails == null || tokenDetails.length != 3) {
-				// token not found for this ip
-				arg2.doFilter(arg0, arg1);
-				return;
-			}
-
-			String ipToken = (String) tokenDetails[0];
-			String userId = (String) tokenDetails[2];
-
-			// error handling
-			if (ipToken == null) {
-				classLogger.error(
-						"Could not login as API_USER but does not have a valid trust token or token has expired");
-				arg2.doFilter(arg0, arg1);
-				return;
-			}
-			if (!ipToken.equals(authValue)) {
-				classLogger.error("Could not login as API_USER but token value is invalid");
-				arg2.doFilter(arg0, arg1);
-				return;
-			}
-
-			AccessToken token = new AccessToken();
-			token.setId(userId);
-			token.setProvider(AuthProvider.API_USER);
-			UserResource.addAccessToken(token, request, false);
-			classLogger.info("{} is logging in with provider {} with bearer token", User.getSingleLogginName(user),
-					token.getProvider());
 		}
 
 		// doesn't matter if we made a user or didn't

@@ -95,6 +95,9 @@ public class OllamaEndpoints {
 
 	private static final Gson GSON = new GsonBuilder().setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE)
 			.disableHtmlEscaping().create();
+	// Ollama sampling options SEMOSS models take under the same name
+	private static final Set<String> SAMPLING_OPTIONS = Set.of("temperature", "top_p", "stop", "seed",
+			"frequency_penalty", "presence_penalty");
 
 	@POST
 	@Path("/api/chat")
@@ -142,7 +145,7 @@ public class OllamaEndpoints {
 		if (engine == null) {
 			return ModelPixelExecutor.errorResponse(404, "Model not found: " + engineId);
 		}
-		sanitizeProviderSpecificParams(dataMap, engine);
+		translateOllamaParams(dataMap);
 
 		final String SESSION_ID = session.getId();
 		final String JOB_ID = GUID.v7().toUUID().toString();
@@ -224,9 +227,11 @@ public class OllamaEndpoints {
 					// polling streaming endpoint until response complete
 					STREAM_COMPLETE_LOOP: while (true) {
 						PixelJobRunner jt = PixelJobManager.getManager().getJob(jobId);
+						// read before the chunks, so a job that has stopped has sent every chunk
+						// this read returns
+						PixelJobStatus jobStatus = jt == null ? PixelJobStatus.UNKNOWN_JOB : jt.getPixelJobStatus();
 						List<Map<String, Object>> partialResponseContent = PixelJobManager.getManager()
 								.getStreamOut(jobId);
-						PixelJobStatus jobStatus = jt == null ? PixelJobStatus.UNKNOWN_JOB : jt.getPixelJobStatus();
 
 						/**
 						 * The partialResponseContent Map<String,Object> values comes from the python
@@ -262,7 +267,7 @@ public class OllamaEndpoints {
 									}
 									continue;
 								}
-								if (streamType.equalsIgnoreCase("content")) {
+								if ("content".equalsIgnoreCase(streamType)) {
 									if (dataMap.containsKey("finish_reason")) {
 										String finishReason = (String) dataMap.get("finish_reason");
 										// this is a map only on finish reason
@@ -277,8 +282,15 @@ public class OllamaEndpoints {
 											started = true;
 										}
 									}
-								} else {
-									// assuming only other type is tool at the moment
+								} else if ("thinking".equalsIgnoreCase(streamType)) {
+									// thinking is not the answer, so a result that was not streamed is
+									// still sent when the job completes
+									Object thinking = dataMap.get("thinking");
+									if (thinking != null && !thinking.toString().isEmpty()) {
+										OllamaResponsesHelper.writeChatThinkingChunk(engineId, thinking.toString(),
+												writer);
+									}
+								} else if ("tool".equalsIgnoreCase(streamType)) {
 									if (dataMap.containsKey("finish_reason")) {
 										// we need to send the aggregated tool chunk
 										if (!currentToolMap.isEmpty()) {
@@ -360,6 +372,14 @@ public class OllamaEndpoints {
 							break STREAM_COMPLETE_LOOP;
 						}
 
+						String failure = ModelPixelExecutor.streamFailureMessage(jobStatus);
+						if (failure != null) {
+							classLogger.warn("Ollama stream for engine '{}' ended with job status {}", engineId,
+									jobStatus);
+							OllamaResponsesHelper.writeStreamError(failure, writer);
+							break STREAM_COMPLETE_LOOP;
+						}
+
 						// small delay
 						try {
 							Thread.sleep(ModelPixelInvoker.STREAM_POLL_INTERVAL_MS);
@@ -378,6 +398,11 @@ public class OllamaEndpoints {
 					classLogger.error("Streaming Ollama /chat call failed for engine '{}': {}", engineId,
 							e.getMessage(), e);
 					throw new WebApplicationException(e, 500);
+				} finally {
+					if (jobId != null) {
+						PixelJobManager.getManager().clearJob(jobId);
+						PixelJobManager.getManager().removeJob(jobId);
+					}
 				}
 			}
 		};
@@ -434,7 +459,7 @@ public class OllamaEndpoints {
 		if (engine == null) {
 			return ModelPixelExecutor.errorResponse(404, "Model not found: " + engineId);
 		}
-		sanitizeProviderSpecificParams(dataMap, engine);
+		translateOllamaParams(dataMap);
 
 		final String SESSION_ID = session.getId();
 		final String JOB_ID = GUID.v7().toUUID().toString();
@@ -509,9 +534,11 @@ public class OllamaEndpoints {
 					// polling streaming endpoint until response complete
 					STREAM_COMPLETE_LOOP: while (true) {
 						PixelJobRunner jt = PixelJobManager.getManager().getJob(jobId);
+						// read before the chunks, so a job that has stopped has sent every chunk
+						// this read returns
+						PixelJobStatus jobStatus = jt == null ? PixelJobStatus.UNKNOWN_JOB : jt.getPixelJobStatus();
 						List<Map<String, Object>> partialResponseContent = PixelJobManager.getManager()
 								.getStreamOut(jobId);
-						PixelJobStatus jobStatus = jt == null ? PixelJobStatus.UNKNOWN_JOB : jt.getPixelJobStatus();
 
 						/**
 						 * The partialResponseContent Map<String,Object> values comes from the python
@@ -547,7 +574,7 @@ public class OllamaEndpoints {
 									}
 									continue;
 								}
-								if (streamType.equalsIgnoreCase("content")) {
+								if ("content".equalsIgnoreCase(streamType)) {
 									if (dataMap.containsKey("finish_reason")) {
 										String finishReason = (String) dataMap.get("finish_reason");
 										// this is a map only on finish reason
@@ -610,6 +637,14 @@ public class OllamaEndpoints {
 							break STREAM_COMPLETE_LOOP;
 						}
 
+						String failure = ModelPixelExecutor.streamFailureMessage(jobStatus);
+						if (failure != null) {
+							classLogger.warn("Ollama stream for engine '{}' ended with job status {}", engineId,
+									jobStatus);
+							OllamaResponsesHelper.writeStreamError(failure, writer);
+							break STREAM_COMPLETE_LOOP;
+						}
+
 						// small delay
 						try {
 							Thread.sleep(ModelPixelInvoker.STREAM_POLL_INTERVAL_MS);
@@ -620,14 +655,19 @@ public class OllamaEndpoints {
 					}
 				} catch (IOException ioe) {
 					if (!WebUtility.handleStreamingException(ioe, classLogger, engineId, null, null)) {
-						classLogger.error("Streaming Ollama /chat call failed for engine '{}': {}", engineId,
+						classLogger.error("Streaming Ollama /generate call failed for engine '{}': {}", engineId,
 								ioe.getMessage(), ioe);
 						throw new WebApplicationException(ioe, 500);
 					}
 				} catch (Exception e) {
-					classLogger.error("Streaming Ollama /chat call failed for engine '{}': {}", engineId,
+					classLogger.error("Streaming Ollama /generate call failed for engine '{}': {}", engineId,
 							e.getMessage(), e);
 					throw new WebApplicationException(e, 500);
+				} finally {
+					if (jobId != null) {
+						PixelJobManager.getManager().clearJob(jobId);
+						PixelJobManager.getManager().removeJob(jobId);
+					}
 				}
 			}
 		};
@@ -674,7 +714,7 @@ public class OllamaEndpoints {
 		if (engine == null) {
 			return ModelPixelExecutor.errorResponse(404, "Model not found: " + engineId);
 		}
-		sanitizeProviderSpecificParams(dataMap, engine);
+		removeOllamaParams(dataMap);
 
 		final String SESSION_ID = session.getId();
 		final String JOB_ID = GUID.v7().toUUID().toString();
@@ -765,20 +805,54 @@ public class OllamaEndpoints {
 		return WebUtility.inputSanitizer(input.toString());
 	}
 
-	private void sanitizeProviderSpecificParams(Map<String, Object> dataMap, IModelEngine engine) {
-		String modelType = null;
-		try {
-			modelType = engine.getModelType() == null ? null : engine.getModelType().toString();
-		} catch (Exception e) {
-			classLogger.warn("Unable to determine model type for provider-specific param sanitization: {}",
-					e.getMessage(), e);
+	/**
+	 * Moves an Ollama request's settings into the SEMOSS model parameters: the
+	 * sampling options SEMOSS models take, {@code num_predict} as
+	 * {@code max_tokens}, and {@code think} as SEMOSS thinking and effort. A
+	 * parameter the request also sets at the top level keeps that value. Options
+	 * with no SEMOSS counterpart, and {@code keep_alive}, which only applies to an
+	 * Ollama server, are dropped.
+	 *
+	 * @param dataMap the request body, changed in place
+	 */
+	static void translateOllamaParams(Map<String, Object> dataMap) {
+		Object options = dataMap.get("options");
+		Object think = dataMap.get("think");
+		removeOllamaParams(dataMap);
+		if (options instanceof Map<?, ?> optionMap) {
+			for (String option : SAMPLING_OPTIONS) {
+				Object value = optionMap.get(option);
+				if (value != null) {
+					dataMap.putIfAbsent(option, value);
+				}
+			}
+			// a negative num_predict means no limit, which is the SEMOSS default
+			if (optionMap.get("num_predict") instanceof Number numPredict && numPredict.longValue() > 0) {
+				dataMap.putIfAbsent("max_tokens", numPredict.longValue());
+			}
 		}
+		if (think instanceof Boolean enabled) {
+			dataMap.putIfAbsent("thinking", enabled);
+		} else if (think instanceof String level && !level.isBlank()) {
+			String value = level.trim().toLowerCase();
+			if ("true".equals(value) || "false".equals(value)) {
+				dataMap.putIfAbsent("thinking", Boolean.parseBoolean(value));
+			} else {
+				// Ollama names a thinking level in place of true
+				dataMap.putIfAbsent("thinking", true);
+				dataMap.putIfAbsent("effort", value);
+			}
+		}
+	}
 
-		boolean isOllamaModel = modelType != null && modelType.toUpperCase().contains("OLLAMA");
-		if (!isOllamaModel) {
-			dataMap.remove("options");
-			dataMap.remove("think");
-			dataMap.remove("keep_alive");
-		}
+	/**
+	 * Removes the Ollama-only request settings, which SEMOSS models do not take.
+	 *
+	 * @param dataMap the request body, changed in place
+	 */
+	private static void removeOllamaParams(Map<String, Object> dataMap) {
+		dataMap.remove("options");
+		dataMap.remove("think");
+		dataMap.remove("keep_alive");
 	}
 }

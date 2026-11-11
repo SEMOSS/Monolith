@@ -45,6 +45,7 @@ import jakarta.ws.rs.core.Response;
 import prerna.auth.AccessPermissionEnum;
 import prerna.auth.AuthProvider;
 import prerna.auth.utils.SecurityGroupProjectUtils;
+import prerna.auth.utils.SecurityProjectUtils;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.ValueUtils;
 import prerna.web.services.util.WebUtility;
@@ -79,10 +80,14 @@ public class GroupProjectAuthorizationResource {
 		String group = WebUtility.inputSQLSanitizer(groupId);
 		return ResourceUtility.respond(request, "read the permission of group " + group + " on project " + project,
 				user -> {
-					Integer permissionCode = SecurityGroupProjectUtils.getGroupProjectPermission(
-							ValueUtils.requireNonBlank(group, GROUP_ID_REQUIRED),
-							ValueUtils.requireNonBlank(groupType, GROUP_TYPE_REQUIRED),
-							ValueUtils.requireNonBlank(project, PROJECT_ID_REQUIRED));
+					String groupToRead = ValueUtils.requireNonBlank(group, GROUP_ID_REQUIRED);
+					String typeToRead = ValueUtils.requireNonBlank(groupType, GROUP_TYPE_REQUIRED);
+					String projectToRead = ValueUtils.requireNonBlank(project, PROJECT_ID_REQUIRED);
+					if (!SecurityProjectUtils.userCanViewProject(user, projectToRead)) {
+						throw new IllegalAccessException("The user does not have access to view this project");
+					}
+					Integer permissionCode = SecurityGroupProjectUtils.getGroupProjectPermission(groupToRead,
+							typeToRead, projectToRead);
 					String permission = permissionCode == null ? null
 							: AccessPermissionEnum.getPermissionValueById(permissionCode);
 
@@ -114,7 +119,7 @@ public class GroupProjectAuthorizationResource {
 					ValueUtils.requireNonBlank(groupId, GROUP_ID_REQUIRED),
 					ValueUtils.requireNonBlank(type, GROUP_TYPE_REQUIRED),
 					ValueUtils.requireNonBlank(projectId, PROJECT_ID_REQUIRED),
-					ValueUtils.requireNonBlank(permission, PERMISSION_REQUIRED), endDate);
+					AccessPermissionEnum.require(ValueUtils.requireNonBlank(permission, PERMISSION_REQUIRED)), endDate);
 
 			Map<String, Object> ret = new HashMap<>();
 			ret.put("success", true);
@@ -145,7 +150,9 @@ public class GroupProjectAuthorizationResource {
 							ValueUtils.requireNonBlank(groupId, GROUP_ID_REQUIRED),
 							ValueUtils.requireNonBlank(type, GROUP_TYPE_REQUIRED),
 							ValueUtils.requireNonBlank(projectId, PROJECT_ID_REQUIRED),
-							ValueUtils.requireNonBlank(newPermission, PERMISSION_REQUIRED), endDate);
+							AccessPermissionEnum.require(
+									ValueUtils.requireNonBlank(newPermission, PERMISSION_REQUIRED)),
+							endDate);
 
 					Map<String, Object> ret = new HashMap<>();
 					ret.put("success", true);

@@ -101,10 +101,10 @@ public final class OllamaResponsesHelper {
 		// {"message":{"content":""},"done":true,"done_reason":"stop"}
 		Map<String, Object> finishMap = new HashMap<>();
 		finishMap.put("done", true);
-		if (finishReason.equals("tool_calls") || finishReason.equals("completed")) {
-			finishReason = "stop";
-		}
-		finishMap.put("done_reason", finishReason);
+		// Ollama's done reasons are stop and length, whichever vocabulary the model
+		// client reported, and a tool call also finishes with stop
+		boolean cutShort = "length".equals(finishReason) || "max_tokens".equals(finishReason);
+		finishMap.put("done_reason", cutShort ? "length" : "stop");
 		Map<String, String> message = new HashMap<>();
 		message.put("content", "");
 		message.put("role", "assistant");
@@ -138,6 +138,43 @@ public final class OllamaResponsesHelper {
 		message.put("content", newContent);
 
 		// message is added to a chunk
+		Map<String, Object> chunk = new HashMap<>();
+		chunk.put("model", engineId);
+		chunk.put("created_at", Instant.now().toString());
+		chunk.put("message", message);
+		chunk.put("done", false);
+
+		writeJsonLine(chunk, writer);
+	}
+
+	/**
+	 * Write the {@code {"error": ...}} line Ollama ends a failed stream with.
+	 *
+	 * @param message the error message
+	 * @param writer  the destination stream writer
+	 * @throws IOException if writing to the stream fails
+	 */
+	public static void writeStreamError(String message, Writer writer) throws IOException {
+		Map<String, Object> error = new HashMap<>();
+		error.put("error", message);
+		writeJsonLine(error, writer);
+	}
+
+	/**
+	 * Write a single streaming {@code /api/chat} chunk ({@code done:false})
+	 * carrying a piece of the model's thinking in {@code message.thinking}.
+	 *
+	 * @param engineId the model id echoed back on the chunk
+	 * @param thinking the thinking text for this chunk
+	 * @param writer   the destination stream writer
+	 * @throws IOException if writing to the stream fails
+	 */
+	public static void writeChatThinkingChunk(String engineId, String thinking, Writer writer) throws IOException {
+		Map<String, String> message = new HashMap<>();
+		message.put("role", "assistant");
+		message.put("content", "");
+		message.put("thinking", thinking);
+
 		Map<String, Object> chunk = new HashMap<>();
 		chunk.put("model", engineId);
 		chunk.put("created_at", Instant.now().toString());
