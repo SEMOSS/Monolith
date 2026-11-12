@@ -229,14 +229,6 @@ public class ServerConfigurationResource {
 		}
 		loadConfig.put("defaultScriptingLanguage", defaultScriptingLanguage);
 
-		// local mode
-		boolean localMode = false;
-		String localModeStr = Utility.getDIHelperProperty(Constants.LOCAL_DEPLOYMENT);
-		if (localModeStr != null) {
-			localMode = Boolean.parseBoolean(localModeStr);
-		}
-		loadConfig.put("localDeployment", localMode);
-
 		// insights are cacheable by default
 		boolean cacheableOnByDefault = Utility.getApplicationCacheInsight();
 		loadConfig.put("cacheInsightByDefault", cacheableOnByDefault);
