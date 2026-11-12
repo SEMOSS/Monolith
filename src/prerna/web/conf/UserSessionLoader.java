@@ -245,13 +245,21 @@ public class UserSessionLoader implements HttpSessionListener {
 		}
 
 		try {
-			// stop the netty thread if used for either r or python
 			ClientProcessWrapper cpw = user.getPythonClientProcessWrapper();
 			if (cpw != null) {
 				cpw.shutdown(true);
 			}
 		} catch (Exception e) {
 			classLogger.error("Failed to shut down client process wrapper during {} cleanup", userType, e);
+		}
+
+		try {
+			ClientProcessWrapper javaCpw = user.getJavaClientProcessWrapper();
+			if (javaCpw != null) {
+				javaCpw.shutdown(true);
+			}
+		} catch (Exception e) {
+			classLogger.error("Failed to shut down Java worker client process wrapper during {} cleanup", userType, e);
 		}
 
 		try {
