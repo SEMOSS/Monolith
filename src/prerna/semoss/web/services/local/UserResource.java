@@ -864,21 +864,6 @@ public class UserResource {
 		return loginGeneric("okta", request, response);
 	}
 
-	@Path("/login/producthunt")
-	/**
-	 * Handles Product Hunt OAuth login callback flow.
-	 *
-	 * @param request  inbound HTTP request
-	 * @param response outbound HTTP response
-	 * @return redirect response
-	 * @throws IOException when redirect writing fails
-	 */
-	public Response loginProducthunt(@Context HttpServletRequest request, @Context HttpServletResponse response)
-			throws IOException {
-		// unified OAuth2 flow - see loginGeneric + ProductHuntTokenFiller
-		return loginGeneric("producthunt", request, response);
-	}
-
 	/**
 	 * Handles Salesforce OAuth login callback flow.
 	 */
@@ -1223,7 +1208,7 @@ public class UserResource {
 			return WebUtility.getResponse(ret, 400);
 		}
 
-		// resolve the provider (handles aliases such as microsoft/ms and producthunt),
+		// resolve the provider (handles aliases such as microsoft/ms),
 		// its canonical social.properties prefix, and the token filler strategy.
 		// Unknown
 		// providers fall back to GENERIC + the raw path prefix so a fully config-driven

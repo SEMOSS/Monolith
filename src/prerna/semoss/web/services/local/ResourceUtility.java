@@ -101,7 +101,7 @@ public class ResourceUtility {
 		for (AuthProvider v : AuthProvider.values()) {
 			allowAccessWithoutLogin.add("auth/userinfo/" + v.toString().toLowerCase());
 			allowAccessWithoutLogin.add("auth/login/" + v.toString().toLowerCase());
-			// MICROSOFT (ms) and PRODUCT_HUNT (producthunt) are routed by their social.properties key
+			// MICROSOFT (ms) is routed by its social.properties key
 			if (!v.getSocialPrefix().equals(v.toString().toLowerCase())) {
 				allowAccessWithoutLogin.add("auth/userinfo/" + v.getSocialPrefix());
 				allowAccessWithoutLogin.add("auth/login/" + v.getSocialPrefix());

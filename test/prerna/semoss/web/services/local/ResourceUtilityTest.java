@@ -515,7 +515,6 @@ class ResourceUtilityTest {
 			assertTrue(ResourceUtility.canAccessWithoutLogin(apiRequest("/auth/userinfo/" + key)), key);
 		}
 		assertTrue(ResourceUtility.canAccessWithoutLogin(apiRequest("/auth/login/ms")));
-		assertTrue(ResourceUtility.canAccessWithoutLogin(apiRequest("/auth/login/producthunt")));
 	}
 
 	@Test
