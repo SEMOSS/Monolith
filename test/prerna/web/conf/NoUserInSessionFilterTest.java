@@ -108,7 +108,7 @@ class NoUserInSessionFilterTest {
 	@Test
 	void passesTheEndpointsThatWorkWithoutALogin() throws Exception {
 		for (String path : new String[] { "/api/config", "/api/config/fetchCsrf", "/api/auth/logins",
-				"/api/auth/login", "/api/auth/login/google", "/api/auth/userinfo/ms", "/api/auth/login/producthunt",
+				"/api/auth/login", "/api/auth/login/google", "/api/auth/userinfo/ms", "/api/auth/login/ms",
 				"/api/session/active", "/api/auth/whoami" }) {
 			HttpServletRequest request = request(path, null);
 			HttpServletResponse response = mock(HttpServletResponse.class);
