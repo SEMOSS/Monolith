@@ -30,7 +30,6 @@ package prerna.semoss.web.services.local;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -307,8 +306,9 @@ class NameServerTest {
 		User user = user();
 		Insight existing = storedInsight();
 		try (Jobs jobs = new Jobs()) {
-			Response response = new NameServer().runPixelSync(jsonRequest(user, "{\"expression\":\"Sum(1, 2)\","
-					+ "\"insightId\":\"" + existing.getInsightId() + "\",\"tz\":\"Asia/Tokyo\",\"dropLogging\":false}"));
+			Response response = new NameServer()
+					.runPixelSync(jsonRequest(user, "{\"expression\":\"Sum(1, 2)\"," + "\"insightId\":\""
+							+ existing.getInsightId() + "\",\"tz\":\"Asia/Tokyo\",\"dropLogging\":false}"));
 
 			assertEquals(200, response.getStatus());
 			verify(jobs.manager).makeJob(eq(existing.getInsightId()), eq(existing), eq(sessionId), isNull());
@@ -343,8 +343,8 @@ class NameServerTest {
 		HttpServletRequest request = formRequest(user(), "expression", "1");
 		when(request.getCookies()).thenReturn(new Cookie[] { new Cookie("other", "x"), new Cookie("ROUTE", "node-2") });
 		try (Jobs jobs = new Jobs();
-				MockedStatic<Utility> utility = mockStatic(Utility.class, withSettings()
-						.defaultAnswer(Mockito.CALLS_REAL_METHODS));
+				MockedStatic<Utility> utility = mockStatic(Utility.class,
+						withSettings().defaultAnswer(Mockito.CALLS_REAL_METHODS));
 				MockedStatic<ChromeDriverUtility> chrome = mockStatic(ChromeDriverUtility.class)) {
 			utility.when(() -> Utility.getDIHelperProperty(Constants.LOAD_BALANCER_COOKIE_NAME)).thenReturn("ROUTE");
 			new NameServer().runPixelSync(request);
@@ -425,9 +425,9 @@ class NameServerTest {
 	}
 
 	private static String mcpCall(String insightId) {
-		JSONObject call = new JSONObject().put("jsonrpc", "2.0").put("id", "1").put("method", "tools/call")
-				.put("params", new JSONObject().put("name", "GetEngines").put("arguments",
-						new JSONObject().put("filter", "db")));
+		JSONObject call = new JSONObject().put("jsonrpc", "2.0").put("id", "1").put("method", "tools/call").put(
+				"params",
+				new JSONObject().put("name", "GetEngines").put("arguments", new JSONObject().put("filter", "db")));
 		if (insightId != null) {
 			call.put("_meta", new JSONObject().put("insightId", insightId).put("tz", "UTC"));
 		}
@@ -548,8 +548,7 @@ class NameServerTest {
 
 	@Test
 	void getPipelineRejectsAnUnknownInsightWith400() throws Exception {
-		Response response = new NameServer()
-				.getPixelPipelinePlan(formRequest(user(), "insightId", "no-such-insight"));
+		Response response = new NameServer().getPixelPipelinePlan(formRequest(user(), "insightId", "no-such-insight"));
 		assertEquals(400, response.getStatus());
 		assertEquals("INSIGHT_NOT_FOUND", json(response).get("errorType"));
 	}
@@ -699,8 +698,8 @@ class NameServerTest {
 	@Test
 	void agentRunStreamingRequiresASignedInUser() {
 		assertEquals(401, new NameServer().agentRunStreaming(form("runId", "run-1"), request(null)).getStatus());
-		assertEquals(401, new NameServer().agentRunStreaming(form("runId", "run-1"), mock(HttpServletRequest.class))
-				.getStatus());
+		assertEquals(401,
+				new NameServer().agentRunStreaming(form("runId", "run-1"), mock(HttpServletRequest.class)).getStatus());
 	}
 
 	private static final class Agents implements AutoCloseable {
@@ -758,33 +757,6 @@ class NameServerTest {
 	}
 
 	@Test
-	void getInsightDataFrameRejectsAnUnknownInsightWith400() throws Exception {
-		Object response = new NameServer().getInsightDataFrame("no-such-insight", null, request(user()));
-		assertEquals(400, ((Response) response).getStatus());
-		assertEquals("Existing insight based on passed insightID is not found",
-				json((Response) response).get(Constants.ERROR_MESSAGE));
-	}
-
-	@Test
-	void getInsightDataFrameStartsANewInsightForTheSessionUser() {
-		User user = user();
-		Object resource = new NameServer().getInsightDataFrame("new", null, request(user));
-
-		DataframeResource dataframe = assertInstanceOf(DataframeResource.class, resource);
-		assertNotNull(dataframe.insight);
-		storedInsights.add(dataframe.insight.getInsightId());
-		assertSame(user, dataframe.insight.getUser());
-		assertSame(dataframe.insight, InsightStore.getInstance().get(dataframe.insight.getInsightId()));
-	}
-
-	@Test
-	void getInsightDataFrameWrapsAnExistingInsight() {
-		Insight insight = storedInsight();
-		Object resource = new NameServer().getInsightDataFrame(insight.getInsightId(), "H2Frame", request(user()));
-		assertSame(insight, assertInstanceOf(DataframeResource.class, resource).insight);
-	}
-
-	@Test
 	void downloadFileRejectsAnUnknownInsightWith400() throws Exception {
 		Response response = new NameServer().downloadFile("no-such-insight", "key");
 		assertEquals(400, response.getStatus());
@@ -838,7 +810,8 @@ class NameServerTest {
 	void getLocalDatabaseNeedsASignedInUser() throws Exception {
 		assertEquals("\"Not properly authenticated\"",
 				body(new NameServer().getLocalDatabase(mock(HttpServletRequest.class), "e1", null)));
-		assertEquals("\"Not properly authenticated\"", body(new NameServer().getLocalDatabase(request(null), "e1", null)));
+		assertEquals("\"Not properly authenticated\"",
+				body(new NameServer().getLocalDatabase(request(null), "e1", null)));
 	}
 
 	@Test
@@ -913,10 +886,11 @@ class NameServerTest {
 	void getSearchInsightsResultsSearchesTheUsersInsightsWithTheProjectFilterAndPaging() throws Exception {
 		User user = user();
 		try (MockedStatic<SecurityInsightUtils> insights = mockStatic(SecurityInsightUtils.class)) {
-			insights.when(() -> SecurityInsightUtils.searchUserInsights(user, List.of("p1"), "sales", false, null,
-					null, "10", "20")).thenReturn(List.of(Map.of("id", "i1")));
-			StreamingOutput result = new NameServer().getSearchInsightsResults(form("searchString", "sales", "limit",
-					"10", "offset", "20", "filterData", "{\"app_id\":[\"p1\"]}"), request(user));
+			insights.when(() -> SecurityInsightUtils.searchUserInsights(user, List.of("p1"), "sales", false, null, null,
+					"10", "20")).thenReturn(List.of(Map.of("id", "i1")));
+			StreamingOutput result = new NameServer().getSearchInsightsResults(
+					form("searchString", "sales", "limit", "10", "offset", "20", "filterData", "{\"app_id\":[\"p1\"]}"),
+					request(user));
 
 			assertEquals("[{\"id\":\"i1\"}]", body(result));
 		}
