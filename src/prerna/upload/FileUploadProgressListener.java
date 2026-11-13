@@ -46,7 +46,7 @@ public class FileUploadProgressListener implements ProgressListener {
 
 	public FileUploadProgressListener(String jobId) {
 		if (jobId != null && !jobId.isEmpty()) {
-			this.logger = new InMemoryConsole(jobId, CLASS_NAME);
+			this.logger = new InMemoryConsole(CLASS_NAME, jobId);
 		} else {
 			this.logger = LogManager.getLogger(CLASS_NAME);
 		}

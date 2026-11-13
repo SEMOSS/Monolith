@@ -99,7 +99,6 @@ public record ServerConfig(@Schema(description = "Whether R is enabled", require
 		@Schema(description = "Build version of the server; only present when it can be read") VersionInfo version,
 		@Schema(description = "Frame type new insights use, GRID by default", requiredMode = REQUIRED) String defaultFrameType,
 		@Schema(description = "Scripting language new insights use, R by default", requiredMode = REQUIRED) String defaultScriptingLanguage,
-		@Schema(description = "Whether this is a local deployment", requiredMode = REQUIRED) boolean localDeployment,
 		@Schema(description = "Whether insights are cached by default", requiredMode = REQUIRED) boolean cacheInsightByDefault,
 		@Schema(description = "How long a cached insight is kept, in minutes; -1 for no limit", requiredMode = REQUIRED) int cacheInsightMinutes,
 		@Schema(description = "Whether cached insights are encrypted", requiredMode = REQUIRED) boolean cacheInsightEncrypt,
