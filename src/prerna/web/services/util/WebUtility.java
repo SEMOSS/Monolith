@@ -52,6 +52,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -104,6 +105,18 @@ public final class WebUtility {
 
 	private static final FastDateFormat expiresDateFormat = FastDateFormat.getInstance("EEE, dd MMM yyyy HH:mm:ss zzz",
 			TimeZone.getTimeZone("GMT"));
+
+	/**
+	 * Session attribute holding when the session sent the user to sign in with an
+	 * OAuth provider, in epoch milliseconds.
+	 */
+	private static final String OAUTH_LOGIN_STARTED_ATTR = "oauth_login_started";
+
+	/**
+	 * How long a session without a user is kept for the OAuth sign in it started,
+	 * so the provider's callback finds the login state the session issued.
+	 */
+	private static final long OAUTH_LOGIN_WINDOW_MILLIS = TimeUnit.MINUTES.toMillis(10);
 
 	private static final List<String[]> noCacheHeaders = new ArrayList<String[]>();
 	static {
@@ -730,6 +743,60 @@ public final class WebUtility {
 					newCookies.add(expireAtRootPath);
 				}
 			}
+		}
+	}
+
+	/**
+	 * Records that the session is sending the user to sign in with an OAuth
+	 * provider. The session has no user until the provider calls back, and
+	 * {@link #dropSessionWithoutUser} keeps it for the next ten minutes so the
+	 * callback finds the login state the session issued.
+	 *
+	 * @param session the session starting the sign in
+	 */
+	public static void markOAuthLoginStarted(HttpSession session) {
+		session.setAttribute(OAUTH_LOGIN_STARTED_ATTR, System.currentTimeMillis());
+	}
+
+	/**
+	 * Whether the session sent the user to sign in with an OAuth provider in the
+	 * last ten minutes, so the provider's callback still needs it.
+	 *
+	 * @param session the session, or null
+	 * @return true while the session waits on the provider's callback
+	 */
+	public static boolean isOAuthLoginPending(HttpSession session) {
+		if (session == null) {
+			return false;
+		}
+		Object started = session.getAttribute(OAUTH_LOGIN_STARTED_ATTR);
+		return started instanceof Long startedAt && System.currentTimeMillis() - startedAt < OAUTH_LOGIN_WINDOW_MILLIS;
+	}
+
+	/**
+	 * Drops the session of a request that has no user: invalidates it and, when
+	 * given the response's cookies, expires the browser's session cookie. A
+	 * session waiting on an OAuth sign in it started (see
+	 * {@link #isOAuthLoginPending}) keeps both, since the provider's callback
+	 * needs the session to match the login state.
+	 * <p>
+	 * A request whose cookie names no session leaves the cookie as it is. A sign in
+	 * gives its session a new id, and a request sent with the old id can be
+	 * answered after the browser stores the new one; an expiry in that answer
+	 * would delete the new cookie, since a browser expires a cookie by its name.
+	 *
+	 * @param request    the request without a user
+	 * @param newCookies the response's cookies, which get the expired session
+	 *                   cookie, or null to leave the browser's cookie as it is
+	 */
+	public static void dropSessionWithoutUser(HttpServletRequest request, List<NewCookie> newCookies) {
+		HttpSession session = request.getSession(false);
+		if (session == null || isOAuthLoginPending(session)) {
+			return;
+		}
+		expireSessionCookies(request, newCookies);
+		if (session.isNew() || request.isRequestedSessionIdValid()) {
+			session.invalidate();
 		}
 	}
 

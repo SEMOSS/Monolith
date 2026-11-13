@@ -32,6 +32,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -49,6 +52,7 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.ThreadContext;
@@ -107,6 +111,24 @@ class WebUtilityTest {
 			boolean httpOnly) {
 		return new NewCookie.Builder(name).value(value).path(path).domain(domain).maxAge(maxAge).secure(secure)
 				.httpOnly(httpOnly).build();
+	}
+
+	private static HttpSession sessionWithAttributes() {
+		Map<String, Object> attributes = new HashMap<>();
+		HttpSession session = mock(HttpSession.class);
+		when(session.getAttribute(anyString())).thenAnswer(i -> attributes.get(i.getArgument(0)));
+		doAnswer(i -> attributes.put(i.getArgument(0), i.getArgument(1))).when(session).setAttribute(anyString(),
+				any());
+		return session;
+	}
+
+	private static HttpServletRequest joinedRequest(HttpSession session) {
+		HttpServletRequest request = mock(HttpServletRequest.class);
+		when(request.getSession(false)).thenReturn(session);
+		when(request.isRequestedSessionIdValid()).thenReturn(true);
+		when(request.getCookies()).thenReturn(new Cookie[] { new Cookie("JSESSIONID", "abc") });
+		when(request.getContextPath()).thenReturn("/Monolith");
+		return request;
 	}
 
 	@Test
@@ -321,6 +343,90 @@ class WebUtilityTest {
 		WebUtility.expireSessionCookies(request, null);
 
 		assertTrue(expired.isEmpty());
+	}
+
+	@Test
+	void dropsASessionWithoutAUserAndExpiresItsCookie() {
+		HttpSession session = sessionWithAttributes();
+		HttpServletRequest request = joinedRequest(session);
+		List<NewCookie> expired = new ArrayList<>();
+
+		try (MockedStatic<Utility> u = utility(Map.of("getSameSiteCookieValue", "Lax"))) {
+			WebUtility.dropSessionWithoutUser(request, expired);
+		}
+
+		verify(session).invalidate();
+		assertEquals(2, expired.size());
+		assertEquals(0, expired.get(0).getMaxAge());
+	}
+
+	@Test
+	void keepsTheSessionAndCookieOfAnOAuthSignInInProgress() {
+		HttpSession session = sessionWithAttributes();
+		WebUtility.markOAuthLoginStarted(session);
+		HttpServletRequest request = joinedRequest(session);
+		List<NewCookie> expired = new ArrayList<>();
+
+		WebUtility.dropSessionWithoutUser(request, expired);
+
+		assertTrue(WebUtility.isOAuthLoginPending(session));
+		verify(session, never()).invalidate();
+		assertTrue(expired.isEmpty());
+	}
+
+	@Test
+	void dropsASessionWhoseOAuthSignInStartedOverTenMinutesAgo() {
+		HttpSession session = sessionWithAttributes();
+		session.setAttribute("oauth_login_started", System.currentTimeMillis() - TimeUnit.MINUTES.toMillis(11));
+		HttpServletRequest request = joinedRequest(session);
+		List<NewCookie> expired = new ArrayList<>();
+
+		try (MockedStatic<Utility> u = utility(Map.of("getSameSiteCookieValue", "Lax"))) {
+			WebUtility.dropSessionWithoutUser(request, expired);
+		}
+
+		assertFalse(WebUtility.isOAuthLoginPending(session));
+		verify(session).invalidate();
+		assertEquals(2, expired.size());
+	}
+
+	@Test
+	void dropsOnlyTheSessionWhenNotGivenTheResponseCookies() {
+		HttpSession session = sessionWithAttributes();
+		HttpServletRequest request = joinedRequest(session);
+
+		WebUtility.dropSessionWithoutUser(request, null);
+
+		verify(session).invalidate();
+	}
+
+	@Test
+	void keepsASessionTheRequestNeitherMadeNorJoined() {
+		HttpSession session = sessionWithAttributes();
+		HttpServletRequest request = joinedRequest(session);
+		when(request.isRequestedSessionIdValid()).thenReturn(false);
+
+		WebUtility.dropSessionWithoutUser(request, null);
+
+		verify(session, never()).invalidate();
+	}
+
+	@Test
+	void leavesTheCookieOfASessionThatNoLongerExists() {
+		HttpServletRequest request = mock(HttpServletRequest.class);
+		when(request.getCookies()).thenReturn(new Cookie[] { new Cookie("JSESSIONID", "renamed") });
+		when(request.getContextPath()).thenReturn("/Monolith");
+		List<NewCookie> expired = new ArrayList<>();
+
+		WebUtility.dropSessionWithoutUser(request, expired);
+
+		assertTrue(expired.isEmpty());
+	}
+
+	@Test
+	void seesNoOAuthSignInWithoutASessionOrAStart() {
+		assertFalse(WebUtility.isOAuthLoginPending(null));
+		assertFalse(WebUtility.isOAuthLoginPending(sessionWithAttributes()));
 	}
 
 	@Test

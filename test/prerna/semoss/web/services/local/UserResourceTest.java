@@ -322,6 +322,18 @@ class UserResourceTest {
 	}
 
 	@Test
+	void userinfoLeavesTheCookieOfASessionThatNoLongerExists() throws Exception {
+		HttpServletRequest request = request(null);
+		when(request.getCookies()).thenReturn(new Cookie[] { new Cookie("JSESSIONID", "renamed") });
+
+		Response response = new UserResource().userinfoGeneric("github", request);
+
+		assertEquals("Log into your " + AuthProvider.GITHUB.getDisplayName() + " account",
+				json(response).get(Constants.ERROR_MESSAGE));
+		assertNull(response.getHeaders().get("Set-Cookie"));
+	}
+
+	@Test
 	void userinfoPromptsForALoginWhenTheUserLacksThatProvider() throws Exception {
 		Response response = new UserResource().userinfoGeneric("github",
 				signedIn(user(AuthProvider.NATIVE, "jdoe", "Jane")));
@@ -580,6 +592,36 @@ class UserResourceTest {
 
 			assertStateRefused(replay);
 			assertNull(session.getAttribute(Constants.SESSION_USER));
+		}
+	}
+
+	@Test
+	void loginGenericMatchesTheStateAfterTheAppChecksTheSignInWhileItRuns() throws Exception {
+		loginsAllowed.put("acme", true);
+		HttpSession session = session(false);
+		try (Provider provider = new Provider()) {
+			new UserResource().loginGeneric("acme", withParams(request(session), "disableRedirect", "true"),
+					mock(HttpServletResponse.class));
+			HttpServletRequest check = request(session);
+			when(check.isRequestedSessionIdValid()).thenReturn(true);
+			when(check.getCookies()).thenReturn(new Cookie[] { new Cookie("JSESSIONID", "abc") });
+
+			Response userinfo = new UserResource().userinfoGeneric("acme", check);
+			Response logins = new UserResource().getAllLogins(check);
+
+			verify(session, never()).invalidate();
+			assertNull(userinfo.getHeaders().get("Set-Cookie"));
+			assertNull(logins.getHeaders().get("Set-Cookie"));
+
+			provider.exchanged = token(AuthProvider.GENERIC, "acme-1", "Ann");
+			HttpServletResponse response = mock(HttpServletResponse.class);
+			when(response.getWriter()).thenReturn(new PrintWriter(new StringWriter()));
+			Response callback = new UserResource().loginGeneric("acme",
+					callback(session, "abc", provider.state.getValue()), response);
+
+			assertNull(callback);
+			User user = (User) session.getAttribute(Constants.SESSION_USER);
+			assertEquals("acme-1", user.getAccessToken(AuthProvider.GENERIC).getId());
 		}
 	}
 
