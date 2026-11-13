@@ -263,6 +263,21 @@ class NoUserInSessionFilterTest {
 	}
 
 	@Test
+	void keepsTheSessionOfAnOAuthSignInInProgress() throws Exception {
+		HttpSession session = session(null);
+		when(session.getAttribute("oauth_login_started")).thenReturn(System.currentTimeMillis());
+		HttpServletRequest request = request("/api/engine/runPixel", session);
+		when(request.getHeader("referer")).thenReturn("http://localhost:8080/semoss-ui/");
+		when(request.isRequestedSessionIdValid()).thenReturn(true);
+		HttpServletResponse response = mock(HttpServletResponse.class);
+
+		run(null, request, response, mock(FilterChain.class));
+
+		verify(response).sendError(302, "Need to redirect to http://localhost:8080/semoss-ui/#!/login");
+		verify(session, never()).invalidate();
+	}
+
+	@Test
 	void treatsAUserWithoutLoginsAsSignedOut() throws Exception {
 		User user = mock(User.class);
 		when(user.getLogins()).thenReturn(List.of());

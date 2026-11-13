@@ -166,13 +166,7 @@ public class UserResource {
 		}
 
 		if (semossUser == null) {
-			// not authenticated
-			// remove any cookies we shouldn't have
-			WebUtility.expireSessionCookies(request, newCookies);
-
-			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
-				session.invalidate();
-			}
+			WebUtility.dropSessionWithoutUser(request, newCookies);
 		}
 
 		Map<String, String> retMap = User.getLoginNames(semossUser);
@@ -405,11 +399,7 @@ public class UserResource {
 
 		if (semossUser == null) {
 			List<NewCookie> newCookies = new ArrayList<>();
-			// not authenticated - remove any cookies we shouldn't have
-			WebUtility.expireSessionCookies(request, newCookies);
-			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
-				session.invalidate();
-			}
+			WebUtility.dropSessionWithoutUser(request, newCookies);
 			ret.put(Constants.ERROR_MESSAGE, "Log into your " + providerEnum.getDisplayName() + " account");
 			return WebUtility.getResponseNoCache(ret, 200, newCookies.toArray(new NewCookie[] {}));
 		}
@@ -1306,7 +1296,9 @@ public class UserResource {
 	/**
 	 * Builds a provider's authorize redirect URL. The state it sends is kept in
 	 * the session for the callback to match, and so is a PKCE code verifier
-	 * (whose derived challenge is sent) when the provider uses PKCE.
+	 * (whose derived challenge is sent) when the provider uses PKCE. The session
+	 * is marked as waiting on the sign in, so the endpoints that drop a session
+	 * without a user keep it for the callback.
 	 *
 	 * @param filler  the provider's token filler strategy
 	 * @param prefix  social.properties prefix for the provider
@@ -1319,6 +1311,7 @@ public class UserResource {
 		HttpSession session = request.getSession();
 		String state = UUID.randomUUID().toString();
 		session.setAttribute(prefix + OAUTH_STATE_ATTR, state);
+		WebUtility.markOAuthLoginStarted(session);
 		String codeChallenge = null;
 		if (filler.usesPKCE()) {
 			String codeVerifier = PKCEUtil.generateCodeVerifier();
