@@ -88,7 +88,7 @@ import prerna.web.services.util.WebUtility;
 @PermitAll
 public class EngineRouteResource {
 
-	private static final Logger classLogger = LogManager.getLogger(ModelEngineResource.class);
+	private static final Logger classLogger = LogManager.getLogger(EngineRouteResource.class);
 
 	public static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
 

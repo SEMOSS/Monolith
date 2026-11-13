@@ -92,7 +92,7 @@ import prerna.web.services.util.WebUtility;
 @PermitAll
 public class OpenAIEndpoints {
 
-	private static final Logger classLogger = LogManager.getLogger(NameServer.class);
+	private static final Logger classLogger = LogManager.getLogger(OpenAIEndpoints.class);
 
 	private static final String ERROR_TYPE = "errorType";
 	private static final String INSIGHT_NOT_FOUND = "INSIGHT_NOT_FOUND";
