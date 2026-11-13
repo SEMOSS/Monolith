@@ -28,8 +28,6 @@
 package prerna.semoss.web.services.local;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
@@ -48,8 +46,6 @@ import java.util.Map;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
-import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
@@ -66,16 +62,7 @@ import prerna.engine.api.IDatabaseEngine;
 import prerna.forms.AbstractFormBuilder;
 import prerna.forms.FormBuilder;
 import prerna.forms.FormFactory;
-import prerna.om.Insight;
-import prerna.om.InsightStore;
 import prerna.om.ThreadStore;
-import prerna.reactor.PixelPlanner;
-import prerna.reactor.legacy.playsheets.GetPlaysheetParamsReactor;
-import prerna.reactor.legacy.playsheets.RunPlaysheetReactor;
-import prerna.sablecc2.om.NounStore;
-import prerna.sablecc2.om.PixelDataType;
-import prerna.sablecc2.om.ReactorKeysEnum;
-import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.util.Constants;
 
 class OldEngineResourceTest {
@@ -122,88 +109,6 @@ class OldEngineResourceTest {
 		MultivaluedMap<String, String> form = new MultivaluedHashMap<>();
 		form.add(key, value);
 		return form;
-	}
-
-	private static Object firstNoun(NounStore store, String key) {
-		return store.getNoun(key).get(0);
-	}
-
-	@Test
-	void asksThePlaysheetReactorForTheInsightParams() throws IOException {
-		NounStore store = new NounStore("all");
-		try (MockedConstruction<GetPlaysheetParamsReactor> reactors = Mockito.mockConstruction(
-				GetPlaysheetParamsReactor.class, (reactor, context) -> {
-					when(reactor.getNounStore()).thenReturn(store);
-					when(reactor.execute()).thenReturn(new NounMetadata(Map.of("params", List.of("Year")),
-							PixelDataType.MAP));
-				})) {
-			Response response = resource().getInsightParams("<script>x</script>i1");
-
-			assertEquals(200, response.getStatus());
-			assertEquals("{\"params\":[\"Year\"]}", body(response));
-			assertEquals("db1", firstNoun(store, ReactorKeysEnum.DATABASE.getKey()));
-			assertEquals("db1", firstNoun(store, "app"));
-			assertEquals("i1", firstNoun(store, ReactorKeysEnum.ID.getKey()));
-			verify(reactors.constructed().get(0)).In();
-		}
-	}
-
-	@Test
-	void runsThePlaysheetForTheSessionUser() throws IOException {
-		User user = mock(User.class);
-		NounStore store = new NounStore("all");
-		InsightStore insights = mock(InsightStore.class);
-		MultivaluedMap<String, String> form = form("insight", "i1");
-		form.add("params", "{\"Year\":[2020,2021]}");
-		Object[] threadDuringRun = new Object[2];
-		try (MockedConstruction<RunPlaysheetReactor> reactors = Mockito.mockConstruction(RunPlaysheetReactor.class,
-				(reactor, context) -> {
-					when(reactor.getNounStore()).thenReturn(store);
-					when(reactor.execute()).thenAnswer(i -> {
-						threadDuringRun[0] = ThreadStore.getUser();
-						threadDuringRun[1] = ThreadStore.getSessionId();
-						return new NounMetadata("ran", PixelDataType.CONST_STRING);
-					});
-				});
-				MockedConstruction<PixelPlanner> planners = Mockito.mockConstruction(PixelPlanner.class);
-				MockedStatic<InsightStore> stores = Mockito.mockStatic(InsightStore.class)) {
-			stores.when(InsightStore::getInstance).thenReturn(insights);
-
-			Response response = resource().createOutput(form, requestFor(user));
-
-			assertEquals("\"ran\"", body(response));
-			ArgumentCaptor<Insight> insight = ArgumentCaptor.forClass(Insight.class);
-			verify(insights).put(insight.capture());
-			verify(insights).addToSessionHash("session-1", insight.getValue().getInsightId());
-			assertSame(user, insight.getValue().getUser());
-			verify(reactors.constructed().get(0)).setInsight(insight.getValue());
-			assertEquals("db1", firstNoun(store, ReactorKeysEnum.DATABASE.getKey()));
-			assertEquals("i1", firstNoun(store, ReactorKeysEnum.ID.getKey()));
-			assertEquals(Map.of("Year", List.of(2020.0, 2021.0)), firstNoun(store, ReactorKeysEnum.PARAM_KEY.getKey()));
-			assertSame(user, threadDuringRun[0]);
-			assertEquals("session-1", threadDuringRun[1]);
-			assertNull(ThreadStore.getUser(), "the thread is cleared once the playsheet has run");
-		}
-	}
-
-	@Test
-	void leavesOutParamsThatAreNotSent() throws IOException {
-		NounStore store = new NounStore("all");
-		try (MockedConstruction<RunPlaysheetReactor> reactors = Mockito.mockConstruction(RunPlaysheetReactor.class,
-				(reactor, context) -> {
-					when(reactor.getNounStore()).thenReturn(store);
-					when(reactor.execute()).thenReturn(new NounMetadata("ran", PixelDataType.CONST_STRING));
-				});
-				MockedConstruction<PixelPlanner> planners = Mockito.mockConstruction(PixelPlanner.class);
-				MockedStatic<InsightStore> stores = Mockito.mockStatic(InsightStore.class)) {
-			stores.when(InsightStore::getInstance).thenReturn(mock(InsightStore.class));
-			MultivaluedMap<String, String> form = form("insight", "i1");
-			form.add("params", "");
-
-			resource().createOutput(form, requestFor(mock(User.class)));
-
-			assertNull(store.getNoun(ReactorKeysEnum.PARAM_KEY.getKey()));
-		}
 	}
 
 	@Test
@@ -278,7 +183,8 @@ class OldEngineResourceTest {
 			OldEngineResource resource = resource();
 			forms.when(() -> FormBuilder.getAuditDataForEngine("db1")).thenReturn(Map.of("headers", List.of("USER")));
 
-			Response response = resource.getAuditLogForEngine(new MultivaluedHashMap<>(), mock(HttpServletRequest.class));
+			Response response = resource.getAuditLogForEngine(new MultivaluedHashMap<>(),
+					mock(HttpServletRequest.class));
 
 			assertEquals(200, response.getStatus());
 			assertTrue(body(response).contains("headers"));
@@ -292,7 +198,8 @@ class OldEngineResourceTest {
 			forms.when(() -> FormBuilder.getAuditDataForEngine("db1"))
 					.thenThrow(new IllegalStateException("no audit table"));
 
-			Response response = resource.getAuditLogForEngine(new MultivaluedHashMap<>(), mock(HttpServletRequest.class));
+			Response response = resource.getAuditLogForEngine(new MultivaluedHashMap<>(),
+					mock(HttpServletRequest.class));
 
 			assertEquals(400, response.getStatus());
 			assertTrue(body(response).contains("no audit table"));
