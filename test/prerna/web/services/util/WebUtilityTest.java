@@ -52,6 +52,7 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.logging.log4j.Logger;
@@ -73,6 +74,7 @@ import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.logging.SemossLogUtils;
 import prerna.om.ThreadStore;
+import prerna.security.SecretRedactor;
 import prerna.util.Constants;
 import prerna.util.Utility;
 
@@ -170,11 +172,35 @@ class WebUtilityTest {
 			String header = WebUtility
 					.convertCookieToHeader(cookie("SID", "abc", "/Monolith", "semoss.org", 60, true, true));
 
-			assertTrue(header.startsWith(
-					"SID=abc; SameSite=Strict; domain=semoss.org; path=/Monolith; secure; HttpOnly; Expires="), header);
+			assertTrue(
+					header.startsWith(
+							"SID=abc; SameSite=Strict; domain=semoss.org; path=/Monolith; secure; HttpOnly; Expires="),
+					header);
 			assertTrue(header.endsWith(" GMT"), header);
 			assertEquals("SID=; SameSite=Strict",
 					WebUtility.convertCookieToHeader(cookie("SID", "", null, null, -1, false, false)));
+		}
+	}
+
+	@Test
+	void anErrorResponseLosesTheSecretsInItsMessage() throws IOException {
+		String key = "sk-live-5e4d3c2b1a0f9e8d7c6b";
+		Properties smss = new Properties();
+		smss.setProperty("OPEN_AI_KEY", key);
+		SecretRedactor.recordSecrets("web-utility-model", smss);
+		try {
+			Map<String, Object> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "provider refused " + key);
+
+			Response error = WebUtility.getResponse(errorMap, 400);
+			Response success = WebUtility.getResponse(Map.of("output", "your key is " + key), 200);
+
+			assertEquals("{\"errorMessage\":\"provider refused [REDACTED]\"}",
+					body((StreamingOutput) error.getEntity()));
+			assertEquals("{\"output\":\"your key is " + key + "\"}", body((StreamingOutput) success.getEntity()));
+			assertEquals("provider refused " + key, errorMap.get(Constants.ERROR_MESSAGE));
+		} finally {
+			SecretRedactor.forgetSecrets("web-utility-model");
 		}
 	}
 
@@ -452,8 +478,7 @@ class WebUtilityTest {
 			assertThrows(IllegalArgumentException.class,
 					() -> WebUtility.checkIfValidDomain("https://evil.net/?r=semoss.org"));
 			assertThrows(IllegalArgumentException.class, () -> WebUtility.checkIfValidDomain("//semoss.org/login"));
-			assertThrows(IllegalArgumentException.class,
-					() -> WebUtility.checkIfValidDomain("javascript:alert(1)"));
+			assertThrows(IllegalArgumentException.class, () -> WebUtility.checkIfValidDomain("javascript:alert(1)"));
 		}
 	}
 
@@ -637,8 +662,8 @@ class WebUtilityTest {
 	@Test
 	void recognizesAClientDisconnectAnywhereInTheCauseChain() {
 		assertTrue(WebUtility.isClientDisconnect(new IOException("Broken pipe")));
-		assertTrue(WebUtility.isClientDisconnect(
-				new RuntimeException("write failed", new IOException("Connection reset by peer"))));
+		assertTrue(WebUtility
+				.isClientDisconnect(new RuntimeException("write failed", new IOException("Connection reset by peer"))));
 		assertFalse(WebUtility.isClientDisconnect(new IOException("disk full")));
 		assertFalse(WebUtility.isClientDisconnect(new RuntimeException((String) null)));
 		assertFalse(WebUtility.isClientDisconnect(null));

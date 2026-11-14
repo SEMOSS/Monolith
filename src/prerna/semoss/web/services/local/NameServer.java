@@ -95,6 +95,7 @@ import prerna.sablecc2.comm.PixelJobManager;
 import prerna.sablecc2.comm.PixelJobRunner;
 import prerna.sablecc2.comm.PixelJobStatus;
 import prerna.sablecc2.om.execptions.SemossMCPException;
+import prerna.security.SecretRedactor;
 import prerna.semoss.web.services.remote.CentralNameServer;
 import prerna.util.ChromeDriverUtility;
 import prerna.util.Constants;
@@ -720,7 +721,7 @@ public class NameServer {
 				JSONObject error = new JSONObject();
 				error.put("code", e.getError().getCode());
 				if (e.getMessage() != null) {
-					error.put("message", e.getMessage());
+					error.put("message", SecretRedactor.redactError(e.getMessage()));
 				} else {
 					error.put("message", e.getError().getDescription());
 				}
@@ -731,7 +732,7 @@ public class NameServer {
 				JSONObject error = new JSONObject();
 				error.put("code", MCPErrorCode.TOOL_EXECUTION_FAILED.getCode());
 				if (e.getMessage() != null) {
-					error.put("message", e.getMessage());
+					error.put("message", SecretRedactor.redactError(e.getMessage()));
 				} else {
 					error.put("message", MCPErrorCode.TOOL_EXECUTION_FAILED.getDescription());
 				}
@@ -818,7 +819,7 @@ public class NameServer {
 		} catch (Exception e) {
 			Map<String, Object> error = new HashMap<>();
 			error.put(ERROR_TYPE, "unknown");
-			error.put("message", e.getMessage());
+			error.put("message", SecretRedactor.redactError(e.getMessage()));
 			return Response.status(500).entity(error)
 					.header("Cache-Control",
 							"no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0")
