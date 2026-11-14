@@ -100,6 +100,7 @@ import prerna.reactor.agent.AgentRunContext;
 import prerna.reactor.agent.run.AgentRunHandle;
 import prerna.reactor.agent.run.AgentRunRequest;
 import prerna.reactor.agent.run.AgentRunService;
+import prerna.security.SecretRedactor;
 import prerna.util.Constants;
 import prerna.util.Utility;
 import prerna.util.ValueUtils;
@@ -396,8 +397,8 @@ public class A2AResource {
 	/**
 	 * Removes a cached insight, as when the session that opened it ends.
 	 *
-	 * @param key the cache key from {@link MCPResource#insightCacheKey}, or a session
-	 *            id
+	 * @param key the cache key from {@link MCPResource#insightCacheKey}, or a
+	 *            session id
 	 */
 	public static void clearInsight(String key) {
 		if (key != null) {
@@ -418,8 +419,8 @@ public class A2AResource {
 	}
 
 	/**
-	 * Returns whether a user can use a workspace: it exists, is active, and the user
-	 * can view it.
+	 * Returns whether a user can use a workspace: it exists, is active, and the
+	 * user can view it.
 	 *
 	 * @param user        the user, or null
 	 * @param workspaceId the workspace id
@@ -841,7 +842,7 @@ public class A2AResource {
 	private static Map<String, Object> jsonRpcError(Object id, int code, String message) {
 		Map<String, Object> error = new HashMap<>();
 		error.put("code", code);
-		error.put("message", message);
+		error.put("message", SecretRedactor.redactError(message));
 		Map<String, Object> response = new HashMap<>();
 		response.put("jsonrpc", "2.0");
 		response.put("id", id);

@@ -85,6 +85,7 @@ import prerna.auth.AccessToken;
 import prerna.auth.User;
 import prerna.logging.SemossLogUtils;
 import prerna.om.ThreadStore;
+import prerna.security.SecretRedactor;
 import prerna.usertracking.UserAuditTrailUtils;
 import prerna.util.Constants;
 import prerna.util.FstUtil;
@@ -269,7 +270,10 @@ public final class WebUtility {
 	 * Build a JSON response with the given entity, status code, optional extra
 	 * headers, and optional cookies. Cookies are written via {@code Set-Cookie}
 	 * headers so that {@code SameSite} attributes from
-	 * {@link #convertCookieToHeader(NewCookie)} are preserved.
+	 * {@link #convertCookieToHeader(NewCookie)} are preserved. An error response,
+	 * with a status of 400 or more, has secrets removed from its entity by
+	 * {@link SecretRedactor#redactErrorValue(Object)} before it is audited and
+	 * written.
 	 *
 	 * @param vec        the entity to serialize as JSON
 	 * @param status     the HTTP status code
@@ -279,6 +283,9 @@ public final class WebUtility {
 	 * @return JAX-RS Response, or {@code null} if {@code vec} is null
 	 */
 	public static Response getResponse(Object vec, int status, List<String[]> addHeaders, NewCookie... cookies) {
+		if (status >= 400) {
+			vec = SecretRedactor.redactErrorValue(vec);
+		}
 		auditErrorResponse(vec, status);
 		if (vec != null) {
 			Gson gson = getDefaultGson();
@@ -775,15 +782,15 @@ public final class WebUtility {
 
 	/**
 	 * Drops the session of a request that has no user: invalidates it and, when
-	 * given the response's cookies, expires the browser's session cookie. A
-	 * session waiting on an OAuth sign in it started (see
-	 * {@link #isOAuthLoginPending}) keeps both, since the provider's callback
-	 * needs the session to match the login state.
+	 * given the response's cookies, expires the browser's session cookie. A session
+	 * waiting on an OAuth sign in it started (see {@link #isOAuthLoginPending})
+	 * keeps both, since the provider's callback needs the session to match the
+	 * login state.
 	 * <p>
 	 * A request whose cookie names no session leaves the cookie as it is. A sign in
 	 * gives its session a new id, and a request sent with the old id can be
-	 * answered after the browser stores the new one; an expiry in that answer
-	 * would delete the new cookie, since a browser expires a cookie by its name.
+	 * answered after the browser stores the new one; an expiry in that answer would
+	 * delete the new cookie, since a browser expires a cookie by its name.
 	 *
 	 * @param request    the request without a user
 	 * @param newCookies the response's cookies, which get the expired session
