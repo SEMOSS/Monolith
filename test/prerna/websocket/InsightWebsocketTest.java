@@ -76,7 +76,7 @@ import prerna.om.ThreadStore;
 import prerna.sablecc2.PixelRunner;
 import prerna.sablecc2.PixelStreamUtility;
 import prerna.util.Constants;
-import prerna.util.DIHelper;
+import prerna.util.InternalUtility;
 
 class InsightWebsocketTest {
 
@@ -349,16 +349,16 @@ class InsightWebsocketTest {
 
 	@Test
 	void watchStartsAClaudeCodeStreamerAndUnwatchStopsIt(@TempDir Path base) throws Exception {
-		String previous = DIHelper.getInstance().getCoreProp().getProperty(Constants.BASE_FOLDER);
-		DIHelper.getInstance().getCoreProp().setProperty(Constants.BASE_FOLDER, base.toString());
+		String previous = InternalUtility.getCoreProp().getProperty(Constants.BASE_FOLDER);
+		InternalUtility.getCoreProp().setProperty(Constants.BASE_FOLDER, base.toString());
 		try (MockedStatic<RoomUtils> rooms = mockStatic(RoomUtils.class)) {
 			rooms.when(() -> RoomUtils.getOrLoadRoom(anyString(), any())).thenReturn(mock(Room.class));
 			watchAndUnwatch(rooms);
 		} finally {
 			if (previous == null) {
-				DIHelper.getInstance().getCoreProp().remove(Constants.BASE_FOLDER);
+				InternalUtility.getCoreProp().remove(Constants.BASE_FOLDER);
 			} else {
-				DIHelper.getInstance().getCoreProp().setProperty(Constants.BASE_FOLDER, previous);
+				InternalUtility.getCoreProp().setProperty(Constants.BASE_FOLDER, previous);
 			}
 		}
 	}

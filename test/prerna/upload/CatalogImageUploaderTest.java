@@ -75,8 +75,8 @@ import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityProjectUtils;
 import prerna.engine.api.IEngine;
 import prerna.util.Constants;
-import prerna.util.DIHelper;
 import prerna.util.EngineUtility;
+import prerna.util.InternalUtility;
 import prerna.util.Utility;
 
 class CatalogImageUploaderTest {
@@ -92,8 +92,8 @@ class CatalogImageUploaderTest {
 
 	@BeforeAll
 	static void defineBaseFolder(@TempDir Path base) {
-		if (DIHelper.getInstance().getProperty(Constants.BASE_FOLDER) == null) {
-			DIHelper.getInstance().getCoreProp().setProperty(Constants.BASE_FOLDER, base.toString());
+		if (Utility.getDIHelperProperty(Constants.BASE_FOLDER) == null) {
+			InternalUtility.getCoreProp().setProperty(Constants.BASE_FOLDER, base.toString());
 			setBaseFolder = true;
 		}
 	}
@@ -101,7 +101,7 @@ class CatalogImageUploaderTest {
 	@AfterAll
 	static void clearBaseFolder() {
 		if (setBaseFolder) {
-			DIHelper.getInstance().getCoreProp().remove(Constants.BASE_FOLDER);
+			InternalUtility.getCoreProp().remove(Constants.BASE_FOLDER);
 		}
 	}
 
