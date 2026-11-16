@@ -46,6 +46,7 @@ import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletContextEvent;
 import jakarta.servlet.ServletContextListener;
 import jakarta.servlet.SessionCookieConfig;
+import prerna.auth.utils.ExpiredAccessRemoval;
 import prerna.cluster.util.ClusterUtil;
 import prerna.ds.node.NodeUtils;
 import prerna.engine.api.IDatabaseEngine;
@@ -321,6 +322,10 @@ public class DBLoader implements ServletContextListener {
 			} catch (Exception e) {
 				classLogger.warn("Failed to execute triggerOnLoad scheduler jobs", e);
 			}
+		}
+
+		if (SystemEngineRegistry.isSecurityDbLoaded()) {
+			ExpiredAccessRemoval.startSchedule();
 		}
 
 		// this will likely need to be broken out into another service in the future

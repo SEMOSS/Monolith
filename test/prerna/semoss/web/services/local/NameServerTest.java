@@ -86,7 +86,6 @@ import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityInsightUtils;
-import prerna.auth.utils.SecurityQueryUtils;
 import prerna.engine.api.IDatabaseEngine;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
@@ -833,16 +832,13 @@ class NameServerTest {
 	@Test
 	void getLocalDatabaseDoesNotResolveAnEngineName() throws Exception {
 		User user = user();
-		try (MockedStatic<SecurityQueryUtils> query = mockStatic(SecurityQueryUtils.class);
-				MockedStatic<SecurityEngineUtils> engines = mockStatic(SecurityEngineUtils.class);
+		try (MockedStatic<SecurityEngineUtils> engines = mockStatic(SecurityEngineUtils.class);
 				MockedStatic<Utility> utility = mockStatic(Utility.class)) {
-			query.when(() -> SecurityQueryUtils.testUserEngineIdForAlias(user, "My Engine")).thenReturn("e1");
 			engines.when(() -> SecurityEngineUtils.userCanViewEngine(user, "e1")).thenReturn(true);
 
 			Object response = new NameServer().getLocalDatabase(request(user), "My Engine", null);
 
 			assertEquals(400, ((Response) response).getStatus());
-			query.verify(() -> SecurityQueryUtils.testUserEngineIdForAlias(any(), anyString()), never());
 			utility.verify(() -> Utility.getDatabase(anyString()), never());
 		}
 	}
