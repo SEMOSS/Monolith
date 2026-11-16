@@ -788,8 +788,8 @@ public class UserResource {
 	private String fetchJiraCloudId(String bearerToken) {
 		try {
 			String url = "https://api.atlassian.com/oauth/token/accessible-resources";
-			Map<String, Object> params = new HashMap<>();
-			String output = HttpHelperUtility.makeGetCall(url, bearerToken, params, true);
+			String output = HttpHelperUtility.getRequest(HttpHelperUtility.getSystemClient(),
+					url, HttpHelperUtility.bearerJsonHeaders(bearerToken));
 			JSONArray resources = new JSONArray(output);
 			if (resources.length() > 0) {
 				return resources.getJSONObject(0).getString("id");
@@ -1294,11 +1294,11 @@ public class UserResource {
 	}
 
 	/**
-	 * Builds a provider's authorize redirect URL. The state it sends is kept in
-	 * the session for the callback to match, and so is a PKCE code verifier
-	 * (whose derived challenge is sent) when the provider uses PKCE. The session
-	 * is marked as waiting on the sign in, so the endpoints that drop a session
-	 * without a user keep it for the callback.
+	 * Builds a provider's authorize redirect URL. The state it sends is kept in the
+	 * session for the callback to match, and so is a PKCE code verifier (whose
+	 * derived challenge is sent) when the provider uses PKCE. The session is marked
+	 * as waiting on the sign in, so the endpoints that drop a session without a
+	 * user keep it for the callback.
 	 *
 	 * @param filler  the provider's token filler strategy
 	 * @param prefix  social.properties prefix for the provider
