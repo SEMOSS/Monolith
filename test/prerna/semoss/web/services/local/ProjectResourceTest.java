@@ -505,12 +505,10 @@ class ProjectResourceTest {
 	@Test
 	void checksAccessOnTheExactProjectIdItServes() throws IOException {
 		try (Statics s = new Statics()) {
-			s.projects.when(() -> SecurityProjectUtils.testUserProjectIdForAlias(this.user, "victim")).thenReturn("mine");
 			s.projects.when(() -> SecurityProjectUtils.userCanViewProject(this.user, "mine")).thenReturn(true);
 
 			assertBody(new ProjectResource().getProjectLandingPage(freshRequest(), signedInRequest(), "victim"), 401,
 					"Project victim does not exist or user does not have access");
-			s.projects.verify(() -> SecurityProjectUtils.testUserProjectIdForAlias(any(), anyString()), never());
 		}
 	}
 

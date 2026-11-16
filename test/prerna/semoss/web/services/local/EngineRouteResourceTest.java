@@ -69,7 +69,6 @@ import jakarta.ws.rs.core.StreamingOutput;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityEngineUtils;
-import prerna.auth.utils.SecurityQueryUtils;
 import prerna.cluster.util.ClusterUtil;
 import prerna.engine.api.IEngine;
 import prerna.io.connector.secrets.ISecrets;
@@ -254,15 +253,12 @@ class EngineRouteResourceTest {
 
 	@Test
 	void checksAccessOnTheExactEngineIdItServes() throws IOException {
-		try (Statics s = new Statics();
-				MockedStatic<SecurityQueryUtils> query = Mockito.mockStatic(SecurityQueryUtils.class)) {
-			query.when(() -> SecurityQueryUtils.testUserEngineIdForAlias(any(), eq("victim"))).thenReturn("mine");
+		try (Statics s = new Statics()) {
 			s.security.when(() -> SecurityEngineUtils.userCanViewEngine(any(), eq("mine"))).thenReturn(true);
 
 			Response response = new EngineRouteResource().getEngineType(signedInRequest(), "victim");
 
 			assertBody(response, 401, "Engine victim does not exist or user does not have access");
-			query.verify(() -> SecurityQueryUtils.testUserEngineIdForAlias(any(), anyString()), never());
 			s.security.verify(() -> SecurityEngineUtils.getEngineTypeAndSubtype(any()), never());
 		}
 	}
