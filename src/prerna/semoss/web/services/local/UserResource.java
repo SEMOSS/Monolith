@@ -167,13 +167,7 @@ public class UserResource {
 		}
 
 		if (semossUser == null) {
-			// not authenticated
-			// remove any cookies we shouldn't have
-			WebUtility.expireSessionCookies(request, newCookies);
-
-			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
-				session.invalidate();
-			}
+			WebUtility.dropSessionWithoutUser(request, newCookies);
 		}
 
 		Map<String, String> retMap = User.getLoginNames(semossUser);
@@ -229,7 +223,7 @@ public class UserResource {
 			if (thisUser.getLogins().isEmpty()) {
 				noUser = true;
 			} else {
-				request.getSession().setAttribute(Constants.SESSION_USER, thisUser);
+				WebUtility.setSessionUser(request.getSession(), thisUser);
 				Thread.ofVirtual().start(new SyncUserAssetsThread(assetEngineId));
 				// put the new map for the user space
 				session.setAttribute(Constants.USER_ASSET_IDS, thisUser.getAssetEngineMap());
@@ -335,7 +329,7 @@ public class UserResource {
 
 		semossUser.setAccessToken(token);
 
-		session.setAttribute(Constants.SESSION_USER, semossUser);
+		WebUtility.setSessionUser(session, semossUser);
 		WebUtility.loggingContextLoginEvent(session);
 
 		UserResource.userTrackingLogin(request, semossUser, token.getProvider());
@@ -406,11 +400,7 @@ public class UserResource {
 
 		if (semossUser == null) {
 			List<NewCookie> newCookies = new ArrayList<>();
-			// not authenticated - remove any cookies we shouldn't have
-			WebUtility.expireSessionCookies(request, newCookies);
-			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
-				session.invalidate();
-			}
+			WebUtility.dropSessionWithoutUser(request, newCookies);
 			ret.put(Constants.ERROR_MESSAGE, "Log into your " + providerEnum.getDisplayName() + " account");
 			return WebUtility.getResponseNoCache(ret, 200, newCookies.toArray(new NewCookie[] {}));
 		}
@@ -799,8 +789,8 @@ public class UserResource {
 	private String fetchJiraCloudId(String bearerToken) {
 		try {
 			String url = "https://api.atlassian.com/oauth/token/accessible-resources";
-			Map<String, Object> params = new HashMap<>();
-			String output = HttpHelperUtility.makeGetCall(url, bearerToken, params, true);
+			String output = HttpHelperUtility.getRequest(HttpHelperUtility.getSystemClient(),
+					url, HttpHelperUtility.bearerJsonHeaders(bearerToken));
 			JSONArray resources = new JSONArray(output);
 			if (resources.length() > 0) {
 				return resources.getJSONObject(0).getString("id");
@@ -863,21 +853,6 @@ public class UserResource {
 			throws IOException {
 		// unified OAuth2 flow - see loginGeneric + OktaTokenFiller
 		return loginGeneric("okta", request, response);
-	}
-
-	@Path("/login/producthunt")
-	/**
-	 * Handles Product Hunt OAuth login callback flow.
-	 *
-	 * @param request  inbound HTTP request
-	 * @param response outbound HTTP response
-	 * @return redirect response
-	 * @throws IOException when redirect writing fails
-	 */
-	public Response loginProducthunt(@Context HttpServletRequest request, @Context HttpServletResponse response)
-			throws IOException {
-		// unified OAuth2 flow - see loginGeneric + ProductHuntTokenFiller
-		return loginGeneric("producthunt", request, response);
 	}
 
 	/**
@@ -1224,7 +1199,7 @@ public class UserResource {
 			return WebUtility.getResponse(ret, 400);
 		}
 
-		// resolve the provider (handles aliases such as microsoft/ms and producthunt),
+		// resolve the provider (handles aliases such as microsoft/ms),
 		// its canonical social.properties prefix, and the token filler strategy.
 		// Unknown
 		// providers fall back to GENERIC + the raw path prefix so a fully config-driven
@@ -1320,9 +1295,11 @@ public class UserResource {
 	}
 
 	/**
-	 * Builds a provider's authorize redirect URL. The state it sends is kept in
-	 * the session for the callback to match, and so is a PKCE code verifier
-	 * (whose derived challenge is sent) when the provider uses PKCE.
+	 * Builds a provider's authorize redirect URL. The state it sends is kept in the
+	 * session for the callback to match, and so is a PKCE code verifier (whose
+	 * derived challenge is sent) when the provider uses PKCE. The session is marked
+	 * as waiting on the sign in, so the endpoints that drop a session without a
+	 * user keep it for the callback.
 	 *
 	 * @param filler  the provider's token filler strategy
 	 * @param prefix  social.properties prefix for the provider
@@ -1335,6 +1312,7 @@ public class UserResource {
 		HttpSession session = request.getSession();
 		String state = UUID.randomUUID().toString();
 		session.setAttribute(prefix + OAUTH_STATE_ATTR, state);
+		WebUtility.markOAuthLoginStarted(session);
 		String codeChallenge = null;
 		if (filler.usesPKCE()) {
 			String codeVerifier = PKCEUtil.generateCodeVerifier();

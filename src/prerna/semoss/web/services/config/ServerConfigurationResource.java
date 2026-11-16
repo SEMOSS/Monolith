@@ -229,14 +229,6 @@ public class ServerConfigurationResource {
 		}
 		loadConfig.put("defaultScriptingLanguage", defaultScriptingLanguage);
 
-		// local mode
-		boolean localMode = false;
-		String localModeStr = Utility.getDIHelperProperty(Constants.LOCAL_DEPLOYMENT);
-		if (localModeStr != null) {
-			localMode = Boolean.parseBoolean(localModeStr);
-		}
-		loadConfig.put("localDeployment", localMode);
-
 		// insights are cacheable by default
 		boolean cacheableOnByDefault = Utility.getApplicationCacheInsight();
 		loadConfig.put("cacheInsightByDefault", cacheableOnByDefault);
@@ -330,11 +322,6 @@ public class ServerConfigurationResource {
 		myConfiguration.put("auditLogEnabled", Utility.isAuditLogsDatabaseEnabled());
 		// current date
 		myConfiguration.put("systemDate", new SemossDate(Utility.getCurrentZonedDateTimeUTC()));
-		// do not keep this session
-		// if no user and it is new
-		if (user == null && (session.isNew() || request.isRequestedSessionIdValid())) {
-			session.invalidate();
-		}
 
 		return myConfiguration;
 	}
@@ -347,6 +334,7 @@ public class ServerConfigurationResource {
 	public Response getServerConfig(@Context HttpServletRequest request, @Context HttpServletResponse response,
 			@Context FilterChain filterChain) {
 		List<NewCookie> newCookies = new ArrayList<>();
+		Map<String, Object> config = getConfig(request);
 
 		try {
 			ResourceUtility.getUser(request);
@@ -355,10 +343,10 @@ public class ServerConfigurationResource {
 			// should happen every time this is called
 			// since FE only calls this method on browser startup
 			// clean up any invalid cookies on the browser
-			WebUtility.expireSessionCookies(request, newCookies);
+			WebUtility.dropSessionWithoutUser(request, newCookies);
 		}
 
-		return WebUtility.getResponseNoCache(getConfig(request), 200, newCookies.toArray(new NewCookie[] {}));
+		return WebUtility.getResponseNoCache(config, 200, newCookies.toArray(new NewCookie[] {}));
 	}
 
 	@GET

@@ -69,7 +69,6 @@ import jakarta.ws.rs.core.StreamingOutput;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityEngineUtils;
-import prerna.auth.utils.SecurityQueryUtils;
 import prerna.cluster.util.ClusterUtil;
 import prerna.engine.api.IEngine;
 import prerna.io.connector.secrets.ISecrets;
@@ -254,15 +253,12 @@ class EngineRouteResourceTest {
 
 	@Test
 	void checksAccessOnTheExactEngineIdItServes() throws IOException {
-		try (Statics s = new Statics();
-				MockedStatic<SecurityQueryUtils> query = Mockito.mockStatic(SecurityQueryUtils.class)) {
-			query.when(() -> SecurityQueryUtils.testUserEngineIdForAlias(any(), eq("victim"))).thenReturn("mine");
+		try (Statics s = new Statics()) {
 			s.security.when(() -> SecurityEngineUtils.userCanViewEngine(any(), eq("mine"))).thenReturn(true);
 
 			Response response = new EngineRouteResource().getEngineType(signedInRequest(), "victim");
 
 			assertBody(response, 401, "Engine victim does not exist or user does not have access");
-			query.verify(() -> SecurityQueryUtils.testUserEngineIdForAlias(any(), anyString()), never());
 			s.security.verify(() -> SecurityEngineUtils.getEngineTypeAndSubtype(any()), never());
 		}
 	}
@@ -327,13 +323,14 @@ class EngineRouteResourceTest {
 	}
 
 	@Test
-	void rejectsAnAdminSmssUpdateOfAMissingEngine() throws IOException {
+	void rejectsAnSmssUpdateFromAnAdminWhoDoesNotOwnTheEngine() throws IOException {
 		try (Statics s = new Statics()) {
 			s.admin.when(() -> SecurityAdminUtils.userIsAdmin(this.user)).thenReturn(true);
+			s.security.when(() -> SecurityEngineUtils.engineExists("db1")).thenReturn(true);
 
 			assertBody(new EngineRouteResource().updateSmssFile(smssRequest(CURRENT_SMSS), "db1"), 401,
-					"Engine db1 does not exist.");
-			s.security.verify(() -> SecurityEngineUtils.userIsOwner(any(), anyString()), never());
+					"User must be the owner to perform this function.");
+			s.utility.verify(() -> Utility.getEngine(anyString()), never());
 		}
 	}
 
@@ -394,8 +391,7 @@ class EngineRouteResourceTest {
 	@Test
 	void notifiesTheUserOfAnSmssUpdate() throws Exception {
 		try (Statics s = new Statics()) {
-			s.admin.when(() -> SecurityAdminUtils.userIsAdmin(this.user)).thenReturn(true);
-			s.security.when(() -> SecurityEngineUtils.engineExists("db1")).thenReturn(true);
+			s.security.when(() -> SecurityEngineUtils.userIsOwner(this.user, "db1")).thenReturn(true);
 			s.security.when(() -> SecurityEngineUtils.getEngineType("db1")).thenReturn(IEngine.CATALOG_TYPE.DATABASE);
 			IEngine engine = engineWithSmss(this.tempDir.resolve("db1.smss"));
 			s.utilityValues.put("getEngine", engine);

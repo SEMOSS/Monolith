@@ -75,6 +75,7 @@ import prerna.sablecc2.comm.PixelJobRunner;
 import prerna.sablecc2.comm.PixelJobStatus;
 import prerna.sablecc2.om.execptions.SemossMCPException;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
+import prerna.security.SecretRedactor;
 import prerna.web.services.util.WebUtility;
 
 public class MCPReaper implements Runnable {
@@ -356,7 +357,7 @@ public class MCPReaper implements Runnable {
 			JSONObject result = new JSONObject();
 			JSONObject content = new JSONObject();
 			content.put("type", "text");
-			content.put("text", e.getMessage());
+			content.put("text", SecretRedactor.redactError(e.getMessage()));
 			result.put("content", content);
 			result.put("isError", true);
 			error.put("result", result);
@@ -565,9 +566,9 @@ public class MCPReaper implements Runnable {
 			return callTool(requireParams(root), sessionId, projectId, insight);
 		}
 		// {"jsonrpc":"2.0","id":7,"method":"completion/complete","params":{}}
-		// {"jsonrpc":"2.0","id":7,"error":{"code":-32601,"message":"Method not found - The method does not exist / is not available"}}
-		throw new JsonRpcError(MCPErrorCode.METHOD_NOT_FOUND.getCode(),
-				MCPErrorCode.METHOD_NOT_FOUND.getDescription());
+		// {"jsonrpc":"2.0","id":7,"error":{"code":-32601,"message":"Method not found -
+		// The method does not exist / is not available"}}
+		throw new JsonRpcError(MCPErrorCode.METHOD_NOT_FOUND.getCode(), MCPErrorCode.METHOD_NOT_FOUND.getDescription());
 	}
 
 	/**
@@ -638,7 +639,8 @@ public class MCPReaper implements Runnable {
 	 */
 	private static JSONObject requireParams(JSONObject root) throws JsonRpcError {
 		if (!(root.opt("params") instanceof JSONObject params)) {
-			throw new JsonRpcError(MCPErrorCode.INVALID_PARAMS.getCode(), "Invalid params - 'params' must be an object");
+			throw new JsonRpcError(MCPErrorCode.INVALID_PARAMS.getCode(),
+					"Invalid params - 'params' must be an object");
 		}
 		return params;
 	}
@@ -701,7 +703,7 @@ public class MCPReaper implements Runnable {
 	private static String errorResponse(Object id, int code, String message) {
 		JSONObject error = new JSONObject();
 		error.put("code", code);
-		error.put("message", message);
+		error.put("message", SecretRedactor.redactError(message));
 		JSONObject response = new JSONObject();
 		response.put("id", id);
 		response.put("jsonrpc", "2.0");

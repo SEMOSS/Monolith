@@ -58,6 +58,7 @@ import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityUserAccessKeyUtils;
 import prerna.om.LocalUserStore;
+import prerna.om.ThreadStore;
 import prerna.util.Constants;
 
 class CodeAssistantFilterTest {
@@ -81,6 +82,7 @@ class CodeAssistantFilterTest {
 	@AfterEach
 	void removeLocalKey() {
 		LocalUserStore.getInstance().remove(accessKey);
+		ThreadStore.remove();
 	}
 
 	private static HttpServletRequest request(String remoteAddr) {

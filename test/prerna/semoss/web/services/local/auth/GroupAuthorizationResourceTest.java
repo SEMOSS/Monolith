@@ -187,21 +187,23 @@ class GroupAuthorizationResourceTest {
 	@Test
 	void listsAndCountsTheProjectsAndEnginesOfAGroup() throws Exception {
 		User user = signedIn("alice");
+		List<String> types = List.of("CODE");
 		try (Statics statics = new Statics()) {
-			statics.groups.when(() -> SecurityGroupManagerUtils.getProjectsForGroup(user, "Sales", "x", 10, 0, true))
+			statics.groups.when(() -> SecurityGroupManagerUtils.getProjectsForGroup(user, "Sales", "x", 10, 0, types))
 					.thenReturn(List.of());
-			statics.groups.when(() -> SecurityGroupManagerUtils.getNumProjectsForGroup(user, "Sales", "x", true))
+			statics.groups.when(() -> SecurityGroupManagerUtils.getNumProjectsForGroup(user, "Sales", "x", types))
 					.thenReturn(0L);
 			statics.groups.when(() -> SecurityGroupManagerUtils.getEnginesForGroup(user, "Sales", "x", 10, 0))
 					.thenReturn(List.of());
 			statics.groups.when(() -> SecurityGroupManagerUtils.getNumEnginesForGroup(user, "Sales", "x"))
 					.thenReturn(0L);
 
-			assertEquals(200, resource.getProjectsForGroup(requestFor(user), "Sales", "x", 10, 0, true).getStatus());
-			assertEquals(200, resource.getNumProjectsForGroup(requestFor(user), "Sales", "x", true).getStatus());
+			assertEquals(200, resource.getProjectsForGroup(requestFor(user), "Sales", "x", 10, 0, types).getStatus());
+			assertEquals(200, resource.getNumProjectsForGroup(requestFor(user), "Sales", "x", types).getStatus());
 			assertEquals(200, resource.getEnginesForGroup(requestFor(user), "Sales", "x", 10, 0).getStatus());
 			assertEquals(200, resource.getNumEnginesForGroup(requestFor(user), "Sales", "x").getStatus());
-			statics.groups.verify(() -> SecurityGroupManagerUtils.getProjectsForGroup(user, "Sales", "x", 10, 0, true));
+			statics.groups
+					.verify(() -> SecurityGroupManagerUtils.getProjectsForGroup(user, "Sales", "x", 10, 0, types));
 			statics.groups.verify(() -> SecurityGroupManagerUtils.getEnginesForGroup(user, "Sales", "x", 10, 0));
 		}
 	}

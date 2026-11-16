@@ -52,6 +52,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -84,6 +85,7 @@ import prerna.auth.AccessToken;
 import prerna.auth.User;
 import prerna.logging.SemossLogUtils;
 import prerna.om.ThreadStore;
+import prerna.security.SecretRedactor;
 import prerna.usertracking.UserAuditTrailUtils;
 import prerna.util.Constants;
 import prerna.util.FstUtil;
@@ -104,6 +106,18 @@ public final class WebUtility {
 
 	private static final FastDateFormat expiresDateFormat = FastDateFormat.getInstance("EEE, dd MMM yyyy HH:mm:ss zzz",
 			TimeZone.getTimeZone("GMT"));
+
+	/**
+	 * Session attribute holding when the session sent the user to sign in with an
+	 * OAuth provider, in epoch milliseconds.
+	 */
+	private static final String OAUTH_LOGIN_STARTED_ATTR = "oauth_login_started";
+
+	/**
+	 * How long a session without a user is kept for the OAuth sign in it started,
+	 * so the provider's callback finds the login state the session issued.
+	 */
+	private static final long OAUTH_LOGIN_WINDOW_MILLIS = TimeUnit.MINUTES.toMillis(10);
 
 	private static final List<String[]> noCacheHeaders = new ArrayList<String[]>();
 	static {
@@ -256,7 +270,10 @@ public final class WebUtility {
 	 * Build a JSON response with the given entity, status code, optional extra
 	 * headers, and optional cookies. Cookies are written via {@code Set-Cookie}
 	 * headers so that {@code SameSite} attributes from
-	 * {@link #convertCookieToHeader(NewCookie)} are preserved.
+	 * {@link #convertCookieToHeader(NewCookie)} are preserved. An error response,
+	 * with a status of 400 or more, has secrets removed from its entity by
+	 * {@link SecretRedactor#redactErrorValue(Object)} before it is audited and
+	 * written.
 	 *
 	 * @param vec        the entity to serialize as JSON
 	 * @param status     the HTTP status code
@@ -266,6 +283,9 @@ public final class WebUtility {
 	 * @return JAX-RS Response, or {@code null} if {@code vec} is null
 	 */
 	public static Response getResponse(Object vec, int status, List<String[]> addHeaders, NewCookie... cookies) {
+		if (status >= 400) {
+			vec = SecretRedactor.redactErrorValue(vec);
+		}
 		auditErrorResponse(vec, status);
 		if (vec != null) {
 			Gson gson = getDefaultGson();
@@ -734,6 +754,60 @@ public final class WebUtility {
 	}
 
 	/**
+	 * Records that the session is sending the user to sign in with an OAuth
+	 * provider. The session has no user until the provider calls back, and
+	 * {@link #dropSessionWithoutUser} keeps it for the next ten minutes so the
+	 * callback finds the login state the session issued.
+	 *
+	 * @param session the session starting the sign in
+	 */
+	public static void markOAuthLoginStarted(HttpSession session) {
+		session.setAttribute(OAUTH_LOGIN_STARTED_ATTR, System.currentTimeMillis());
+	}
+
+	/**
+	 * Whether the session sent the user to sign in with an OAuth provider in the
+	 * last ten minutes, so the provider's callback still needs it.
+	 *
+	 * @param session the session, or null
+	 * @return true while the session waits on the provider's callback
+	 */
+	public static boolean isOAuthLoginPending(HttpSession session) {
+		if (session == null) {
+			return false;
+		}
+		Object started = session.getAttribute(OAUTH_LOGIN_STARTED_ATTR);
+		return started instanceof Long startedAt && System.currentTimeMillis() - startedAt < OAUTH_LOGIN_WINDOW_MILLIS;
+	}
+
+	/**
+	 * Drops the session of a request that has no user: invalidates it and, when
+	 * given the response's cookies, expires the browser's session cookie. A session
+	 * waiting on an OAuth sign in it started (see {@link #isOAuthLoginPending})
+	 * keeps both, since the provider's callback needs the session to match the
+	 * login state.
+	 * <p>
+	 * A request whose cookie names no session leaves the cookie as it is. A sign in
+	 * gives its session a new id, and a request sent with the old id can be
+	 * answered after the browser stores the new one; an expiry in that answer would
+	 * delete the new cookie, since a browser expires a cookie by its name.
+	 *
+	 * @param request    the request without a user
+	 * @param newCookies the response's cookies, which get the expired session
+	 *                   cookie, or null to leave the browser's cookie as it is
+	 */
+	public static void dropSessionWithoutUser(HttpServletRequest request, List<NewCookie> newCookies) {
+		HttpSession session = request.getSession(false);
+		if (session == null || isOAuthLoginPending(session)) {
+			return;
+		}
+		expireSessionCookies(request, newCookies);
+		if (session.isNew() || request.isRequestedSessionIdValid()) {
+			session.invalidate();
+		}
+	}
+
+	/**
 	 * Validate that {@code urlString} points to a top-private domain present in the
 	 * configured whitelist ({@link Constants#WHITE_LIST_DOMAINS}). If the whitelist
 	 * is empty/unset all URLs are accepted.
@@ -834,8 +908,10 @@ public final class WebUtility {
 	 * Populate the SLF4J/Log4j {@link ThreadContext} (MDC) with per-request fields
 	 * used by the structured logger: a fresh request id, client ip,
 	 * service/method/endpoint, host, and login event fields. Also stores local
-	 * hostname/port/protocol on {@link ThreadStore}. Should be called at the start
-	 * of every servlet/filter that wants request-scoped log fields.
+	 * hostname/port/protocol on {@link ThreadStore}, and the session's user, or
+	 * none when the request has no signed in user, so the thread never keeps the
+	 * user of the request it served before. Should be called at the start of every
+	 * servlet/filter that wants request-scoped log fields.
 	 *
 	 * @param servletRequest the incoming request to derive context from
 	 */
@@ -855,12 +931,28 @@ public final class WebUtility {
 			ThreadContext.put(SemossLogUtils.USER_AGENT,
 					userAgent.length() > 1000 ? userAgent.substring(0, 1000) : userAgent);
 		}
-		loggingContextLoginEvent(request.getSession(false));
+		HttpSession session = request.getSession(false);
+		loggingContextLoginEvent(session);
+		ThreadStore.setUser(session == null ? null : (User) session.getAttribute(Constants.SESSION_USER));
 
 		// also store local values
 		ThreadStore.setLocalHostname(getLocalHostname(request));
 		ThreadStore.setLocalPort(getLocalPort(request));
 		ThreadStore.setLocalProtocol(getLocalProtocol(request));
+	}
+
+	/**
+	 * Makes a user the signed in user of a session, and of the request thread
+	 * that signs them in. A filter that signs a request in after the request
+	 * started, with an access key or a token, uses it so the rest of that request
+	 * runs as the user.
+	 *
+	 * @param session the session being signed in
+	 * @param user    the user
+	 */
+	public static void setSessionUser(HttpSession session, User user) {
+		session.setAttribute(Constants.SESSION_USER, user);
+		ThreadStore.setUser(user);
 	}
 
 	/**

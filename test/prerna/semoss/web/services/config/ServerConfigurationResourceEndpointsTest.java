@@ -29,6 +29,7 @@ package prerna.semoss.web.services.config;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.RETURNS_DEFAULTS;
 import static org.mockito.Mockito.atMost;
@@ -49,6 +50,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
@@ -292,6 +294,22 @@ class ServerConfigurationResourceEndpointsTest {
 	}
 
 	@Test
+	void keepsTheSessionAndCookieOfAnOAuthSignInInProgress() {
+		HttpSession session = mock(HttpSession.class);
+		when(session.getAttribute("oauth_login_started")).thenReturn(System.currentTimeMillis());
+		HttpServletRequest req = configRequest(session, session);
+		when(req.isRequestedSessionIdValid()).thenReturn(true);
+		when(req.getCookies()).thenReturn(new Cookie[] { new Cookie("SMSSESSIONID", "pending") });
+		try (ConfigStatics statics = new ConfigStatics()) {
+			Response response = resource.getServerConfig(req, mock(HttpServletResponse.class), mock(FilterChain.class));
+
+			assertEquals(200, response.getStatus());
+			assertNull(response.getHeaders().get("Set-Cookie"));
+			verify(session, never()).invalidate();
+		}
+	}
+
+	@Test
 	void readsTheStaticConfigurationOnce() {
 		try (ConfigStatics statics = new ConfigStatics()) {
 			for (int i = 0; i < 3; i++) {
@@ -360,9 +378,10 @@ class ServerConfigurationResourceEndpointsTest {
 	private static HttpServletRequest configRequest(HttpSession existing, HttpSession created) {
 		HttpServletRequest req = mock(HttpServletRequest.class);
 		when(req.getContextPath()).thenReturn(CONTEXT);
-		when(req.getSession(false)).thenReturn(existing);
-		when(req.getSession()).thenReturn(created);
-		when(req.getSession(true)).thenReturn(created);
+		AtomicReference<HttpSession> current = new AtomicReference<>(existing);
+		when(req.getSession(false)).thenAnswer(i -> current.get());
+		when(req.getSession()).thenAnswer(i -> current.updateAndGet(s -> s == null ? created : s));
+		when(req.getSession(true)).thenAnswer(i -> current.updateAndGet(s -> s == null ? created : s));
 		return req;
 	}
 

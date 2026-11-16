@@ -212,10 +212,10 @@ class AdminGroupAuthorizationResourceTest {
 				endpoint("addGroupProjectPermission", (r, q) -> r.addGroupProjectPermission(q)),
 				endpoint("editGroupProjectPermission", (r, q) -> r.editGroupProjectPermission(q)),
 				endpoint("removeGroupProjectPermission", (r, q) -> r.removeGroupProjectPermission(q)),
-				endpoint("getProjectsForGroup", (r, q) -> r.getProjectsForGroup(q, "g1", "CUSTOM", null, 0, 0, false)),
-				endpoint("getNumProjectsForGroup", (r, q) -> r.getNumProjectsForGroup(q, "g1", "CUSTOM", null, false)),
+				endpoint("getProjectsForGroup", (r, q) -> r.getProjectsForGroup(q, "g1", "CUSTOM", null, 0, 0, null)),
+				endpoint("getNumProjectsForGroup", (r, q) -> r.getNumProjectsForGroup(q, "g1", "CUSTOM", null, null)),
 				endpoint("getAvailableProjectsForGroup",
-						(r, q) -> r.getAvailableProjectsForGroup(q, "g1", "CUSTOM", null, 0, 0, false)),
+						(r, q) -> r.getAvailableProjectsForGroup(q, "g1", "CUSTOM", null, 0, 0, null)),
 				endpoint("addGroupEnginePermission", (r, q) -> r.addGroupEnginePermission(q)),
 				endpoint("editGroupEnginePermission", (r, q) -> r.editGroupEnginePermission(q)),
 				endpoint("removeGroupEnginePermission", (r, q) -> r.removeGroupEnginePermission(q)),
@@ -565,16 +565,18 @@ class AdminGroupAuthorizationResourceTest {
 	@Test
 	void listsCountsAndOffersProjectsForAGroup() throws Exception {
 		try (Fixture f = Fixture.asAdmin()) {
-			when(f.groups.getProjectsForGroup("g1", "CUSTOM", "s", 10, 0, true)).thenReturn(List.of(Map.of("id", "p1")));
-			when(f.groups.getNumProjectsForGroup("g1", "CUSTOM", "s", true)).thenReturn(1L);
-			when(f.groups.getAvailableProjectsForGroup("g1", "CUSTOM", "s", 10, 0, true))
+			List<String> types = List.of("CODE");
+			when(f.groups.getProjectsForGroup("g1", "CUSTOM", "s", 10, 0, types))
+					.thenReturn(List.of(Map.of("id", "p1")));
+			when(f.groups.getNumProjectsForGroup("g1", "CUSTOM", "s", types)).thenReturn(1L);
+			when(f.groups.getAvailableProjectsForGroup("g1", "CUSTOM", "s", 10, 0, types))
 					.thenReturn(List.of(Map.of("id", "p2")));
 			AdminGroupAuthorizationResource resource = new AdminGroupAuthorizationResource();
 
-			assertEquals("p1", body(resource.getProjectsForGroup(f.request, "g1", "CUSTOM", "s", 10, 0, true))
+			assertEquals("p1", body(resource.getProjectsForGroup(f.request, "g1", "CUSTOM", "s", 10, 0, types))
 					.getAsJsonArray().get(0).getAsJsonObject().get("id").getAsString());
-			assertEquals(1, body(resource.getNumProjectsForGroup(f.request, "g1", "CUSTOM", "s", true)).getAsLong());
-			assertEquals("p2", body(resource.getAvailableProjectsForGroup(f.request, "g1", "CUSTOM", "s", 10, 0, true))
+			assertEquals(1, body(resource.getNumProjectsForGroup(f.request, "g1", "CUSTOM", "s", types)).getAsLong());
+			assertEquals("p2", body(resource.getAvailableProjectsForGroup(f.request, "g1", "CUSTOM", "s", 10, 0, types))
 					.getAsJsonArray().get(0).getAsJsonObject().get("id").getAsString());
 		}
 	}

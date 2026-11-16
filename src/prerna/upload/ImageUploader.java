@@ -652,7 +652,7 @@ public class ImageUploader extends AbstractUploader {
 
 	private String getProjectImageDir(String filePath, String projectId, String projectName) {
 		if (ClusterUtil.IS_CLUSTER) {
-			return ClusterUtil.IMAGES_FOLDER_PATH + DIR_SEPARATOR + "projects";
+			return ClusterUtil.getImagesFolderPath() + DIR_SEPARATOR + "projects";
 		}
 		return AssetUtility.getProjectVersionFolder(projectName, projectId);
 	}

@@ -77,7 +77,6 @@ import jakarta.ws.rs.core.Response.ResponseBuilder;
 import jakarta.ws.rs.core.StreamingOutput;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
-import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityInsightUtils;
 import prerna.auth.utils.SecurityProjectUtils;
 import prerna.cluster.util.ClusterUtil;
@@ -147,9 +146,9 @@ public class ProjectResource {
 	@Path("/updateSmssFile")
 	@Produces("application/json;charset=utf-8")
 	public Response updateSmssFile(@Context HttpServletRequest request, @PathParam("projectId") String projectId) {
-		// not required for containment. projectExists/userIsOwner below resolve
-		// projectId against the PROJECT table on both the admin and non-admin branch,
-		// so a traversal value is rejected before it reaches the smss file path
+		// not required for containment. userIsOwner below resolves projectId against
+		// the PROJECT table, so a traversal value is rejected before it reaches the
+		// smss file path
 		projectId = WebUtility.safePathSegment(WebUtility.inputSanitizer(projectId));
 		if (!WebUtility.isSafePathSegment(projectId)) {
 			Map<String, String> errorMap = new HashMap<>();
@@ -164,38 +163,47 @@ public class ProjectResource {
 			errorMap.put("error", "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		try {
-			boolean isAdmin = SecurityAdminUtils.userIsAdmin(user);
-			if (isAdmin) {
-				if (!SecurityProjectUtils.projectExists(projectId)) {
-					throw new IllegalAccessException("Project " + projectId + " does not exist.");
-				}
-			} else {
-				if (!SecurityProjectUtils.userIsOwner(user, projectId)) {
-					throw new IllegalAccessException("Project " + projectId
-							+ " does not exist or user does not have permissions to update the smss of the project. User must be the owner to perform this function.");
-				}
-			}
-		} catch (IllegalAccessException e) {
+		if (!SecurityProjectUtils.userIsOwner(user, projectId)) {
 			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put("error", e.getMessage());
+			errorMap.put("error", "Project " + projectId
+					+ " does not exist or user does not have permissions to update the smss of the project. "
+					+ "User must be the owner to perform this function.");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
+		try {
+			return WebUtility.getResponse(saveSmssFile(user, projectId, request.getParameter("smss")), 200);
+		} catch (IllegalArgumentException e) {
+			return ResourceUtility.errorResponse(e.getMessage(), 400);
+		}
+	}
+
+	/**
+	 * Saves new smss content for a project and opens the project again with it.
+	 * The hidden values the new content left untouched are kept, and the smss file
+	 * is put back as it was when the project does not open with the new content.
+	 * The caller has checked that the user may update the project: its owner, or
+	 * an admin through the admin endpoint.
+	 *
+	 * @param user           the user saving the smss, for the notification
+	 * @param projectId      the project
+	 * @param newSmssContent the new content of the smss file
+	 * @return the response body, which says the save went through
+	 * @throws IllegalArgumentException when the content cannot be saved, with the
+	 *                                  reason
+	 */
+	public static Map<String, Object> saveSmssFile(User user, String projectId, String newSmssContent) {
 		IProject project = Utility.getProject(projectId);
 		String currentSmssFileLocation = project.getSmssFilePath();
 		File currentSmssFile = new File(currentSmssFileLocation);
 		if (!currentSmssFile.exists() || !currentSmssFile.isFile()) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Could not find current project smss file");
-			return WebUtility.getResponse(errorMap, 400);
+			throw new IllegalArgumentException("Could not find current project smss file");
 		}
 
 		// using the current smss properties
 		// and the new file contents
 		// unconceal any hidden values that have not been altered
 		Properties currentSmssProperties = project.getSmssProp();
-		String newSmssContent = request.getParameter("smss");
 		String unconcealedNewSmssContent = SmssUtilities.unconcealSmssSensitiveInfo(newSmssContent,
 				currentSmssProperties);
 
@@ -207,10 +215,8 @@ public class ProjectResource {
 			if (!newProp.get(Constants.PROJECT).equals(currentSmssProperties.get(Constants.PROJECT))
 					|| !newProp.get(Constants.PROJECT_ALIAS).equals(currentSmssProperties.get(Constants.PROJECT_ALIAS))
 					|| !newProp.get(Constants.PROJECT_TYPE).equals(currentSmssProperties.get(Constants.PROJECT_TYPE))) {
-				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE,
+				throw new IllegalArgumentException(
 						"The project id, project name, and project type cannot be changed");
-				return WebUtility.getResponse(errorMap, 400);
 			}
 		}
 
@@ -219,10 +225,8 @@ public class ProjectResource {
 		try {
 			currentSmssContent = new String(Files.readAllBytes(Paths.get(currentSmssFile.toURI())));
 		} catch (IOException e) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE,
+			throw new IllegalArgumentException(
 					"An error occurred reading the current project smss details. Detailed message = " + e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
 		}
 		try {
 			project.close();
@@ -245,16 +249,12 @@ public class ProjectResource {
 				project.open(currentSmssFileLocation);
 			} catch (Exception e2) {
 				classLogger.error("Failed to restore original project SMSS for project {}", projectId, e2);
-				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE,
-						"A fatal error occurred and could not revert the project to an operational state. Detailed message = "
-								+ e2.getMessage());
-				return WebUtility.getResponse(errorMap, 400);
+				throw new IllegalArgumentException(
+						"A fatal error occurred and could not revert the project to an operational state. "
+								+ "Detailed message = " + e2.getMessage());
 			}
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE,
+			throw new IllegalArgumentException(
 					"An error occurred initializing the new project details. Detailed message = " + e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// push to cloud
@@ -271,7 +271,7 @@ public class ProjectResource {
 
 		Map<String, Object> success = new HashMap<>();
 		success.put("success", true);
-		return WebUtility.getResponse(success, 200);
+		return success;
 	}
 
 	@POST
@@ -304,7 +304,8 @@ public class ProjectResource {
 		try {
 			if (!SecurityProjectUtils.userCanViewProject(user, projectId)) {
 				throw new IllegalAccessException("Project " + projectId
-						+ " does not exist or user does not have permissions to update the smss of the project. User must be the owner to perform this function.");
+						+ " does not exist or user does not have permissions to update the smss of the project. "
+						+ "User must be the owner to perform this function.");
 			}
 		} catch (IllegalAccessException e) {
 			Map<String, String> errorMap = new HashMap<>();

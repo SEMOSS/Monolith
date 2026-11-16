@@ -86,8 +86,8 @@ import prerna.om.InsightStore;
 import prerna.project.api.IProject;
 import prerna.util.AssetUtility;
 import prerna.util.Constants;
-import prerna.util.DIHelper;
 import prerna.util.EngineUtility;
+import prerna.util.InternalUtility;
 import prerna.util.Utility;
 import prerna.util.git.GitRepoUtils;
 
@@ -107,8 +107,8 @@ class FileUploaderTest {
 
 	@BeforeAll
 	static void defineBaseFolder(@TempDir Path base) {
-		if (DIHelper.getInstance().getProperty(Constants.BASE_FOLDER) == null) {
-			DIHelper.getInstance().getCoreProp().setProperty(Constants.BASE_FOLDER, base.toString());
+		if (Utility.getDIHelperProperty(Constants.BASE_FOLDER) == null) {
+			InternalUtility.getCoreProp().setProperty(Constants.BASE_FOLDER, base.toString());
 			setBaseFolder = true;
 		}
 	}
@@ -116,7 +116,7 @@ class FileUploaderTest {
 	@AfterAll
 	static void clearBaseFolder() {
 		if (setBaseFolder) {
-			DIHelper.getInstance().getCoreProp().remove(Constants.BASE_FOLDER);
+			InternalUtility.getCoreProp().remove(Constants.BASE_FOLDER);
 		}
 	}
 

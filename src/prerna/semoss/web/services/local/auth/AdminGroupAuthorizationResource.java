@@ -27,6 +27,8 @@
  *******************************************************************************/
 package prerna.semoss.web.services.local.auth;
 
+import java.util.List;
+
 import jakarta.annotation.security.PermitAll;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.GET;
@@ -368,15 +370,16 @@ public class AdminGroupAuthorizationResource {
 	public Response getProjectsForGroup(@Context HttpServletRequest request, @QueryParam("groupId") String groupId,
 			@QueryParam("groupType") String groupType, @QueryParam("searchTerm") String searchTerm,
 			@QueryParam("limit") long limit, @QueryParam("offset") long offset,
-			@QueryParam("onlyApps") boolean onlyApps) {
+			@QueryParam("projectTypes") List<String> projectTypes) {
 		String group = WebUtility.inputSQLSanitizer(groupId);
 		String type = AuthProvider.getProviderLabel(WebUtility.inputSQLSanitizer(groupType));
 		String term = WebUtility.inputSQLSanitizer(searchTerm);
+		List<String> types = WebUtility.inputSanitizer(projectTypes);
 		return ResourceUtility
 				.respondAsAdmin(request, "list the projects of group " + group, AdminSecurityGroupUtils::getInstance,
 						(user, adminGroupUtils) -> adminGroupUtils.getProjectsForGroup(
 								ValueUtils.requireNonBlank(group, GROUP_ID_REQUIRED), type, term, limit, offset,
-								onlyApps));
+								types));
 	}
 
 	@GET
@@ -384,13 +387,14 @@ public class AdminGroupAuthorizationResource {
 	@Produces("application/json")
 	public Response getNumProjectsForGroup(@Context HttpServletRequest request, @QueryParam("groupId") String groupId,
 			@QueryParam("groupType") String groupType, @QueryParam("searchTerm") String searchTerm,
-			@QueryParam("onlyApps") boolean onlyApps) {
+			@QueryParam("projectTypes") List<String> projectTypes) {
 		String group = WebUtility.inputSQLSanitizer(groupId);
 		String type = AuthProvider.getProviderLabel(WebUtility.inputSQLSanitizer(groupType));
 		String term = WebUtility.inputSQLSanitizer(searchTerm);
+		List<String> types = WebUtility.inputSanitizer(projectTypes);
 		return ResourceUtility.respondAsAdmin(request, "count the projects of group " + group,
 				AdminSecurityGroupUtils::getInstance, (user, adminGroupUtils) -> adminGroupUtils.getNumProjectsForGroup(
-						ValueUtils.requireNonBlank(group, GROUP_ID_REQUIRED), type, term, onlyApps));
+						ValueUtils.requireNonBlank(group, GROUP_ID_REQUIRED), type, term, types));
 	}
 
 	@GET
@@ -399,16 +403,17 @@ public class AdminGroupAuthorizationResource {
 	public Response getAvailableProjectsForGroup(@Context HttpServletRequest request,
 			@QueryParam("groupId") String groupId, @QueryParam("groupType") String groupType,
 			@QueryParam("searchTerm") String searchTerm, @QueryParam("limit") long limit,
-			@QueryParam("offset") long offset, @QueryParam("onlyApps") boolean onlyApps) {
+			@QueryParam("offset") long offset, @QueryParam("projectTypes") List<String> projectTypes) {
 		String group = WebUtility.inputSQLSanitizer(groupId);
 		String type = AuthProvider.getProviderLabel(WebUtility.inputSQLSanitizer(groupType));
 		String term = WebUtility.inputSQLSanitizer(searchTerm);
+		List<String> types = WebUtility.inputSanitizer(projectTypes);
 		return ResourceUtility
 				.respondAsAdmin(request, "list the projects group " + group + " can be given",
 						AdminSecurityGroupUtils::getInstance,
 						(user, adminGroupUtils) -> adminGroupUtils.getAvailableProjectsForGroup(
 								ValueUtils.requireNonBlank(group, GROUP_ID_REQUIRED), type, term, limit, offset,
-								onlyApps));
+								types));
 	}
 
 	///////////////////////////////////////////////////////////////

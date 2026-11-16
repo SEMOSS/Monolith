@@ -69,6 +69,7 @@ import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.access.ModelUsageLimit;
 import prerna.auth.utils.SecurityAdminUtils;
+import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityModelUsageLimitUtils;
 import prerna.auth.utils.reactors.admin.AdminMyEnginesReactor;
 import prerna.graph.utility.MsGraphUtility;
@@ -77,6 +78,7 @@ import prerna.sablecc2.om.NounStore;
 import prerna.sablecc2.om.PixelDataType;
 import prerna.sablecc2.om.ReactorKeysEnum;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
+import prerna.semoss.web.services.local.EngineRouteResource;
 import prerna.util.Constants;
 
 class AdminEngineAuthorizationResourceTest {
@@ -734,6 +736,175 @@ class AdminEngineAuthorizationResourceTest {
 			assertEquals(400, response.getStatus());
 			assertEquals("Sign in to Microsoft first", errorMessage(response));
 			verify(f.utils, never()).addEngineUserPermissions(any(), any(), any());
+		}
+	}
+	static Stream<Named<Endpoint>> appPermissionAndSmssEndpoints() {
+		return Stream.of(
+				endpoint("getEngineProjectPermissions", (r, q) -> r.getEngineProjectPermissions(q, "e1")),
+				endpoint("setEngineProjectPermission",
+						(r, q) -> r.setEngineProjectPermission(q,
+								form("engineId", "e1", "projectId", "app1", "permission", "EDIT"))),
+				endpoint("removeEngineProjectPermission",
+						(r, q) -> r.removeEngineProjectPermission(q, form("engineId", "e1", "projectId", "app1"))),
+				endpoint("updateSmssFile", (r, q) -> r.updateSmssFile(q, form("engineId", "e1", "smss", "ENGINE\te1"))));
+	}
+
+	@ParameterizedTest
+	@MethodSource("appPermissionAndSmssEndpoints")
+	void answersANonAdminWith403BeforeChangingAnAppPermissionOrAnSmss(Endpoint endpoint) throws Exception {
+		try (Fixture f = new Fixture(signedIn("jdoe"), false);
+				MockedStatic<EngineRouteResource> saves = Mockito.mockStatic(EngineRouteResource.class)) {
+			Response response = endpoint.call(new AdminEngineAuthorizationResource(), f.request);
+
+			assertEquals(403, response.getStatus());
+			assertEquals("This functionality is limited to only admins", errorMessage(response));
+			Mockito.verifyNoInteractions(f.utils);
+			saves.verifyNoInteractions();
+		}
+	}
+
+	@ParameterizedTest
+	@MethodSource("appPermissionAndSmssEndpoints")
+	void answersASignedOutCallerWith401BeforeChangingAnAppPermissionOrAnSmss(Endpoint endpoint) throws Exception {
+		try (Fixture f = new Fixture(null, false);
+				MockedStatic<EngineRouteResource> saves = Mockito.mockStatic(EngineRouteResource.class)) {
+			Response response = endpoint.call(new AdminEngineAuthorizationResource(), f.request);
+
+			assertEquals(401, response.getStatus());
+			assertEquals("User session is invalid", errorMessage(response));
+			Mockito.verifyNoInteractions(f.utils);
+			saves.verifyNoInteractions();
+		}
+	}
+
+	@Test
+	void listsTheAppsAnEngineGivesAPermissionTo() throws Exception {
+		try (Fixture f = Fixture.asAdmin()) {
+			List<Map<String, Object>> apps = List.of(Map.of("subject", Map.of("id", "app1", "name", "Claims")));
+			when(f.utils.getEngineProjectPermissions("e1")).thenReturn(apps);
+
+			Response response = new AdminEngineAuthorizationResource().getEngineProjectPermissions(f.request, "e1");
+
+			assertEquals(200, response.getStatus());
+			JsonObject subject = body(response).getAsJsonArray().get(0).getAsJsonObject().getAsJsonObject("subject");
+			assertEquals("app1", subject.get("id").getAsString());
+		}
+	}
+
+	@Test
+	void givesAnAppAPermissionOnAnEngineAndKeepsItsLimitWhenNoLimitIsSent() throws Exception {
+		try (Fixture f = Fixture.asAdmin()) {
+			Response response = new AdminEngineAuthorizationResource().setEngineProjectPermission(f.request,
+					form("engineId", "e1", "projectId", "app1", "permission", " edit "));
+
+			assertSuccess(response);
+			verify(f.utils).setEngineProjectPermission("app1", "e1", "EDIT", f.user, null);
+			f.limits.verifyNoInteractions();
+		}
+	}
+
+	@Test
+	void givesAnAppAPermissionWithItsAppLimitWhenALimitIsSent() throws Exception {
+		try (Fixture f = Fixture.asAdmin()) {
+			ModelUsageLimit limit = ModelUsageLimit.unlimited();
+			f.limits.when(() -> SecurityModelUsageLimitUtils.readJson(USAGE_LIMIT_JSON)).thenReturn(limit);
+
+			Response response = new AdminEngineAuthorizationResource().setEngineProjectPermission(f.request,
+					form("engineId", "e1", "projectId", "app1", "permission", "READ_ONLY", "endDate",
+							"2027-01-01T00:00:00Z", "usageLimit", USAGE_LIMIT_JSON));
+
+			assertSuccess(response);
+			verify(f.utils).setEngineProjectPermission("app1", "e1", "READ_ONLY", f.user, "2027-01-01T00:00:00Z",
+					limit);
+		}
+	}
+
+	@Test
+	void refusesALevelThatIsNotOneForAnAppPermission() throws Exception {
+		try (Fixture f = Fixture.asAdmin()) {
+			Response response = new AdminEngineAuthorizationResource().setEngineProjectPermission(f.request,
+					form("engineId", "e1", "projectId", "app1", "permission", "OWNR"));
+
+			assertEquals(400, response.getStatus());
+			Mockito.verifyNoInteractions(f.utils);
+		}
+	}
+
+	@Test
+	void answersAnAppPermissionThatCannotBeSavedWith400AndItsMessage() throws Exception {
+		try (Fixture f = Fixture.asAdmin()) {
+			doThrow(new IllegalArgumentException("An app can be given Read-Only or Editor access to an engine, not Author access")).when(f.utils)
+					.setEngineProjectPermission("app1", "e1", "OWNER", f.user, null);
+
+			Response response = new AdminEngineAuthorizationResource().setEngineProjectPermission(f.request,
+					form("engineId", "e1", "projectId", "app1", "permission", "OWNER"));
+
+			assertEquals(400, response.getStatus());
+			assertEquals("An app can be given Read-Only or Editor access to an engine, not Author access", errorMessage(response));
+		}
+	}
+
+	@Test
+	void takesAwayTheAccessOfAnAppToAnEngine() throws Exception {
+		try (Fixture f = Fixture.asAdmin()) {
+			Response response = new AdminEngineAuthorizationResource().removeEngineProjectPermission(f.request,
+					form("engineId", "e1", "projectId", "app1"));
+
+			assertSuccess(response);
+			verify(f.utils).removeEngineProjectPermission("app1", "e1", f.user);
+		}
+	}
+
+	@Test
+	void savesTheSmssOfAnyEngineForAnAdmin() throws Exception {
+		try (Fixture f = Fixture.asAdmin();
+				MockedStatic<SecurityEngineUtils> engines = Mockito.mockStatic(SecurityEngineUtils.class);
+				MockedStatic<EngineRouteResource> saves = Mockito.mockStatic(EngineRouteResource.class)) {
+			engines.when(() -> SecurityEngineUtils.engineExists("e1")).thenReturn(true);
+			saves.when(() -> EngineRouteResource.saveSmssFile(f.user, "e1", "ENGINE\te1"))
+					.thenReturn(Map.of("success", true));
+
+			Response response = new AdminEngineAuthorizationResource().updateSmssFile(f.request,
+					form("engineId", "e1", "smss", "ENGINE\te1"));
+
+			assertSuccess(response);
+		}
+	}
+
+	@Test
+	void refusesToSaveTheSmssOfAnEngineThatDoesNotExist() throws Exception {
+		try (Fixture f = Fixture.asAdmin();
+				MockedStatic<SecurityEngineUtils> engines = Mockito.mockStatic(SecurityEngineUtils.class);
+				MockedStatic<EngineRouteResource> saves = Mockito.mockStatic(EngineRouteResource.class)) {
+			engines.when(() -> SecurityEngineUtils.engineExists("e1")).thenReturn(false);
+
+			Response missing = new AdminEngineAuthorizationResource().updateSmssFile(f.request,
+					form("engineId", "e1", "smss", "ENGINE\te1"));
+			Response unsafe = new AdminEngineAuthorizationResource().updateSmssFile(f.request,
+					form("engineId", "..", "smss", "ENGINE\te1"));
+
+			assertEquals(400, missing.getStatus());
+			assertEquals("Engine e1 does not exist", errorMessage(missing));
+			assertEquals(400, unsafe.getStatus());
+			assertEquals("Engine .. does not exist", errorMessage(unsafe));
+			saves.verifyNoInteractions();
+		}
+	}
+
+	@Test
+	void answersAnSmssThatCannotBeSavedWith400AndItsReason() throws Exception {
+		try (Fixture f = Fixture.asAdmin();
+				MockedStatic<SecurityEngineUtils> engines = Mockito.mockStatic(SecurityEngineUtils.class);
+				MockedStatic<EngineRouteResource> saves = Mockito.mockStatic(EngineRouteResource.class)) {
+			engines.when(() -> SecurityEngineUtils.engineExists("e1")).thenReturn(true);
+			saves.when(() -> EngineRouteResource.saveSmssFile(f.user, "e1", "ENGINE\tother")).thenThrow(
+					new IllegalArgumentException("The engine id, engine name, and engine type cannot be changed"));
+
+			Response response = new AdminEngineAuthorizationResource().updateSmssFile(f.request,
+					form("engineId", "e1", "smss", "ENGINE\tother"));
+
+			assertEquals(400, response.getStatus());
+			assertEquals("The engine id, engine name, and engine type cannot be changed", errorMessage(response));
 		}
 	}
 }

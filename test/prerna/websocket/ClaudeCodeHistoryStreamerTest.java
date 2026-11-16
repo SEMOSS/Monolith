@@ -53,7 +53,7 @@ import org.junit.jupiter.api.io.TempDir;
 import jakarta.websocket.RemoteEndpoint;
 import jakarta.websocket.Session;
 import prerna.util.Constants;
-import prerna.util.DIHelper;
+import prerna.util.InternalUtility;
 
 class ClaudeCodeHistoryStreamerTest {
 
@@ -73,8 +73,8 @@ class ClaudeCodeHistoryStreamerTest {
 
 	@BeforeEach
 	void prepare() {
-		previousBase = DIHelper.getInstance().getCoreProp().getProperty(Constants.BASE_FOLDER);
-		DIHelper.getInstance().getCoreProp().setProperty(Constants.BASE_FOLDER, base.toString());
+		previousBase = InternalUtility.getCoreProp().getProperty(Constants.BASE_FOLDER);
+		InternalUtility.getCoreProp().setProperty(Constants.BASE_FOLDER, base.toString());
 		insightId = "tail-" + UUID.randomUUID();
 		roomId = "room-" + UUID.randomUUID();
 		remote = mock(RemoteEndpoint.Basic.class);
@@ -94,9 +94,9 @@ class ClaudeCodeHistoryStreamerTest {
 		}
 		SocketSessionHandlerFactory.getHandler(insightId).removeSession(socket);
 		if (previousBase == null) {
-			DIHelper.getInstance().getCoreProp().remove(Constants.BASE_FOLDER);
+			InternalUtility.getCoreProp().remove(Constants.BASE_FOLDER);
 		} else {
-			DIHelper.getInstance().getCoreProp().setProperty(Constants.BASE_FOLDER, previousBase);
+			InternalUtility.getCoreProp().setProperty(Constants.BASE_FOLDER, previousBase);
 		}
 	}
 

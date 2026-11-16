@@ -108,7 +108,7 @@ class NoUserInSessionFilterTest {
 	@Test
 	void passesTheEndpointsThatWorkWithoutALogin() throws Exception {
 		for (String path : new String[] { "/api/config", "/api/config/fetchCsrf", "/api/auth/logins",
-				"/api/auth/login", "/api/auth/login/google", "/api/auth/userinfo/ms", "/api/auth/login/producthunt",
+				"/api/auth/login", "/api/auth/login/google", "/api/auth/userinfo/ms", "/api/auth/login/ms",
 				"/api/session/active", "/api/auth/whoami" }) {
 			HttpServletRequest request = request(path, null);
 			HttpServletResponse response = mock(HttpServletResponse.class);
@@ -259,6 +259,21 @@ class NoUserInSessionFilterTest {
 
 		run(null, request, mock(HttpServletResponse.class), mock(FilterChain.class));
 
+		verify(session, never()).invalidate();
+	}
+
+	@Test
+	void keepsTheSessionOfAnOAuthSignInInProgress() throws Exception {
+		HttpSession session = session(null);
+		when(session.getAttribute("oauth_login_started")).thenReturn(System.currentTimeMillis());
+		HttpServletRequest request = request("/api/engine/runPixel", session);
+		when(request.getHeader("referer")).thenReturn("http://localhost:8080/semoss-ui/");
+		when(request.isRequestedSessionIdValid()).thenReturn(true);
+		HttpServletResponse response = mock(HttpServletResponse.class);
+
+		run(null, request, response, mock(FilterChain.class));
+
+		verify(response).sendError(302, "Need to redirect to http://localhost:8080/semoss-ui/#!/login");
 		verify(session, never()).invalidate();
 	}
 

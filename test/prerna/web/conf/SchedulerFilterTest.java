@@ -40,6 +40,7 @@ import static org.mockito.Mockito.when;
 
 import java.util.List;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
@@ -51,11 +52,17 @@ import jakarta.servlet.http.HttpSession;
 import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
+import prerna.om.ThreadStore;
 import prerna.reactor.scheduler.SchedulerDatabaseUtility;
 import prerna.rpa.config.JobConfigKeys;
 import prerna.util.Constants;
 
 class SchedulerFilterTest {
+
+	@AfterEach
+	void clearTheThread() {
+		ThreadStore.remove();
+	}
 
 	private static HttpServletRequest request(String execId, String jobId, String jobGroup, String userAccess) {
 		HttpServletRequest request = mock(HttpServletRequest.class);

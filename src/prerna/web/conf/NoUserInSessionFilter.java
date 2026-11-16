@@ -159,10 +159,7 @@ public class NoUserInSessionFilter implements Filter {
 			((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + encodedRedirectUrl);
 
 			// invalidate the session if necessary
-			HttpSession session = ((HttpServletRequest) arg0).getSession(false);
-			if (session != null && (session.isNew() || ((HttpServletRequest) arg0).isRequestedSessionIdValid())) {
-				session.invalidate();
-			}
+			WebUtility.dropSessionWithoutUser((HttpServletRequest) arg0, null);
 		}
 	}
 

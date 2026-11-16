@@ -36,6 +36,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -46,6 +47,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -70,10 +72,11 @@ import prerna.engine.impl.model.Room;
 import prerna.engine.impl.model.RoomUtils;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
+import prerna.om.ThreadStore;
 import prerna.sablecc2.PixelRunner;
 import prerna.sablecc2.PixelStreamUtility;
 import prerna.util.Constants;
-import prerna.util.DIHelper;
+import prerna.util.InternalUtility;
 
 class InsightWebsocketTest {
 
@@ -98,6 +101,7 @@ class InsightWebsocketTest {
 
 	@AfterEach
 	void closeInsight() {
+		ThreadStore.remove();
 		InsightStore.getInstance().remove(insightId);
 		createdInsights.forEach(InsightStore.getInstance()::remove);
 		createdSessions.forEach(InsightStore.getInstance()::clearSession);
@@ -270,6 +274,29 @@ class InsightWebsocketTest {
 	}
 
 	@Test
+	void aMessageRunsWithOnlyItsSocketsUserSessionAndInsightAndLeavesTheThreadClear() throws Exception {
+		RemoteEndpoint.Basic remote = mock(RemoteEndpoint.Basic.class);
+		User user = signedIn();
+		Session session = open(user, remote);
+		List<Object> seen = new ArrayList<>();
+		doAnswer(call -> {
+			seen.addAll(Arrays.asList(ThreadStore.getUser(), ThreadStore.getSessionId(), ThreadStore.getInsightId(),
+					ThreadStore.getJobId()));
+			return null;
+		}).when(remote).sendText(anyString());
+		ThreadStore.setUser(signedIn());
+		ThreadStore.setSessionId("http-of-an-earlier-request");
+		ThreadStore.setJobId("job-of-an-earlier-request");
+
+		endpoint.handleMessage("{\"action\":\"watch\"}", session);
+
+		assertEquals(Arrays.asList(user, httpSession, insightId, null), seen);
+		assertNull(ThreadStore.getUser());
+		assertNull(ThreadStore.getSessionId());
+		assertNull(ThreadStore.getJobId());
+	}
+
+	@Test
 	void watchRequiresAType() throws Exception {
 		RemoteEndpoint.Basic remote = mock(RemoteEndpoint.Basic.class);
 		Session session = open(signedIn(), remote);
@@ -322,16 +349,16 @@ class InsightWebsocketTest {
 
 	@Test
 	void watchStartsAClaudeCodeStreamerAndUnwatchStopsIt(@TempDir Path base) throws Exception {
-		String previous = DIHelper.getInstance().getCoreProp().getProperty(Constants.BASE_FOLDER);
-		DIHelper.getInstance().getCoreProp().setProperty(Constants.BASE_FOLDER, base.toString());
+		String previous = InternalUtility.getCoreProp().getProperty(Constants.BASE_FOLDER);
+		InternalUtility.getCoreProp().setProperty(Constants.BASE_FOLDER, base.toString());
 		try (MockedStatic<RoomUtils> rooms = mockStatic(RoomUtils.class)) {
 			rooms.when(() -> RoomUtils.getOrLoadRoom(anyString(), any())).thenReturn(mock(Room.class));
 			watchAndUnwatch(rooms);
 		} finally {
 			if (previous == null) {
-				DIHelper.getInstance().getCoreProp().remove(Constants.BASE_FOLDER);
+				InternalUtility.getCoreProp().remove(Constants.BASE_FOLDER);
 			} else {
-				DIHelper.getInstance().getCoreProp().setProperty(Constants.BASE_FOLDER, previous);
+				InternalUtility.getCoreProp().setProperty(Constants.BASE_FOLDER, previous);
 			}
 		}
 	}

@@ -30,8 +30,12 @@ package prerna.web.services.util;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -49,6 +53,8 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.ThreadContext;
@@ -69,6 +75,7 @@ import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.logging.SemossLogUtils;
 import prerna.om.ThreadStore;
+import prerna.security.SecretRedactor;
 import prerna.util.Constants;
 import prerna.util.Utility;
 
@@ -81,6 +88,37 @@ class WebUtilityTest {
 	void clearThreadState() {
 		ThreadContext.clearMap();
 		ThreadStore.remove();
+	}
+
+	@Test
+	void setSessionUserSignsTheSessionAndTheThreadIn() {
+		HttpSession session = mock(HttpSession.class);
+		User user = new User();
+
+		WebUtility.setSessionUser(session, user);
+
+		verify(session).setAttribute(Constants.SESSION_USER, user);
+		assertSame(user, ThreadStore.getUser());
+	}
+
+	@Test
+	void theLoggingContextGivesTheThreadTheSessionsUserAndNoneWithoutASession() {
+		AccessToken token = new AccessToken();
+		token.setProvider(AuthProvider.NATIVE);
+		token.setId("jdoe");
+		User user = new User();
+		user.setAccessToken(token);
+		HttpSession session = mock(HttpSession.class);
+		when(session.getAttribute(Constants.SESSION_USER)).thenReturn(user);
+		HttpServletRequest signedIn = mock(HttpServletRequest.class);
+		when(signedIn.getSession(false)).thenReturn(session);
+		HttpServletRequest anonymous = mock(HttpServletRequest.class);
+
+		WebUtility.loggingContext(signedIn);
+		assertSame(user, ThreadStore.getUser());
+
+		WebUtility.loggingContext(anonymous);
+		assertNull(ThreadStore.getUser());
 	}
 
 	/**
@@ -107,6 +145,24 @@ class WebUtilityTest {
 			boolean httpOnly) {
 		return new NewCookie.Builder(name).value(value).path(path).domain(domain).maxAge(maxAge).secure(secure)
 				.httpOnly(httpOnly).build();
+	}
+
+	private static HttpSession sessionWithAttributes() {
+		Map<String, Object> attributes = new HashMap<>();
+		HttpSession session = mock(HttpSession.class);
+		when(session.getAttribute(anyString())).thenAnswer(i -> attributes.get(i.getArgument(0)));
+		doAnswer(i -> attributes.put(i.getArgument(0), i.getArgument(1))).when(session).setAttribute(anyString(),
+				any());
+		return session;
+	}
+
+	private static HttpServletRequest joinedRequest(HttpSession session) {
+		HttpServletRequest request = mock(HttpServletRequest.class);
+		when(request.getSession(false)).thenReturn(session);
+		when(request.isRequestedSessionIdValid()).thenReturn(true);
+		when(request.getCookies()).thenReturn(new Cookie[] { new Cookie("JSESSIONID", "abc") });
+		when(request.getContextPath()).thenReturn("/Monolith");
+		return request;
 	}
 
 	@Test
@@ -148,11 +204,35 @@ class WebUtilityTest {
 			String header = WebUtility
 					.convertCookieToHeader(cookie("SID", "abc", "/Monolith", "semoss.org", 60, true, true));
 
-			assertTrue(header.startsWith(
-					"SID=abc; SameSite=Strict; domain=semoss.org; path=/Monolith; secure; HttpOnly; Expires="), header);
+			assertTrue(
+					header.startsWith(
+							"SID=abc; SameSite=Strict; domain=semoss.org; path=/Monolith; secure; HttpOnly; Expires="),
+					header);
 			assertTrue(header.endsWith(" GMT"), header);
 			assertEquals("SID=; SameSite=Strict",
 					WebUtility.convertCookieToHeader(cookie("SID", "", null, null, -1, false, false)));
+		}
+	}
+
+	@Test
+	void anErrorResponseLosesTheSecretsInItsMessage() throws IOException {
+		String key = "sk-live-5e4d3c2b1a0f9e8d7c6b";
+		Properties smss = new Properties();
+		smss.setProperty("OPEN_AI_KEY", key);
+		SecretRedactor.recordSecrets("web-utility-model", smss);
+		try {
+			Map<String, Object> errorMap = new HashMap<>();
+			errorMap.put(Constants.ERROR_MESSAGE, "provider refused " + key);
+
+			Response error = WebUtility.getResponse(errorMap, 400);
+			Response success = WebUtility.getResponse(Map.of("output", "your key is " + key), 200);
+
+			assertEquals("{\"errorMessage\":\"provider refused [REDACTED]\"}",
+					body((StreamingOutput) error.getEntity()));
+			assertEquals("{\"output\":\"your key is " + key + "\"}", body((StreamingOutput) success.getEntity()));
+			assertEquals("provider refused " + key, errorMap.get(Constants.ERROR_MESSAGE));
+		} finally {
+			SecretRedactor.forgetSecrets("web-utility-model");
 		}
 	}
 
@@ -324,6 +404,90 @@ class WebUtilityTest {
 	}
 
 	@Test
+	void dropsASessionWithoutAUserAndExpiresItsCookie() {
+		HttpSession session = sessionWithAttributes();
+		HttpServletRequest request = joinedRequest(session);
+		List<NewCookie> expired = new ArrayList<>();
+
+		try (MockedStatic<Utility> u = utility(Map.of("getSameSiteCookieValue", "Lax"))) {
+			WebUtility.dropSessionWithoutUser(request, expired);
+		}
+
+		verify(session).invalidate();
+		assertEquals(2, expired.size());
+		assertEquals(0, expired.get(0).getMaxAge());
+	}
+
+	@Test
+	void keepsTheSessionAndCookieOfAnOAuthSignInInProgress() {
+		HttpSession session = sessionWithAttributes();
+		WebUtility.markOAuthLoginStarted(session);
+		HttpServletRequest request = joinedRequest(session);
+		List<NewCookie> expired = new ArrayList<>();
+
+		WebUtility.dropSessionWithoutUser(request, expired);
+
+		assertTrue(WebUtility.isOAuthLoginPending(session));
+		verify(session, never()).invalidate();
+		assertTrue(expired.isEmpty());
+	}
+
+	@Test
+	void dropsASessionWhoseOAuthSignInStartedOverTenMinutesAgo() {
+		HttpSession session = sessionWithAttributes();
+		session.setAttribute("oauth_login_started", System.currentTimeMillis() - TimeUnit.MINUTES.toMillis(11));
+		HttpServletRequest request = joinedRequest(session);
+		List<NewCookie> expired = new ArrayList<>();
+
+		try (MockedStatic<Utility> u = utility(Map.of("getSameSiteCookieValue", "Lax"))) {
+			WebUtility.dropSessionWithoutUser(request, expired);
+		}
+
+		assertFalse(WebUtility.isOAuthLoginPending(session));
+		verify(session).invalidate();
+		assertEquals(2, expired.size());
+	}
+
+	@Test
+	void dropsOnlyTheSessionWhenNotGivenTheResponseCookies() {
+		HttpSession session = sessionWithAttributes();
+		HttpServletRequest request = joinedRequest(session);
+
+		WebUtility.dropSessionWithoutUser(request, null);
+
+		verify(session).invalidate();
+	}
+
+	@Test
+	void keepsASessionTheRequestNeitherMadeNorJoined() {
+		HttpSession session = sessionWithAttributes();
+		HttpServletRequest request = joinedRequest(session);
+		when(request.isRequestedSessionIdValid()).thenReturn(false);
+
+		WebUtility.dropSessionWithoutUser(request, null);
+
+		verify(session, never()).invalidate();
+	}
+
+	@Test
+	void leavesTheCookieOfASessionThatNoLongerExists() {
+		HttpServletRequest request = mock(HttpServletRequest.class);
+		when(request.getCookies()).thenReturn(new Cookie[] { new Cookie("JSESSIONID", "renamed") });
+		when(request.getContextPath()).thenReturn("/Monolith");
+		List<NewCookie> expired = new ArrayList<>();
+
+		WebUtility.dropSessionWithoutUser(request, expired);
+
+		assertTrue(expired.isEmpty());
+	}
+
+	@Test
+	void seesNoOAuthSignInWithoutASessionOrAStart() {
+		assertFalse(WebUtility.isOAuthLoginPending(null));
+		assertFalse(WebUtility.isOAuthLoginPending(sessionWithAttributes()));
+	}
+
+	@Test
 	void allowsEveryDomainWhenNoWhitelistIsSet() {
 		Map<String, Object> values = new HashMap<>();
 		values.put("getDIHelperProperty", null);
@@ -346,8 +510,7 @@ class WebUtilityTest {
 			assertThrows(IllegalArgumentException.class,
 					() -> WebUtility.checkIfValidDomain("https://evil.net/?r=semoss.org"));
 			assertThrows(IllegalArgumentException.class, () -> WebUtility.checkIfValidDomain("//semoss.org/login"));
-			assertThrows(IllegalArgumentException.class,
-					() -> WebUtility.checkIfValidDomain("javascript:alert(1)"));
+			assertThrows(IllegalArgumentException.class, () -> WebUtility.checkIfValidDomain("javascript:alert(1)"));
 		}
 	}
 
@@ -531,8 +694,8 @@ class WebUtilityTest {
 	@Test
 	void recognizesAClientDisconnectAnywhereInTheCauseChain() {
 		assertTrue(WebUtility.isClientDisconnect(new IOException("Broken pipe")));
-		assertTrue(WebUtility.isClientDisconnect(
-				new RuntimeException("write failed", new IOException("Connection reset by peer"))));
+		assertTrue(WebUtility
+				.isClientDisconnect(new RuntimeException("write failed", new IOException("Connection reset by peer"))));
 		assertFalse(WebUtility.isClientDisconnect(new IOException("disk full")));
 		assertFalse(WebUtility.isClientDisconnect(new RuntimeException((String) null)));
 		assertFalse(WebUtility.isClientDisconnect(null));
