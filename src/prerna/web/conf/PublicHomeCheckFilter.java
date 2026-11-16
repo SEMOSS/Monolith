@@ -53,6 +53,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityProjectUtils;
+import prerna.engine.impl.pipeline.PlatformOperation;
 import prerna.project.api.IProject;
 import prerna.usertracking.AuditEventType;
 import prerna.usertracking.AuditTargetType;
@@ -63,6 +64,8 @@ import prerna.web.services.util.WebUtility;
 public class PublicHomeCheckFilter implements Filter {
 
 	private static final Logger classLogger = LogManager.getLogger(PublicHomeCheckFilter.class);
+
+	private static final String PUBLISH_PORTAL_OPERATION = "publish portal";
 
 	// larger than the 8KB this used to read in, which measured faster for the file
 	// sizes a portal serves
@@ -114,6 +117,30 @@ public class PublicHomeCheckFilter implements Filter {
 			return; // Access denied
 		}
 
+		try (PlatformOperation operation = PlatformOperation.begin(PUBLISH_PORTAL_OPERATION)) {
+			publishAndServe(projectId, fullUrl, realPath, publicHomeFolder, context, request, response, arg2);
+		}
+	}
+
+	/**
+	 * Publishes the project's portal when it needs it and serves the file asked
+	 * for. The visitor has passed the security checks, and a public project is
+	 * served to a visitor with no session, so this runs as a platform operation.
+	 *
+	 * @param projectId        the project whose portal is asked for
+	 * @param fullUrl          the full url of the request
+	 * @param realPath         the folder the web application is deployed in
+	 * @param publicHomeFolder the name of the public home folder
+	 * @param context          the servlet context
+	 * @param request          the request
+	 * @param response         the response
+	 * @param arg2             the filter chain
+	 * @throws IOException      when the file cannot be written to the response
+	 * @throws ServletException when serving the file fails
+	 */
+	private void publishAndServe(String projectId, String fullUrl, String realPath, String publicHomeFolder,
+			ServletContext context, HttpServletRequest request, HttpServletResponse response, FilterChain arg2)
+			throws IOException, ServletException {
 		// Load project
 		IProject project = Utility.getProject(projectId);
 		if (project == null) {

@@ -135,7 +135,7 @@ public class CodeAssistantFilter implements Filter {
 		if (user != null) {
 			SecurityUserAccessKeyUtils.updateAccessTokenLastUsed(accessKey);
 			HttpSession session = request.getSession(true);
-			session.setAttribute(Constants.SESSION_USER, user);
+			WebUtility.setSessionUser(session, user);
 			session.setAttribute(Constants.SESSION_USER_ID_LOG, user.getPrimaryLoginToken().getId());
 			WebUtility.loggingContextLoginEvent(session);
 

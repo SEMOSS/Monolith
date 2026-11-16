@@ -52,6 +52,7 @@ import prerna.auth.User;
 import prerna.engine.impl.model.RoomUtils;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
+import prerna.om.ThreadStore;
 import prerna.reactor.agent.ClaudeCodeTranscriptParser;
 import prerna.sablecc2.PixelRunner;
 import prerna.sablecc2.PixelStreamUtility;
@@ -104,6 +105,7 @@ public class InsightWebsocket {
 		}
 		session.getUserProperties().put(Constants.SESSION_USER, user);
 		session.getUserProperties().put(INSIGHT_ID, insightId);
+		session.getUserProperties().put(WSConfigurator.HTTP_SESSION_ID, httpSessionId);
 
 		SocketSessionHandlerFactory.getHandler(insightId).addSession(session);
 	}
@@ -131,26 +133,42 @@ public class InsightWebsocket {
 		classLogger.error("WebSocket error for session {}", session.getId(), error);
 	}
 
+	/**
+	 * Handles one message on the socket. The container's thread carries only this
+	 * socket's user, HTTP session and insight while the message runs, and nothing
+	 * from what it served before or after.
+	 *
+	 * @param message the message, as JSON
+	 * @param session the socket
+	 */
 	@OnMessage
 	public void handleMessage(String message, Session session) {
 		if (session.getUserProperties().get(INSIGHT_ID) == null) {
 			sendError(session, "Socket is not bound to an insight");
 			return;
 		}
-		JSONObject json = new JSONObject(message);
-		String action = json.optString("action", "pixel");
+		ThreadStore.remove();
+		try {
+			ThreadStore.setUser((User) session.getUserProperties().get(Constants.SESSION_USER));
+			ThreadStore.setSessionId((String) session.getUserProperties().get(WSConfigurator.HTTP_SESSION_ID));
+			ThreadStore.setInsightId((String) session.getUserProperties().get(INSIGHT_ID));
+			JSONObject json = new JSONObject(message);
+			String action = json.optString("action", "pixel");
 
-		switch (action) {
-		case "watch":
-			handleWatch(json, session);
-			break;
-		case "unwatch":
-			handleUnwatch(json, session);
-			break;
-		case "pixel":
-		default:
-			handlePixel(json, session);
-			break;
+			switch (action) {
+			case "watch":
+				handleWatch(json, session);
+				break;
+			case "unwatch":
+				handleUnwatch(json, session);
+				break;
+			case "pixel":
+			default:
+				handlePixel(json, session);
+				break;
+			}
+		} finally {
+			ThreadStore.remove();
 		}
 	}
 

@@ -559,6 +559,122 @@ class EngineAuthorizationResourceTest {
 		return struct == null ? null : struct.getAllValues();
 	}
 
+	@Test
+	void listsTheAppsAnEngineGivesAPermissionTo() throws Exception {
+		User user = signedIn("alice");
+		try (Statics statics = new Statics()) {
+			statics.engine.when(() -> SecurityEngineUtils.getEngineProjectPermissions(user, "e1"))
+					.thenReturn(List.of(Map.of("subject", Map.of("id", "app1"))));
+
+			Response response = resource.getEngineProjectPermissions(requestFor(user), "e1");
+
+			assertEquals(200, response.getStatus());
+			assertEquals(List.of(Map.of("subject", Map.of("id", "app1"))), body(response));
+		}
+	}
+
+	@Test
+	void refusesListingTheAppsToSomeoneWhoCannotEditTheEngine() throws Exception {
+		User user = signedIn("mallory");
+		try (Statics statics = new Statics()) {
+			statics.engine.when(() -> SecurityEngineUtils.getEngineProjectPermissions(user, "e1"))
+					.thenThrow(new IllegalAccessException("Only this engine's editors and owners can see which apps can use it"));
+
+			Response response = resource.getEngineProjectPermissions(requestFor(user), "e1");
+
+			assertEquals(403, response.getStatus());
+			assertEquals("Only this engine's editors and owners can see which apps can use it", errorOf(response));
+		}
+	}
+
+	@Test
+	void givesAnAppAPermissionOnAnEngineAndKeepsItsLimitWhenNoLimitIsSent() throws Exception {
+		User user = signedIn("alice");
+		try (Statics statics = new Statics()) {
+			Response response = resource.setEngineProjectPermission(requestFor(user),
+					form("engineId", "e1", "projectId", "app1", "permission", " edit "));
+
+			assertEquals(200, response.getStatus());
+			assertEquals(Map.of("success", true), body(response));
+			statics.engine
+					.verify(() -> SecurityEngineUtils.setEngineProjectPermission(user, "app1", "e1", "EDIT", null));
+			statics.limits.verifyNoInteractions();
+		}
+	}
+
+	@Test
+	void givesAnAppAPermissionWithItsAppLimitWhenALimitIsSent() throws Exception {
+		User user = signedIn("alice");
+		ModelUsageLimit limit = new ModelUsageLimit();
+		try (Statics statics = new Statics()) {
+			statics.limits.when(() -> SecurityModelUsageLimitUtils.readJson("{}")).thenReturn(limit);
+
+			Response response = resource.setEngineProjectPermission(requestFor(user), form("engineId", "e1",
+					"projectId", "app1", "permission", "READ_ONLY", "endDate", "2027-01-01T00:00:00Z", "usageLimit",
+					"{}"));
+
+			assertEquals(200, response.getStatus());
+			statics.engine.verify(() -> SecurityEngineUtils.setEngineProjectPermission(user, "app1", "e1",
+					"READ_ONLY", "2027-01-01T00:00:00Z", limit));
+		}
+	}
+
+	@Test
+	void refusesSomeoneWhoIsNotAnOwnerGivingAnAppAPermissionWith403() throws Exception {
+		User user = signedIn("mallory");
+		try (Statics statics = new Statics()) {
+			statics.engine
+					.when(() -> SecurityEngineUtils.setEngineProjectPermission(user, "app1", "e1", "EDIT", null))
+					.thenThrow(new IllegalAccessException("Only this engine's owners can change which apps can use it."));
+
+			Response response = resource.setEngineProjectPermission(requestFor(user),
+					form("engineId", "e1", "projectId", "app1", "permission", "EDIT"));
+
+			assertEquals(403, response.getStatus());
+			assertEquals("Only this engine's owners can change which apps can use it.", errorOf(response));
+		}
+	}
+
+	@Test
+	void refusesALevelThatIsNotOneForAnAppPermissionWith400() throws Exception {
+		User user = signedIn("alice");
+		try (Statics statics = new Statics()) {
+			Response response = resource.setEngineProjectPermission(requestFor(user),
+					form("engineId", "e1", "projectId", "app1", "permission", "OWNR"));
+
+			assertEquals(400, response.getStatus());
+			statics.engine.verifyNoInteractions();
+		}
+	}
+
+	@Test
+	void takesAwayTheAccessOfAnAppToAnEngine() throws Exception {
+		User user = signedIn("alice");
+		try (Statics statics = new Statics()) {
+			Response response = resource.removeEngineProjectPermission(requestFor(user),
+					form("engineId", "e1", "projectId", "app1"));
+
+			assertEquals(200, response.getStatus());
+			assertEquals(Map.of("success", true), body(response));
+			statics.engine.verify(() -> SecurityEngineUtils.removeEngineProjectPermission(user, "app1", "e1"));
+		}
+	}
+
+	@Test
+	void answersAnAppPermissionThatIsNotThereWith400AndItsMessage() throws Exception {
+		User user = signedIn("alice");
+		try (Statics statics = new Statics()) {
+			statics.engine.when(() -> SecurityEngineUtils.removeEngineProjectPermission(user, "app1", "e1"))
+					.thenThrow(new IllegalArgumentException("This app does not currently have access to the engine."));
+
+			Response response = resource.removeEngineProjectPermission(requestFor(user),
+					form("engineId", "e1", "projectId", "app1"));
+
+			assertEquals(400, response.getStatus());
+			assertEquals("This app does not currently have access to the engine.", errorOf(response));
+		}
+	}
+
 	private static MultivaluedMap<String, String> form(String... pairs) {
 		MultivaluedMap<String, String> form = new MultivaluedHashMap<>();
 		for (int i = 0; i < pairs.length; i += 2) {

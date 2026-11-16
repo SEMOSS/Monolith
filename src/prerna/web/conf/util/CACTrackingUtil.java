@@ -39,6 +39,7 @@ import org.apache.logging.log4j.Logger;
 
 import prerna.engine.api.IDatabaseEngine;
 import prerna.engine.api.IRawSelectWrapper;
+import prerna.engine.impl.pipeline.PlatformOperation;
 import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.util.Utility;
 
@@ -62,12 +63,14 @@ public class CACTrackingUtil {
 
 	public static CACTrackingUtil getInstance(String trackingEngineId) {
 		if (!singletonStore.containsKey(trackingEngineId)) {
-			IDatabaseEngine engine = Utility.getDatabase(trackingEngineId);
-			if (engine == null) {
-				throw new IllegalArgumentException("Could not find tracking engine");
+			try (PlatformOperation operation = PlatformOperation.begin(CountUpdater.LOGIN_COUNT_OPERATION)) {
+				IDatabaseEngine engine = Utility.getDatabase(trackingEngineId);
+				if (engine == null) {
+					throw new IllegalArgumentException("Could not find tracking engine");
+				}
+				CACTrackingUtil trackingUtil = new CACTrackingUtil(engine);
+				singletonStore.put(trackingEngineId, trackingUtil);
 			}
-			CACTrackingUtil trackingUtil = new CACTrackingUtil(engine);
-			singletonStore.put(trackingEngineId, trackingUtil);
 		}
 		return singletonStore.get(trackingEngineId);
 	}
@@ -81,6 +84,8 @@ public class CACTrackingUtil {
 class CountUpdater implements Runnable {
 
 	private static final Logger classLogger = LogManager.getLogger(CountUpdater.class);
+
+	static final String LOGIN_COUNT_OPERATION = "login count";
 
 	private static final String TABLE = "DAILY_USER_COUNT";
 	private static final String COUNT_COL = "USER_COUNT";
@@ -134,41 +139,46 @@ class CountUpdater implements Runnable {
 		try {
 			LocalDate localDate = null;
 			while ((localDate = queue.take()) != null) {
-				String todaysDate = java.sql.Date.valueOf(localDate).toString();
-
-				if (!lastDateExists.equals(todaysDate)) {
-					// we will insert for the first one of the day
-					String insertQuery = "INSERT INTO " + TABLE + "(" + COUNT_COL + ", " + DATE_COL + ") "
-							+ "VALUES (1,'" + todaysDate + "')";
-					try {
-						engine.insertData(insertQuery);
-					} catch (Exception e) {
-						classLogger.error("Failed to insert the new daily user count record for date {}", todaysDate,
-								e);
-					}
-
-					// and we will set the query up for the rest of the
-					// updates that happen today
-
-					this.lastDateExists = todaysDate;
-					// we need to update our query + lastDateExists
-					this.updateQuery = "UPDATE " + TABLE + " SET " + COUNT_COL + " = " + COUNT_COL + " + 1 " + "WHERE "
-							+ DATE_COL + "='" + lastDateExists + "'";
-				} else {
-					try {
-						engine.insertData(this.updateQuery);
-					} catch (Exception e) {
-
-						classLogger.error("Failed to increment the daily user count for date {}", lastDateExists, e);
-					}
+				try (PlatformOperation operation = PlatformOperation.begin(LOGIN_COUNT_OPERATION)) {
+					count(localDate);
 				}
-
-				engine.commit();
 			}
 		} catch (InterruptedException e) {
 			classLogger.error("The user count updater thread was interrupted while waiting for new dates to process",
 					e);
 		}
+	}
+
+	/**
+	 * Counts one login on its day in the tracking database, which the platform
+	 * keeps for itself, so it runs inside a platform operation.
+	 *
+	 * @param localDate the day of the login
+	 */
+	private void count(LocalDate localDate) {
+		String todaysDate = java.sql.Date.valueOf(localDate).toString();
+
+		if (!lastDateExists.equals(todaysDate)) {
+			String insertQuery = "INSERT INTO " + TABLE + "(" + COUNT_COL + ", " + DATE_COL + ") " + "VALUES (1,'"
+					+ todaysDate + "')";
+			try {
+				engine.insertData(insertQuery);
+			} catch (Exception e) {
+				classLogger.error("Failed to insert the new daily user count record for date {}", todaysDate, e);
+			}
+
+			this.lastDateExists = todaysDate;
+			this.updateQuery = "UPDATE " + TABLE + " SET " + COUNT_COL + " = " + COUNT_COL + " + 1 " + "WHERE "
+					+ DATE_COL + "='" + lastDateExists + "'";
+		} else {
+			try {
+				engine.insertData(this.updateQuery);
+			} catch (Exception e) {
+				classLogger.error("Failed to increment the daily user count for date {}", lastDateExists, e);
+			}
+		}
+
+		engine.commit();
 	}
 
 }

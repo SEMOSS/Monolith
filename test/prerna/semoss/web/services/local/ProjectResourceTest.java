@@ -303,12 +303,14 @@ class ProjectResourceTest {
 	}
 
 	@Test
-	void rejectsAnAdminSmssUpdateOfAMissingProject() throws IOException {
+	void rejectsAnSmssUpdateFromAnAdminWhoDoesNotOwnTheProject() throws IOException {
 		try (Statics s = new Statics()) {
 			s.admin.when(() -> SecurityAdminUtils.userIsAdmin(this.user)).thenReturn(true);
+			s.projects.when(() -> SecurityProjectUtils.projectExists("p1")).thenReturn(true);
 
 			assertBody(new ProjectResource().updateSmssFile(smssRequest(CURRENT_SMSS), "p1"), 401,
-					"Project p1 does not exist.");
+					"User must be the owner to perform this function.");
+			s.utility.verify(() -> Utility.getProject(anyString()), never());
 		}
 	}
 

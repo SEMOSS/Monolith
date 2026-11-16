@@ -36,6 +36,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -46,9 +47,15 @@ import jakarta.servlet.http.HttpSession;
 import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
+import prerna.om.ThreadStore;
 import prerna.util.Constants;
 
 class TestFilterTest {
+
+	@AfterEach
+	void clearTheThread() {
+		ThreadStore.remove();
+	}
 
 	@Test
 	void signsEveryNewSessionInAsTheFixedCacAdmin() throws Exception {
