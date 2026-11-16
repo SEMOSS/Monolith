@@ -150,6 +150,29 @@
       <url-pattern>/*</url-pattern>
    </filter-mapping>
 
+   <!-- CAC/PIV REQUIRED - when CAC_PIV_REQUIRED is on (the IL4 default, see
+        docker/il4/conf/setenv.sh), a request that presented no validated client
+        certificate never reaches the login page or any endpoint: a browser
+        navigation is redirected to /cacRequired/ (which links back to the site so
+        the user can try again once the card is in the reader) and anything else
+        gets a 403. The HTTPS connector must request the certificate
+        (clientAuth="want") against a CAC trust store - this filter only checks that
+        the connector produced a validated chain. No-op unless the cac.piv.required
+        system property is true. exemptLoopback lets this host's own callbacks
+        (peer address only, never X-Forwarded-For) through without a certificate. -->
+   <filter>
+      <filter-name>CACRequiredFilter</filter-name>
+      <filter-class>prerna.web.conf.CACRequiredFilter</filter-class>
+      <init-param>
+         <param-name>exemptLoopback</param-name>
+         <param-value>true</param-value>
+      </init-param>
+   </filter>
+   <filter-mapping>
+      <filter-name>CACRequiredFilter</filter-name>
+      <url-pattern>/*</url-pattern>
+   </filter-mapping>
+
    <!-- CAC/PIV FILTERS - establish the session user from a client certificate the
         TLS connector validated (clientAuth="want"/"true" in server.xml), before
         any filter below that cares whether a user is present. A request with no
