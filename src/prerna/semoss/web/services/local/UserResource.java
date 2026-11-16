@@ -222,7 +222,7 @@ public class UserResource {
 			if (thisUser.getLogins().isEmpty()) {
 				noUser = true;
 			} else {
-				request.getSession().setAttribute(Constants.SESSION_USER, thisUser);
+				WebUtility.setSessionUser(request.getSession(), thisUser);
 				Thread.ofVirtual().start(new SyncUserAssetsThread(assetEngineId));
 				// put the new map for the user space
 				session.setAttribute(Constants.USER_ASSET_IDS, thisUser.getAssetEngineMap());
@@ -328,7 +328,7 @@ public class UserResource {
 
 		semossUser.setAccessToken(token);
 
-		session.setAttribute(Constants.SESSION_USER, semossUser);
+		WebUtility.setSessionUser(session, semossUser);
 		WebUtility.loggingContextLoginEvent(session);
 
 		UserResource.userTrackingLogin(request, semossUser, token.getProvider());

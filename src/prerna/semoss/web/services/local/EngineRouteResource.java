@@ -63,7 +63,6 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Request;
 import jakarta.ws.rs.core.Response;
 import prerna.auth.User;
-import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityEngineUtils;
 import prerna.cluster.util.ClusterUtil;
 import prerna.engine.api.IEngine;
@@ -200,9 +199,9 @@ public class EngineRouteResource {
 	@Path("/updateSmssFile")
 	@Produces("application/json;charset=utf-8")
 	public Response updateSmssFile(@Context HttpServletRequest request, @PathParam("engineId") String engineId) {
-		// not required for containment. engineExists/userIsOwner below resolve engineId
-		// against the ENGINE table on both the admin and non-admin branch, so a
-		// traversal value is rejected before it reaches the smss file path
+		// not required for containment. userIsOwner below resolves engineId against
+		// the ENGINE table, so a traversal value is rejected before it reaches the
+		// smss file path
 		engineId = WebUtility.safePathSegment(WebUtility.inputSanitizer(engineId));
 		if (!WebUtility.isSafePathSegment(engineId)) {
 			Map<String, String> errorMap = new HashMap<>();
@@ -218,35 +217,45 @@ public class EngineRouteResource {
 			errorMap.put("error", "User session is invalid");
 			return WebUtility.getResponse(errorMap, 401);
 		}
-		try {
-			boolean isAdmin = SecurityAdminUtils.userIsAdmin(user);
-			if (isAdmin) {
-				if (!SecurityEngineUtils.engineExists(engineId)) {
-					throw new IllegalAccessException("Engine " + engineId + " does not exist.");
-				}
-			} else {
-				if (!SecurityEngineUtils.userIsOwner(user, engineId)) {
-					throw new IllegalAccessException("Engine " + engineId
-							+ " does not exist or user does not have permissions to update the smss. User must be the owner to perform this function.");
-				}
-			}
-		} catch (IllegalAccessException e) {
+		if (!SecurityEngineUtils.userIsOwner(user, engineId)) {
 			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put("error", e.getMessage());
+			errorMap.put("error", "Engine " + engineId
+					+ " does not exist or user does not have permissions to update the smss. "
+					+ "User must be the owner to perform this function.");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
+		try {
+			return WebUtility.getResponse(saveSmssFile(user, engineId, request.getParameter("smss")), 200);
+		} catch (IllegalArgumentException e) {
+			return ResourceUtility.errorResponse(e.getMessage(), 400);
+		}
+	}
+
+	/**
+	 * Saves new smss content for an engine and opens the engine again with it. The
+	 * engine's id, name and type stay as they are, and the hidden values the new
+	 * content left untouched are kept. With a secret store the values go there;
+	 * otherwise the smss file is written, and put back as it was when the engine
+	 * does not open with the new content. The caller has checked that the user may
+	 * update the engine: its owner, or an admin through the admin endpoint.
+	 *
+	 * @param user           the user saving the smss, for the notification
+	 * @param engineId       the engine
+	 * @param newSmssContent the new content of the smss file
+	 * @return the response body, which says the save went through
+	 * @throws IllegalArgumentException when the content cannot be saved, with the
+	 *                                  reason
+	 */
+	public static Map<String, Object> saveSmssFile(User user, String engineId, String newSmssContent) {
 		IEngine engine = Utility.getEngine(engineId);
 		String currentSmssFileLocation = engine.getSmssFilePath();
 		File currentSmssFile = new File(currentSmssFileLocation);
 		if (!currentSmssFile.exists() || !currentSmssFile.isFile()) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Could not find current engie smss file");
-			return WebUtility.getResponse(errorMap, 400);
+			throw new IllegalArgumentException("Could not find current engie smss file");
 		}
 
 		Properties currentSmssProperties = engine.getSmssProp();
-		String newSmssContent = request.getParameter("smss");
 
 		// validate the new SMSS
 		// that the user is not doing something they cannot do
@@ -256,9 +265,7 @@ public class EngineRouteResource {
 			if (!newProp.get(Constants.ENGINE).equals(currentSmssProperties.get(Constants.ENGINE))
 					|| !newProp.get(Constants.ENGINE_ALIAS).equals(currentSmssProperties.get(Constants.ENGINE_ALIAS))
 					|| !newProp.get(Constants.ENGINE_TYPE).equals(currentSmssProperties.get(Constants.ENGINE_TYPE))) {
-				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, "The engine id, engine name, and engine type cannot be changed");
-				return WebUtility.getResponse(errorMap, 400);
+				throw new IllegalArgumentException("The engine id, engine name, and engine type cannot be changed");
 			}
 		}
 
@@ -279,10 +286,8 @@ public class EngineRouteResource {
 
 			} catch (Exception e) {
 				classLogger.error("An error occurred saving the engine details in the secret store", e);
-				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE,
+				throw new IllegalArgumentException(
 						"An error occurred initializing the new engine details. Detailed message = " + e.getMessage());
-				return WebUtility.getResponse(errorMap, 400);
 			}
 
 			try {
@@ -291,11 +296,9 @@ public class EngineRouteResource {
 			} catch (Exception e) {
 				classLogger.error("Failed to reopen engine '{}' after writing updated secrets to the secret store",
 						engineId, e);
-				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE,
+				throw new IllegalArgumentException(
 						"An error occurred re-connecting to the engine with the new credentials. Detailed message = "
 								+ e.getMessage());
-				return WebUtility.getResponse(errorMap, 400);
 			}
 
 			// the smss file is unchanged and the new values live in the secret store, so
@@ -304,7 +307,7 @@ public class EngineRouteResource {
 
 			Map<String, Object> success = new HashMap<>();
 			success.put("success", true);
-			return WebUtility.getResponse(success, 200);
+			return success;
 		}
 
 		// using the current smss properties
@@ -318,20 +321,16 @@ public class EngineRouteResource {
 		try {
 			currentSmssContent = new String(Files.readAllBytes(Paths.get(currentSmssFile.toURI())));
 		} catch (IOException e) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE,
+			throw new IllegalArgumentException(
 					"An error occurred reading the current engine smss details. Detailed message = " + e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		try {
 			engine.close();
 		} catch (Exception e) {
 			classLogger.error("Failed to close engine '{}' before overwriting its smss file", engineId, e);
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE,
+			throw new IllegalArgumentException(
 					"An error occurred closing the engine. Detailed message = " + e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
 		}
 		try {
 			try (FileWriter fw = new FileWriter(currentSmssFile, false)) {
@@ -357,16 +356,12 @@ public class EngineRouteResource {
 				classLogger.error(
 						"Failed to restore previous smss for engine '{}' during rollback - engine is left in an unrecoverable state",
 						engineId, e2);
-				Map<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE,
-						"A fatal error occurred and could not revert the engine to an operational state. Detailed message = "
-								+ e2.getMessage());
-				return WebUtility.getResponse(errorMap, 400);
+				throw new IllegalArgumentException(
+						"A fatal error occurred and could not revert the engine to an operational state. "
+								+ "Detailed message = " + e2.getMessage());
 			}
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE,
+			throw new IllegalArgumentException(
 					"An error occurred initializing the new engine details. Detailed message = " + e.getMessage());
-			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		// push to cloud
@@ -384,7 +379,7 @@ public class EngineRouteResource {
 
 		Map<String, Object> success = new HashMap<>();
 		success.put("success", true);
-		return WebUtility.getResponse(success, 200);
+		return success;
 	}
 
 	/*

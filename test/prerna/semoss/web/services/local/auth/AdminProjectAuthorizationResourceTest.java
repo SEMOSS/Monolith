@@ -69,6 +69,7 @@ import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityAdminUtils;
+import prerna.auth.utils.SecurityProjectUtils;
 import prerna.auth.utils.reactors.admin.AdminMyProjectsReactor;
 import prerna.graph.utility.MsGraphUtility;
 import prerna.io.connector.ms.MicrosoftGraphUserLookup;
@@ -76,6 +77,7 @@ import prerna.sablecc2.om.NounStore;
 import prerna.sablecc2.om.PixelDataType;
 import prerna.sablecc2.om.ReactorKeysEnum;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
+import prerna.semoss.web.services.local.ProjectResource;
 import prerna.util.Constants;
 
 class AdminProjectAuthorizationResourceTest {
@@ -267,6 +269,8 @@ class AdminProjectAuthorizationResourceTest {
 						(r, q) -> r.setProjectTemplate(q, form("projectId", "p1", "template", "true"))),
 				endpoint("setProjectGlobal", (r, q) -> r.setProjectGlobal(q, form("projectId", "p1"))),
 				endpoint("setProjectDiscoverable", (r, q) -> r.setProjectDiscoverable(q, form("projectId", "p1"))),
+				endpoint("updateSmssFile",
+						(r, q) -> r.updateSmssFile(q, form("projectId", "p1", "smss", "PROJECT\tp1"))),
 				endpoint("getProjectUsersNoCredentials",
 						(r, q) -> r.getProjectUsersNoCredentials(q, "p1", null, 0, 0, null)),
 				endpoint("approveProjectUserAccessRequest",
@@ -697,6 +701,59 @@ class AdminProjectAuthorizationResourceTest {
 
 			assertSuccess(response);
 			verify(f.utils).removeProjectUsers(List.of("u1", "u2"), "p1");
+		}
+	}
+
+	@Test
+	void savesTheSmssOfAnyProjectForAnAdmin() throws Exception {
+		try (Fixture f = Fixture.asAdmin();
+				MockedStatic<SecurityProjectUtils> projects = Mockito.mockStatic(SecurityProjectUtils.class);
+				MockedStatic<ProjectResource> saves = Mockito.mockStatic(ProjectResource.class)) {
+			projects.when(() -> SecurityProjectUtils.projectExists("p1")).thenReturn(true);
+			saves.when(() -> ProjectResource.saveSmssFile(f.user, "p1", "PROJECT\tp1"))
+					.thenReturn(Map.of("success", true));
+
+			Response response = new AdminProjectAuthorizationResource().updateSmssFile(f.request,
+					form("projectId", "p1", "smss", "PROJECT\tp1"));
+
+			assertSuccess(response);
+		}
+	}
+
+	@Test
+	void refusesToSaveTheSmssOfAProjectThatDoesNotExistNamingTheIdSent() throws Exception {
+		try (Fixture f = Fixture.asAdmin();
+				MockedStatic<SecurityProjectUtils> projects = Mockito.mockStatic(SecurityProjectUtils.class);
+				MockedStatic<ProjectResource> saves = Mockito.mockStatic(ProjectResource.class)) {
+			projects.when(() -> SecurityProjectUtils.projectExists("p1")).thenReturn(false);
+
+			Response missing = new AdminProjectAuthorizationResource().updateSmssFile(f.request,
+					form("projectId", "p1", "smss", "PROJECT\tp1"));
+			Response unsafe = new AdminProjectAuthorizationResource().updateSmssFile(f.request,
+					form("projectId", "..", "smss", "PROJECT\tp1"));
+
+			assertEquals(400, missing.getStatus());
+			assertEquals("Project p1 does not exist", errorMessage(missing));
+			assertEquals(400, unsafe.getStatus());
+			assertEquals("Project .. does not exist", errorMessage(unsafe));
+			saves.verifyNoInteractions();
+		}
+	}
+
+	@Test
+	void answersAProjectSmssThatCannotBeSavedWith400AndItsReason() throws Exception {
+		try (Fixture f = Fixture.asAdmin();
+				MockedStatic<SecurityProjectUtils> projects = Mockito.mockStatic(SecurityProjectUtils.class);
+				MockedStatic<ProjectResource> saves = Mockito.mockStatic(ProjectResource.class)) {
+			projects.when(() -> SecurityProjectUtils.projectExists("p1")).thenReturn(true);
+			saves.when(() -> ProjectResource.saveSmssFile(f.user, "p1", "PROJECT\tother"))
+					.thenThrow(new IllegalArgumentException("The project id and project name cannot be changed"));
+
+			Response response = new AdminProjectAuthorizationResource().updateSmssFile(f.request,
+					form("projectId", "p1", "smss", "PROJECT\tother"));
+
+			assertEquals(400, response.getStatus());
+			assertEquals("The project id and project name cannot be changed", errorMessage(response));
 		}
 	}
 }

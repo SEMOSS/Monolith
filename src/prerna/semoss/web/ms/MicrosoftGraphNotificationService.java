@@ -238,7 +238,8 @@ public class MicrosoftGraphNotificationService {
 			return;
 		}
 		if (isMail && BrainMailWebhook.isMailResource(subscription.getResource())) {
-			// Collaboration's own subscription: the message goes into the owner's Brain, where their chats see it
+			// Collaboration's own subscription: the message goes into the owner's Brain,
+			// where their chats see it
 			BrainMailWebhook.onMail(subscription, changeType, resourceId);
 			return;
 		}

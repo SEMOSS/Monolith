@@ -47,6 +47,7 @@ import jakarta.ws.rs.core.Response;
 import prerna.auth.AccessPermissionEnum;
 import prerna.auth.AccessToken;
 import prerna.auth.utils.SecurityAdminUtils;
+import prerna.auth.utils.SecurityProjectUtils;
 import prerna.auth.utils.reactors.admin.AdminMyProjectsReactor;
 import prerna.graph.utility.MsGraphUtility;
 import prerna.io.connector.ms.MicrosoftGraphUserLookup;
@@ -55,6 +56,7 @@ import prerna.sablecc2.om.GenRowStruct;
 import prerna.sablecc2.om.PixelDataType;
 import prerna.sablecc2.om.ReactorKeysEnum;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
+import prerna.semoss.web.services.local.ProjectResource;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.web.services.util.WebUtility;
 
@@ -299,6 +301,32 @@ public class AdminProjectAuthorizationResource {
 		return ResourceUtility.respondAsAdmin(request, "list the projects user " + id + " does not have access to",
 				SecurityAdminUtils::getInstance,
 				(user, adminUtils) -> adminUtils.getUserProjectsNoCredentials(id, types, term, limit, offset));
+	}
+
+	/**
+	 * Saves new smss content for any project, in admin mode, and opens the project
+	 * again with it. The owner's endpoint is
+	 * {@code /project-<projectId>/updateSmssFile}.
+	 *
+	 * @param request the request, whose session holds the admin
+	 * @param form    {@code projectId} and {@code smss}, the new content of the
+	 *                file
+	 * @return 200 when the content is saved, 400 with the reason when it cannot
+	 *         be, and 403 for a user who is not an admin
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("updateSmssFile")
+	public Response updateSmssFile(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		String requestedId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String projectId = WebUtility.safePathSegment(requestedId);
+		String smss = form.getFirst("smss");
+		return ResourceUtility.respondAsAdmin(request, "update the smss of project " + requestedId, user -> {
+			if (projectId == null || !SecurityProjectUtils.projectExists(projectId)) {
+				throw new IllegalArgumentException("Project " + requestedId + " does not exist");
+			}
+			return ProjectResource.saveSmssFile(user, projectId, smss);
+		});
 	}
 
 	@POST

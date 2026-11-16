@@ -30,6 +30,7 @@ package prerna.web.services.util;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -87,6 +88,37 @@ class WebUtilityTest {
 	void clearThreadState() {
 		ThreadContext.clearMap();
 		ThreadStore.remove();
+	}
+
+	@Test
+	void setSessionUserSignsTheSessionAndTheThreadIn() {
+		HttpSession session = mock(HttpSession.class);
+		User user = new User();
+
+		WebUtility.setSessionUser(session, user);
+
+		verify(session).setAttribute(Constants.SESSION_USER, user);
+		assertSame(user, ThreadStore.getUser());
+	}
+
+	@Test
+	void theLoggingContextGivesTheThreadTheSessionsUserAndNoneWithoutASession() {
+		AccessToken token = new AccessToken();
+		token.setProvider(AuthProvider.NATIVE);
+		token.setId("jdoe");
+		User user = new User();
+		user.setAccessToken(token);
+		HttpSession session = mock(HttpSession.class);
+		when(session.getAttribute(Constants.SESSION_USER)).thenReturn(user);
+		HttpServletRequest signedIn = mock(HttpServletRequest.class);
+		when(signedIn.getSession(false)).thenReturn(session);
+		HttpServletRequest anonymous = mock(HttpServletRequest.class);
+
+		WebUtility.loggingContext(signedIn);
+		assertSame(user, ThreadStore.getUser());
+
+		WebUtility.loggingContext(anonymous);
+		assertNull(ThreadStore.getUser());
 	}
 
 	/**

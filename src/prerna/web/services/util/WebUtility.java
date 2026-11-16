@@ -908,8 +908,10 @@ public final class WebUtility {
 	 * Populate the SLF4J/Log4j {@link ThreadContext} (MDC) with per-request fields
 	 * used by the structured logger: a fresh request id, client ip,
 	 * service/method/endpoint, host, and login event fields. Also stores local
-	 * hostname/port/protocol on {@link ThreadStore}. Should be called at the start
-	 * of every servlet/filter that wants request-scoped log fields.
+	 * hostname/port/protocol on {@link ThreadStore}, and the session's user, or
+	 * none when the request has no signed in user, so the thread never keeps the
+	 * user of the request it served before. Should be called at the start of every
+	 * servlet/filter that wants request-scoped log fields.
 	 *
 	 * @param servletRequest the incoming request to derive context from
 	 */
@@ -929,12 +931,28 @@ public final class WebUtility {
 			ThreadContext.put(SemossLogUtils.USER_AGENT,
 					userAgent.length() > 1000 ? userAgent.substring(0, 1000) : userAgent);
 		}
-		loggingContextLoginEvent(request.getSession(false));
+		HttpSession session = request.getSession(false);
+		loggingContextLoginEvent(session);
+		ThreadStore.setUser(session == null ? null : (User) session.getAttribute(Constants.SESSION_USER));
 
 		// also store local values
 		ThreadStore.setLocalHostname(getLocalHostname(request));
 		ThreadStore.setLocalPort(getLocalPort(request));
 		ThreadStore.setLocalProtocol(getLocalProtocol(request));
+	}
+
+	/**
+	 * Makes a user the signed in user of a session, and of the request thread
+	 * that signs them in. A filter that signs a request in after the request
+	 * started, with an access key or a token, uses it so the rest of that request
+	 * runs as the user.
+	 *
+	 * @param session the session being signed in
+	 * @param user    the user
+	 */
+	public static void setSessionUser(HttpSession session, User user) {
+		session.setAttribute(Constants.SESSION_USER, user);
+		ThreadStore.setUser(user);
 	}
 
 	/**

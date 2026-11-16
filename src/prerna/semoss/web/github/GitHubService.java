@@ -64,6 +64,7 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.Response;
 import prerna.auth.utils.SecurityExternalConnectorsUtils;
+import prerna.engine.impl.pipeline.PlatformOperation;
 import prerna.io.connector.github.GitHubAppClient;
 import prerna.io.connector.github.GitHubProjectSync;
 import prerna.semoss.web.app.GitHubApplication;
@@ -85,6 +86,8 @@ import prerna.web.services.util.WebUtility;
 public class GitHubService {
 
 	private static final Logger classLogger = LogManager.getLogger(GitHubService.class);
+
+	private static final String GITHUB_SYNC_OPERATION = "github sync";
 
 	// ---------------------------------------------------------------------
 	// Per-user authorization (scopes the picker to what each user can access)
@@ -841,7 +844,7 @@ public class GitHubService {
 		for (Map<String, Object> link : links) {
 			String projectId = (String) link.get("projectId");
 			SYNC_EXECUTOR.submit(() -> {
-				try {
+				try (PlatformOperation operation = PlatformOperation.begin(GITHUB_SYNC_OPERATION)) {
 					String result = GitHubProjectSync.syncProjectFromGitHub(projectId, branch);
 					classLogger.info("Sync complete for project {} after push to branch {}: {}", projectId, branch,
 							result);

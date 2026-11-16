@@ -41,6 +41,7 @@ import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.util.Constants;
+import prerna.web.services.util.WebUtility;
 
 public class TestFilter implements Filter {
 
@@ -70,7 +71,7 @@ public class TestFilter implements Filter {
 //			token.setId("54321");
 
 			semossUser.setAccessToken(token);
-			session.setAttribute(Constants.SESSION_USER, semossUser);
+			WebUtility.setSessionUser(session, semossUser);
 		}
 
 		arg2.doFilter(arg0, arg1);

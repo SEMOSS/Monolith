@@ -51,6 +51,7 @@ import prerna.ds.node.NodeUtils;
 import prerna.engine.api.IDatabaseEngine;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.IEngine.CATALOG_TYPE;
+import prerna.engine.impl.pipeline.PlatformOperation;
 import prerna.engine.impl.r.RserveUtil;
 import prerna.logging.SemossLogUtils;
 import prerna.masterdatabase.utility.MasterDatabaseUtility;
@@ -86,6 +87,8 @@ public class DBLoader implements ServletContextListener {
 
 	private static final Logger classLogger = LogManager.getLogger(DBLoader.class);
 	private static final String RDFMAP = "RDF-MAP";
+	private static final String START_UP_OPERATION = "start up";
+	private static final String SHUT_DOWN_OPERATION = "shut down";
 	private static String SESSION_ID_KEY = "JSESSIONID";
 	private static boolean useLogoutPage = false;
 	private static String customLogoutUrl = null;
@@ -112,6 +115,19 @@ public class DBLoader implements ServletContextListener {
 
 	@Override
 	public void contextInitialized(ServletContextEvent arg0) {
+		try (PlatformOperation operation = PlatformOperation.begin(START_UP_OPERATION)) {
+			startUp(arg0);
+		}
+	}
+
+	/**
+	 * Starts the application: loads the system databases and the settings, then
+	 * the engines and projects on disk. It runs as a platform operation, since it
+	 * is the platform's own work for no user.
+	 *
+	 * @param arg0 the event of the servlet context starting
+	 */
+	private void startUp(ServletContextEvent arg0) {
 		ThreadContext.put(SemossLogUtils.REQUEST_ID, GUID.v7().toUUID().toString());
 		ThreadContext.put(SemossLogUtils.USER_ID, "STARTUP");
 		ThreadContext.put(SemossLogUtils.USER_TYPE, "SYSTEM");
@@ -382,6 +398,17 @@ public class DBLoader implements ServletContextListener {
 
 	@Override
 	public void contextDestroyed(ServletContextEvent arg0) {
+		try (PlatformOperation operation = PlatformOperation.begin(SHUT_DOWN_OPERATION)) {
+			shutDown();
+		}
+	}
+
+	/**
+	 * Stops the application: drops the insights, stops the watchers and closes the
+	 * engines. It runs as a platform operation, since it is the platform's own
+	 * work for no user.
+	 */
+	private void shutDown() {
 		ThreadContext.put(SemossLogUtils.REQUEST_ID, GUID.v7().toUUID().toString());
 		ThreadContext.put(SemossLogUtils.USER_ID, "SHUTDOWN");
 		ThreadContext.put(SemossLogUtils.USER_TYPE, "SYSTEM");

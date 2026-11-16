@@ -327,13 +327,14 @@ class EngineRouteResourceTest {
 	}
 
 	@Test
-	void rejectsAnAdminSmssUpdateOfAMissingEngine() throws IOException {
+	void rejectsAnSmssUpdateFromAnAdminWhoDoesNotOwnTheEngine() throws IOException {
 		try (Statics s = new Statics()) {
 			s.admin.when(() -> SecurityAdminUtils.userIsAdmin(this.user)).thenReturn(true);
+			s.security.when(() -> SecurityEngineUtils.engineExists("db1")).thenReturn(true);
 
 			assertBody(new EngineRouteResource().updateSmssFile(smssRequest(CURRENT_SMSS), "db1"), 401,
-					"Engine db1 does not exist.");
-			s.security.verify(() -> SecurityEngineUtils.userIsOwner(any(), anyString()), never());
+					"User must be the owner to perform this function.");
+			s.utility.verify(() -> Utility.getEngine(anyString()), never());
 		}
 	}
 
@@ -394,8 +395,7 @@ class EngineRouteResourceTest {
 	@Test
 	void notifiesTheUserOfAnSmssUpdate() throws Exception {
 		try (Statics s = new Statics()) {
-			s.admin.when(() -> SecurityAdminUtils.userIsAdmin(this.user)).thenReturn(true);
-			s.security.when(() -> SecurityEngineUtils.engineExists("db1")).thenReturn(true);
+			s.security.when(() -> SecurityEngineUtils.userIsOwner(this.user, "db1")).thenReturn(true);
 			s.security.when(() -> SecurityEngineUtils.getEngineType("db1")).thenReturn(IEngine.CATALOG_TYPE.DATABASE);
 			IEngine engine = engineWithSmss(this.tempDir.resolve("db1.smss"));
 			s.utilityValues.put("getEngine", engine);
