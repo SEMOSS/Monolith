@@ -47,9 +47,11 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
+import prerna.auth.AccessPermissionEnum;
 import prerna.auth.AccessToken;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityAdminUtils;
+import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityModelUsageLimitUtils;
 import prerna.auth.utils.reactors.admin.AdminMyEnginesReactor;
 import prerna.graph.utility.MsGraphUtility;
@@ -59,6 +61,7 @@ import prerna.sablecc2.om.GenRowStruct;
 import prerna.sablecc2.om.PixelDataType;
 import prerna.sablecc2.om.ReactorKeysEnum;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
+import prerna.semoss.web.services.local.EngineRouteResource;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
 import prerna.web.services.util.WebUtility;
@@ -406,7 +409,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 
 		try {
-			adminUtils.grantAllEngines(userId, permission, isAddNew, engineTypes, user);
+			adminUtils.grantAllEngines(userId, AccessPermissionEnum.require(permission), isAddNew, engineTypes, user);
 		} catch (Exception e) {
 			classLogger.error("Failed to grant all engines.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -445,7 +448,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 
 		try {
-			adminUtils.grantNewUsersEngineAccess(engineId, permission, user, endDate);
+			adminUtils.grantNewUsersEngineAccess(engineId, AccessPermissionEnum.require(permission), user, endDate);
 		} catch (Exception e) {
 			classLogger.error("Failed to grant new users engine access.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -508,6 +511,115 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	}
 
 	/**
+	 * Lists the apps an engine gives a permission to, in admin mode. An app's
+	 * custom reactors use the permission in place of the signed in user's own.
+	 *
+	 * @param request  the request, whose session holds the admin
+	 * @param engineId the engine
+	 * @return one entry for each app, with its id and name, its level and end date
+	 *         and, on a model, its App Limit; 403 for a user who is not an admin
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("getEngineProjectPermissions")
+	public Response getEngineProjectPermissions(@Context HttpServletRequest request,
+			@QueryParam("engineId") String engineId) {
+		String id = WebUtility.inputSanitizer(engineId);
+		return ResourceUtility.respondAsAdmin(request, "list the apps engine " + id + " gives a permission to",
+				SecurityAdminUtils::getInstance, (user, adminUtils) -> adminUtils.getEngineProjectPermissions(id));
+	}
+
+	/**
+	 * Gives an app a permission on any engine, or changes the one it has, in admin
+	 * mode. On a model the App Limit is sent as {@code usageLimit} (JSON, empty for
+	 * no limit defined); without it the app keeps the limit it has.
+	 *
+	 * @param request the request, whose session holds the admin
+	 * @param form    {@code engineId}, {@code projectId}, {@code permission}
+	 *                (READ_ONLY or EDIT), and optionally {@code endDate} and
+	 *                {@code usageLimit}
+	 * @return 200 when the permission is saved, 400 with the reason when it cannot
+	 *         be, and 403 for a user who is not an admin
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("setEngineProjectPermission")
+	public Response setEngineProjectPermission(@Context HttpServletRequest request,
+			MultivaluedMap<String, String> form) {
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
+		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
+		boolean givesUsageLimit = form.containsKey(USAGE_LIMIT);
+		String usageLimit = form.getFirst(USAGE_LIMIT);
+		return ResourceUtility.respondAsAdmin(request,
+				"give app " + projectId + " " + permission + " access to engine " + engineId,
+				SecurityAdminUtils::getInstance, (user, adminUtils) -> {
+					String level = AccessPermissionEnum.require(permission);
+					if (givesUsageLimit) {
+						adminUtils.setEngineProjectPermission(projectId, engineId, level, user, endDate,
+								SecurityModelUsageLimitUtils.readJson(usageLimit));
+					} else {
+						adminUtils.setEngineProjectPermission(projectId, engineId, level, user, endDate);
+					}
+					Map<String, Object> ret = new HashMap<>();
+					ret.put("success", true);
+					return ret;
+				});
+	}
+
+	/**
+	 * Takes away the permission an engine gives an app, in admin mode. On a model
+	 * the app's App Limit goes with it.
+	 *
+	 * @param request the request, whose session holds the admin
+	 * @param form    {@code engineId} and {@code projectId}
+	 * @return 200 when the permission is taken away, 400 with the reason when it
+	 *         cannot be, and 403 for a user who is not an admin
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("removeEngineProjectPermission")
+	public Response removeEngineProjectPermission(@Context HttpServletRequest request,
+			MultivaluedMap<String, String> form) {
+		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		return ResourceUtility.respondAsAdmin(request,
+				"take away the access of app " + projectId + " to engine " + engineId,
+				SecurityAdminUtils::getInstance, (user, adminUtils) -> {
+					adminUtils.removeEngineProjectPermission(projectId, engineId, user);
+					Map<String, Object> ret = new HashMap<>();
+					ret.put("success", true);
+					return ret;
+				});
+	}
+
+	/**
+	 * Saves new smss content for any engine, in admin mode, and opens the engine
+	 * again with it. The owner's endpoint is
+	 * {@code /e-<engineId>/updateSmssFile}.
+	 *
+	 * @param request the request, whose session holds the admin
+	 * @param form    {@code engineId} and {@code smss}, the new content of the file
+	 * @return 200 when the content is saved, 400 with the reason when it cannot
+	 *         be, and 403 for a user who is not an admin
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("updateSmssFile")
+	public Response updateSmssFile(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		String requestedId = WebUtility.inputSanitizer(form.getFirst("engineId"));
+		String engineId = WebUtility.safePathSegment(requestedId);
+		String smss = form.getFirst("smss");
+		return ResourceUtility.respondAsAdmin(request, "update the smss of engine " + requestedId, user -> {
+			if (engineId == null || !SecurityEngineUtils.engineExists(engineId)) {
+				throw new IllegalArgumentException("Engine " + requestedId + " does not exist");
+			}
+			return EngineRouteResource.saveSmssFile(user, engineId, smss);
+		});
+	}
+
+	/**
 	 * Add a user to a engine. A model's usage limit is sent as {@code usageLimit}
 	 * (JSON, empty for no limit defined); without it the person gets no limit.
 	 *
@@ -539,7 +651,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		String endDate = null; // form.getFirst("endDate");
 
 		try {
-			adminUtils.addEngineUser(newUserId, engineId, permission, user, endDate,
+			adminUtils.addEngineUser(newUserId, engineId, AccessPermissionEnum.require(permission), user, endDate,
 					SecurityModelUsageLimitUtils.readJson(form.getFirst(USAGE_LIMIT)));
 		} catch (Exception e) {
 			classLogger.error("Failed to add engine user permission.", e);
@@ -583,6 +695,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		// adding user permissions in bulk
 		List<Map<String, Object>> permission = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
+			AccessPermissionEnum.requireEach(permission);
 			// users picked from the Microsoft directory may not be in the security db yet
 			if (MicrosoftGraphUserLookup.isEnabled()) {
 				MicrosoftGraphUserLookup.addMissingUsers(user, permission);
@@ -632,7 +745,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 
 		try {
-			adminUtils.addAllEngineUsers(engineId, permission, user, endDate);
+			adminUtils.addAllEngineUsers(engineId, AccessPermissionEnum.require(permission), user, endDate);
 		} catch (Exception e) {
 			classLogger.error("Failed to add all users.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -682,6 +795,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		String endDate = null; // form.getFirst("endDate");
 
 		try {
+			newPermission = AccessPermissionEnum.require(newPermission);
 			if (form.containsKey(USAGE_LIMIT)) {
 				adminUtils.editEngineUserPermission(existingUserId, engineId, newPermission, user, endDate,
 						SecurityModelUsageLimitUtils.readJson(form.getFirst(USAGE_LIMIT)));
@@ -733,7 +847,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 
 		List<Map<String, Object>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
-			adminUtils.editEngineUserPermissions(engineId, requests, user);
+			adminUtils.editEngineUserPermissions(engineId, AccessPermissionEnum.requireEach(requests), user);
 		} catch (Exception e) {
 			classLogger.error("Failed to update engine user permissions.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -778,7 +892,8 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		}
 
 		try {
-			adminUtils.updateEngineUserPermissions(engineId, newPermission, user, endDate);
+			String level = AccessPermissionEnum.require(newPermission);
+			adminUtils.updateEngineUserPermissions(engineId, level, user, endDate);
 		} catch (Exception e) {
 			classLogger.error("Failed to update engine user permissions.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -1060,6 +1175,7 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 			AccessToken token = user.getAccessToken(user.getPrimaryLogin());
 			String userId = token.getId();
 			String userType = token.getProvider().toString();
+			AccessPermissionEnum.requireEach(requests);
 			adminUtils.approveEngineUserAccessRequests(userId, userType, engineId, requests, endDate);
 		} catch (Exception e) {
 			classLogger.error("Failed to approve engine user access request.", e);

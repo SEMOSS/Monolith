@@ -40,14 +40,14 @@ import prerna.semoss.web.services.config.HealthResource;
 @ApplicationPath("/health")
 public class HealthApplication extends Application {
 
-	private Set<Object> singletons = new HashSet<Object>();
+	private Set<Class<?>> classes = new HashSet<>();
 
 	public HealthApplication() {
-		singletons.add(new HealthResource());
+		classes.add(HealthResource.class);
 	}
 
 	@Override
-	public Set<Object> getSingletons() {
-		return singletons;
+	public Set<Class<?>> getClasses() {
+		return classes;
 	}
 }

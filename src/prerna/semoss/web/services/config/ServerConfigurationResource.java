@@ -39,6 +39,10 @@ import java.util.Map;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.annotation.security.PermitAll;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
@@ -130,8 +134,6 @@ public class ServerConfigurationResource {
 
 		// security is always enabled...
 		loadConfig.put("security", true);
-		loadConfig.put("anonymousUsers", AbstractSecurityUtils.anonymousUsersEnabled());
-		loadConfig.put("anonymousUserUploadData", AbstractSecurityUtils.anonymousUserUploadData());
 		// admin only for project actions
 		loadConfig.put("adminOnlyProjectAdd", AbstractSecurityUtils.adminOnlyProjectAdd());
 		loadConfig.put("adminOnlyProjectDelete", AbstractSecurityUtils.adminOnlyProjectDelete());
@@ -227,14 +229,6 @@ public class ServerConfigurationResource {
 		}
 		loadConfig.put("defaultScriptingLanguage", defaultScriptingLanguage);
 
-		// local mode
-		boolean localMode = false;
-		String localModeStr = Utility.getDIHelperProperty(Constants.LOCAL_DEPLOYMENT);
-		if (localModeStr != null) {
-			localMode = Boolean.parseBoolean(localModeStr);
-		}
-		loadConfig.put("localDeployment", localMode);
-
 		// insights are cacheable by default
 		boolean cacheableOnByDefault = Utility.getApplicationCacheInsight();
 		loadConfig.put("cacheInsightByDefault", cacheableOnByDefault);
@@ -311,7 +305,7 @@ public class ServerConfigurationResource {
 		// from the scopes it asks for, so a client can tell which apps can work before
 		// it calls them. only whether each app can work is sent, never the scopes, and
 		// only to a user signed in to the platform
-		if (user != null && user.isLoggedIn() && !user.isAnonymous()) {
+		if (user != null && user.isLoggedIn()) {
 			myConfiguration.put("connectorAccess", ConnectorScopeAccess.getConnectorAccess());
 		}
 		// themes
@@ -328,11 +322,6 @@ public class ServerConfigurationResource {
 		myConfiguration.put("auditLogEnabled", Utility.isAuditLogsDatabaseEnabled());
 		// current date
 		myConfiguration.put("systemDate", new SemossDate(Utility.getCurrentZonedDateTimeUTC()));
-		// do not keep this session
-		// if no user and it is new
-		if (user == null && (session.isNew() || request.isRequestedSessionIdValid())) {
-			session.invalidate();
-		}
 
 		return myConfiguration;
 	}
@@ -340,9 +329,12 @@ public class ServerConfigurationResource {
 	@GET
 	@Path("/")
 	@Produces("application/json")
+	@Operation(operationId = "config", summary = "Read the server configuration", description = "Returns platform settings, login providers and, when signed in, the session's logins.")
+	@ApiResponse(responseCode = "200", description = "The server configuration", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ServerConfig.class)))
 	public Response getServerConfig(@Context HttpServletRequest request, @Context HttpServletResponse response,
 			@Context FilterChain filterChain) {
 		List<NewCookie> newCookies = new ArrayList<>();
+		Map<String, Object> config = getConfig(request);
 
 		try {
 			ResourceUtility.getUser(request);
@@ -351,10 +343,10 @@ public class ServerConfigurationResource {
 			// should happen every time this is called
 			// since FE only calls this method on browser startup
 			// clean up any invalid cookies on the browser
-			WebUtility.expireSessionCookies(request, newCookies);
+			WebUtility.dropSessionWithoutUser(request, newCookies);
 		}
 
-		return WebUtility.getResponseNoCache(getConfig(request), 200, newCookies.toArray(new NewCookie[] {}));
+		return WebUtility.getResponseNoCache(config, 200, newCookies.toArray(new NewCookie[] {}));
 	}
 
 	@GET
@@ -369,14 +361,14 @@ public class ServerConfigurationResource {
 	/**
 	 * Return every JAX-RS endpoint registered with this application as a flat JSON
 	 * list, sorted by path. Discovery is reflection-driven: we walk the resource
-	 * singletons, read each class's {@code @Path}, and for every method carrying an
+	 * classes, read each class's {@code @Path}, and for every method carrying an
 	 * HTTP-method annotation (anything meta-annotated with {@link HttpMethod}) we
 	 * emit verb, path, owning resource class, Java method name, and the
 	 * {@code @Consumes}/{@code @Produces} content types.
 	 * <p>
 	 * Resources whose simple class name starts with {@code "Admin"} are only
-	 * included when the calling user is logged in and an admin. Anonymous and
-	 * non-admin users get the rest of the catalog without those entries.
+	 * included when the calling user is logged in and an admin. Other callers get
+	 * the rest of the catalog without those entries.
 	 *
 	 * @param request     the incoming HTTP request (used only to prefix the
 	 *                    application context path on each path so callers see real
@@ -388,8 +380,8 @@ public class ServerConfigurationResource {
 	@Path("/endpoints")
 	@Produces("application/json")
 	public Response listEndpoints(@Context HttpServletRequest request, @Context Application application) {
-		// admin gating: anonymous users and non-admin logged-in users do not
-		// see endpoints from resources whose simple class name starts with
+		// admin gating: callers who are not a logged-in admin do not see
+		// endpoints from resources whose simple class name starts with
 		// "Admin" (e.g. AdminUserAuthorizationResource).
 		boolean includeAdminResources = false;
 		try {
@@ -401,8 +393,7 @@ public class ServerConfigurationResource {
 
 		List<Map<String, Object>> endpoints = new ArrayList<>();
 
-		for (Object resource : application.getSingletons()) {
-			Class<?> cls = resource.getClass();
+		for (Class<?> cls : application.getClasses()) {
 			if (!includeAdminResources && cls.getSimpleName().startsWith("Admin")) {
 				continue;
 			}

@@ -52,6 +52,7 @@ import prerna.engine.impl.model.responses.AskModelEngineResponse;
 import prerna.engine.impl.model.usage.ModelUsageGuard;
 import prerna.engine.impl.model.usage.ModelUsageLimitException;
 import prerna.om.Insight;
+import prerna.sablecc2.comm.PixelJobStatus;
 import prerna.util.Constants;
 import prerna.util.Utility;
 
@@ -281,6 +282,26 @@ public class ModelPixelExecutor {
 			classLogger.warn("Usage limit refusal has a reset time that is not ISO 8601: {}", resetsAt);
 			return null;
 		}
+	}
+
+	/**
+	 * Returns why a streamed model job stopped without finishing, or null while it
+	 * runs or once it has finished. A stream that reads its chunks after the status
+	 * has every chunk the job sent before it stopped.
+	 *
+	 * @param status the job's status
+	 * @return the message to send the client, or null
+	 */
+	public static String streamFailureMessage(PixelJobStatus status) {
+		if (status == null) {
+			return null;
+		}
+		return switch (status) {
+		case ERROR -> "The model request failed";
+		case CANCELED -> "The model request was canceled";
+		case UNKNOWN_JOB -> "The model request is no longer running";
+		default -> null;
+		};
 	}
 
 	/**

@@ -32,6 +32,8 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.io.StringReader;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -39,10 +41,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.commons.lang3.StringUtils;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.owasp.encoder.Encode;
+import org.w3c.dom.Document;
+import org.xml.sax.InputSource;
+import org.xml.sax.SAXException;
 
 import com.sun.identity.plugin.session.SessionException;
 import com.sun.identity.saml.common.SAMLUtils;
@@ -190,12 +197,16 @@ public class SamlVerifierServlet extends HttpServlet {
 			for (AttributeStatement stmt : attrlist) {
 				List<Attribute> attributeList = stmt.getAttribute();
 				for (Attribute attr : attributeList) {
-					Object[] valXmls = attr.getAttributeValue().toArray();
-					String[] samlValStrings = new String[valXmls.length];
-					for (int i = 0; i < samlValStrings.length; i++) {
-						samlValStrings[i] = StringUtils.substringBetween((String) valXmls[i], ">", "<");
+					List<String> values = new ArrayList<>();
+					for (Object valueXml : attr.getAttributeValue()) {
+						String text = attributeValueText((String) valueXml);
+						if (!text.isBlank()) {
+							values.add(text);
+						}
 					}
-					sdo.addAttribute(attr.getName(), samlValStrings);
+					if (!values.isEmpty()) {
+						sdo.addAttribute(attr.getName(), values.toArray(new String[0]));
+					}
 				}
 			}
 
@@ -241,6 +252,27 @@ public class SamlVerifierServlet extends HttpServlet {
 			classLogger.error("Failed to process SAML verification response.", sme);
 			SAMLUtils.sendError(request, response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
 					"failedToProcessSSOResponse", sme.getMessage());
+		}
+	}
+
+	/**
+	 * Reads the text of one AttributeValue element as the federation library hands
+	 * it over. The signature check ignores XML comments, so the value is the
+	 * element's whole text, with comments dropped and entities decoded.
+	 *
+	 * @param valueXml the serialized AttributeValue element
+	 * @return the element's text, empty for an empty element
+	 * @throws SAML2Exception if the value is not well formed XML
+	 */
+	private static String attributeValueText(String valueXml) throws SAML2Exception {
+		try {
+			DocumentBuilderFactory factory = Utility.getDocumentBuilderFactory();
+			factory.setNamespaceAware(true);
+			Document value = factory.newDocumentBuilder().parse(new InputSource(new StringReader(valueXml)));
+			return value.getDocumentElement().getTextContent();
+		} catch (ParserConfigurationException | SAXException | IOException e) {
+			classLogger.error("Unable to read a SAML attribute value", e);
+			throw new SAML2Exception("Unable to read a SAML attribute value");
 		}
 	}
 

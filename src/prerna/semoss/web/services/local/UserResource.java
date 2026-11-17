@@ -72,7 +72,6 @@ import prerna.auth.AuthProvider;
 import prerna.auth.SyncUserAssetsThread;
 import prerna.auth.User;
 import prerna.auth.external.ExternalAuthorizationHelper;
-import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityAPIUserUtils;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityExternalConnectorsUtils;
@@ -145,6 +144,12 @@ public class UserResource {
 	private static final String PKCE_VERIFIER_ATTR = "pkce_code_verifier";
 
 	/**
+	 * Session attribute holding the OAuth state between authorize and callback, so
+	 * a callback is accepted only for a login this session started.
+	 */
+	private static final String OAUTH_STATE_ATTR = "oauth_state";
+
+	/**
 	 * Returns the active login providers for the current session user.
 	 *
 	 * @param request inbound HTTP request
@@ -161,13 +166,7 @@ public class UserResource {
 		}
 
 		if (semossUser == null) {
-			// not authenticated
-			// remove any cookies we shouldn't have
-			WebUtility.expireSessionCookies(request, newCookies);
-
-			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
-				session.invalidate();
-			}
+			WebUtility.dropSessionWithoutUser(request, newCookies);
 		}
 
 		Map<String, String> retMap = User.getLoginNames(semossUser);
@@ -223,7 +222,7 @@ public class UserResource {
 			if (thisUser.getLogins().isEmpty()) {
 				noUser = true;
 			} else {
-				request.getSession().setAttribute(Constants.SESSION_USER, thisUser);
+				WebUtility.setSessionUser(request.getSession(), thisUser);
 				Thread.ofVirtual().start(new SyncUserAssetsThread(assetEngineId));
 				// put the new map for the user space
 				session.setAttribute(Constants.USER_ASSET_IDS, thisUser.getAssetEngineMap());
@@ -328,9 +327,8 @@ public class UserResource {
 		SecurityUserUtils.loadUserMetadata(token);
 
 		semossUser.setAccessToken(token);
-		semossUser.setAnonymous(false);
 
-		session.setAttribute(Constants.SESSION_USER, semossUser);
+		WebUtility.setSessionUser(session, semossUser);
 		WebUtility.loggingContextLoginEvent(session);
 
 		UserResource.userTrackingLogin(request, semossUser, token.getProvider());
@@ -401,11 +399,7 @@ public class UserResource {
 
 		if (semossUser == null) {
 			List<NewCookie> newCookies = new ArrayList<>();
-			// not authenticated - remove any cookies we shouldn't have
-			WebUtility.expireSessionCookies(request, newCookies);
-			if (session != null && (session.isNew() || request.isRequestedSessionIdValid())) {
-				session.invalidate();
-			}
+			WebUtility.dropSessionWithoutUser(request, newCookies);
 			ret.put(Constants.ERROR_MESSAGE, "Log into your " + providerEnum.getDisplayName() + " account");
 			return WebUtility.getResponseNoCache(ret, 200, newCookies.toArray(new NewCookie[] {}));
 		}
@@ -794,8 +788,8 @@ public class UserResource {
 	private String fetchJiraCloudId(String bearerToken) {
 		try {
 			String url = "https://api.atlassian.com/oauth/token/accessible-resources";
-			Map<String, Object> params = new HashMap<>();
-			String output = HttpHelperUtility.makeGetCall(url, bearerToken, params, true);
+			String output = HttpHelperUtility.getRequest(HttpHelperUtility.getSystemClient(),
+					url, HttpHelperUtility.bearerJsonHeaders(bearerToken));
 			JSONArray resources = new JSONArray(output);
 			if (resources.length() > 0) {
 				return resources.getJSONObject(0).getString("id");
@@ -858,21 +852,6 @@ public class UserResource {
 			throws IOException {
 		// unified OAuth2 flow - see loginGeneric + OktaTokenFiller
 		return loginGeneric("okta", request, response);
-	}
-
-	@Path("/login/producthunt")
-	/**
-	 * Handles Product Hunt OAuth login callback flow.
-	 *
-	 * @param request  inbound HTTP request
-	 * @param response outbound HTTP response
-	 * @return redirect response
-	 * @throws IOException when redirect writing fails
-	 */
-	public Response loginProducthunt(@Context HttpServletRequest request, @Context HttpServletResponse response)
-			throws IOException {
-		// unified OAuth2 flow - see loginGeneric + ProductHuntTokenFiller
-		return loginGeneric("producthunt", request, response);
 	}
 
 	/**
@@ -1219,7 +1198,7 @@ public class UserResource {
 			return WebUtility.getResponse(ret, 400);
 		}
 
-		// resolve the provider (handles aliases such as microsoft/ms and producthunt),
+		// resolve the provider (handles aliases such as microsoft/ms),
 		// its canonical social.properties prefix, and the token filler strategy.
 		// Unknown
 		// providers fall back to GENERIC + the raw path prefix so a fully config-driven
@@ -1236,6 +1215,17 @@ public class UserResource {
 		String queryString = getEncodedQueryString(request);
 		if (hasOAuthCode(queryString)) {
 			if (!hasAccessToken(userObj, providerEnum)) {
+				if (!consumeOAuthState(request, prefix)) {
+					classLogger.warn("Refused a {} login callback that does not carry the state this session issued",
+							provider);
+					UserAuditTrailUtils.recordLoginFailed(null, providerEnum.getLabel(),
+							AuditErrorCode.VALIDATION_FAILED, "The login state did not match",
+							WebUtility.getClientIp(request), 400);
+					Map<String, Object> ret = new HashMap<>();
+					ret.put(Constants.ERROR_MESSAGE, "The login could not be verified. Please start the login again.");
+					return WebUtility.getResponse(ret, 400);
+				}
+
 				String[] outputs = HttpHelperUtility.getCodes(queryString);
 
 				// oauth code should match [ -~]+ (1 or more ascii)
@@ -1254,7 +1244,7 @@ public class UserResource {
 					if (accessToken == null) {
 						// not authenticated
 						response.setStatus(302);
-						response.sendRedirect(buildProviderAuthorizeRedirect(filler, prefix, session));
+						response.sendRedirect(buildProviderAuthorizeRedirect(filler, prefix, request));
 						return null;
 					}
 
@@ -1276,7 +1266,7 @@ public class UserResource {
 		if (!hasAccessToken(userObj, providerEnum)) {
 			// not authenticated
 			response.setStatus(302);
-			response.sendRedirect(buildProviderAuthorizeRedirect(filler, prefix, session));
+			response.sendRedirect(buildProviderAuthorizeRedirect(filler, prefix, request));
 			return null;
 		}
 
@@ -1285,18 +1275,43 @@ public class UserResource {
 	}
 
 	/**
-	 * Builds a provider's authorize redirect URL, generating and stashing a PKCE
-	 * code verifier (and passing the derived challenge) when the provider uses
-	 * PKCE.
+	 * Takes the state this session issued for the provider and checks that the
+	 * callback returned it. Each state is good for one callback.
+	 *
+	 * @param request the provider's callback request
+	 * @param prefix  social.properties prefix for the provider
+	 * @return true when the callback carries the state this session issued
+	 */
+	private boolean consumeOAuthState(HttpServletRequest request, String prefix) {
+		HttpSession session = request.getSession(false);
+		if (session == null) {
+			return false;
+		}
+		Object issued = session.getAttribute(prefix + OAUTH_STATE_ATTR);
+		session.removeAttribute(prefix + OAUTH_STATE_ATTR);
+		String returned = request.getParameter("state");
+		return issued != null && issued.equals(returned);
+	}
+
+	/**
+	 * Builds a provider's authorize redirect URL. The state it sends is kept in the
+	 * session for the callback to match, and so is a PKCE code verifier (whose
+	 * derived challenge is sent) when the provider uses PKCE. The session is marked
+	 * as waiting on the sign in, so the endpoints that drop a session without a
+	 * user keep it for the callback.
 	 *
 	 * @param filler  the provider's token filler strategy
 	 * @param prefix  social.properties prefix for the provider
-	 * @param session the login session used to carry the PKCE verifier to the
-	 *                callback
+	 * @param request the request starting the login, whose session carries the
+	 *                state and verifier to the callback
 	 * @return the authorize redirect URL
 	 */
-	private String buildProviderAuthorizeRedirect(IAccessTokenFiller filler, String prefix, HttpSession session) {
+	private String buildProviderAuthorizeRedirect(IAccessTokenFiller filler, String prefix,
+			HttpServletRequest request) {
+		HttpSession session = request.getSession();
 		String state = UUID.randomUUID().toString();
+		session.setAttribute(prefix + OAUTH_STATE_ATTR, state);
+		WebUtility.markOAuthLoginStarted(session);
 		String codeChallenge = null;
 		if (filler.usesPKCE()) {
 			String codeVerifier = PKCEUtil.generateCodeVerifier();
@@ -1379,7 +1394,7 @@ public class UserResource {
 				User user = null;
 				if (session != null) {
 					user = (User) session.getAttribute(Constants.SESSION_USER);
-					if (!AbstractSecurityUtils.anonymousUsersEnabled() && user != null && user.getLogins().isEmpty()) {
+					if (user != null && user.getLogins().isEmpty()) {
 						session.invalidate();
 					}
 				}
@@ -1395,7 +1410,7 @@ public class UserResource {
 			HttpSession session = request.getSession(false);
 			if (session != null) {
 				User user = (User) session.getAttribute(Constants.SESSION_USER);
-				if (!AbstractSecurityUtils.anonymousUsersEnabled() && user != null && user.getLogins().isEmpty()) {
+				if (user != null && user.getLogins().isEmpty()) {
 					session.invalidate();
 				}
 			}
@@ -1460,7 +1475,7 @@ public class UserResource {
 			HttpSession session = request.getSession(false);
 			if (session != null) {
 				User user = (User) session.getAttribute(Constants.SESSION_USER);
-				if (!AbstractSecurityUtils.anonymousUsersEnabled() && user != null && user.getLogins().isEmpty()) {
+				if (user != null && user.getLogins().isEmpty()) {
 					session.invalidate();
 				}
 			}
@@ -1475,7 +1490,7 @@ public class UserResource {
 			HttpSession session = request.getSession(false);
 			if (session != null) {
 				User user = (User) session.getAttribute(Constants.SESSION_USER);
-				if (!AbstractSecurityUtils.anonymousUsersEnabled() && user != null && user.getLogins().isEmpty()) {
+				if (user != null && user.getLogins().isEmpty()) {
 					session.invalidate();
 				}
 			}
@@ -1535,7 +1550,7 @@ public class UserResource {
 			HttpSession session = request.getSession(false);
 			if (session != null) {
 				User user = (User) session.getAttribute(Constants.SESSION_USER);
-				if (!AbstractSecurityUtils.anonymousUsersEnabled() && user != null && user.getLogins().isEmpty()) {
+				if (user != null && user.getLogins().isEmpty()) {
 					session.invalidate();
 				}
 			}

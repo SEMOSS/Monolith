@@ -46,7 +46,7 @@ import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.reactor.scheduler.SchedulerDatabaseUtility;
 import prerna.rpa.config.JobConfigKeys;
-import prerna.util.Constants;
+import prerna.web.services.util.WebUtility;
 
 public class SchedulerFilter implements Filter {
 
@@ -95,7 +95,7 @@ public class SchedulerFilter implements Filter {
 			token.setName("scheduler_" + UUID.randomUUID());
 			user.setAccessToken(token);
 		}
-		session.setAttribute(Constants.SESSION_USER, user);
+		WebUtility.setSessionUser(session, user);
 
 		// clean up the table
 		SchedulerDatabaseUtility.removeExecutionId(execId);

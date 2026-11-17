@@ -36,11 +36,15 @@ import prerna.util.Constants;
 
 public class WSConfigurator extends Configurator {
 
+	/** User property holding the id of the HTTP session that opened the socket. */
+	public static final String HTTP_SESSION_ID = "HTTP_SESSION_ID";
+
 	@Override
 	public void modifyHandshake(ServerEndpointConfig sec, HandshakeRequest request, HandshakeResponse resp) {
 		HttpSession session = (HttpSession) request.getHttpSession();
 		if (session != null) {
 			sec.getUserProperties().put(Constants.SESSION_USER, session.getAttribute(Constants.SESSION_USER));
+			sec.getUserProperties().put(HTTP_SESSION_ID, session.getId());
 		}
 	}
 

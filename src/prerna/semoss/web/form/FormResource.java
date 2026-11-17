@@ -29,6 +29,7 @@ package prerna.semoss.web.form;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -48,26 +49,28 @@ import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
-import prerna.ds.util.RdbmsQueryBuilder;
 import prerna.engine.api.IDatabaseEngine;
-import prerna.engine.api.IRawSelectWrapper;
+import prerna.engine.api.IRDBMSEngine;
 import prerna.forms.AbstractFormBuilder;
 import prerna.forms.FormBuilder;
 import prerna.forms.FormFactory;
 import prerna.masterdatabase.utility.MasterDatabaseUtility;
-import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.util.Constants;
+import prerna.util.QueryExecutionUtility;
+import prerna.util.QueryExecutionUtility.StatementBinder;
 import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 @Path("/form")
 @PermitAll
+@Deprecated(forRemoval = true)
 public class FormResource {
 
 	private static final Logger classLogger = LogManager.getLogger(FormResource.class);
 
 	private IDatabaseEngine formEngine;
 
+	@Deprecated
 	@POST
 	@Path("/modifyUserAccess")
 	@Produces("application/json")
@@ -90,35 +93,41 @@ public class FormResource {
 			return WebUtility.getResponse(err, 400);
 		}
 
-		String addOrRemove = WebUtility.inputSQLSanitizer(form.getFirst("addOrRemove"));
-		String userid = WebUtility.inputSQLSanitizer(form.getFirst("userid"));
-		String instancename = Utility.cleanString(WebUtility.inputSQLSanitizer(form.getFirst("instanceName")), true);
+		String addOrRemove = form.getFirst("addOrRemove");
+		String userid = form.getFirst("userid");
+		String requestedInstance = form.getFirst("instanceName");
+		String instancename = requestedInstance == null ? null : Utility.cleanString(requestedInstance, true);
 		// this is only present if we are adding a user
-		String owner = WebUtility.inputSQLSanitizer(form.getFirst("ownerStatus"));
+		boolean owner = Boolean.parseBoolean(form.getFirst("ownerStatus"));
 
 		String query = null;
-		if (addOrRemove.equals("Remove")) {
+		StatementBinder binder = null;
+		if ("Remove".equals(addOrRemove)) {
 			if (instancename != null && !instancename.isEmpty() && !instancename.equals("null")
 					&& !instancename.equals("undefined")) {
-				query = "DELETE FROM FORMS_USER_ACCESS WHERE USER_ID = '"
-						+ RdbmsQueryBuilder.escapeForSQLStatement(userid) + "' AND INSTANCE_NAME = '"
-						+ RdbmsQueryBuilder.escapeForSQLStatement(instancename) + "';";
+				query = "DELETE FROM FORMS_USER_ACCESS WHERE USER_ID = ? AND INSTANCE_NAME = ?";
+				binder = ps -> {
+					ps.setString(1, userid);
+					ps.setString(2, instancename);
+				};
 
 				// log the operation
 				classLogger.info("User is removing user {} from having access to {}", userid, instancename);
 			} else {
 				// remove all of user
-				query = "DELETE FROM FORMS_USER_ACCESS WHERE USER_ID = '"
-						+ RdbmsQueryBuilder.escapeForSQLStatement(userid) + "';";
+				query = "DELETE FROM FORMS_USER_ACCESS WHERE USER_ID = ?";
+				binder = ps -> ps.setString(1, userid);
 
 				// log the operation
 				classLogger.info("User is removing all access for user {}", userid);
 			}
-		} else if (addOrRemove.equals("Add")) {
-			query = "INSERT INTO FORMS_USER_ACCESS (USER_ID, INSTANCE_NAME, IS_SYS_ADMIN) VALUES ('"
-					+ RdbmsQueryBuilder.escapeForSQLStatement(userid) + "','"
-					+ RdbmsQueryBuilder.escapeForSQLStatement(instancename) + "','"
-					+ RdbmsQueryBuilder.escapeForSQLStatement(owner) + "');";
+		} else if ("Add".equals(addOrRemove)) {
+			query = "INSERT INTO FORMS_USER_ACCESS (USER_ID, INSTANCE_NAME, IS_SYS_ADMIN) VALUES (?, ?, ?)";
+			binder = ps -> {
+				ps.setString(1, userid);
+				ps.setString(2, instancename);
+				ps.setBoolean(3, owner);
+			};
 
 			// log the operation
 			classLogger.info("User is adding user {} to have access to {}", userid, instancename);
@@ -126,12 +135,8 @@ public class FormResource {
 			return WebUtility.getResponse("Error: need to specify Add or Remove", 400);
 		}
 
-		IDatabaseEngine formEngine = getEngine();
-		// execute the query
 		try {
-			formEngine.insertData(query);
-			// commit to engine
-			formEngine.commit();
+			QueryExecutionUtility.executeUpdate(formDb(), query, binder);
 		} catch (Exception e) {
 			classLogger.error("Failed to insert form user access data and commit to the form engine", e);
 			return WebUtility.getResponse("An error occurred to update the user's access!", 400);
@@ -140,6 +145,7 @@ public class FormResource {
 		return WebUtility.getResponse("success", 200);
 	}
 
+	@Deprecated
 	@POST
 	@Path("/renameInstance")
 	@Produces("application/json")
@@ -179,6 +185,7 @@ public class FormResource {
 		return WebUtility.getResponse("success", 200);
 	}
 
+	@Deprecated
 	@POST
 	@Path("/certifyInstance")
 	@Produces("application/json")
@@ -197,7 +204,7 @@ public class FormResource {
 		String instanceName = WebUtility.inputSQLSanitizer(form.getFirst("instanceName"));
 
 		try {
-			throwErrorIfNotSysAdmin(cacId, instanceName);
+			throwErrorIfNotSysAdmin(cacId, form.getFirst("instanceName"));
 		} catch (IllegalAccessException e) {
 			classLogger.warn("User is trying to certify {} when he is not the system admin for the system",
 					instanceName);
@@ -216,6 +223,7 @@ public class FormResource {
 		return WebUtility.getResponse("success", 200);
 	}
 
+	@Deprecated
 	@POST
 	@Path("/getUserInstanceAuth")
 	@Produces("applicaiton/json")
@@ -226,7 +234,7 @@ public class FormResource {
 
 		String cacId;
 		try {
-			cacId = WebUtility.inputSQLSanitizer(getCacId(request));
+			cacId = getCacId(request);
 		} catch (IOException e) {
 			Map<String, String> err = new HashMap<String, String>();
 			err.put(Constants.ERROR_MESSAGE, e.getMessage());
@@ -236,25 +244,16 @@ public class FormResource {
 		Map<String, String> userAccessableInstances = new TreeMap<String, String>();
 
 		// map to store the valid instances for the given user
-		String query = "SELECT INSTANCE_NAME, IS_SYS_ADMIN FROM FORMS_USER_ACCESS WHERE USER_ID = '"
-				+ RdbmsQueryBuilder.escapeForSQLStatement(cacId) + "';";
-		IRawSelectWrapper wrapper = null;
 		try {
-			wrapper = WrapperManager.getInstance().getRawWrapper(getEngine(), query);
-			while (wrapper.hasNext()) {
-				Object[] values = wrapper.next().getValues();
-				userAccessableInstances.put(values[0].toString(), values[1].toString());
+			List<String[]> grants = QueryExecutionUtility.queryList(formDb(),
+					"SELECT INSTANCE_NAME, IS_SYS_ADMIN FROM FORMS_USER_ACCESS WHERE USER_ID = ?",
+					ps -> ps.setString(1, cacId),
+					rs -> new String[] { rs.getString(1), String.valueOf(rs.getBoolean(2)) });
+			for (String[] grant : grants) {
+				userAccessableInstances.put(grant[0], grant[1]);
 			}
 		} catch (Exception e) {
 			classLogger.error("Failed to query the accessible form instances for user {}", cacId, e);
-		} finally {
-			if (wrapper != null) {
-				try {
-					wrapper.close();
-				} catch (IOException e) {
-					classLogger.error("Failed to close the result wrapper for the user instance access query", e);
-				}
-			}
 		}
 
 		Map<String, Object> returnData = new HashMap<String, Object>();
@@ -297,61 +296,51 @@ public class FormResource {
 	}
 
 	/**
-	 * Check that user is an admin
-	 * 
-	 * @param cacId
-	 * @throws IllegalAccessException
+	 * Throws unless the user holds the forms ADMIN grant. A lookup that fails
+	 * refuses the user as well, so an error can never let a non-admin through.
+	 *
+	 * @param cacId the user's CAC id
+	 * @throws IllegalAccessException when the user is not a forms admin or the
+	 *                                check could not be made
 	 */
 	private void throwErrorIfNotAdmin(String cacId) throws IllegalAccessException {
-		String isAdminQuery = "SELECT * FROM FORMS_USER_ACCESS " + "WHERE USER_ID='"
-				+ RdbmsQueryBuilder.escapeForSQLStatement(cacId) + "' " + "AND INSTANCE_NAME='ADMIN' " + "LIMIT 1;";
-
-		IRawSelectWrapper wrapper = null;
+		boolean isAdmin = false;
 		try {
-			wrapper = WrapperManager.getInstance().getRawWrapper(getEngine(), isAdminQuery);
-			if (!wrapper.hasNext()) {
-				throw new IllegalAccessException("User is not an admin and cannot perform this operation");
-			}
+			isAdmin = QueryExecutionUtility.queryOne(formDb(),
+					"SELECT 1 FROM FORMS_USER_ACCESS WHERE USER_ID = ? AND INSTANCE_NAME = 'ADMIN' LIMIT 1",
+					ps -> ps.setString(1, cacId), rs -> Boolean.TRUE) != null;
 		} catch (Exception e) {
 			classLogger.error("Failed to query whether user {} is an admin", cacId, e);
-		} finally {
-			if (wrapper != null) {
-				try {
-					wrapper.close();
-				} catch (IOException e) {
-					classLogger.error("Failed to close the result wrapper for the admin check query", e);
-				}
-			}
+		}
+		if (!isAdmin) {
+			throw new IllegalAccessException("User is not an admin and cannot perform this operation");
 		}
 	}
 
 	/**
-	 * Check that user is an admin
-	 * 
-	 * @param cacId
-	 * @throws IllegalAccessException
+	 * Throws unless the user is a system admin of the given form instance. A lookup
+	 * that fails refuses the user as well, so an error can never let a non-admin
+	 * through.
+	 *
+	 * @param cacId  the user's CAC id
+	 * @param system the form instance
+	 * @throws IllegalAccessException when the user is not a system admin of the
+	 *                                instance or the check could not be made
 	 */
 	private void throwErrorIfNotSysAdmin(String cacId, String system) throws IllegalAccessException {
-		String isAdminQuery = "SELECT * FROM FORMS_USER_ACCESS " + "WHERE USER_ID='"
-				+ RdbmsQueryBuilder.escapeForSQLStatement(cacId) + "' " + "AND INSTANCE_NAME='"
-				+ RdbmsQueryBuilder.escapeForSQLStatement(system) + "' " + "AND IS_SYS_ADMIN=TRUE " + "LIMIT 1;";
-
-		IRawSelectWrapper wrapper = null;
+		boolean isSysAdmin = false;
 		try {
-			wrapper = WrapperManager.getInstance().getRawWrapper(getEngine(), isAdminQuery);
-			if (!wrapper.hasNext()) {
-				throw new IllegalAccessException("User is not an admin and cannot perform this operation");
-			}
+			isSysAdmin = QueryExecutionUtility.queryOne(formDb(),
+					"SELECT 1 FROM FORMS_USER_ACCESS WHERE USER_ID = ? AND INSTANCE_NAME = ? AND IS_SYS_ADMIN = TRUE LIMIT 1",
+					ps -> {
+						ps.setString(1, cacId);
+						ps.setString(2, system);
+					}, rs -> Boolean.TRUE) != null;
 		} catch (Exception e) {
 			classLogger.error("Failed to query whether user {} is a system admin for system {}", cacId, system, e);
-		} finally {
-			if (wrapper != null) {
-				try {
-					wrapper.close();
-				} catch (IOException e) {
-					classLogger.error("Failed to close the result wrapper for the system admin check query", e);
-				}
-			}
+		}
+		if (!isSysAdmin) {
+			throw new IllegalAccessException("User is not an admin and cannot perform this operation");
 		}
 	}
 
@@ -361,6 +350,22 @@ public class FormResource {
 	 * 
 	 * @return
 	 */
+	/**
+	 * Returns the forms permission store as the relational engine its
+	 * parameterized statements run against.
+	 *
+	 * @return the forms database
+	 * @throws IllegalStateException when the forms database is not relational
+	 */
+	private IRDBMSEngine formDb() {
+		if (getEngine() instanceof IRDBMSEngine rdbms) {
+			return rdbms;
+		}
+		throw new IllegalStateException(
+				"The forms database " + FormBuilder.FORM_BUILDER_ENGINE_NAME + " is not a relational database");
+	}
+
+	@Deprecated
 	public IDatabaseEngine getEngine() {
 		if (formEngine == null) {
 			formEngine = Utility.getDatabase(FormBuilder.FORM_BUILDER_ENGINE_NAME);

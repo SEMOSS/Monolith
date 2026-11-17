@@ -51,6 +51,7 @@ import jakarta.servlet.http.HttpSession;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.Response;
 import prerna.auth.User;
@@ -96,12 +97,6 @@ public class ImageUploader extends AbstractUploader {
 				HashMap<String, String> errorMap = new HashMap<>();
 				errorMap.put(Constants.ERROR_MESSAGE,
 						"Session could not be validated in order to upload the engine image");
-				return WebUtility.getResponse(errorMap, 400);
-			}
-
-			if (user.isAnonymous()) {
-				HashMap<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload an engine image");
 				return WebUtility.getResponse(errorMap, 400);
 			}
 		} else {
@@ -174,6 +169,13 @@ public class ImageUploader extends AbstractUploader {
 			return WebUtility.getResponse(returnMap, 400);
 		}
 
+		String imageExtension;
+		try {
+			imageExtension = validatedImageExtension(imageFile);
+		} catch (WebApplicationException e) {
+			return e.getResponse();
+		}
+
 		// i always want to fix it in the engine version folder
 		// so that way export works as expected
 		// if it is on cloud - also push it to the images/<eType> folder and sync that
@@ -184,7 +186,6 @@ public class ImageUploader extends AbstractUploader {
 
 		// local changes
 		File newImageFileInVersionFolder = null;
-		String newImageFileType = null;
 		{
 			// remove the old image files in the version folder
 			// and push new one to the version folder
@@ -214,8 +215,7 @@ public class ImageUploader extends AbstractUploader {
 				}
 			}
 
-			newImageFileType = imageFile.getContentType().split("/")[1];
-			String imageFileName = "image." + newImageFileType;
+			String imageFileName = "image." + imageExtension;
 			String imageLoc = engineVersionF.getAbsolutePath() + DIR_SEPARATOR + imageFileName;
 			newImageFileInVersionFolder = new File(WebUtility.normalizePath(imageLoc));
 			writeFile(imageFile, newImageFileInVersionFolder);
@@ -237,7 +237,7 @@ public class ImageUploader extends AbstractUploader {
 			// we need to push to the engine specific image folder
 			File localCloudImageF = new File(WebUtility.normalizePath(localEngineImageFolderPath));
 			File newImageFileInCloudFolder = new File(
-					WebUtility.normalizePath(localEngineImageFolderPath + "/" + engineId + "." + newImageFileType));
+					WebUtility.normalizePath(localEngineImageFolderPath + "/" + engineId + "." + imageExtension));
 
 			// find all the image files and delete them
 			File[] oldImageFiles = localCloudImageF.listFiles(new FilenameFilter() {
@@ -300,12 +300,6 @@ public class ImageUploader extends AbstractUploader {
 				HashMap<String, String> errorMap = new HashMap<>();
 				errorMap.put(Constants.ERROR_MESSAGE,
 						"Session could not be validated in order to delete the engine image");
-				return WebUtility.getResponse(errorMap, 400);
-			}
-
-			if (user.isAnonymous()) {
-				HashMap<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload an engine image");
 				return WebUtility.getResponse(errorMap, 400);
 			}
 
@@ -453,12 +447,6 @@ public class ImageUploader extends AbstractUploader {
 						"Session could not be validated in order to upload the project image");
 				return WebUtility.getResponse(errorMap, 400);
 			}
-
-			if (user.isAnonymous()) {
-				HashMap<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload an project image");
-				return WebUtility.getResponse(errorMap, 400);
-			}
 		} else {
 			returnMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(returnMap, 400);
@@ -503,17 +491,18 @@ public class ImageUploader extends AbstractUploader {
 			return WebUtility.getResponse(returnMap, 400);
 		}
 
-		try {
-			projectId = SecurityProjectUtils.testUserProjectIdForAlias(user, projectId);
-		} catch (Exception e) {
-			returnMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(returnMap, 400);
-		}
 		if (!SecurityProjectUtils.userCanEditProject(user, projectId)) {
 			returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to edit this project");
 			return WebUtility.getResponse(returnMap, 400);
 		}
 		projectName = SecurityProjectUtils.getProjectAliasForId(projectId);
+
+		String imageExtension;
+		try {
+			imageExtension = validatedImageExtension(imageFile);
+		} catch (WebApplicationException e) {
+			return e.getResponse();
+		}
 
 		if (CouchUtil.COUCH_ENABLED) {
 			try {
@@ -527,7 +516,7 @@ public class ImageUploader extends AbstractUploader {
 			}
 		} else {
 			String imageDir = getProjectImageDir(filePath, projectId, projectName);
-			String imageLoc = getProjectImageLoc(filePath, projectId, projectName, imageFile);
+			String imageLoc = getProjectImageLoc(filePath, projectId, projectName, imageExtension);
 
 			File f = new File(WebUtility.normalizePath(imageDir));
 			if (!f.exists()) {
@@ -603,18 +592,6 @@ public class ImageUploader extends AbstractUploader {
 				return WebUtility.getResponse(errorMap, 400);
 			}
 
-			if (user.isAnonymous()) {
-				HashMap<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload an project image");
-				return WebUtility.getResponse(errorMap, 400);
-			}
-
-			try {
-				projectId = SecurityProjectUtils.testUserProjectIdForAlias(user, projectId);
-			} catch (Exception e) {
-				returnMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-				return WebUtility.getResponse(returnMap, 400);
-			}
 			if (!SecurityProjectUtils.userCanEditProject(user, projectId)) {
 				returnMap.put(Constants.ERROR_MESSAGE,
 						"User does not have access to this project or the project id does not exist");
@@ -675,17 +652,36 @@ public class ImageUploader extends AbstractUploader {
 
 	private String getProjectImageDir(String filePath, String projectId, String projectName) {
 		if (ClusterUtil.IS_CLUSTER) {
-			return ClusterUtil.IMAGES_FOLDER_PATH + DIR_SEPARATOR + "projects";
+			return ClusterUtil.getImagesFolderPath() + DIR_SEPARATOR + "projects";
 		}
 		return AssetUtility.getProjectVersionFolder(projectName, projectId);
 	}
 
-	private String getProjectImageLoc(String filePath, String id, String name, DiskFileItem imageFile) {
+	private String getProjectImageLoc(String filePath, String id, String name, String imageExtension) {
 		String imageDir = getProjectImageDir(filePath, id, name);
 		if (ClusterUtil.IS_CLUSTER) {
-			return imageDir + DIR_SEPARATOR + id + "." + imageFile.getContentType().split("/")[1];
+			return imageDir + DIR_SEPARATOR + id + "." + imageExtension;
 		}
-		return imageDir + DIR_SEPARATOR + "image." + imageFile.getContentType().split("/")[1];
+		return imageDir + DIR_SEPARATOR + "image." + imageExtension;
+	}
+
+	/**
+	 * Returns the file extension of an uploaded image's actual format, read from
+	 * its decoded bytes. The part's Content-Type and file name come from the
+	 * client, so neither is ever part of a stored path.
+	 *
+	 * @param imageFile the uploaded file part
+	 * @return {@code png}, {@code jpeg} or {@code gif}
+	 * @throws WebApplicationException carrying the 400, 413 or 415 response to send
+	 *                                 when the bytes are not a supported image
+	 */
+	private static String validatedImageExtension(DiskFileItem imageFile) {
+		try {
+			return CatalogImageUploader.validateImage(imageFile);
+		} catch (IOException e) {
+			throw new WebApplicationException(
+					WebUtility.getResponse(Map.of(Constants.ERROR_MESSAGE, "Invalid image data"), 400));
+		}
 	}
 
 	/*
@@ -706,12 +702,6 @@ public class ImageUploader extends AbstractUploader {
 				HashMap<String, String> errorMap = new HashMap<>();
 				errorMap.put(Constants.ERROR_MESSAGE,
 						"Session could not be validated in order to upload the insight image");
-				return WebUtility.getResponse(errorMap, 400);
-			}
-
-			if (user.isAnonymous()) {
-				HashMap<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload an insight image");
 				return WebUtility.getResponse(errorMap, 400);
 			}
 		} else {
@@ -763,17 +753,18 @@ public class ImageUploader extends AbstractUploader {
 			return WebUtility.getResponse(returnMap, 400);
 		}
 
-		try {
-			projectId = SecurityProjectUtils.testUserProjectIdForAlias(user, projectId);
-		} catch (Exception e) {
-			returnMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-			return WebUtility.getResponse(returnMap, 400);
-		}
 		if (!SecurityInsightUtils.userCanEditInsight(user, projectId, insightId)) {
 			returnMap.put(Constants.ERROR_MESSAGE, "User does not have access to edit this insight within the project");
 			return WebUtility.getResponse(returnMap, 400);
 		}
 		projectName = SecurityProjectUtils.getProjectAliasForId(projectId);
+
+		String imageExtension;
+		try {
+			imageExtension = validatedImageExtension(imageFile);
+		} catch (WebApplicationException e) {
+			return e.getResponse();
+		}
 
 		if (CouchUtil.COUCH_ENABLED) {
 			try {
@@ -815,7 +806,7 @@ public class ImageUploader extends AbstractUploader {
 				}
 			}
 
-			String imageFileName = "image." + imageFile.getContentType().split("/")[1];
+			String imageFileName = "image." + imageExtension;
 			String imageLoc = imageDir + DIR_SEPARATOR + imageFileName;
 			f = new File(WebUtility.normalizePath(imageLoc));
 			writeFile(imageFile, f);
@@ -867,18 +858,6 @@ public class ImageUploader extends AbstractUploader {
 				return WebUtility.getResponse(errorMap, 400);
 			}
 
-			if (user.isAnonymous()) {
-				HashMap<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload an app image");
-				return WebUtility.getResponse(errorMap, 400);
-			}
-
-			try {
-				projectId = SecurityProjectUtils.testUserProjectIdForAlias(user, projectId);
-			} catch (Exception e) {
-				returnMap.put(Constants.ERROR_MESSAGE, e.getMessage());
-				return WebUtility.getResponse(returnMap, 400);
-			}
 			if (!SecurityInsightUtils.userCanEditInsight(user, projectId, insightId)) {
 				returnMap.put(Constants.ERROR_MESSAGE,
 						"User does not have access to this insight or the insight id does not exist");
@@ -970,12 +949,6 @@ public class ImageUploader extends AbstractUploader {
 						"Session could not be validated in order to upload the engine image");
 				return WebUtility.getResponse(errorMap, 400);
 			}
-
-			if (user.isAnonymous()) {
-				HashMap<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload an engine image");
-				return WebUtility.getResponse(errorMap, 400);
-			}
 		} else {
 			returnMap.put(Constants.ERROR_MESSAGE, "User session is invalid");
 			return WebUtility.getResponse(returnMap, 400);
@@ -1049,6 +1022,13 @@ public class ImageUploader extends AbstractUploader {
 			return WebUtility.getResponse(returnMap, 400);
 		}
 
+		String imageExtension;
+		try {
+			imageExtension = validatedImageExtension(imageFile);
+		} catch (WebApplicationException e) {
+			return e.getResponse();
+		}
+
 		// i always want to fix it in the engine version folder
 		// so that way export works as expected
 		// if it is on cloud - also push it to the images/<eType> folder and sync that
@@ -1059,7 +1039,6 @@ public class ImageUploader extends AbstractUploader {
 
 		// local changes
 		File newImageFileInVersionFolder = null;
-		String newImageFileType = null;
 		{
 			// remove the old image files in the version folder
 			// and push new one to the version folder
@@ -1089,8 +1068,7 @@ public class ImageUploader extends AbstractUploader {
 				}
 			}
 
-			newImageFileType = imageFile.getContentType().split("/")[1];
-			String imageFileName = "image." + newImageFileType;
+			String imageFileName = "image." + imageExtension;
 			String imageLoc = engineVersionF.getAbsolutePath() + DIR_SEPARATOR + imageFileName;
 			newImageFileInVersionFolder = new File(WebUtility.normalizePath(imageLoc));
 			writeFile(imageFile, newImageFileInVersionFolder);
@@ -1112,7 +1090,7 @@ public class ImageUploader extends AbstractUploader {
 			// we need to push to the engine specific image folder
 			File localCloudImageF = new File(WebUtility.normalizePath(localEngineImageFolderPath));
 			File newImageFileInCloudFolder = new File(
-					WebUtility.normalizePath(localEngineImageFolderPath + "/" + engineId + "." + newImageFileType));
+					WebUtility.normalizePath(localEngineImageFolderPath + "/" + engineId + "." + imageExtension));
 
 			// find all the image files and delete them
 			File[] oldImageFiles = localCloudImageF.listFiles(new FilenameFilter() {
@@ -1184,12 +1162,6 @@ public class ImageUploader extends AbstractUploader {
 				HashMap<String, String> errorMap = new HashMap<>();
 				errorMap.put(Constants.ERROR_MESSAGE,
 						"Session could not be validated in order to upload the engine image");
-				return WebUtility.getResponse(errorMap, 400);
-			}
-
-			if (user.isAnonymous()) {
-				HashMap<String, String> errorMap = new HashMap<>();
-				errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload an engine image");
 				return WebUtility.getResponse(errorMap, 400);
 			}
 

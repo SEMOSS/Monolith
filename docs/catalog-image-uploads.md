@@ -64,7 +64,7 @@ and other formats are not accepted by these routes.
 | Status | Meaning |
 | --- | --- |
 | 400 | Invalid ID, empty/corrupt image, invalid dimensions, missing `file`, or malformed multipart body |
-| 401 | Missing session or anonymous user |
+| 401 | Missing session |
 | 403 | Resource is missing or the caller cannot edit it |
 | 413 | File/request size limit exceeded, or multiple multipart parts supplied |
 | 415 | Request is not multipart, or image format is unsupported |

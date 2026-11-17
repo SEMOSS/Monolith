@@ -44,8 +44,10 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
+import prerna.auth.AccessPermissionEnum;
 import prerna.auth.AccessToken;
 import prerna.auth.utils.SecurityAdminUtils;
+import prerna.auth.utils.SecurityProjectUtils;
 import prerna.auth.utils.reactors.admin.AdminMyProjectsReactor;
 import prerna.graph.utility.MsGraphUtility;
 import prerna.io.connector.ms.MicrosoftGraphUserLookup;
@@ -54,6 +56,7 @@ import prerna.sablecc2.om.GenRowStruct;
 import prerna.sablecc2.om.PixelDataType;
 import prerna.sablecc2.om.ReactorKeysEnum;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
+import prerna.semoss.web.services.local.ProjectResource;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.web.services.util.WebUtility;
 
@@ -300,6 +303,32 @@ public class AdminProjectAuthorizationResource {
 				(user, adminUtils) -> adminUtils.getUserProjectsNoCredentials(id, types, term, limit, offset));
 	}
 
+	/**
+	 * Saves new smss content for any project, in admin mode, and opens the project
+	 * again with it. The owner's endpoint is
+	 * {@code /project-<projectId>/updateSmssFile}.
+	 *
+	 * @param request the request, whose session holds the admin
+	 * @param form    {@code projectId} and {@code smss}, the new content of the
+	 *                file
+	 * @return 200 when the content is saved, 400 with the reason when it cannot
+	 *         be, and 403 for a user who is not an admin
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("updateSmssFile")
+	public Response updateSmssFile(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		String requestedId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String projectId = WebUtility.safePathSegment(requestedId);
+		String smss = form.getFirst("smss");
+		return ResourceUtility.respondAsAdmin(request, "update the smss of project " + requestedId, user -> {
+			if (projectId == null || !SecurityProjectUtils.projectExists(projectId)) {
+				throw new IllegalArgumentException("Project " + requestedId + " does not exist");
+			}
+			return ProjectResource.saveSmssFile(user, projectId, smss);
+		});
+	}
+
 	@POST
 	@Path("/grantAllProjects")
 	@Produces("application/json")
@@ -310,7 +339,7 @@ public class AdminProjectAuthorizationResource {
 		return ResourceUtility.respondAsAdmin(request,
 				"grant all projects to user " + userId + " with permission " + permission,
 				SecurityAdminUtils::getInstance, (user, adminUtils) -> {
-					adminUtils.grantAllProjects(userId, permission, isAddNew, user);
+					adminUtils.grantAllProjects(userId, AccessPermissionEnum.require(permission), isAddNew, user);
 					return success();
 				});
 	}
@@ -326,7 +355,8 @@ public class AdminProjectAuthorizationResource {
 		return ResourceUtility.respondAsAdmin(request,
 				"grant project " + projectId + " to new users with permission " + permission,
 				SecurityAdminUtils::getInstance, (user, adminUtils) -> {
-					adminUtils.grantNewUsersProjectAccess(projectId, permission, user, endDate);
+					String level = AccessPermissionEnum.require(permission);
+					adminUtils.grantNewUsersProjectAccess(projectId, level, user, endDate);
 					return success();
 				});
 	}
@@ -380,7 +410,8 @@ public class AdminProjectAuthorizationResource {
 		return ResourceUtility.respondAsAdmin(request,
 				"add user " + newUserId + " to project " + projectId + " with permission " + permission,
 				SecurityAdminUtils::getInstance, (user, adminUtils) -> {
-					adminUtils.addProjectUser(newUserId, projectId, permission, user, endDate);
+					String level = AccessPermissionEnum.require(permission);
+					adminUtils.addProjectUser(newUserId, projectId, level, user, endDate);
 					return success();
 				});
 	}
@@ -402,7 +433,7 @@ public class AdminProjectAuthorizationResource {
 		return ResourceUtility.respondAsAdmin(request,
 				"add all users to project " + projectId + " with permission " + permission,
 				SecurityAdminUtils::getInstance, (user, adminUtils) -> {
-					adminUtils.addAllProjectUsers(projectId, permission, user, endDate);
+					adminUtils.addAllProjectUsers(projectId, AccessPermissionEnum.require(permission), user, endDate);
 					return success();
 				});
 	}
@@ -426,7 +457,8 @@ public class AdminProjectAuthorizationResource {
 		return ResourceUtility.respondAsAdmin(request,
 				"change the permission of user " + existingUserId + " on project " + projectId + " to " + newPermission,
 				SecurityAdminUtils::getInstance, (user, adminUtils) -> {
-					adminUtils.editProjectUserPermission(existingUserId, projectId, newPermission, user, endDate);
+					String level = AccessPermissionEnum.require(newPermission);
+					adminUtils.editProjectUserPermission(existingUserId, projectId, level, user, endDate);
 					return success();
 				});
 	}
@@ -449,6 +481,7 @@ public class AdminProjectAuthorizationResource {
 				SecurityAdminUtils::getInstance, (user, adminUtils) -> {
 					List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("userpermissions"),
 							List.class);
+					AccessPermissionEnum.requireEach(requests);
 					adminUtils.editProjectUserPermissions(projectId, requests, user, endDate);
 					return success();
 				});
@@ -472,7 +505,8 @@ public class AdminProjectAuthorizationResource {
 		return ResourceUtility.respondAsAdmin(request,
 				"change the permission of every user on project " + projectId + " to " + newPermission,
 				SecurityAdminUtils::getInstance, (user, adminUtils) -> {
-					adminUtils.updateProjectUserPermissions(projectId, newPermission, user, endDate);
+					String level = AccessPermissionEnum.require(newPermission);
+					adminUtils.updateProjectUserPermissions(projectId, level, user, endDate);
 					return success();
 				});
 	}
@@ -614,6 +648,7 @@ public class AdminProjectAuthorizationResource {
 					AccessToken token = user.getAccessToken(user.getPrimaryLogin());
 					String userId = token.getId();
 					String userType = token.getProvider().toString();
+					AccessPermissionEnum.requireEach(requests);
 					adminUtils.approveProjectUserAccessRequests(userId, userType, projectId, requests, endDate);
 					return success();
 				});
@@ -662,6 +697,7 @@ public class AdminProjectAuthorizationResource {
 					// adding user permissions in bulk
 					List<Map<String, String>> permission = new Gson().fromJson(form.getFirst("userpermissions"),
 							List.class);
+					AccessPermissionEnum.requireEach(permission);
 					// users picked from the Microsoft directory may not be in the security db yet
 					if (MicrosoftGraphUserLookup.isEnabled()) {
 						MicrosoftGraphUserLookup.addMissingUsers(user, permission);

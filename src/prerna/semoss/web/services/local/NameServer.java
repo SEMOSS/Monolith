@@ -78,7 +78,6 @@ import jakarta.ws.rs.core.StreamingOutput;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityInsightUtils;
-import prerna.auth.utils.SecurityQueryUtils;
 import prerna.engine.api.IDatabaseEngine;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
@@ -96,10 +95,10 @@ import prerna.sablecc2.comm.PixelJobManager;
 import prerna.sablecc2.comm.PixelJobRunner;
 import prerna.sablecc2.comm.PixelJobStatus;
 import prerna.sablecc2.om.execptions.SemossMCPException;
+import prerna.security.SecretRedactor;
 import prerna.semoss.web.services.remote.CentralNameServer;
 import prerna.util.ChromeDriverUtility;
 import prerna.util.Constants;
-import prerna.util.PlaySheetRDFMapBasedEnum;
 import prerna.util.Utility;
 import prerna.util.gson.GsonUtility;
 import prerna.web.services.util.WebUtility;
@@ -115,109 +114,6 @@ public class NameServer {
 	private static final String EXPRESSION_NOT_FOUND = "EXPRESSION_NOT_FOUND";
 
 	////////////////////////////////////////////////////////////////////////////////
-
-	@GET
-	@Path("playsheets")
-	@Produces("application/json")
-	public StreamingOutput getPlaySheets(@Context HttpServletRequest request) {
-		Map<String, String> hashTable = new HashMap<>();
-		List<String> sheetNames = PlaySheetRDFMapBasedEnum.getAllSheetNames();
-		sheetNames = WebUtility.inputSanitizer(sheetNames);
-		for (int i = 0; i < sheetNames.size(); i++) {
-			hashTable.put(sheetNames.get(i), PlaySheetRDFMapBasedEnum.getClassFromName(sheetNames.get(i)));
-		}
-		return WebUtility.getSO(hashTable);
-	}
-
-	@Path("i-{insightID}")
-	public Object getInsightDataFrame(@PathParam("insightID") String insightID,
-			@QueryParam("dataFrameType") String dataFrameType, @Context HttpServletRequest request) {
-		// eventually I want to pick this from session
-		// but for now let us pick it from the insight store
-		dataFrameType = WebUtility.inputSanitizer(dataFrameType);
-		insightID = WebUtility.inputSanitizer(insightID);
-
-		classLogger.debug("Processing pixel runner request for insight: {}", insightID);
-
-		Insight existingInsight = null;
-		if (insightID != null && !insightID.isEmpty() && !insightID.startsWith("new")) {
-			existingInsight = InsightStore.getInstance().get(insightID);
-			if (existingInsight == null) {
-				Map<String, String> errorHash = new HashMap<>();
-				errorHash.put(Constants.ERROR_MESSAGE, "Existing insight based on passed insightID is not found");
-				// return Response.status(400).entity(WebUtility.getSO(errorHash)).build();
-				return WebUtility.getResponse(errorHash, 400);
-			}
-			// else if(!existingInsight.hasInstantiatedDataMaker()) {
-			// synchronized(existingInsight) {
-			// if(!existingInsight.hasInstantiatedDataMaker()) {
-			//// IDataMaker dm = null;
-			//// // check if the insight is from a csv
-			//// if(!existingInsight.isDbInsight()) {
-			//// // it better end up being created here since it must be serialized as a
-			// tinker
-			//// InsightCache inCache =
-			// CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.CSV_CACHE);
-			//// dm = inCache.getDMCache(existingInsight);
-			//// DataMakerComponent dmc = new
-			// DataMakerComponent(inCache.getDMFilePath(existingInsight));
-			////
-			//// Vector<DataMakerComponent> dmcList = new Vector<DataMakerComponent>();
-			//// dmcList.add(dmc);
-			//// existingInsight.setDataMakerComponents(dmcList);
-			//// } else {
-			// // otherwise, grab the serialization if it is there
-			// IDataMaker dm =
-			// CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.DB_INSIGHT_CACHE).getDMCache(existingInsight);
-			//// }
-			//
-			// if(dm != null) {
-			// // this means the serialization was good and pushing it into the insight
-			// object
-			// existingInsight.setDataMaker(dm);
-			// } else {
-			//// this means the serialization has never occurred
-			//// could be because hasn't happened, or could be because it is not a tinker
-			// frame
-			// InsightCreateRunner run = new InsightCreateRunner(existingInsight);
-			// Map<String, Object> webData = run.runWeb();
-			// // try to serialize
-			// // this will do nothing if not a tinker frame
-			// CacheFactory.getInsightCache(CacheFactory.CACHE_TYPE.DB_INSIGHT_CACHE).cacheInsight(existingInsight,
-			// webData);
-			// }
-			// }
-			// }
-			// }
-		} else if (insightID == null || insightID.equals("new")) {
-			// get the data frame type and set it from the FE
-			if (dataFrameType == null) {
-				dataFrameType = "H2Frame";
-			}
-			// existingInsight = new Insight(null, dataFrameType, "Grid");
-			existingInsight = new Insight();
-			// set the user id into the insight
-			existingInsight.setUser(((User) request.getSession().getAttribute(Constants.SESSION_USER)));
-			InsightStore.getInstance().put(existingInsight);
-		}
-		// else if(insightID.equals("newDashboard")) {
-		// // get the data frame type and set it from the FE
-		//// existingInsight = new Insight(null, "Dashboard", "Dashboard");
-		// existingInsight = new Insight();
-		// // set the user id into the insight
-		// existingInsight.setUserId( ((User)
-		// request.getSession().getAttribute(Constants.SESSION_USER)).getId() );
-		// Dashboard dashboard = new Dashboard();
-		// existingInsight.setDataMaker(dashboard);
-		// String insightid = InsightStore.getInstance().put(existingInsight);
-		// dashboard.setInsightID(insightid);
-		// }
-
-		DataframeResource dfr = new DataframeResource();
-		dfr.insight = existingInsight;
-
-		return dfr;
-	}
 
 	@GET
 	@Path("/downloadFile")
@@ -793,59 +689,63 @@ public class NameServer {
 		ThreadStore.setRouteId(routeId);
 		ThreadStore.setJobId(uuid);
 		ThreadStore.setUser(insight.getUser());
-
-		String reactorName = root.getJSONObject("params").getString("name");
-		JSONObject arguments = root.getJSONObject("params").getJSONObject("arguments");
-
-		int statusCode = 200;
-		IReactor thisReactor = ReactorFactory.getReactor(insight, reactorName, null, insight.getCurFrame());
-		JSONObject reactorToolMCP = thisReactor.asMcpTool();
-		// get everything else
-		JSONObject reactorProperties = ((JSONObject) reactorToolMCP.get("inputSchema")).getJSONObject("properties");
 		try {
-			String retObject = MCPUtility.runPixelTool(null, insight, reactorName, reactorProperties,
-					arguments.toMap());
-			Map<String, Object> resultMap = new HashMap<>();
-			List<Map<String, Object>> contentList = new ArrayList<>();
-			Map<String, Object> contentMap = new HashMap<>();
-			contentMap.put("type", "text");
-			contentMap.put("text", retObject);
+			String reactorName = root.getJSONObject("params").getString("name");
+			JSONObject arguments = root.getJSONObject("params").getJSONObject("arguments");
 
-			contentList.add(contentMap);
-			resultMap.put("content", contentList);
-			resultMap.put("isError", false);
-			response.put("result", resultMap);
-		} catch (SemossMCPException e) {
-			classLogger.error("MCP tool execution failed: {}", e.getMessage(), e);
-			statusCode = 400;
-			/*
-			 * { "jsonrpc": "2.0", "id": 3, "error": { "code": <example code>, "message":
-			 * <example message> } }
-			 */
-			JSONObject error = new JSONObject();
-			error.put("code", e.getError().getCode());
-			if (e.getMessage() != null) {
-				error.put("message", e.getMessage());
-			} else {
-				error.put("message", e.getError().getDescription());
+			int statusCode = 200;
+			IReactor thisReactor = ReactorFactory.getReactor(insight, reactorName, null, insight.getCurrentFrame());
+			JSONObject reactorToolMCP = thisReactor.asMcpTool();
+			// get everything else
+			JSONObject reactorProperties = ((JSONObject) reactorToolMCP.get("inputSchema")).getJSONObject("properties");
+			try {
+				String retObject = MCPUtility.runPixelTool(null, insight, reactorName, reactorProperties,
+						arguments.toMap());
+				Map<String, Object> resultMap = new HashMap<>();
+				List<Map<String, Object>> contentList = new ArrayList<>();
+				Map<String, Object> contentMap = new HashMap<>();
+				contentMap.put("type", "text");
+				contentMap.put("text", retObject);
+
+				contentList.add(contentMap);
+				resultMap.put("content", contentList);
+				resultMap.put("isError", false);
+				response.put("result", resultMap);
+			} catch (SemossMCPException e) {
+				classLogger.error("MCP tool execution failed: {}", e.getMessage(), e);
+				statusCode = 400;
+				/*
+				 * { "jsonrpc": "2.0", "id": 3, "error": { "code": <example code>, "message":
+				 * <example message> } }
+				 */
+				JSONObject error = new JSONObject();
+				error.put("code", e.getError().getCode());
+				if (e.getMessage() != null) {
+					error.put("message", SecretRedactor.redactError(e.getMessage()));
+				} else {
+					error.put("message", e.getError().getDescription());
+				}
+				response.put("error", error);
+			} catch (Exception e) {
+				classLogger.error("Unexpected error during MCP tool execution", e);
+				statusCode = 400;
+				JSONObject error = new JSONObject();
+				error.put("code", MCPErrorCode.TOOL_EXECUTION_FAILED.getCode());
+				if (e.getMessage() != null) {
+					error.put("message", SecretRedactor.redactError(e.getMessage()));
+				} else {
+					error.put("message", MCPErrorCode.TOOL_EXECUTION_FAILED.getDescription());
+				}
+				response.put("error", error);
 			}
-			response.put("error", error);
-		} catch (Exception e) {
-			classLogger.error("Unexpected error during MCP tool execution", e);
-			statusCode = 400;
-			JSONObject error = new JSONObject();
-			error.put("code", MCPErrorCode.TOOL_EXECUTION_FAILED.getCode());
-			if (e.getMessage() != null) {
-				error.put("message", e.getMessage());
-			} else {
-				error.put("message", MCPErrorCode.TOOL_EXECUTION_FAILED.getDescription());
-			}
-			response.put("error", error);
+
+			return Response.status(statusCode).entity(response.toString())
+					.header("Cache-Control",
+							"no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0")
+					.header("Pragma", "no-cache").build();
+		} finally {
+			ThreadStore.remove();
 		}
-
-		return Response.status(statusCode).entity(response.toString())
-				.header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0")
-				.header("Pragma", "no-cache").build();
 	}
 
 	@POST
@@ -884,8 +784,11 @@ public class NameServer {
 		ThreadStore.setInsightId(insightId);
 		ThreadStore.setSessionId(sessionId);
 		ThreadStore.setUser(user);
-
-		return getInsightPipeline(insight);
+		try {
+			return getInsightPipeline(insight);
+		} finally {
+			ThreadStore.remove();
+		}
 	}
 
 	/**
@@ -916,7 +819,7 @@ public class NameServer {
 		} catch (Exception e) {
 			Map<String, Object> error = new HashMap<>();
 			error.put(ERROR_TYPE, "unknown");
-			error.put("message", e.getMessage());
+			error.put("message", SecretRedactor.redactError(e.getMessage()));
 			return Response.status(500).entity(error)
 					.header("Cache-Control",
 							"no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0")
@@ -1289,7 +1192,7 @@ public class NameServer {
 		}
 		HttpSession session = request.getSession(false);
 		User user = session == null ? null : (User) session.getAttribute(Constants.SESSION_USER);
-		if (user == null || user.isAnonymous()) {
+		if (user == null) {
 			Map<String, Object> errorRet = new HashMap<>();
 			errorRet.put("errorMessage", "Agent run streaming requires an authenticated user");
 			return WebUtility.getResponseNoCache(errorRet, 401);
@@ -1417,7 +1320,6 @@ public class NameServer {
 		if (user == null) {
 			return WebUtility.getSO("Not properly authenticated");
 		}
-		engineId = SecurityQueryUtils.testUserEngineIdForAlias(user, engineId);
 		if (!SecurityEngineUtils.userCanViewEngine(user, engineId)) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE,

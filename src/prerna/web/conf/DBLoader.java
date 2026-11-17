@@ -46,11 +46,13 @@ import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletContextEvent;
 import jakarta.servlet.ServletContextListener;
 import jakarta.servlet.SessionCookieConfig;
+import prerna.auth.utils.ExpiredAccessRemoval;
 import prerna.cluster.util.ClusterUtil;
 import prerna.ds.node.NodeUtils;
 import prerna.engine.api.IDatabaseEngine;
 import prerna.engine.api.IEngine;
 import prerna.engine.api.IEngine.CATALOG_TYPE;
+import prerna.engine.impl.pipeline.PlatformOperation;
 import prerna.engine.impl.r.RserveUtil;
 import prerna.logging.SemossLogUtils;
 import prerna.masterdatabase.utility.MasterDatabaseUtility;
@@ -65,7 +67,7 @@ import prerna.util.AbstractFileWatcher;
 import prerna.util.ChromeDriverUtility;
 import prerna.util.ChrootTemplate;
 import prerna.util.Constants;
-import prerna.util.DIHelper;
+import prerna.util.InternalUtility;
 import prerna.util.SystemEngineRegistry;
 import prerna.util.Utility;
 import prerna.util.insight.InsightUtility;
@@ -86,6 +88,8 @@ public class DBLoader implements ServletContextListener {
 
 	private static final Logger classLogger = LogManager.getLogger(DBLoader.class);
 	private static final String RDFMAP = "RDF-MAP";
+	private static final String START_UP_OPERATION = "start up";
+	private static final String SHUT_DOWN_OPERATION = "shut down";
 	private static String SESSION_ID_KEY = "JSESSIONID";
 	private static boolean useLogoutPage = false;
 	private static String customLogoutUrl = null;
@@ -112,6 +116,19 @@ public class DBLoader implements ServletContextListener {
 
 	@Override
 	public void contextInitialized(ServletContextEvent arg0) {
+		try (PlatformOperation operation = PlatformOperation.begin(START_UP_OPERATION)) {
+			startUp(arg0);
+		}
+	}
+
+	/**
+	 * Starts the application: loads the system databases and the settings, then
+	 * the engines and projects on disk. It runs as a platform operation, since it
+	 * is the platform's own work for no user.
+	 *
+	 * @param arg0 the event of the servlet context starting
+	 */
+	private void startUp(ServletContextEvent arg0) {
 		ThreadContext.put(SemossLogUtils.REQUEST_ID, GUID.v7().toUUID().toString());
 		ThreadContext.put(SemossLogUtils.USER_ID, "STARTUP");
 		ThreadContext.put(SemossLogUtils.USER_TYPE, "SYSTEM");
@@ -147,19 +164,6 @@ public class DBLoader implements ServletContextListener {
 		}
 		context.setInitParameter(Constants.ADMIN_SET_EXPORTER, adminSetExporter);
 
-		// see if we allow anonymous users
-		String anonymousUsersEnabled = context.getInitParameter(Constants.ANONYMOUS_USER_ALLOWED);
-		if (anonymousUsersEnabled == null) {
-			anonymousUsersEnabled = "false";
-		}
-		context.setInitParameter(Constants.ANONYMOUS_USER_ALLOWED, anonymousUsersEnabled);
-		// see if anonymous users can upload data
-		String anonymousUsersUploadData = context.getInitParameter(Constants.ANONYMOUS_USER_UPLOAD_DATA);
-		if (anonymousUsersUploadData == null) {
-			anonymousUsersUploadData = "false";
-		}
-		context.setInitParameter(Constants.ANONYMOUS_USER_UPLOAD_DATA, anonymousUsersUploadData);
-
 		// see if we redirect to logout page or back to login screen
 		String useLogoutPage = context.getInitParameter(Constants.USE_LOGOUT_PAGE);
 		if (useLogoutPage == null) {
@@ -193,7 +197,7 @@ public class DBLoader implements ServletContextListener {
 
 		// Load RDF_Map.prop file
 		classLogger.log(STARTUP, "Loading RDF_Map.prop: {}", Utility.cleanLogString(rdfPropFile));
-		DIHelper.getInstance().loadCoreProp(rdfPropFile);
+		InternalUtility.loadCoreProp(rdfPropFile);
 
 		if (RserveUtil.R_KILL_ON_STARTUP) {
 			classLogger.log(STARTUP, "Killing existing RServes running on the machine");
@@ -207,17 +211,15 @@ public class DBLoader implements ServletContextListener {
 		// set security enabled within DIHelper first
 		// this is because security database, on init, will
 		// load it as a boolean instead of us searching within DIHelper
-		DIHelper.getInstance().setLocalProperty(Constants.ADMIN_SET_PUBLISHER, adminSetPublisher);
-		DIHelper.getInstance().setLocalProperty(Constants.ADMIN_SET_EXPORTER, adminSetExporter);
-		DIHelper.getInstance().setLocalProperty(Constants.ANONYMOUS_USER_ALLOWED, anonymousUsersEnabled);
-		DIHelper.getInstance().setLocalProperty(Constants.ANONYMOUS_USER_UPLOAD_DATA, anonymousUsersUploadData);
-		DIHelper.getInstance().setLocalProperty(Constants.USE_LOGOUT_PAGE, useLogoutPage);
-		DIHelper.getInstance().setLocalProperty(Constants.SESSION_ID_KEY, SESSION_ID_KEY);
-		DIHelper.getInstance().setLocalProperty(Constants.CONTEXT_PATH_KEY, contextPath);
+		InternalUtility.setLocalProperty(Constants.ADMIN_SET_PUBLISHER, adminSetPublisher);
+		InternalUtility.setLocalProperty(Constants.ADMIN_SET_EXPORTER, adminSetExporter);
+		InternalUtility.setLocalProperty(Constants.USE_LOGOUT_PAGE, useLogoutPage);
+		InternalUtility.setLocalProperty(Constants.SESSION_ID_KEY, SESSION_ID_KEY);
+		InternalUtility.setLocalProperty(Constants.CONTEXT_PATH_KEY, contextPath);
 
 		// Load empty engine list into DIHelper, then load engines from db folder
 		classLogger.log(STARTUP, "Loading engines...");
-		DIHelper.getInstance().setEngineProperty(Constants.ENGINES, "");
+		InternalUtility.setEngineIds("");
 		loadSmss(Constants.ENGINE_WEB_WATCHER);
 		// if there was an issue starting up the server
 		// we should do it here so that we can redirect the user
@@ -310,7 +312,7 @@ public class DBLoader implements ServletContextListener {
 		}
 
 		classLogger.log(STARTUP, "Loading projects...");
-		DIHelper.getInstance().setProjectProperty(Constants.PROJECTS, "");
+		InternalUtility.setProjectIds("");
 		loadSmss(Constants.PROJECT_WATCHER);
 
 		// Load and run triggerOnLoad jobs
@@ -320,6 +322,10 @@ public class DBLoader implements ServletContextListener {
 			} catch (Exception e) {
 				classLogger.warn("Failed to execute triggerOnLoad scheduler jobs", e);
 			}
+		}
+
+		if (SystemEngineRegistry.isSecurityDbLoaded()) {
+			ExpiredAccessRemoval.startSchedule();
 		}
 
 		// this will likely need to be broken out into another service in the future
@@ -358,7 +364,7 @@ public class DBLoader implements ServletContextListener {
 	private void loadSmss(String pathKey) {
 		Map<String, String> parentMDC = ThreadContext.getImmutableContext();
 
-		String pathValue = DIHelper.getInstance().getProperty(pathKey);
+		String pathValue = Utility.getDIHelperProperty(pathKey);
 		if (pathValue == null || pathValue.trim().isEmpty()) {
 			throw new NullPointerException("Error occurred - could not find " + pathKey
 					+ " in RDF_Map.prop which is required for starting the application");
@@ -397,6 +403,17 @@ public class DBLoader implements ServletContextListener {
 
 	@Override
 	public void contextDestroyed(ServletContextEvent arg0) {
+		try (PlatformOperation operation = PlatformOperation.begin(SHUT_DOWN_OPERATION)) {
+			shutDown();
+		}
+	}
+
+	/**
+	 * Stops the application: drops the insights, stops the watchers and closes the
+	 * engines. It runs as a platform operation, since it is the platform's own
+	 * work for no user.
+	 */
+	private void shutDown() {
 		ThreadContext.put(SemossLogUtils.REQUEST_ID, GUID.v7().toUUID().toString());
 		ThreadContext.put(SemossLogUtils.USER_ID, "SHUTDOWN");
 		ThreadContext.put(SemossLogUtils.USER_TYPE, "SYSTEM");
@@ -429,7 +446,7 @@ public class DBLoader implements ServletContextListener {
 		List<String> eIds = MasterDatabaseUtility.getAllDatabaseIds();
 		for (String id : eIds) {
 			// grab only loaded engines
-			IEngine engine = (IEngine) DIHelper.getInstance().getEngineProperty(id);
+			IEngine engine = InternalUtility.getLoadedEngine(id);
 			if (engine != null) {
 				// if it is loaded, close it
 				classLogger.log(SHUTDOWN, "Closing engine {}", id);

@@ -8,7 +8,6 @@ The Monolith WAR hosts several Jakarta REST applications. Each application has i
 | [GitHubApplication](../src/prerna/semoss/web/app/GitHubApplication.java) | `/Monolith/github` | GitHub App setup, project links, callbacks, and push webhooks |
 | [MicrosoftGraphApplication](../src/prerna/semoss/web/app/MicrosoftGraphApplication.java) | `/Monolith/msgraph` | Microsoft mailbox/calendar subscriptions and notifications |
 | [HealthApplication](../src/prerna/semoss/web/app/HealthApplication.java) | `/Monolith/health` | Liveness, readiness, and resource status |
-| [TrustedTokenApplication](../src/prerna/semoss/web/app/TrustedTokenApplication.java) | `/Monolith/token` | Trusted integration token service |
 | [AdminApplication](../src/prerna/semoss/web/app/AdminApplication.java) | `/Monolith/adminconfig` | Initial administrator setup |
 
 Paths below include the application base. `{...}` denotes an ID or other path parameter to replace; `*` denotes a route family for navigation, not a literal request URL. Engine IDs follow a hyphen in these routes: for example, `/Monolith/api/storage-<storage-id>/list`.
@@ -167,7 +166,7 @@ A model usage limit is JSON: Unlimited, or rules that must all have usage left.
 
 Only a model's owners, and admins in admin mode, set usage limits on it: a person's, a team's, public use and the model's total. Editors still add people and change the level of Read-Only and Editor people; their adds give no limit and their changes keep the current one. A change by an editor that leaves any other limit is refused with "Only owners can set usage limits".
 
-These endpoints read and set limits that are not part of a grant. Anonymous sessions get `401` from each.
+These endpoints read and set limits that are not part of a grant. Requests without a signed in user get `401` from each.
 
 | Method and endpoint | Inputs / purpose | Who may call |
 | --- | --- | --- |
@@ -262,17 +261,6 @@ Base: **`/Monolith/health`**. Registered resource: [HealthResource](../src/prern
 | `GET /Monolith/health/details` | Required/enabled system-resource status |
 
 Health probes use this dedicated application and do not require a user session.
-
-## TrustedTokenApplication
-
-Base: **`/Monolith/token`**. Registered resource: [TrustedTokenService](../src/prerna/semoss/web/services/config/TrustedTokenService.java).
-
-| Method and endpoint | Purpose |
-| --- | --- |
-| `POST /Monolith/token/getToken` | Request a trusted integration token using the configured client-credential flow |
-| `GET /Monolith/token/getToken` | Legacy variant; rejected when client/secret validation is enabled |
-
-The POST flow reads `client_id` and, when credential validation is enabled, `secret_key`. Configure trusted integrations through the deployment's token and filter settings. This application is separate from the login and resource-authorization APIs under `/Monolith/api/auth`.
 
 ## AdminApplication
 

@@ -38,6 +38,7 @@ import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import prerna.om.ThreadStore;
 import prerna.web.services.util.WebUtility;
 
 public class StartUpSuccessFilter implements Filter {
@@ -48,37 +49,59 @@ public class StartUpSuccessFilter implements Filter {
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2)
 			throws IOException, ServletException {
 		ServletContext context = arg0.getServletContext();
+		ThreadStore.remove();
+		try {
+			filterRequest(context, arg0, arg1, arg2);
+		} finally {
+			ThreadStore.remove();
+		}
+	}
 
+	/**
+	 * Sends a request on, or to the start up failure page when the server did not
+	 * start. The thread carries nothing from the request it served before, and
+	 * {@link #doFilter} clears what this request put on it once the request ends.
+	 *
+	 * @param context  the servlet context
+	 * @param request  the request
+	 * @param response the response
+	 * @param chain    the rest of the filters
+	 * @throws IOException      when the request or response cannot be read or
+	 *                          written
+	 * @throws ServletException when a later filter fails
+	 */
+	private void filterRequest(ServletContext context, ServletRequest request, ServletResponse response,
+			FilterChain chain) throws IOException, ServletException {
 		// never redirect health/liveness/readiness probes - they must stay reachable
 		// so orchestrators can observe status precisely when startup has failed
-		if (arg0 instanceof HttpServletRequest) {
-			String servletPath = ((HttpServletRequest) arg0).getServletPath();
+		if (request instanceof HttpServletRequest) {
+			String servletPath = ((HttpServletRequest) request).getServletPath();
 			if (servletPath != null && servletPath.startsWith("/health")) {
-				arg2.doFilter(arg0, arg1);
+				chain.doFilter(request, response);
 				return;
 			}
 		}
 
-		WebUtility.loggingContext(arg0);
+		WebUtility.loggingContext(request);
 		if (!DBLoader.isStartupSuccess()) {
 			// this will be the deployment name of the app
 			String contextPath = context.getContextPath();
 
 			// this will be the full path of the request
 			// like http://localhost:8080/Monolith_Dev/api/engine/runPixel
-			String fullUrl = WebUtility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
+			String fullUrl = WebUtility.cleanHttpResponse(((HttpServletRequest) request).getRequestURL().toString());
 
 			if (!fullUrl.endsWith(FAIL_HTML)) {
 				// we redirect to the index.html page where we have pushed the admin page
 				String redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length())
 						+ FAIL_HTML;
-				((HttpServletResponse) arg1).setHeader("redirect", redirectUrl);
-				((HttpServletResponse) arg1).sendError(302, "Redirect required");
+				((HttpServletResponse) response).setHeader("redirect", redirectUrl);
+				((HttpServletResponse) response).sendError(302, "Redirect required");
 				return;
 			}
 		}
 
-		arg2.doFilter(arg0, arg1);
+		chain.doFilter(request, response);
 	}
 
 	@Override

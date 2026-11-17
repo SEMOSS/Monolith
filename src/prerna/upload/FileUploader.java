@@ -52,6 +52,7 @@ import com.google.gson.reflect.TypeToken;
 import jakarta.annotation.security.PermitAll;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
@@ -298,23 +299,17 @@ public class FileUploader extends AbstractUploader {
 			return WebUtility.getResponse(errorMap, 400);
 		}
 
-		Insight in = getValidInsight(insightId);
+		User user = getSessionUser(request);
+		Insight in = getValidInsight(insightId, user);
 		if (in == null) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Session could not be validated in order to upload files");
 			return WebUtility.getResponse(errorMap, 400);
 		}
-		User user = in.getUser();
 
 		Response permResponse = checkGeneralUserPermissions(user);
 		if (permResponse != null) {
 			return permResponse;
-		}
-
-		if (user.isAnonymous() && in.isSavedInsight()) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload files to a saved insight");
-			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		if (in.isSavedInsight() && !SecurityInsightUtils.userCanEditInsight(user, in.getProjectId(), in.getRdbmsId())) {
@@ -476,23 +471,17 @@ public class FileUploader extends AbstractUploader {
 		insightId = WebUtility.safePathSegment(WebUtility.inputSanitizer(insightId));
 		relativePath = WebUtility.inputSanitizer(relativePath);
 
-		Insight in = getValidInsight(insightId);
+		User user = getSessionUser(request);
+		Insight in = getValidInsight(insightId, user);
 		if (in == null) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Session could not be validated in order to upload files");
 			return WebUtility.getResponse(errorMap, 400);
 		}
-		User user = in.getUser();
 
 		Response permResponse = checkGeneralUserPermissions(user);
 		if (permResponse != null) {
 			return permResponse;
-		}
-
-		if (user.isAnonymous()) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload files to user assets");
-			return WebUtility.getResponse(errorMap, 400);
 		}
 
 		ThreadStore.setSessionId(request.getSession().getId());
@@ -541,13 +530,13 @@ public class FileUploader extends AbstractUploader {
 		relativePath = WebUtility.inputSanitizer(relativePath);
 		projectId = WebUtility.safePathSegment(WebUtility.inputSanitizer(projectId));
 
-		Insight in = getValidInsight(insightId);
+		User user = getSessionUser(request);
+		Insight in = getValidInsight(insightId, user);
 		if (in == null) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Session could not be validated in order to upload files");
 			return WebUtility.getResponse(errorMap, 400);
 		}
-		User user = in.getUser();
 
 		Response permResponse = checkGeneralUserPermissions(user);
 		if (permResponse != null) {
@@ -612,13 +601,13 @@ public class FileUploader extends AbstractUploader {
 		relativePath = WebUtility.inputSanitizer(relativePath);
 		engineId = WebUtility.safePathSegment(WebUtility.inputSanitizer(engineId));
 
-		Insight in = getValidInsight(insightId);
+		User user = getSessionUser(request);
+		Insight in = getValidInsight(insightId, user);
 		if (in == null) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Session could not be validated in order to upload files");
 			return WebUtility.getResponse(errorMap, 400);
 		}
-		User user = in.getUser();
 
 		Response permResponse = checkGeneralUserPermissions(user);
 		if (permResponse != null) {
@@ -659,14 +648,29 @@ public class FileUploader extends AbstractUploader {
 	}
 
 	/**
-	 * Validates that the insight and user are valid.
-	 * 
-	 * @param insightId The insight ID to validate.
-	 * @return The Insight object if valid, otherwise null.
+	 * Returns the signed in user making the request.
+	 *
+	 * @param request the HTTP servlet request
+	 * @return the session's user, or null when nobody is signed in
 	 */
-	private Insight getValidInsight(String insightId) {
+	private static User getSessionUser(HttpServletRequest request) {
+		HttpSession session = request.getSession(false);
+		return session == null ? null : (User) session.getAttribute(Constants.SESSION_USER);
+	}
+
+	/**
+	 * Returns the open insight with this id when it belongs to the caller. An
+	 * upload acts as the caller and may write into the insight's own folder, so
+	 * another user's insight is treated as one that is not open.
+	 *
+	 * @param insightId the insight id
+	 * @param caller    the signed in user making the request, or null
+	 * @return the insight, or null when there is no caller or the insight is not
+	 *         theirs
+	 */
+	private Insight getValidInsight(String insightId, User caller) {
 		Insight in = InsightStore.getInstance().get(insightId);
-		if (in == null || in.getUser() == null) {
+		if (in == null || in.getUser() == null || caller == null || !caller.isSamePerson(in.getUser())) {
 			return null;
 		}
 		return in;
@@ -679,12 +683,6 @@ public class FileUploader extends AbstractUploader {
 	 * @return A Response object if permissions are denied, otherwise null.
 	 */
 	private Response checkGeneralUserPermissions(User user) {
-		if (user.isAnonymous() && !AbstractSecurityUtils.anonymousUserUploadData()) {
-			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put(Constants.ERROR_MESSAGE, "Must be logged in to upload files");
-			return WebUtility.getResponse(errorMap, 400);
-		}
-
 		if (AbstractSecurityUtils.adminSetPublisher() && !SecurityQueryUtils.userIsPublisher(user)) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE,

@@ -56,6 +56,8 @@ import prerna.web.services.util.WebUtility;
 @PermitAll
 public class InsightAuthorizationResource {
 
+	private static final String ADMINS_ONLY = "This functionality is limited to only admins";
+
 	/**
 	 * Get the insights of user
 	 * 
@@ -73,7 +75,7 @@ public class InsightAuthorizationResource {
 		String term = WebUtility.inputSQLSanitizer(searchTerm);
 		String offsetValue = WebUtility.inputSanitizer(offset);
 		String limitValue = WebUtility.inputSanitizer(limit);
-		return ResourceUtility.respondAllowingAnonymous(request, "search their insights", user -> {
+		return ResourceUtility.respond(request, "search their insights", user -> {
 			List<String> projectFilter = null;
 			if (project != null && !project.trim().isEmpty()) {
 				projectFilter = new ArrayList<>();
@@ -97,8 +99,7 @@ public class InsightAuthorizationResource {
 	public Response getProjectInsights(@Context HttpServletRequest request, @QueryParam("projectId") String projectId,
 			@QueryParam("searchTerm") String searchTerm) {
 		String project = WebUtility.inputSanitizer(projectId);
-		return ResourceUtility.respondAllowingAnonymous(request,
-				"list the insights they can edit in project " + project,
+		return ResourceUtility.respond(request, "list the insights they can edit in project " + project,
 				user -> SecurityInsightUtils.getUserEditableInsights(user, project));
 	}
 
@@ -116,7 +117,7 @@ public class InsightAuthorizationResource {
 			@QueryParam("projectId") String projectId, @QueryParam("insightId") String insightId) {
 		String project = WebUtility.inputSanitizer(projectId);
 		String insight = WebUtility.inputSanitizer(insightId);
-		return ResourceUtility.respondAllowingAnonymous(request,
+		return ResourceUtility.respond(request,
 				"read their permission on insight " + insight + " of project " + project, user -> {
 					String permission = SecurityInsightUtils.getActualUserInsightPermission(user, project, insight);
 					if (permission == null) {
@@ -147,8 +148,8 @@ public class InsightAuthorizationResource {
 		String memberId = WebUtility.inputSQLSanitizer(userId);
 		String insight = WebUtility.inputSanitizer(insightId);
 		String memberPermission = WebUtility.inputSanitizer(permission);
-		return ResourceUtility.respondAllowingAnonymous(request,
-				"list the users of insight " + insight + " of project " + project, user -> {
+		return ResourceUtility.respond(request, "list the users of insight " + insight + " of project " + project,
+				user -> {
 					List<Map<String, Object>> members = SecurityInsightUtils.getInsightUsers(user, project, insight,
 							memberId, memberPermission, limit, offset);
 					long totalMembers = SecurityInsightUtils.getInsightUsersCount(user, project, insight, memberId,
@@ -178,12 +179,19 @@ public class InsightAuthorizationResource {
 		String endDate = null; // form.getFirst("endDate");
 		return ResourceUtility.respond(request,
 				"add user " + newUserId + " to insight " + insightId + " of project " + projectId, user -> {
-					// add the person with read only access if they do not have access to the app
-					if (SecurityProjectUtils.getUserProjectPermission(newUserId, projectId) == null) {
-						SecurityProjectUtils.addProjectUser(user, newUserId, projectId,
-								AccessPermissionEnum.READ_ONLY.getPermission(), endDate);
+					boolean isAdmin = SecurityAdminUtils.userIsAdmin(user);
+					if (AbstractSecurityUtils.adminOnlyInsightAddAccess() && !isAdmin) {
+						throw new IllegalAccessException(ADMINS_ONLY);
 					}
-					SecurityInsightUtils.addInsightUser(user, newUserId, projectId, insightId, permission, endDate);
+					String level = AccessPermissionEnum.require(permission);
+					// a person with no access to the project also gets Read-Only access to it,
+					// which the project's own admin-only add setting governs
+					if (!isAdmin && AbstractSecurityUtils.adminOnlyProjectAddAccess(projectId)
+							&& SecurityProjectUtils.getUserProjectPermission(newUserId, projectId) == null) {
+						throw new IllegalAccessException(ADMINS_ONLY);
+					}
+					SecurityInsightUtils.addInsightUserWithProjectAccess(user, newUserId, projectId, insightId, level,
+							endDate);
 
 					Map<String, Object> ret = new HashMap<>();
 					ret.put("success", true);
@@ -210,8 +218,11 @@ public class InsightAuthorizationResource {
 		String endDate = null; // form.getFirst("endDate");
 		return ResourceUtility.respond(request, "edit the permission of user " + existingUserId + " on insight "
 				+ insightId + " of project " + projectId, user -> {
+					if (AbstractSecurityUtils.adminOnlyInsightAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
+						throw new IllegalAccessException(ADMINS_ONLY);
+					}
 					SecurityInsightUtils.editInsightUserPermission(user, existingUserId, projectId, insightId,
-							newPermission, endDate);
+							AccessPermissionEnum.require(newPermission), endDate);
 
 					Map<String, Object> ret = new HashMap<>();
 					ret.put("success", true);
@@ -237,11 +248,12 @@ public class InsightAuthorizationResource {
 		return ResourceUtility.respond(request,
 				"edit the permissions of users on insight " + insightId + " of project " + projectId, user -> {
 					if (AbstractSecurityUtils.adminOnlyInsightAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
-						throw new IllegalAccessException("This functionality is limited to only admins");
+						throw new IllegalAccessException(ADMINS_ONLY);
 					}
 
 					List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("userpermissions"),
 							List.class);
+					AccessPermissionEnum.requireEach(requests);
 					SecurityInsightUtils.editInsightUserPermissions(user, projectId, insightId, requests, endDate);
 
 					Map<String, Object> ret = new HashMap<>();
@@ -267,6 +279,9 @@ public class InsightAuthorizationResource {
 		String insightId = WebUtility.inputSanitizer(form.getFirst("insightId"));
 		return ResourceUtility.respond(request,
 				"remove user " + existingUserId + " from insight " + insightId + " of project " + projectId, user -> {
+					if (AbstractSecurityUtils.adminOnlyInsightAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
+						throw new IllegalAccessException(ADMINS_ONLY);
+					}
 					SecurityInsightUtils.removeInsightUser(user, existingUserId, projectId, insightId);
 
 					Map<String, Object> ret = new HashMap<>();
@@ -383,7 +398,7 @@ public class InsightAuthorizationResource {
 		String project = WebUtility.inputSanitizer(projectId);
 		String insight = WebUtility.inputSanitizer(insightId);
 		String term = WebUtility.inputSQLSanitizer(searchTerm);
-		return ResourceUtility.respondAllowingAnonymous(request,
+		return ResourceUtility.respond(request,
 				"list the users without access to insight " + insight + " of project " + project,
 				user -> SecurityInsightUtils.getInsightUsersNoCredentials(user, project, insight, term, limit, offset));
 	}
@@ -406,12 +421,13 @@ public class InsightAuthorizationResource {
 		return ResourceUtility.respond(request, "add users to insight " + insightId + " of project " + projectId,
 				user -> {
 					if (AbstractSecurityUtils.adminOnlyInsightAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
-						throw new IllegalAccessException("This functionality is limited to only admins");
+						throw new IllegalAccessException(ADMINS_ONLY);
 					}
 
 					// adding user permissions in bulk
 					List<Map<String, String>> permission = new Gson().fromJson(form.getFirst("userpermissions"),
 							List.class);
+					AccessPermissionEnum.requireEach(permission);
 					SecurityInsightUtils.addInsightUserPermissions(user, projectId, insightId, permission, endDate);
 
 					Map<String, Object> ret = new HashMap<>();
@@ -440,7 +456,7 @@ public class InsightAuthorizationResource {
 					ids = WebUtility.inputSanitizer(ids);
 
 					if (AbstractSecurityUtils.adminOnlyInsightAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
-						throw new IllegalAccessException("This functionality is limited to only admins");
+						throw new IllegalAccessException(ADMINS_ONLY);
 					}
 
 					SecurityInsightUtils.removeInsightUsers(user, ids, projectId, insightId);
@@ -469,13 +485,13 @@ public class InsightAuthorizationResource {
 		return ResourceUtility.respond(request,
 				"approve requests for access to insight " + insightId + " of project " + projectId, user -> {
 					if (AbstractSecurityUtils.adminOnlyInsightAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
-						throw new IllegalAccessException("This functionality is limited to only admins");
+						throw new IllegalAccessException(ADMINS_ONLY);
 					}
 
 					// adding user permissions and updating user access requests in bulk
 					List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("requests"), List.class);
-					SecurityInsightUtils.approveInsightUserAccessRequests(user, projectId, insightId, requests,
-							endDate);
+					SecurityInsightUtils.approveInsightUserAccessRequests(user, projectId, insightId,
+							AccessPermissionEnum.requireEach(requests), endDate);
 
 					Map<String, Object> ret = new HashMap<>();
 					ret.put("success", true);
@@ -500,7 +516,7 @@ public class InsightAuthorizationResource {
 		return ResourceUtility.respond(request,
 				"deny requests for access to insight " + insightId + " of project " + projectId, user -> {
 					if (AbstractSecurityUtils.adminOnlyInsightAddAccess() && !SecurityAdminUtils.userIsAdmin(user)) {
-						throw new IllegalAccessException("This functionality is limited to only admins");
+						throw new IllegalAccessException(ADMINS_ONLY);
 					}
 
 					// updating user access requests in bulk

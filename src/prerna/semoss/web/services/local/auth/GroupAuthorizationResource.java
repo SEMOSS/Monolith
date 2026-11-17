@@ -52,8 +52,7 @@ import prerna.web.services.util.WebUtility;
  * act as an ordinary user; admins manage every custom group under
  * {@code /auth/admin/group}. The owner of a project or engine can see who
  * manages a custom group before they give it access.
- * {@link SecurityGroupManagerUtils} checks who may do what; anonymous sessions
- * can do nothing here.
+ * {@link SecurityGroupManagerUtils} checks who may do what.
  */
 @Path("/auth/group")
 @PermitAll
@@ -170,22 +169,24 @@ public class GroupAuthorizationResource {
 	@Produces("application/json")
 	public Response getProjectsForGroup(@Context HttpServletRequest request, @QueryParam("groupId") String groupId,
 			@QueryParam("searchTerm") String searchTerm, @QueryParam("limit") long limit,
-			@QueryParam("offset") long offset, @QueryParam("onlyApps") boolean onlyApps) {
+			@QueryParam("offset") long offset, @QueryParam("projectTypes") List<String> projectTypes) {
 		String group = WebUtility.inputSQLSanitizer(groupId);
 		String term = WebUtility.inputSQLSanitizer(searchTerm);
+		List<String> types = WebUtility.inputSanitizer(projectTypes);
 		return ResourceUtility.respond(request, "list the projects of group " + group,
-				user -> SecurityGroupManagerUtils.getProjectsForGroup(user, group, term, limit, offset, onlyApps));
+				user -> SecurityGroupManagerUtils.getProjectsForGroup(user, group, term, limit, offset, types));
 	}
 
 	@GET
 	@Path("/getNumProjectsForGroup")
 	@Produces("application/json")
 	public Response getNumProjectsForGroup(@Context HttpServletRequest request, @QueryParam("groupId") String groupId,
-			@QueryParam("searchTerm") String searchTerm, @QueryParam("onlyApps") boolean onlyApps) {
+			@QueryParam("searchTerm") String searchTerm, @QueryParam("projectTypes") List<String> projectTypes) {
 		String group = WebUtility.inputSQLSanitizer(groupId);
 		String term = WebUtility.inputSQLSanitizer(searchTerm);
+		List<String> types = WebUtility.inputSanitizer(projectTypes);
 		return ResourceUtility.respond(request, "count the projects of group " + group,
-				user -> SecurityGroupManagerUtils.getNumProjectsForGroup(user, group, term, onlyApps));
+				user -> SecurityGroupManagerUtils.getNumProjectsForGroup(user, group, term, types));
 	}
 
 	/**

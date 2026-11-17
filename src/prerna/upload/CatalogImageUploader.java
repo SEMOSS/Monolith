@@ -98,9 +98,6 @@ public final class CatalogImageUploader {
 		} catch (IllegalAccessException e) {
 			return error("User session is invalid", 401);
 		}
-		if (user.isAnonymous()) {
-			return error("Must be logged in to upload an image", 401);
-		}
 		if (!WebUtility.isSafePathSegment(id)) {
 			return error("Invalid " + (project ? "project" : "engine") + " id", 400);
 		}
