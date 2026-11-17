@@ -35,7 +35,7 @@ import jakarta.ws.rs.core.Application;
 public class FixtureApplication extends Application {
 
 	@Override
-	public Set<Object> getSingletons() {
-		return Set.of(new FixtureResource());
+	public Set<Class<?>> getClasses() {
+		return Set.of(FixtureResource.class);
 	}
 }

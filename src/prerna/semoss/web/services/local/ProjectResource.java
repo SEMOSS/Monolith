@@ -119,7 +119,6 @@ public class ProjectResource {
 	private static boolean noLogo = false;
 
 	private boolean canAccessProject(User user, String projectId) throws IllegalAccessException {
-		projectId = SecurityProjectUtils.testUserProjectIdForAlias(user, projectId);
 		if (!SecurityProjectUtils.userCanViewProject(user, projectId)) {
 			throw new IllegalAccessException("Project " + projectId + " does not exist or user does not have access");
 		}
@@ -128,7 +127,6 @@ public class ProjectResource {
 	}
 
 	private boolean canAccessOrDiscoverableProject(User user, String projectId) throws IllegalAccessException {
-		projectId = SecurityProjectUtils.testUserProjectIdForAlias(user, projectId);
 		if (!SecurityProjectUtils.userCanViewProject(user, projectId)
 				&& !SecurityProjectUtils.projectIsDiscoverable(projectId)) {
 			throw new IllegalAccessException("Project " + projectId + " does not exist or user does not have access");
@@ -138,19 +136,12 @@ public class ProjectResource {
 	}
 
 	private boolean canAccessInsight(User user, String projectId, String insightId) throws IllegalAccessException {
-		projectId = SecurityProjectUtils.testUserProjectIdForAlias(user, projectId);
 		if (!SecurityInsightUtils.userCanViewInsight(user, projectId, insightId)) {
 			throw new IllegalAccessException("Insight does not exist or user does not have access to view");
 		}
 
 		return true;
 	}
-
-	///////////////////////////////////////////////////////////////////////////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	@POST
 	@Path("/updateSmssFile")
@@ -355,6 +346,9 @@ public class ProjectResource {
 							"no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0")
 					.header("Pragma", "no-cache").build();
 		} catch (Exception e) {
+			// a successful run clears the thread once its response is streamed; a
+			// failure has no stream to do it
+			ThreadStore.remove();
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
 			return WebUtility.getResponse(errorMap, 400);

@@ -66,11 +66,7 @@ public class UserExistsFilter extends NoUserInSessionFilter {
 			user = (User) session.getAttribute(Constants.SESSION_USER);
 		}
 
-		// this will be the full path of the request
-		// like http://localhost:8080/Monolith_Dev/api/engine/runPixel
-		String fullUrl = ((HttpServletRequest) arg0).getRequestURL().toString();
-
-		if (!ResourceUtility.canAccessWithoutLogin(fullUrl)) {
+		if (!ResourceUtility.canAccessWithoutLogin((HttpServletRequest) arg0)) {
 			// how you got here without a user, i am unsure given the other filters
 			// but just in case
 			// i will redirect you to login

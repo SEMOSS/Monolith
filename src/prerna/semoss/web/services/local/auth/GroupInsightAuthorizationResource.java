@@ -44,6 +44,7 @@ import jakarta.ws.rs.core.Response;
 import prerna.auth.AccessPermissionEnum;
 import prerna.auth.AuthProvider;
 import prerna.auth.utils.SecurityGroupInsightsUtils;
+import prerna.auth.utils.SecurityInsightUtils;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.ValueUtils;
 import prerna.web.services.util.WebUtility;
@@ -80,11 +81,15 @@ public class GroupInsightAuthorizationResource {
 		String group = WebUtility.inputSQLSanitizer(groupId);
 		return ResourceUtility.respond(request,
 				"read the permission of group " + group + " on insight " + insight + " of project " + project, user -> {
-					Integer permissionCode = SecurityGroupInsightsUtils.getGroupInsightPermission(
-							ValueUtils.requireNonBlank(group, GROUP_ID_REQUIRED),
-							ValueUtils.requireNonBlank(groupType, GROUP_TYPE_REQUIRED),
-							ValueUtils.requireNonBlank(project, PROJECT_ID_REQUIRED),
-							ValueUtils.requireNonBlank(insight, INSIGHT_ID_REQUIRED));
+					String groupToRead = ValueUtils.requireNonBlank(group, GROUP_ID_REQUIRED);
+					String typeToRead = ValueUtils.requireNonBlank(groupType, GROUP_TYPE_REQUIRED);
+					String projectToRead = ValueUtils.requireNonBlank(project, PROJECT_ID_REQUIRED);
+					String insightToRead = ValueUtils.requireNonBlank(insight, INSIGHT_ID_REQUIRED);
+					if (!SecurityInsightUtils.userCanViewInsight(user, projectToRead, insightToRead)) {
+						throw new IllegalAccessException("The user does not have access to view this insight");
+					}
+					Integer permissionCode = SecurityGroupInsightsUtils.getGroupInsightPermission(groupToRead,
+							typeToRead, projectToRead, insightToRead);
 					String permission = permissionCode == null ? null
 							: AccessPermissionEnum.getPermissionValueById(permissionCode);
 
@@ -119,7 +124,8 @@ public class GroupInsightAuthorizationResource {
 							ValueUtils.requireNonBlank(type, GROUP_TYPE_REQUIRED),
 							ValueUtils.requireNonBlank(projectId, PROJECT_ID_REQUIRED),
 							ValueUtils.requireNonBlank(insightId, INSIGHT_ID_REQUIRED),
-							ValueUtils.requireNonBlank(permission, PERMISSION_REQUIRED), endDate);
+							AccessPermissionEnum.require(ValueUtils.requireNonBlank(permission, PERMISSION_REQUIRED)),
+							endDate);
 
 					Map<String, Object> ret = new HashMap<>();
 					ret.put("success", true);
@@ -153,7 +159,9 @@ public class GroupInsightAuthorizationResource {
 							ValueUtils.requireNonBlank(type, GROUP_TYPE_REQUIRED),
 							ValueUtils.requireNonBlank(projectId, PROJECT_ID_REQUIRED),
 							ValueUtils.requireNonBlank(insightId, INSIGHT_ID_REQUIRED),
-							ValueUtils.requireNonBlank(newPermission, PERMISSION_REQUIRED), endDate);
+							AccessPermissionEnum.require(
+									ValueUtils.requireNonBlank(newPermission, PERMISSION_REQUIRED)),
+							endDate);
 
 					Map<String, Object> ret = new HashMap<>();
 					ret.put("success", true);

@@ -173,9 +173,12 @@ public class OldEngineResource {
 		ThreadStore.setSessionId(session.getId());
 		ThreadStore.setJobId(dummyIn.getInsightId());
 		ThreadStore.setUser(user);
-
-		NounMetadata retNoun = playsheetRunReactor.execute();
-		return WebUtility.getResponse(retNoun.getValue(), 200);
+		try {
+			NounMetadata retNoun = playsheetRunReactor.execute();
+			return WebUtility.getResponse(retNoun.getValue(), 200);
+		} finally {
+			ThreadStore.remove();
+		}
 	}
 
 	@Deprecated

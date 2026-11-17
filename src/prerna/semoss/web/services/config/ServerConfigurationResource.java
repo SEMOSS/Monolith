@@ -39,6 +39,10 @@ import java.util.Map;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.annotation.security.PermitAll;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
@@ -75,11 +79,6 @@ import prerna.util.SocialPropertiesUtil;
 import prerna.util.Utility;
 import prerna.web.conf.DBLoader;
 import prerna.web.services.util.WebUtility;
-
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
 
 @Path("/config")
 @PermitAll
@@ -374,7 +373,7 @@ public class ServerConfigurationResource {
 	/**
 	 * Return every JAX-RS endpoint registered with this application as a flat JSON
 	 * list, sorted by path. Discovery is reflection-driven: we walk the resource
-	 * singletons, read each class's {@code @Path}, and for every method carrying an
+	 * classes, read each class's {@code @Path}, and for every method carrying an
 	 * HTTP-method annotation (anything meta-annotated with {@link HttpMethod}) we
 	 * emit verb, path, owning resource class, Java method name, and the
 	 * {@code @Consumes}/{@code @Produces} content types.
@@ -406,8 +405,7 @@ public class ServerConfigurationResource {
 
 		List<Map<String, Object>> endpoints = new ArrayList<>();
 
-		for (Object resource : application.getSingletons()) {
-			Class<?> cls = resource.getClass();
+		for (Class<?> cls : application.getClasses()) {
 			if (!includeAdminResources && cls.getSimpleName().startsWith("Admin")) {
 				continue;
 			}

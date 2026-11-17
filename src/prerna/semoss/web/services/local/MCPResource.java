@@ -31,16 +31,19 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.ZoneId;
 import java.util.HashSet;
+import java.util.HexFormat;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.Executors;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.regex.Pattern;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -61,6 +64,7 @@ import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.sse.Sse;
 import jakarta.ws.rs.sse.SseEventSink;
+import prerna.auth.AccessToken;
 import prerna.auth.User;
 import prerna.mcp.MCPReaper;
 import prerna.om.Insight;
@@ -81,18 +85,13 @@ public class MCPResource {
 	public static final String MCP_AUTH_KEY = "MCP_AUTH_KEY";
 	private static final Map<String, Insight> INSIGHT_MAP = new ConcurrentHashMap<>();
 	private static final Map<String, ReentrantLock> SESSION_LOCKS = new ConcurrentHashMap<>();
+	// the toolbox id is placed inside every pixel the toolbox runs; engine and
+	// project ids use only these characters, while the path segment check alone
+	// would still allow quotes
+	private static final Pattern TOOLBOX_ID_PATTERN = Pattern.compile("[A-Za-z0-9_-]{1,128}");
 
-	private static final ExecutorService SSE_EXECUTOR;
-	static {
-		ThreadPoolExecutor executor = new ThreadPoolExecutor(25, 150, 60L, TimeUnit.SECONDS,
-				new LinkedBlockingQueue<>(), r -> {
-					Thread t = new Thread(r, "mcp-sse-worker");
-					t.setDaemon(true);
-					return t;
-				});
-		executor.allowCoreThreadTimeOut(true);
-		SSE_EXECUTOR = executor;
-	}
+	private static final ExecutorService SSE_EXECUTOR = Executors
+			.newThreadPerTaskExecutor(Thread.ofVirtual().name("mcp-sse-", 0).factory());
 
 	/**
 	 * Handle streamable HTTP connection
@@ -108,6 +107,10 @@ public class MCPResource {
 	@Produces(MediaType.APPLICATION_JSON)
 	public void commsHttp(@PathParam("toolbox_id") String toolbox_id, @QueryParam("access_key") String access,
 			@Context HttpServletRequest request, @Context HttpServletResponse response) {
+		if (!isValidToolboxId(toolbox_id)) {
+			rejectToolboxId(response);
+			return;
+		}
 		classLogger.info("Running tool via streamable http... {}", toolbox_id);
 
 		// Get the input stream from the async context
@@ -115,11 +118,11 @@ public class MCPResource {
 			final InputStream is = request.getInputStream();
 
 			// Initialize session
-			String authorization = request.getHeader("Authorization");
 			HttpSession session = request.getSession();
-			addAuthKeyToSession(session, authorization);
+			String cacheKey = insightCacheKey(session, request.getHeader("Authorization"));
+			addAuthKeyToSession(session, cacheKey);
 			String sessionId = session.getId();
-			Insight insight = getInsight(session, authorization);
+			Insight insight = getInsight(session, cacheKey);
 
 			int sessionTimeoutSeconds = session.getMaxInactiveInterval();
 			long idleTimeoutMinutes = (sessionTimeoutSeconds <= 0) ? MAX_IDLE_TIMEOUT_MINUTES
@@ -152,14 +155,23 @@ public class MCPResource {
 	public void commsSse(@PathParam("toolbox_id") String toolbox_id, @QueryParam("access_key") String access,
 			@Context SseEventSink eventSink, @Context Sse sse, InputStream is, @Context HttpServletRequest request,
 			@Context HttpServletResponse response) {
+		if (!isValidToolboxId(toolbox_id)) {
+			rejectToolboxId(response);
+			try {
+				eventSink.close();
+			} catch (IOException e) {
+				classLogger.warn("Unable to close the SSE stream of a refused MCP request", e);
+			}
+			return;
+		}
 		classLogger.info("Running tool via SSE... {}", toolbox_id);
 
 		// Initialize session
-		String authorization = request.getHeader("Authorization");
 		HttpSession session = request.getSession();
-		addAuthKeyToSession(session, authorization);
+		String cacheKey = insightCacheKey(session, request.getHeader("Authorization"));
+		addAuthKeyToSession(session, cacheKey);
 		String sessionId = session.getId();
-		Insight insight = getInsight(session, authorization);
+		Insight insight = getInsight(session, cacheKey);
 
 		try {
 			response.setContentType(MediaType.SERVER_SENT_EVENTS);
@@ -181,13 +193,67 @@ public class MCPResource {
 	}
 
 	/**
-	 * Adds the authorization key to a set in the session in a thread-safe manner.
-	 * 
-	 * @param session       The user's HttpSession
-	 * @param authorization The authorization key to add
+	 * Returns the insight cache key for a caller: the signed in user's login plus a
+	 * digest of the Authorization header, or the session id when there is no
+	 * header. The same header sent by two people never shares an insight, and the
+	 * header itself, a bearer secret, is never kept.
+	 *
+	 * @param session       the caller's session
+	 * @param authorization the Authorization header, or null
+	 * @return the cache key
 	 */
-	private static void addAuthKeyToSession(HttpSession session, String authorization) {
-		if (authorization != null) {
+	public static String insightCacheKey(HttpSession session, String authorization) {
+		if (authorization == null) {
+			return session.getId();
+		}
+		User user = (User) session.getAttribute(Constants.SESSION_USER);
+		AccessToken login = user == null ? null : user.getPrimaryLoginToken();
+		String owner = login == null || login.getId() == null || login.getProvider() == null
+				? "session " + session.getId()
+				: login.getProvider().getLabel() + " " + login.getId();
+		try {
+			byte[] digest = MessageDigest.getInstance("SHA-256")
+					.digest(authorization.getBytes(StandardCharsets.UTF_8));
+			return owner + " " + HexFormat.of().formatHex(digest);
+		} catch (NoSuchAlgorithmException e) {
+			throw new IllegalStateException("SHA-256 is not available", e);
+		}
+	}
+
+	/**
+	 * Returns whether a toolbox id is safe to place in the toolbox's pixels.
+	 *
+	 * @param toolboxId the toolbox id from the request path
+	 * @return true when the id has only the characters engine and project ids use
+	 */
+	private static boolean isValidToolboxId(String toolboxId) {
+		return toolboxId != null && TOOLBOX_ID_PATTERN.matcher(toolboxId).matches();
+	}
+
+	/**
+	 * Answers 400 for a toolbox id that is not safe to use, before any stream
+	 * starts.
+	 *
+	 * @param response the response to answer on
+	 */
+	private static void rejectToolboxId(HttpServletResponse response) {
+		classLogger.warn("Refused an MCP request for an invalid toolbox id");
+		try {
+			response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid toolbox id");
+		} catch (IOException e) {
+			classLogger.warn("Unable to answer an MCP request for an invalid toolbox id", e);
+		}
+	}
+
+	/**
+	 * Adds an insight cache key to a set in the session in a thread-safe manner, so
+	 * the cached insight is cleared when the session ends.
+	 * 
+	 * @param session  The user's HttpSession
+	 * @param cacheKey The cache key from {@link #insightCacheKey}
+	 */
+	private static void addAuthKeyToSession(HttpSession session, String cacheKey) {
+		if (cacheKey != null && !cacheKey.equals(session.getId())) {
 			String sessionId = session.getId();
 			ReentrantLock sessionLock = SESSION_LOCKS.computeIfAbsent(sessionId, ignored -> new ReentrantLock());
 			sessionLock.lock();
@@ -197,7 +263,7 @@ public class MCPResource {
 					mcpKeys = new HashSet<>();
 					session.setAttribute(MCP_AUTH_KEY, mcpKeys);
 				}
-				mcpKeys.add(authorization);
+				mcpKeys.add(cacheKey);
 			} finally {
 				sessionLock.unlock();
 			}
@@ -250,14 +316,15 @@ public class MCPResource {
 	}
 
 	/**
+	 * Returns the cached insight for a cache key, opening one for the session when
+	 * there is none or the cached one has closed.
 	 *
-	 * @param session
-	 * @param authorization
-	 * @return
+	 * @param session  the caller's session
+	 * @param cacheKey the key from {@link #insightCacheKey}
+	 * @return the insight to run in
 	 */
-	private Insight getInsight(HttpSession session, String authorization) {
-		// no authorization key - default to session id
-		String key = authorization != null ? authorization : session.getId();
+	private Insight getInsight(HttpSession session, String cacheKey) {
+		String key = cacheKey;
 		// fast path: avoid compute lock on cache hit
 		Insight existing = INSIGHT_MAP.get(key);
 		if (existing != null && InsightStore.getInstance().get(existing.getInsightId()) != null) {

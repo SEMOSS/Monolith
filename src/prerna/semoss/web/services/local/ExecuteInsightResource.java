@@ -38,7 +38,6 @@ import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.core.Context;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityInsightUtils;
-import prerna.auth.utils.SecurityQueryUtils;
 import prerna.cluster.util.ClusterUtil;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
@@ -71,7 +70,6 @@ public class ExecuteInsightResource {
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
-		projectId = SecurityQueryUtils.testUserEngineIdForAlias(user, projectId);
 		if (!SecurityInsightUtils.userCanViewInsight(user, projectId, rdbmsId)) {
 			Map<String, String> errorMap = new HashMap<String, String>();
 			errorMap.put("error", "User does not have access to this insight");

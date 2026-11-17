@@ -55,6 +55,7 @@ import prerna.om.Insight;
 import prerna.om.InsightStore;
 import prerna.om.LocalUserStore;
 import prerna.reactor.playwright.PlaywrightSession;
+import prerna.semoss.web.services.local.A2AResource;
 import prerna.semoss.web.services.local.MCPResource;
 import prerna.usertracking.UserAuditTrailUtils;
 import prerna.usertracking.UserTrackingUtils;
@@ -157,18 +158,17 @@ public class UserSessionLoader implements HttpSessionListener {
 			classLogger.error("Failed to delete user session cache folder", e);
 		}
 
-		// clear from the mcp thread
+		// clear the insights the MCP and A2A endpoints cached for this session
 		Object mcpKeysObj = session.getAttribute(MCPResource.MCP_AUTH_KEY);
 		if (mcpKeysObj instanceof Set) {
 			Set<String> mcpKeys = (Set<String>) mcpKeysObj;
-			if (mcpKeys != null) {
-				for (String authKey : mcpKeys) {
-					MCPResource.clearInsight(authKey);
-				}
+			for (String cacheKey : mcpKeys) {
+				MCPResource.clearInsight(cacheKey);
+				A2AResource.clearInsight(cacheKey);
 			}
 		}
-		// also attempt to clear via just the sessionId
 		MCPResource.clearSessionState(sessionId);
+		A2AResource.clearInsight(sessionId);
 
 		// clear temporal user values and identify any agent user for cleanup
 		User subAgent = removeAgentUserFromTemporalAccessKey(thisUser);

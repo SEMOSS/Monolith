@@ -8,7 +8,6 @@ The Monolith WAR hosts several Jakarta REST applications. Each application has i
 | [GitHubApplication](../src/prerna/semoss/web/app/GitHubApplication.java) | `/Monolith/github` | GitHub App setup, project links, callbacks, and push webhooks |
 | [MicrosoftGraphApplication](../src/prerna/semoss/web/app/MicrosoftGraphApplication.java) | `/Monolith/msgraph` | Microsoft mailbox/calendar subscriptions and notifications |
 | [HealthApplication](../src/prerna/semoss/web/app/HealthApplication.java) | `/Monolith/health` | Liveness, readiness, and resource status |
-| [TrustedTokenApplication](../src/prerna/semoss/web/app/TrustedTokenApplication.java) | `/Monolith/token` | Trusted integration token service |
 | [AdminApplication](../src/prerna/semoss/web/app/AdminApplication.java) | `/Monolith/adminconfig` | Initial administrator setup |
 
 Paths below include the application base. `{...}` denotes an ID or other path parameter to replace; `*` denotes a route family for navigation, not a literal request URL. Engine IDs follow a hyphen in these routes: for example, `/Monolith/api/storage-<storage-id>/list`.
@@ -262,17 +261,6 @@ Base: **`/Monolith/health`**. Registered resource: [HealthResource](../src/prern
 | `GET /Monolith/health/details` | Required/enabled system-resource status |
 
 Health probes use this dedicated application and do not require a user session.
-
-## TrustedTokenApplication
-
-Base: **`/Monolith/token`**. Registered resource: [TrustedTokenService](../src/prerna/semoss/web/services/config/TrustedTokenService.java).
-
-| Method and endpoint | Purpose |
-| --- | --- |
-| `POST /Monolith/token/getToken` | Request a trusted integration token using the configured client-credential flow |
-| `GET /Monolith/token/getToken` | Legacy variant; rejected when client/secret validation is enabled |
-
-The POST flow reads `client_id` and, when credential validation is enabled, `secret_key`. Configure trusted integrations through the deployment's token and filter settings. This application is separate from the login and resource-authorization APIs under `/Monolith/api/auth`.
 
 ## AdminApplication
 

@@ -57,16 +57,16 @@ import prerna.semoss.web.ms.MicrosoftGraphSubscriptionService;
 @ApplicationPath("/msgraph")
 public class MicrosoftGraphApplication extends Application {
 
-	private Set<Object> singletons = new HashSet<Object>();
+	private Set<Class<?>> classes = new HashSet<>();
 
 	public MicrosoftGraphApplication() {
-		singletons.add(new MicrosoftGraphSubscriptionService());
-		singletons.add(new MicrosoftGraphNotificationService());
-		singletons.add(new MicrosoftGraphPhotoService());
+		classes.add(MicrosoftGraphSubscriptionService.class);
+		classes.add(MicrosoftGraphNotificationService.class);
+		classes.add(MicrosoftGraphPhotoService.class);
 	}
 
 	@Override
-	public Set<Object> getSingletons() {
-		return singletons;
+	public Set<Class<?>> getClasses() {
+		return classes;
 	}
 }

@@ -30,12 +30,12 @@ package prerna.semoss.web.services.local;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.lang.reflect.Type;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 
 import org.apache.logging.log4j.LogManager;
@@ -73,13 +73,9 @@ public class ResourceUtility {
 
 	private static final Logger classLogger = LogManager.getLogger(ResourceUtility.class);
 
-	protected static List<String> allowAccessWithoutUsers = new ArrayList<>();
-	static {
-		allowAccessWithoutUsers.add("config");
-		allowAccessWithoutUsers.add("config/fetchCsrf");
-	}
+	private static final Set<String> allowAccessWithoutUsers = Set.of("config", "config/fetchCsrf");
 
-	public static List<String> allowAccessWithoutLogin = new ArrayList<>();
+	private static final Set<String> allowAccessWithoutLogin = new HashSet<>();
 	static {
 		// allow these for successful dropping of
 		// sessions when browser is closed/refreshed
@@ -105,10 +101,12 @@ public class ResourceUtility {
 		for (AuthProvider v : AuthProvider.values()) {
 			allowAccessWithoutLogin.add("auth/userinfo/" + v.toString().toLowerCase());
 			allowAccessWithoutLogin.add("auth/login/" + v.toString().toLowerCase());
+			// MICROSOFT (ms) and PRODUCT_HUNT (producthunt) are routed by their social.properties key
+			if (!v.getSocialPrefix().equals(v.toString().toLowerCase())) {
+				allowAccessWithoutLogin.add("auth/userinfo/" + v.getSocialPrefix());
+				allowAccessWithoutLogin.add("auth/login/" + v.getSocialPrefix());
+			}
 		}
-		// legacy ms login
-		allowAccessWithoutLogin.add("auth/userinfo/ms");
-		allowAccessWithoutLogin.add("auth/login/ms");
 	}
 
 	/**
@@ -448,47 +446,43 @@ public class ResourceUtility {
 	}
 
 	/**
-	 * Need to ignore some URLs
-	 * 
-	 * @param fullUrl
-	 * @return
+	 * Returns the path of a request below its servlet, such as {@code auth/login}
+	 * for {@code /Monolith/api/auth/login/}, without leading or trailing slashes.
+	 * The container has already removed path parameters ({@code ;x=y}) and
+	 * resolved {@code ..} segments, so this is the path the request is served by.
+	 *
+	 * @param request the incoming request
+	 * @return the servlet-relative path, or an empty string for the servlet root
 	 */
-	public static boolean canAccessWithoutUsers(String fullUrl) {
-		for (String ignore : allowAccessWithoutUsers) {
-			if (fullUrl.endsWith(ignore)) {
-				return true;
-			}
+	public static String servletRelativePath(HttpServletRequest request) {
+		String path = request.getPathInfo();
+		if (path == null) {
+			return "";
 		}
-		return false;
+		int start = path.startsWith("/") ? 1 : 0;
+		int end = path.length() > start && path.endsWith("/") ? path.length() - 1 : path.length();
+		return path.substring(start, end);
 	}
 
 	/**
-	 * Need to ignore some URLs
-	 * 
-	 * @param fullUrl
-	 * @return
+	 * Checks whether a request may run before any user is registered.
+	 *
+	 * @param request the incoming request
+	 * @return {@code true} when its servlet-relative path is one of the config
+	 *         endpoints
 	 */
-	public static boolean canAccessWithoutLogin(String fullUrl) {
-		for (String ignore : allowAccessWithoutLogin) {
-			if (fullUrl.endsWith(ignore)) {
-				return true;
-			}
-		}
-		return false;
+	public static boolean canAccessWithoutUsers(HttpServletRequest request) {
+		return allowAccessWithoutUsers.contains(servletRelativePath(request));
 	}
 
 	/**
-	 * Need to ignore some URLs
-	 * 
-	 * @param fullUrl
-	 * @return
+	 * Checks whether a request may run without a signed-in user.
+	 *
+	 * @param request the incoming request
+	 * @return {@code true} when its servlet-relative path is a login, session or
+	 *         config endpoint
 	 */
-	public static boolean endsWithMatch(Collection<String> ignoreForFE, String fullUrl) {
-		for (String ignore : ignoreForFE) {
-			if (fullUrl.endsWith(ignore)) {
-				return true;
-			}
-		}
-		return false;
+	public static boolean canAccessWithoutLogin(HttpServletRequest request) {
+		return allowAccessWithoutLogin.contains(servletRelativePath(request));
 	}
 }

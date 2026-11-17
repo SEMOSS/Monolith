@@ -77,71 +77,71 @@ import prerna.upload.ImageUploader;
 @ApplicationPath("/api")
 public class MonolithApplication extends Application {
 
-	private Set<Object> singletons = new HashSet<Object>();
+	private Set<Class<?>> classes = new HashSet<>();
 
 	public MonolithApplication() {
 		// core
-		singletons.add(new UserResource());
-		singletons.add(new NameServer());
-		singletons.add(new FileUploader());
-		singletons.add(new ImageUploader());
-		singletons.add(new SessionResource());
+		classes.add(UserResource.class);
+		classes.add(NameServer.class);
+		classes.add(FileUploader.class);
+		classes.add(ImageUploader.class);
+		classes.add(SessionResource.class);
 		// engine interfaces
-		singletons.add(new EngineRouteResource());
-		singletons.add(new DatabaseEngineResource());
-		singletons.add(new StorageEngineResource());
-		singletons.add(new ModelEngineResource());
-		singletons.add(new VectorEngineResource());
-		singletons.add(new FunctionEngineResource());
-		singletons.add(new ProjectResource());
+		classes.add(EngineRouteResource.class);
+		classes.add(DatabaseEngineResource.class);
+		classes.add(StorageEngineResource.class);
+		classes.add(ModelEngineResource.class);
+		classes.add(VectorEngineResource.class);
+		classes.add(FunctionEngineResource.class);
+		classes.add(ProjectResource.class);
 		// authorization resources
-		singletons.add(new AuthorizationResource());
-		singletons.add(new EngineAuthorizationResource());
-		singletons.add(new ProjectAuthorizationResource());
-		singletons.add(new InsightAuthorizationResource());
-		singletons.add(new UserAuthorizationResource());
+		classes.add(AuthorizationResource.class);
+		classes.add(EngineAuthorizationResource.class);
+		classes.add(ProjectAuthorizationResource.class);
+		classes.add(InsightAuthorizationResource.class);
+		classes.add(UserAuthorizationResource.class);
 		// admin authorization
-		singletons.add(new AdminEngineAuthorizationResource());
-		singletons.add(new AdminProjectAuthorizationResource());
-		singletons.add(new AdminInsightAuthorizationResource());
-		singletons.add(new AdminUserAuthorizationResource());
+		classes.add(AdminEngineAuthorizationResource.class);
+		classes.add(AdminProjectAuthorizationResource.class);
+		classes.add(AdminInsightAuthorizationResource.class);
+		classes.add(AdminUserAuthorizationResource.class);
 		// group authorization
-		singletons.add(new GroupEngineAuthorizationResource());
-		singletons.add(new GroupProjectAuthorizationResource());
-		singletons.add(new GroupInsightAuthorizationResource());
+		classes.add(GroupEngineAuthorizationResource.class);
+		classes.add(GroupProjectAuthorizationResource.class);
+		classes.add(GroupInsightAuthorizationResource.class);
 		// group managers maintain the members of their custom groups
-		singletons.add(new GroupAuthorizationResource());
+		classes.add(GroupAuthorizationResource.class);
 		// Bulk Access Management validates and saves many access changes together
-		singletons.add(new PermissionBatchResource());
-		singletons.add(new AdminPermissionBatchResource());
+		classes.add(PermissionBatchResource.class);
+		classes.add(AdminPermissionBatchResource.class);
 		// admins set the platform default model usage limit and team totals
-		singletons.add(new AdminModelUsageResource());
+		classes.add(AdminModelUsageResource.class);
 		// group admin authorization
-		singletons.add(new AdminGroupAuthorizationResource());
+		classes.add(AdminGroupAuthorizationResource.class);
 		// insight execution
-		singletons.add(new ExecuteInsightResource());
-		singletons.add(new ShareInsightResource());
-		singletons.add(new SchedulerResource());
+		classes.add(ExecuteInsightResource.class);
+		classes.add(ShareInsightResource.class);
+		classes.add(SchedulerResource.class);
 		// other
-		singletons.add(new AdminThemeResource());
-		singletons.add(new ServerConfigurationResource());
+		classes.add(AdminThemeResource.class);
+		classes.add(ServerConfigurationResource.class);
 		// legacy forms - still used in production - RDF specific
-		singletons.add(new FormResource());
+		classes.add(FormResource.class);
 
 		// openai endpoints for CFG AI Model Inference
-		singletons.add(new OpenAIEndpoints());
-		singletons.add(new AnthropicEndpoints());
-		singletons.add(new OllamaEndpoints());
+		classes.add(OpenAIEndpoints.class);
+		classes.add(AnthropicEndpoints.class);
+		classes.add(OllamaEndpoints.class);
 		// MCP
-		singletons.add(new MCPResource());
+		classes.add(MCPResource.class);
 		// A2A
-		singletons.add(new A2AResource());
+		classes.add(A2AResource.class);
 		// Remote Browser Viewer
-		singletons.add(new RemoteBrowserSessionController());
+		classes.add(RemoteBrowserSessionController.class);
 	}
 
 	@Override
-	public Set<Object> getSingletons() {
-		return singletons;
+	public Set<Class<?>> getClasses() {
+		return classes;
 	}
 }

@@ -47,6 +47,7 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
+import prerna.auth.AccessPermissionEnum;
 import prerna.auth.AccessToken;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityAdminUtils;
@@ -292,7 +293,8 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		}
 
 		try {
-			adminUtils.addInsightUser(newUserId, projectId, insightId, permission, user, endDate);
+			String level = AccessPermissionEnum.require(permission);
+			adminUtils.addInsightUser(newUserId, projectId, insightId, level, user, endDate);
 		} catch (Exception e) {
 			classLogger.error("Failed to add insight user permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -338,7 +340,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		}
 
 		try {
-			adminUtils.grantAllProjectInsights(projectId, userId, permission, user);
+			adminUtils.grantAllProjectInsights(projectId, userId, AccessPermissionEnum.require(permission), user);
 		} catch (Exception e) {
 			classLogger.error("Failed to grant all project insights.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -384,7 +386,8 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		}
 
 		try {
-			adminUtils.grantNewUsersInsightAccess(projectId, insightId, permission, user, endDate);
+			String level = AccessPermissionEnum.require(permission);
+			adminUtils.grantNewUsersInsightAccess(projectId, insightId, level, user, endDate);
 		} catch (Exception e) {
 			classLogger.error("Failed to grant new users insight access.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -431,7 +434,8 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		}
 
 		try {
-			adminUtils.addAllInsightUsers(projectId, insightId, permission, user, endDate);
+			String level = AccessPermissionEnum.require(permission);
+			adminUtils.addAllInsightUsers(projectId, insightId, level, user, endDate);
 		} catch (Exception e) {
 			classLogger.error("Failed to add all users.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -482,7 +486,8 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		}
 
 		try {
-			adminUtils.editInsightUserPermission(existingUserId, projectId, insightId, newPermission, user, endDate);
+			String level = AccessPermissionEnum.require(newPermission);
+			adminUtils.editInsightUserPermission(existingUserId, projectId, insightId, level, user, endDate);
 		} catch (Exception e) {
 			classLogger.error("Failed to update insight user permission.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -530,6 +535,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 
 		List<Map<String, String>> requests = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
+			AccessPermissionEnum.requireEach(requests);
 			adminUtils.editInsightUserPermissions(projectId, insightId, requests, user, endDate);
 		} catch (Exception e) {
 			classLogger.error("Failed to update insight user permissions.", e);
@@ -575,7 +581,8 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		}
 
 		try {
-			adminUtils.updateInsightUserPermissions(projectId, insightId, newPermission, user, endDate);
+			String level = AccessPermissionEnum.require(newPermission);
+			adminUtils.updateInsightUserPermissions(projectId, insightId, level, user, endDate);
 		} catch (Exception e) {
 			classLogger.error("Failed to update app user permissions.", e);
 			Map<String, String> errorMap = new HashMap<String, String>();
@@ -759,6 +766,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 		// adding user permissions in bulk
 		List<Map<String, String>> permission = new Gson().fromJson(form.getFirst("userpermissions"), List.class);
 		try {
+			AccessPermissionEnum.requireEach(permission);
 			adminUtils.addInsightUserPermissions(projectId, insightId, permission, user, endDate);
 		} catch (Exception e) {
 			classLogger.error("Failed to add insight user permissions.", e);
@@ -856,6 +864,7 @@ public class AdminInsightAuthorizationResource extends AbstractAdminResource {
 			AccessToken token = user.getAccessToken(user.getPrimaryLogin());
 			String userId = token.getId();
 			String userType = token.getProvider().toString();
+			AccessPermissionEnum.requireEach(requests);
 			adminUtils.approveInsightUserAccessRequests(userId, userType, projectId, insightId, requests, endDate);
 		} catch (Exception e) {
 			classLogger.error("Failed to approve insight user access request.", e);

@@ -44,6 +44,7 @@ import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import prerna.auth.AccessPermissionEnum;
 import prerna.auth.AuthProvider;
+import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityGroupEngineUtils;
 import prerna.auth.utils.SecurityModelUsageLimitUtils;
 import prerna.semoss.web.services.local.ResourceUtility;
@@ -81,10 +82,14 @@ public class GroupEngineAuthorizationResource {
 		String group = WebUtility.inputSQLSanitizer(groupId);
 		return ResourceUtility.respond(request, "read the permission of group " + group + " on engine " + engine,
 				user -> {
-					Integer permissionCode = SecurityGroupEngineUtils.getGroupDatabasePermission(
-							ValueUtils.requireNonBlank(group, GROUP_ID_REQUIRED),
-							ValueUtils.requireNonBlank(groupType, GROUP_TYPE_REQUIRED),
-							ValueUtils.requireNonBlank(engine, APP_ID_REQUIRED));
+					String groupToRead = ValueUtils.requireNonBlank(group, GROUP_ID_REQUIRED);
+					String typeToRead = ValueUtils.requireNonBlank(groupType, GROUP_TYPE_REQUIRED);
+					String engineToRead = ValueUtils.requireNonBlank(engine, APP_ID_REQUIRED);
+					if (!SecurityEngineUtils.userCanViewEngine(user, engineToRead)) {
+						throw new IllegalAccessException("The user does not have access to view this engine");
+					}
+					Integer permissionCode = SecurityGroupEngineUtils.getGroupDatabasePermission(groupToRead,
+							typeToRead, engineToRead);
 					String permission = permissionCode == null ? null
 							: AccessPermissionEnum.getPermissionValueById(permissionCode);
 
@@ -117,7 +122,7 @@ public class GroupEngineAuthorizationResource {
 			String group = ValueUtils.requireNonBlank(groupId, GROUP_ID_REQUIRED);
 			String groupType = ValueUtils.requireNonBlank(type, GROUP_TYPE_REQUIRED);
 			String engine = ValueUtils.requireNonBlank(engineId, "The engineId cannot be null or empty");
-			String level = ValueUtils.requireNonBlank(permission, PERMISSION_REQUIRED);
+			String level = AccessPermissionEnum.require(ValueUtils.requireNonBlank(permission, PERMISSION_REQUIRED));
 			if (usageLimitSent) {
 				SecurityGroupEngineUtils.addEngineGroupPermission(user, group, groupType, engine, level, endDate,
 						SecurityModelUsageLimitUtils.readJson(usageLimit));
@@ -153,7 +158,9 @@ public class GroupEngineAuthorizationResource {
 							ValueUtils.requireNonBlank(groupId, GROUP_ID_REQUIRED),
 							ValueUtils.requireNonBlank(type, GROUP_TYPE_REQUIRED),
 							ValueUtils.requireNonBlank(appId, APP_ID_REQUIRED),
-							ValueUtils.requireNonBlank(newPermission, PERMISSION_REQUIRED), endDate);
+							AccessPermissionEnum.require(
+									ValueUtils.requireNonBlank(newPermission, PERMISSION_REQUIRED)),
+							endDate);
 
 					Map<String, Object> ret = new HashMap<>();
 					ret.put("success", true);

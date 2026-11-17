@@ -78,7 +78,6 @@ import jakarta.ws.rs.core.StreamingOutput;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityInsightUtils;
-import prerna.auth.utils.SecurityQueryUtils;
 import prerna.engine.api.IDatabaseEngine;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
@@ -793,59 +792,62 @@ public class NameServer {
 		ThreadStore.setRouteId(routeId);
 		ThreadStore.setJobId(uuid);
 		ThreadStore.setUser(insight.getUser());
-
-		String reactorName = root.getJSONObject("params").getString("name");
-		JSONObject arguments = root.getJSONObject("params").getJSONObject("arguments");
-
-		int statusCode = 200;
-		IReactor thisReactor = ReactorFactory.getReactor(insight, reactorName, null, insight.getCurFrame());
-		JSONObject reactorToolMCP = thisReactor.asMcpTool();
-		// get everything else
-		JSONObject reactorProperties = ((JSONObject) reactorToolMCP.get("inputSchema")).getJSONObject("properties");
 		try {
-			String retObject = MCPUtility.runPixelTool(null, insight, reactorName, reactorProperties,
-					arguments.toMap());
-			Map<String, Object> resultMap = new HashMap<>();
-			List<Map<String, Object>> contentList = new ArrayList<>();
-			Map<String, Object> contentMap = new HashMap<>();
-			contentMap.put("type", "text");
-			contentMap.put("text", retObject);
+			String reactorName = root.getJSONObject("params").getString("name");
+			JSONObject arguments = root.getJSONObject("params").getJSONObject("arguments");
 
-			contentList.add(contentMap);
-			resultMap.put("content", contentList);
-			resultMap.put("isError", false);
-			response.put("result", resultMap);
-		} catch (SemossMCPException e) {
-			classLogger.error("MCP tool execution failed: {}", e.getMessage(), e);
-			statusCode = 400;
-			/*
-			 * { "jsonrpc": "2.0", "id": 3, "error": { "code": <example code>, "message":
-			 * <example message> } }
-			 */
-			JSONObject error = new JSONObject();
-			error.put("code", e.getError().getCode());
-			if (e.getMessage() != null) {
-				error.put("message", e.getMessage());
-			} else {
-				error.put("message", e.getError().getDescription());
+			int statusCode = 200;
+			IReactor thisReactor = ReactorFactory.getReactor(insight, reactorName, null, insight.getCurFrame());
+			JSONObject reactorToolMCP = thisReactor.asMcpTool();
+			// get everything else
+			JSONObject reactorProperties = ((JSONObject) reactorToolMCP.get("inputSchema")).getJSONObject("properties");
+			try {
+				String retObject = MCPUtility.runPixelTool(null, insight, reactorName, reactorProperties,
+						arguments.toMap());
+				Map<String, Object> resultMap = new HashMap<>();
+				List<Map<String, Object>> contentList = new ArrayList<>();
+				Map<String, Object> contentMap = new HashMap<>();
+				contentMap.put("type", "text");
+				contentMap.put("text", retObject);
+
+				contentList.add(contentMap);
+				resultMap.put("content", contentList);
+				resultMap.put("isError", false);
+				response.put("result", resultMap);
+			} catch (SemossMCPException e) {
+				classLogger.error("MCP tool execution failed: {}", e.getMessage(), e);
+				statusCode = 400;
+				/*
+				 * { "jsonrpc": "2.0", "id": 3, "error": { "code": <example code>, "message":
+				 * <example message> } }
+				 */
+				JSONObject error = new JSONObject();
+				error.put("code", e.getError().getCode());
+				if (e.getMessage() != null) {
+					error.put("message", e.getMessage());
+				} else {
+					error.put("message", e.getError().getDescription());
+				}
+				response.put("error", error);
+			} catch (Exception e) {
+				classLogger.error("Unexpected error during MCP tool execution", e);
+				statusCode = 400;
+				JSONObject error = new JSONObject();
+				error.put("code", MCPErrorCode.TOOL_EXECUTION_FAILED.getCode());
+				if (e.getMessage() != null) {
+					error.put("message", e.getMessage());
+				} else {
+					error.put("message", MCPErrorCode.TOOL_EXECUTION_FAILED.getDescription());
+				}
+				response.put("error", error);
 			}
-			response.put("error", error);
-		} catch (Exception e) {
-			classLogger.error("Unexpected error during MCP tool execution", e);
-			statusCode = 400;
-			JSONObject error = new JSONObject();
-			error.put("code", MCPErrorCode.TOOL_EXECUTION_FAILED.getCode());
-			if (e.getMessage() != null) {
-				error.put("message", e.getMessage());
-			} else {
-				error.put("message", MCPErrorCode.TOOL_EXECUTION_FAILED.getDescription());
-			}
-			response.put("error", error);
+
+			return Response.status(statusCode).entity(response.toString())
+					.header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0")
+					.header("Pragma", "no-cache").build();
+		} finally {
+			ThreadStore.remove();
 		}
-
-		return Response.status(statusCode).entity(response.toString())
-				.header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0")
-				.header("Pragma", "no-cache").build();
 	}
 
 	@POST
@@ -884,8 +886,11 @@ public class NameServer {
 		ThreadStore.setInsightId(insightId);
 		ThreadStore.setSessionId(sessionId);
 		ThreadStore.setUser(user);
-
-		return getInsightPipeline(insight);
+		try {
+			return getInsightPipeline(insight);
+		} finally {
+			ThreadStore.remove();
+		}
 	}
 
 	/**
@@ -1417,7 +1422,6 @@ public class NameServer {
 		if (user == null) {
 			return WebUtility.getSO("Not properly authenticated");
 		}
-		engineId = SecurityQueryUtils.testUserEngineIdForAlias(user, engineId);
 		if (!SecurityEngineUtils.userCanViewEngine(user, engineId)) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE,

@@ -51,15 +51,22 @@ public class NoUserInSessionFilter implements Filter {
 
 	private static final String NO_USER_HTML = "/noUserFail/";
 
+	// programs, not browsers, call these APIs, so a missing or bad key is answered
+	// with a 401 in each API's own error shape instead of a login redirect
+	private static final String UNAUTHORIZED_MESSAGE = "Invalid or missing API key. "
+			+ "Send your access key and secret key as accessKey:secretKey.";
+	private static final String OPENAI_UNAUTHORIZED = "{\"error\":{\"message\":\"" + UNAUTHORIZED_MESSAGE
+			+ "\",\"type\":\"invalid_request_error\",\"code\":\"invalid_api_key\"}}";
+	private static final String ANTHROPIC_UNAUTHORIZED = "{\"type\":\"error\",\"error\":{\"type\":"
+			+ "\"authentication_error\",\"message\":\"" + UNAUTHORIZED_MESSAGE + "\"}}";
+	private static final String OLLAMA_UNAUTHORIZED = "{\"error\":\"" + UNAUTHORIZED_MESSAGE + "\"}";
+
 	@Override
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2)
 			throws IOException, ServletException {
 		ServletContext context = arg0.getServletContext();
 
-		// this will be the full path of the request
-		// like http://localhost:8080/Monolith_Dev/api/engine/runPixel
-		String fullUrl = WebUtility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
-		if (!ResourceUtility.canAccessWithoutLogin(fullUrl)) {
+		if (!ResourceUtility.canAccessWithoutLogin((HttpServletRequest) arg0)) {
 			// due to FE being annoying
 			// we need to push a response for this one end point
 			// since security is embedded w/ normal semoss and not standalone
@@ -72,13 +79,49 @@ public class NoUserInSessionFilter implements Filter {
 			}
 
 			if (user == null || user.getLogins().isEmpty()) {
+				String apiError = apiClientUnauthorizedBody((HttpServletRequest) arg0);
+				if (apiError != null) {
+					HttpServletResponse response = (HttpServletResponse) arg1;
+					response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+					response.setHeader("WWW-Authenticate", "Bearer");
+					response.setContentType("application/json");
+					response.setCharacterEncoding("UTF-8");
+					response.getWriter().write(apiError);
+					return;
+				}
 				// don't know what i am redirecting
 				// send back an error and have the client remake the request
 				setInvalidEntryRedirect(context, arg0, arg1);
+				return;
 			}
 		}
 
 		arg2.doFilter(arg0, arg1);
+	}
+
+	/**
+	 * Returns the 401 body for a call to one of the APIs programs use, in that API's
+	 * error shape, or null for any other request.
+	 *
+	 * @param request the request
+	 * @return the error body, or null when the request should be redirected
+	 */
+	private static String apiClientUnauthorizedBody(HttpServletRequest request) {
+		String path = ResourceUtility.servletRelativePath(request);
+		if (isUnder(path, "model/anthropic")) {
+			return ANTHROPIC_UNAUTHORIZED;
+		}
+		if (isUnder(path, "model/ollama")) {
+			return OLLAMA_UNAUTHORIZED;
+		}
+		if (isUnder(path, "model/openai") || isUnder(path, "ext")) {
+			return OPENAI_UNAUTHORIZED;
+		}
+		return null;
+	}
+
+	private static boolean isUnder(String path, String prefix) {
+		return path.equals(prefix) || path.startsWith(prefix + "/");
 	}
 
 	/**
