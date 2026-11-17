@@ -88,6 +88,12 @@ public class PublicHomeCheckFilter implements Filter {
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2)
 			throws IOException, ServletException {
 
+		// This filter serves portal files directly, before annotation-mapped filters run.
+		new AppTestEngineContextFilter().doFilter(arg0, arg1, (request, response) -> servePortal(request, response, arg2));
+	}
+
+	private void servePortal(ServletRequest arg0, ServletResponse arg1, FilterChain arg2)
+			throws IOException, ServletException {
 		HttpServletRequest request = (HttpServletRequest) arg0;
 		HttpServletResponse response = (HttpServletResponse) arg1;
 
