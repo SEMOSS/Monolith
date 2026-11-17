@@ -45,11 +45,13 @@ import prerna.auth.User;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
 import prerna.util.SocialPropertiesUtil;
+import prerna.util.openshell.OpenShellUserSandboxes;
 import prerna.web.services.util.WebUtility;
 
 public class NoUserInSessionFilter implements Filter {
 
 	private static final String NO_USER_HTML = "/noUserFail/";
+	private static final String OPENSHELL_LEASE_ATTR = "OPENSHELL_SANDBOX_LEASE";
 
 	// programs, not browsers, call these APIs, so a missing or bad key is answered
 	// with a 401 in each API's own error shape instead of a login redirect
@@ -93,6 +95,17 @@ public class NoUserInSessionFilter implements Filter {
 				// send back an error and have the client remake the request
 				setInvalidEntryRedirect(context, arg0, arg1);
 				return;
+			} else if (session != null && OpenShellUserSandboxes.appliesTo(user)) {
+				// any activity, not only python, keeps the user's sandbox alive for the
+				// session timeout; refreshed at most once a minute per session
+				String marker = OpenShellUserSandboxes.touch(user, session.getId(),
+						(String) session.getAttribute(OPENSHELL_LEASE_ATTR), session.getMaxInactiveInterval());
+				if (marker != null) {
+					session.setAttribute(OPENSHELL_LEASE_ATTR, marker);
+					// kept for logout: dropping a provider can leave the user with no login
+					// to derive the owner from by the time the session is destroyed
+					session.setAttribute(OpenShellUserSandboxes.SESSION_OWNER_ATTR, OpenShellUserSandboxes.ownerOf(user));
+				}
 			}
 		}
 
