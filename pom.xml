@@ -230,6 +230,7 @@
 							<warSourceDirectory>${basedir}/WebContent</warSourceDirectory>
 							<warSourceIncludes>
 								accountLocked/**,
+								cacRequired/**,
 								error/**,
 								login/**,
 								logout/**,
@@ -272,6 +273,7 @@
 							<warSourceDirectory>${basedir}/WebContent</warSourceDirectory>
 							<warSourceIncludes>
 								accountLocked/**,
+								cacRequired/**,
 								error/**,
 								login/**,
 								logout/**,
