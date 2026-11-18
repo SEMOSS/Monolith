@@ -215,15 +215,16 @@ public class CACFilter implements Filter {
 								updateCacUsersStorage(email, cacId);
 							}
 							token.setId(cacId);
+							// the username is the DoD id: the one profile detail a DoD certificate carries
+							// besides the name. (The UPN is a longer 16 digit number then "@mil" and stays in
+							// the token's SAN map.) The certificate has no phone number or extension, and an
+							// email only when the certificate presented has one
+							token.setUsername(cacId);
 							token.setEmail(email);
 							token.setName(name);
 							String upn = getUPN(cert);
 							if (upn != null && !upn.isEmpty()) {
 								token.setSAN("UPN", upn);
-								// the card's own identity, a 16 digit number then "@mil": the one profile detail a
-								// DoD certificate carries besides the name. The certificate has no
-								// email, phone number or extension, so those stay for the user to enter
-								token.setUsername(upn);
 							}
 
 							// if we get here, we have a valid cac

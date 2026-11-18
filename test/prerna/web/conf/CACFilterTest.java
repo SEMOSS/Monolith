@@ -369,19 +369,28 @@ class CACFilterTest {
 	}
 
 	@Test
-	void takesTheUsernameFromTheUpn() throws Exception {
+	void takesTheUsernameFromTheDoDId() throws Exception {
 		AccessToken token = signIn(filter(Map.of()), request(null, certWithUpn(List.of())), true);
 
-		assertEquals("1234567890123456@mil", token.getUsername());
+		assertEquals("1234567890", token.getUsername());
 		assertEquals("1234567890", token.getId());
 		assertEquals("DOE JOHN ALLEN", token.getName());
 	}
 
 	@Test
-	void leavesTheUsernameEmptyWhenTheCertificateHasNoUpn() throws Exception {
+	void theUsernameIsTheDoDIdNotTheLongerUpn() throws Exception {
+		AccessToken token = signIn(filter(Map.of()), request(null, certWithUpn("1234567890654321@mil", List.of())), true);
+
+		assertEquals("1234567890", token.getUsername());
+		// the UPN is still kept, in the token's alternative-name map
+		assertEquals("1234567890654321@mil", token.getSAN().get("UPN"));
+	}
+
+	@Test
+	void theUsernameIsTheDoDIdEvenWhenTheCertificateHasNoUpn() throws Exception {
 		AccessToken token = signIn(filter(Map.of()), request(null, cert(CAC_SUBJECT, List.of())), true);
 
-		assertNull(token.getUsername());
+		assertEquals("1234567890", token.getUsername());
 	}
 
 	@Test
@@ -390,7 +399,7 @@ class CACFilterTest {
 
 		// the phone number and extension the person set are not in the statement
 		assertEquals(List.of(UPDATE + "NAME=?, USERNAME=?" + WHERE
-				+ " [DOE JOHN ALLEN, 1234567890123456@mil, 1234567890, CAC]"), updates);
+				+ " [DOE JOHN ALLEN, 1234567890, 1234567890, CAC]"), updates);
 	}
 
 	@Test
@@ -400,34 +409,36 @@ class CACFilterTest {
 		List<String> updates = signInAndCollectUpdates(filter(Map.of()), request(null, cert));
 
 		assertEquals(List.of(UPDATE + "NAME=?, USERNAME=?, EMAIL=?" + WHERE
-				+ " [DOE JOHN ALLEN, 1234567890123456@mil, john.doe@mail.mil, 1234567890, CAC]"), updates);
+				+ " [DOE JOHN ALLEN, 1234567890, john.doe@mail.mil, 1234567890, CAC]"), updates);
 	}
 
 	@Test
-	void refreshesTheNameAndEmailWhenTheCertificateHasNoUpn() throws Exception {
+	void refreshesTheNameUsernameAndEmailWhenTheCertificateHasNoUpn() throws Exception {
 		X509Certificate cert = cert(CAC_SUBJECT, List.of(List.of(1, "john.doe@mail.mil")));
 
 		List<String> updates = signInAndCollectUpdates(filter(Map.of()), request(null, cert));
 
-		assertEquals(List.of(UPDATE + "NAME=?, EMAIL=?" + WHERE
-				+ " [DOE JOHN ALLEN, john.doe@mail.mil, 1234567890, CAC]"), updates);
+		assertEquals(List.of(UPDATE + "NAME=?, USERNAME=?, EMAIL=?" + WHERE
+				+ " [DOE JOHN ALLEN, 1234567890, john.doe@mail.mil, 1234567890, CAC]"), updates);
 	}
 
 	@Test
-	void refreshesJustTheNameWhenTheCertificateHasNeitherUpnNorEmail() throws Exception {
+	void refreshesTheNameAndUsernameWhenTheCertificateHasNeitherUpnNorEmail() throws Exception {
 		List<String> updates = signInAndCollectUpdates(filter(Map.of()), request(null, cert(CAC_SUBJECT, List.of())));
 
-		assertEquals(List.of(UPDATE + "NAME=?" + WHERE + " [DOE JOHN ALLEN, 1234567890, CAC]"), updates);
+		assertEquals(List.of(UPDATE + "NAME=?, USERNAME=?" + WHERE + " [DOE JOHN ALLEN, 1234567890, 1234567890, CAC]"),
+				updates);
 	}
 
 	@Test
 	void doesNotSaveAUsernameThatIsNotInTheExpectedFormat() throws Exception {
-		// a quote or a space cannot be part of a UPN; it never reaches the database
-		X509Certificate cert = certWithUpn("x'; DROP TABLE SMSS_USER; --@mil", List.of());
+		// a quote or a space cannot be part of a DoD id; it never becomes the username
+		X509Certificate cert = cert("CN=DOE.JOHN.ALLEN.12345'67890, OU=USA, OU=PKI, OU=DoD, O=U.S. Government, C=US",
+				List.of());
 
 		List<String> updates = signInAndCollectUpdates(filter(Map.of()), request(null, cert));
 
-		assertEquals(List.of(UPDATE + "NAME=?" + WHERE + " [DOE JOHN ALLEN, 1234567890, CAC]"), updates);
+		assertEquals(List.of(UPDATE + "NAME=?" + WHERE + " [DOE JOHN ALLEN, 12345'67890, CAC]"), updates);
 	}
 
 	@Test
@@ -437,8 +448,8 @@ class CACFilterTest {
 
 		List<String> updates = signInAndCollectUpdates(filter(Map.of()), request(null, cert));
 
-		assertEquals(List.of(UPDATE + "NAME=?, EMAIL=?" + WHERE
-				+ " [O'BRIEN JOHN ALLEN, o'brien@mail.mil, 1234567890, CAC]"), updates);
+		assertEquals(List.of(UPDATE + "NAME=?, USERNAME=?, EMAIL=?" + WHERE
+				+ " [O'BRIEN JOHN ALLEN, 1234567890, o'brien@mail.mil, 1234567890, CAC]"), updates);
 	}
 
 	@Test
@@ -486,7 +497,7 @@ class CACFilterTest {
 			executions.verifyNoInteractions();
 		}
 		assertEquals("DOE JOHN ALLEN", updated.getValue().getName());
-		assertEquals("1234567890123456@mil", updated.getValue().getUsername());
+		assertEquals("1234567890", updated.getValue().getUsername());
 	}
 
 	@Test
