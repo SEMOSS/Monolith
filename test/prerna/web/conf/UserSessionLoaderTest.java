@@ -81,6 +81,7 @@ import prerna.util.insight.InsightUtility;
 class UserSessionLoaderTest {
 
 	private static final String SESSION_ID = "s1";
+	private static final String SESSION_FOLDER = "folder-of-s1";
 
 	@TempDir
 	Path cacheDir;
@@ -110,6 +111,7 @@ class UserSessionLoaderTest {
 		a2a = mockStatic(A2AResource.class);
 		files = mockStatic(FileSystemUtil.class);
 		insightUtility = mockStatic(InsightUtility.class);
+		insightUtility.when(() -> InsightUtility.getFolderDirSessionId(SESSION_ID)).thenReturn(SESSION_FOLDER);
 	}
 
 	@AfterEach
@@ -171,7 +173,7 @@ class UserSessionLoaderTest {
 		assertTrue(ids.isEmpty());
 		verify(insights).clearSession(SESSION_ID);
 		files.verify(() -> FileSystemUtil
-				.deleteFolderIfExists(cacheDir.toString() + FileSystems.getDefault().getSeparator() + SESSION_ID));
+				.deleteFolderIfExists(cacheDir.toString() + FileSystems.getDefault().getSeparator() + SESSION_FOLDER));
 		mcp.verify(() -> MCPResource.clearSessionState(SESSION_ID));
 		tracking.verify(() -> UserTrackingUtils.registerLogout(SESSION_ID));
 		audit.verify(() -> UserAuditTrailUtils.recordLogout(any(), anyString(), anyString(), any()), never());

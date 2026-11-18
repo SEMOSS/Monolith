@@ -167,7 +167,8 @@ public class UserSessionLoader implements HttpSessionListener {
 		inStore.clearSession(sessionId);
 
 		try {
-			String sessionStorage = Utility.getInsightCacheDir() + DIR_SEPARATOR + sessionId;
+			String sessionStorage = Utility.getInsightCacheDir() + DIR_SEPARATOR
+					+ InsightUtility.getFolderDirSessionId(sessionId);
 			FileSystemUtil.deleteFolderIfExists(sessionStorage);
 		} catch (Exception e) {
 			classLogger.error("Failed to delete user session cache folder", e);

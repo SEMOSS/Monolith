@@ -738,20 +738,21 @@ class AdminEngineAuthorizationResourceTest {
 			verify(f.utils, never()).addEngineUserPermissions(any(), any(), any());
 		}
 	}
-	static Stream<Named<Endpoint>> appPermissionAndSmssEndpoints() {
+	static Stream<Named<Endpoint>> granteePermissionAndSmssEndpoints() {
 		return Stream.of(
-				endpoint("getEngineProjectPermissions", (r, q) -> r.getEngineProjectPermissions(q, "e1")),
-				endpoint("setEngineProjectPermission",
-						(r, q) -> r.setEngineProjectPermission(q,
-								form("engineId", "e1", "projectId", "app1", "permission", "EDIT"))),
-				endpoint("removeEngineProjectPermission",
-						(r, q) -> r.removeEngineProjectPermission(q, form("engineId", "e1", "projectId", "app1"))),
+				endpoint("getEngineGranteePermissions", (r, q) -> r.getEngineGranteePermissions(q, "e1")),
+				endpoint("setEngineGranteePermission",
+						(r, q) -> r.setEngineGranteePermission(q, form("engineId", "e1", "granteeEngineId", "app1",
+								"granteeEngineType", "PROJECT", "permission", "EDIT"))),
+				endpoint("removeEngineGranteePermission",
+						(r, q) -> r.removeEngineGranteePermission(q,
+								form("engineId", "e1", "granteeEngineId", "vectors1", "granteeEngineType", "VECTOR"))),
 				endpoint("updateSmssFile", (r, q) -> r.updateSmssFile(q, form("engineId", "e1", "smss", "ENGINE\te1"))));
 	}
 
 	@ParameterizedTest
-	@MethodSource("appPermissionAndSmssEndpoints")
-	void answersANonAdminWith403BeforeChangingAnAppPermissionOrAnSmss(Endpoint endpoint) throws Exception {
+	@MethodSource("granteePermissionAndSmssEndpoints")
+	void answersANonAdminWith403BeforeChangingAGranteePermissionOrAnSmss(Endpoint endpoint) throws Exception {
 		try (Fixture f = new Fixture(signedIn("jdoe"), false);
 				MockedStatic<EngineRouteResource> saves = Mockito.mockStatic(EngineRouteResource.class)) {
 			Response response = endpoint.call(new AdminEngineAuthorizationResource(), f.request);
@@ -764,8 +765,8 @@ class AdminEngineAuthorizationResourceTest {
 	}
 
 	@ParameterizedTest
-	@MethodSource("appPermissionAndSmssEndpoints")
-	void answersASignedOutCallerWith401BeforeChangingAnAppPermissionOrAnSmss(Endpoint endpoint) throws Exception {
+	@MethodSource("granteePermissionAndSmssEndpoints")
+	void answersASignedOutCallerWith401BeforeChangingAGranteePermissionOrAnSmss(Endpoint endpoint) throws Exception {
 		try (Fixture f = new Fixture(null, false);
 				MockedStatic<EngineRouteResource> saves = Mockito.mockStatic(EngineRouteResource.class)) {
 			Response response = endpoint.call(new AdminEngineAuthorizationResource(), f.request);
@@ -778,27 +779,31 @@ class AdminEngineAuthorizationResourceTest {
 	}
 
 	@Test
-	void listsTheAppsAnEngineGivesAPermissionTo() throws Exception {
+	void listsTheAppsAndEnginesAnEngineGivesAPermissionTo() throws Exception {
 		try (Fixture f = Fixture.asAdmin()) {
-			List<Map<String, Object>> apps = List.of(Map.of("subject", Map.of("id", "app1", "name", "Claims")));
-			when(f.utils.getEngineProjectPermissions("e1")).thenReturn(apps);
+			List<Map<String, Object>> grantees = List.of(
+					Map.of("subject", Map.of("id", "app1", "type", "PROJECT", "name", "Claims")),
+					Map.of("subject", Map.of("id", "vectors1", "type", "VECTOR", "name", "Claims Vectors")));
+			when(f.utils.getEngineGranteePermissions("e1")).thenReturn(grantees);
 
-			Response response = new AdminEngineAuthorizationResource().getEngineProjectPermissions(f.request, "e1");
+			Response response = new AdminEngineAuthorizationResource().getEngineGranteePermissions(f.request, "e1");
 
 			assertEquals(200, response.getStatus());
-			JsonObject subject = body(response).getAsJsonArray().get(0).getAsJsonObject().getAsJsonObject("subject");
-			assertEquals("app1", subject.get("id").getAsString());
+			JsonObject app = body(response).getAsJsonArray().get(0).getAsJsonObject().getAsJsonObject("subject");
+			JsonObject vectors = body(response).getAsJsonArray().get(1).getAsJsonObject().getAsJsonObject("subject");
+			assertEquals("app1", app.get("id").getAsString());
+			assertEquals("VECTOR", vectors.get("type").getAsString());
 		}
 	}
 
 	@Test
 	void givesAnAppAPermissionOnAnEngineAndKeepsItsLimitWhenNoLimitIsSent() throws Exception {
 		try (Fixture f = Fixture.asAdmin()) {
-			Response response = new AdminEngineAuthorizationResource().setEngineProjectPermission(f.request,
-					form("engineId", "e1", "projectId", "app1", "permission", " edit "));
+			Response response = new AdminEngineAuthorizationResource().setEngineGranteePermission(f.request, form(
+					"engineId", "e1", "granteeEngineId", "app1", "granteeEngineType", "PROJECT", "permission", " edit "));
 
 			assertSuccess(response);
-			verify(f.utils).setEngineProjectPermission("app1", "e1", "EDIT", f.user, null);
+			verify(f.utils).setEngineGranteePermission("app1", "PROJECT", "e1", "EDIT", f.user, null);
 			f.limits.verifyNoInteractions();
 		}
 	}
@@ -809,21 +814,50 @@ class AdminEngineAuthorizationResourceTest {
 			ModelUsageLimit limit = ModelUsageLimit.unlimited();
 			f.limits.when(() -> SecurityModelUsageLimitUtils.readJson(USAGE_LIMIT_JSON)).thenReturn(limit);
 
-			Response response = new AdminEngineAuthorizationResource().setEngineProjectPermission(f.request,
-					form("engineId", "e1", "projectId", "app1", "permission", "READ_ONLY", "endDate",
-							"2027-01-01T00:00:00Z", "usageLimit", USAGE_LIMIT_JSON));
+			Response response = new AdminEngineAuthorizationResource().setEngineGranteePermission(f.request,
+					form("engineId", "e1", "granteeEngineId", "app1", "granteeEngineType", "PROJECT", "permission",
+							"READ_ONLY", "endDate", "2027-01-01T00:00:00Z", "usageLimit", USAGE_LIMIT_JSON));
 
 			assertSuccess(response);
-			verify(f.utils).setEngineProjectPermission("app1", "e1", "READ_ONLY", f.user, "2027-01-01T00:00:00Z",
+			verify(f.utils).setEngineGranteePermission("app1", "PROJECT", "e1", "READ_ONLY", f.user,
+					"2027-01-01T00:00:00Z", limit);
+		}
+	}
+
+	@Test
+	void givesAnotherEngineAPermissionAndKeepsItsLimitWhenNoLimitIsSent() throws Exception {
+		try (Fixture f = Fixture.asAdmin()) {
+			Response response = new AdminEngineAuthorizationResource().setEngineGranteePermission(f.request,
+					form("engineId", "model1", "granteeEngineId", "vectors1", "granteeEngineType", "VECTOR",
+							"permission", "READ_ONLY"));
+
+			assertSuccess(response);
+			verify(f.utils).setEngineGranteePermission("vectors1", "VECTOR", "model1", "READ_ONLY", f.user, null);
+			f.limits.verifyNoInteractions();
+		}
+	}
+
+	@Test
+	void givesAnotherEngineAPermissionWithItsEngineLimitWhenALimitIsSent() throws Exception {
+		try (Fixture f = Fixture.asAdmin()) {
+			ModelUsageLimit limit = ModelUsageLimit.unlimited();
+			f.limits.when(() -> SecurityModelUsageLimitUtils.readJson(USAGE_LIMIT_JSON)).thenReturn(limit);
+
+			Response response = new AdminEngineAuthorizationResource().setEngineGranteePermission(f.request,
+					form("engineId", "model1", "granteeEngineId", "guard1", "granteeEngineType", "GUARDRAIL",
+							"permission", "READ_ONLY", "usageLimit", USAGE_LIMIT_JSON));
+
+			assertSuccess(response);
+			verify(f.utils).setEngineGranteePermission("guard1", "GUARDRAIL", "model1", "READ_ONLY", f.user, null,
 					limit);
 		}
 	}
 
 	@Test
-	void refusesALevelThatIsNotOneForAnAppPermission() throws Exception {
+	void refusesALevelThatIsNotOneForAGranteePermission() throws Exception {
 		try (Fixture f = Fixture.asAdmin()) {
-			Response response = new AdminEngineAuthorizationResource().setEngineProjectPermission(f.request,
-					form("engineId", "e1", "projectId", "app1", "permission", "OWNR"));
+			Response response = new AdminEngineAuthorizationResource().setEngineGranteePermission(f.request, form(
+					"engineId", "e1", "granteeEngineId", "app1", "granteeEngineType", "PROJECT", "permission", "OWNR"));
 
 			assertEquals(400, response.getStatus());
 			Mockito.verifyNoInteractions(f.utils);
@@ -831,27 +865,39 @@ class AdminEngineAuthorizationResourceTest {
 	}
 
 	@Test
-	void answersAnAppPermissionThatCannotBeSavedWith400AndItsMessage() throws Exception {
+	void answersAGranteePermissionThatCannotBeSavedWith400AndItsMessage() throws Exception {
+		String message = "An app or engine can be given Read-Only or Editor access to an engine, not Author access";
 		try (Fixture f = Fixture.asAdmin()) {
-			doThrow(new IllegalArgumentException("An app can be given Read-Only or Editor access to an engine, not Author access")).when(f.utils)
-					.setEngineProjectPermission("app1", "e1", "OWNER", f.user, null);
+			doThrow(new IllegalArgumentException(message)).when(f.utils).setEngineGranteePermission("app1", "PROJECT",
+					"e1", "OWNER", f.user, null);
 
-			Response response = new AdminEngineAuthorizationResource().setEngineProjectPermission(f.request,
-					form("engineId", "e1", "projectId", "app1", "permission", "OWNER"));
+			Response response = new AdminEngineAuthorizationResource().setEngineGranteePermission(f.request, form(
+					"engineId", "e1", "granteeEngineId", "app1", "granteeEngineType", "PROJECT", "permission", "OWNER"));
 
 			assertEquals(400, response.getStatus());
-			assertEquals("An app can be given Read-Only or Editor access to an engine, not Author access", errorMessage(response));
+			assertEquals(message, errorMessage(response));
 		}
 	}
 
 	@Test
 	void takesAwayTheAccessOfAnAppToAnEngine() throws Exception {
 		try (Fixture f = Fixture.asAdmin()) {
-			Response response = new AdminEngineAuthorizationResource().removeEngineProjectPermission(f.request,
-					form("engineId", "e1", "projectId", "app1"));
+			Response response = new AdminEngineAuthorizationResource().removeEngineGranteePermission(f.request,
+					form("engineId", "e1", "granteeEngineId", "app1", "granteeEngineType", "PROJECT"));
 
 			assertSuccess(response);
-			verify(f.utils).removeEngineProjectPermission("app1", "e1", f.user);
+			verify(f.utils).removeEngineGranteePermission("app1", "PROJECT", "e1", f.user);
+		}
+	}
+
+	@Test
+	void takesAwayTheAccessOfAnotherEngineToAnEngine() throws Exception {
+		try (Fixture f = Fixture.asAdmin()) {
+			Response response = new AdminEngineAuthorizationResource().removeEngineGranteePermission(f.request,
+					form("engineId", "model1", "granteeEngineId", "vectors1", "granteeEngineType", "VECTOR"));
+
+			assertSuccess(response);
+			verify(f.utils).removeEngineGranteePermission("vectors1", "VECTOR", "model1", f.user);
 		}
 	}
 
