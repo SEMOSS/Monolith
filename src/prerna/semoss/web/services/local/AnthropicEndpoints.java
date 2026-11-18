@@ -68,6 +68,7 @@ import prerna.engine.impl.model.AbstractModelEngine;
 import prerna.engine.impl.model.ModelPixelInvoker;
 import prerna.engine.impl.model.Room;
 import prerna.engine.impl.model.RoomUtils;
+import prerna.engine.impl.model.message.GoogleInteractionsState;
 import prerna.engine.impl.model.inferencetracking.ModelInferenceLogsUtils;
 import prerna.engine.impl.model.responses.AskModelEngineResponse;
 import prerna.engine.impl.model.usage.ModelUsageLimitException;
@@ -287,6 +288,9 @@ public class AnthropicEndpoints {
 		// can re-attach them to replayed tool_use blocks. Empty map for non-Vertex
 		// paths (no file written) - no-op then.
 		Map<String, String> thoughtSigMap = ThoughtSignatureSidecar.load(room.getRoomFolderPath());
+		boolean interactionReplay = engine.keepInputOutput() && engine.keepsConversationHistory()
+				&& !"false".equalsIgnoreCase(String.valueOf(dataMap.get("use_history")));
+		dataMap.put("google_interactions_replay_available", interactionReplay);
 
 		// HANDLE NON-STREAMING REQUESTS THROUGH THE LLM PIXEL
 		if (!isStreamingRequest) {
@@ -294,6 +298,14 @@ public class AnthropicEndpoints {
 					.normalizeAllAnthropicMessagesToOpenAI(messagesList, systemPromptString, tools, thoughtSigMap);
 
 			List<Map<String, Object>> openAIMessages = (List<Map<String, Object>>) openAIFormat.get("messages");
+			try {
+				if (interactionReplay) {
+					ThoughtSignatureSidecar.restoreInteractions(room.getRoomFolderPath(), openAIMessages);
+				}
+			} catch (IOException | IllegalArgumentException e) {
+				return WebUtility.getResponse(AnthropicMessagesHelper.createErrorResponse("api_error",
+						"Unable to restore the room's Google Interactions history"), 500);
+			}
 			dataMap.put(AbstractModelEngine.FULL_PROMPT, openAIMessages);
 			dataMap.put("append_full_prompt", true);
 			classLogger.info("Anthropic-normalized-prompt::{}::messages={} chars={}", JOB_ID, openAIMessages.size(),
@@ -313,12 +325,19 @@ public class AnthropicEndpoints {
 					.normalizeAllAnthropicMessagesToOpenAI(messagesList, systemPromptString, tools, thoughtSigMap);
 
 			List<Map<String, Object>> openAIMessages = (List<Map<String, Object>>) openAIFormat.get("messages");
+			try {
+				if (interactionReplay) {
+					ThoughtSignatureSidecar.restoreInteractions(room.getRoomFolderPath(), openAIMessages);
+				}
+			} catch (IOException | IllegalArgumentException e) {
+				return WebUtility.getResponse(AnthropicMessagesHelper.createErrorResponse("api_error",
+						"Unable to restore the room's Google Interactions history"), 500);
+			}
 			dataMap.put(AbstractModelEngine.FULL_PROMPT, openAIMessages);
 			Gson gson = new GsonBuilder().setPrettyPrinting().create();
 			String openAIJson = gson.toJson(openAIMessages);
 			classLogger.info("Anthropic-normalized-prompt::{}::messages={} chars={}", JOB_ID, openAIMessages.size(),
 					openAIJson.length());
-			classLogger.debug("OpenAI-Formatted-Message::{}::{},", JOB_ID, openAIJson);
 
 			if (openAIFormat.containsKey("tools")) {
 				dataMap.put("tools", openAIFormat.get("tools"));
@@ -364,6 +383,23 @@ public class AnthropicEndpoints {
 		}
 
 		Map<String, Object> responseMap = AnthropicMessagesHelper.processAskModelEngineResponse(engineId, llmResponse);
+		if (llmResponse.getMetadata() != null && llmResponse.getMetadata().containsKey(GoogleInteractionsState.KEY)) {
+			if (!Boolean.TRUE.equals(dataMap.get("google_interactions_replay_available"))) {
+				return WebUtility.getResponse(AnthropicMessagesHelper.createErrorResponse("api_error",
+						"Room retention settings prevent preserving Google Interactions history"), 500);
+			}
+			try {
+				Map<String, Object> normalized = AnthropicMessagesHelper.normalizeAllAnthropicMessagesToOpenAI(
+						List.of(Map.of("role", "assistant", "content", responseMap.get("content"))), null, null);
+				List<Map<String, Object>> assistant = (List<Map<String, Object>>) normalized.get("messages");
+				ThoughtSignatureSidecar.appendInteraction(room.getRoomFolderPath(),
+						(List<Map<String, Object>>) dataMap.get(AbstractModelEngine.FULL_PROMPT), assistant.getLast(),
+						llmResponse.getMetadata().get(GoogleInteractionsState.KEY));
+			} catch (IOException | IllegalArgumentException e) {
+				return WebUtility.getResponse(AnthropicMessagesHelper.createErrorResponse("api_error",
+						"Unable to preserve the Google Interactions turn"), 500);
+			}
+		}
 		return WebUtility.getResponse(responseMap, 200);
 	}
 
@@ -434,6 +470,21 @@ public class AnthropicEndpoints {
 									for (Map<String, Object> streamObj : partialResponseContent) {
 										String streamType = (String) streamObj.get("stream_type");
 										Map<String, Object> streamData = (Map<String, Object>) streamObj.get("data");
+										if (GoogleInteractionsState.KEY.equals(streamType)) {
+											try {
+												if (!Boolean.TRUE.equals(FINAL_DATAMAP.get("google_interactions_replay_available"))) {
+													throw new IOException("Room retention settings prevent preserving replay");
+												}
+												ThoughtSignatureSidecar.appendInteraction(FINAL_ROOM.getRoomFolderPath(),
+														(List<Map<String, Object>>) FINAL_DATAMAP.get(AbstractModelEngine.FULL_PROMPT),
+														(Map<String, Object>) streamData.get("assistant"),
+														streamData.get(GoogleInteractionsState.KEY));
+											} catch (IOException | IllegalArgumentException e) {
+												AnthropicMessagesHelper.writeErrorEvent("api_error", "Unable to preserve Google Interactions history", writer);
+												break STREAM_COMPLETE_LOOP;
+											}
+											continue;
+										}
 
 										if ("usage".equalsIgnoreCase(streamType)) {
 											Object inT = streamData.get("input_tokens");

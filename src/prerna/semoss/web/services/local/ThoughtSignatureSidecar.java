@@ -38,6 +38,12 @@ import java.nio.file.StandardOpenOption;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.TreeMap;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -47,6 +53,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 import prerna.util.Utility;
+import prerna.engine.impl.model.message.GoogleInteractionsState;
 import prerna.web.services.util.WebUtility;
 
 /**
@@ -166,5 +173,115 @@ public class ThoughtSignatureSidecar {
 			return Collections.emptyMap();
 		}
 		return result;
+	}
+
+	/** Match complete assistant turns to their room-local, signed provider history. */
+	public static void restoreInteractions(String roomFolderPath, List<Map<String, Object>> messages) throws IOException {
+		Path path = filePath(roomFolderPath);
+		messages.forEach(message -> message.remove(GoogleInteractionsState.KEY));
+		if (path != null) {
+			path = path.resolveSibling("google_interactions.jsonl");
+		}
+		if (path == null || !Files.exists(path)) {
+			return;
+		}
+		Map<String, Map<String, Object>> states = new HashMap<>();
+		try (BufferedReader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
+			String line;
+			while ((line = reader.readLine()) != null) {
+				if (line.isBlank()) {
+					continue;
+				}
+				JsonObject obj = JsonParser.parseString(line).getAsJsonObject();
+				if (obj.has(GoogleInteractionsState.KEY)) {
+					states.put(obj.get("id").getAsString(), GoogleInteractionsState.validate(
+							GSON.fromJson(obj.get(GoogleInteractionsState.KEY), Map.class)));
+				}
+			}
+		}
+		boolean matched = false;
+		boolean hasAssistant = false;
+		for (int i = 0; i < messages.size(); i++) {
+			Map<String, Object> message = messages.get(i);
+			message.remove(GoogleInteractionsState.KEY);
+			if ("assistant".equals(message.get("role"))) {
+				hasAssistant = true;
+				Map<String, Object> state = states.get(interactionKey(messages.subList(0, i + 1)));
+				if (state != null) {
+					matched = true;
+					message.put(GoogleInteractionsState.KEY, state);
+				}
+			}
+		}
+		if (!states.isEmpty() && hasAssistant && !matched) {
+			throw new IllegalArgumentException("Interactions history no longer matches this room; start a new conversation");
+		}
+	}
+
+	public static synchronized void appendInteraction(String roomFolderPath, List<Map<String, Object>> history,
+			Map<String, Object> assistant, Object replay) throws IOException {
+		Map<String, Object> state = GoogleInteractionsState.validate(replay);
+		if (state == null || assistant == null || !"assistant".equals(assistant.get("role"))) {
+			throw new IllegalArgumentException("Missing Interactions assistant turn");
+		}
+		Path path = filePath(roomFolderPath);
+		if (path == null) {
+			throw new IOException("Interactions replay requires a valid room folder");
+		}
+		path = path.resolveSibling("google_interactions.jsonl");
+		List<Map<String, Object>> transcript = new ArrayList<>(history);
+		transcript.add(assistant);
+		Map<String, Object> entry = Map.of("id", interactionKey(transcript), GoogleInteractionsState.KEY, state);
+		Files.createDirectories(path.getParent());
+		Files.writeString(path, GSON.toJson(entry) + System.lineSeparator(), StandardCharsets.UTF_8,
+				StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+	}
+
+	static String interactionKey(List<Map<String, Object>> messages) {
+		List<Object> transcript = new ArrayList<>();
+		for (Map<String, Object> message : messages) {
+			if ("system".equals(message.get("role"))) {
+				continue;
+			}
+			Map<String, Object> normalized = new TreeMap<>();
+			for (String key : List.of("role", "content", "tool_calls", "tool_call_id", "name")) {
+				Object value = message.get(key);
+				if (value != null) {
+					normalized.put(key, canonical(value));
+				}
+			}
+			transcript.add(normalized);
+		}
+		try {
+			return "interaction:" + HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
+					.digest(GSON.toJson(transcript).getBytes(StandardCharsets.UTF_8)));
+		} catch (NoSuchAlgorithmException e) {
+			throw new IllegalStateException(e);
+		}
+	}
+
+	private static Object canonical(Object value) {
+		if (value instanceof Map<?, ?> map) {
+			Map<String, Object> sorted = new TreeMap<>();
+			for (Map.Entry<?, ?> entry : map.entrySet()) {
+				String key = entry.getKey().toString();
+				if ("thought_signature".equals(key) || GoogleInteractionsState.KEY.equals(key)) {
+					continue;
+				}
+				Object item = entry.getValue();
+				if ("arguments".equals(key) && item instanceof String text) {
+					item = GSON.fromJson(text, Object.class);
+				}
+				sorted.put(key, canonical(item));
+			}
+			return sorted;
+		}
+		if (value instanceof List<?> list) {
+			return list.stream().map(ThoughtSignatureSidecar::canonical).toList();
+		}
+		if (value instanceof Number number) {
+			return new java.math.BigDecimal(number.toString()).stripTrailingZeros();
+		}
+		return value;
 	}
 }
