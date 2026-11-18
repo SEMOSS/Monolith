@@ -45,12 +45,10 @@ import javax.naming.ldap.Rdn;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.ASN1Primitive;
-import org.bouncycastle.asn1.ASN1Sequence;
-import org.bouncycastle.asn1.ASN1TaggedObject;
-import org.bouncycastle.asn1.DERUTF8String;
-import org.bouncycastle.asn1.DLSequence;
+import org.bouncycastle.asn1.ASN1String;
+import org.bouncycastle.asn1.x509.GeneralName;
+import org.bouncycastle.asn1.x509.OtherName;
 import org.bouncycastle.cert.jcajce.JcaX509ExtensionUtils;
 
 import jakarta.servlet.Filter;
@@ -69,6 +67,7 @@ import prerna.ds.util.RdbmsQueryBuilder;
 import prerna.engine.api.IRDBMSEngine;
 import prerna.engine.api.IRawSelectWrapper;
 import prerna.forms.FormBuilder;
+import prerna.logging.SemossLogUtils;
 import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.semoss.web.services.local.UserResource;
 import prerna.util.Constants;
@@ -80,6 +79,10 @@ import prerna.web.services.util.WebUtility;
 public class CACFilter implements Filter {
 
 	private static final Logger classLogger = LogManager.getLogger(CACFilter.class);
+	// the otherName type of a Microsoft user principal name
+	private static final String UPN_OID = "1.3.6.1.4.1.311.20.2.3";
+	private static final java.util.regex.Pattern USERNAME_PATTERN = java.util.regex.Pattern
+			.compile("[A-Za-z0-9._@-]{1,255}");
 
 	// filter init params
 	private static final String AUTO_ADD = "autoAdd";
@@ -184,16 +187,16 @@ public class CACFilter implements Filter {
 							email = null;
 
 							try {
-								EMAIL_LOOP: for (List<?> altNames : cert.getSubjectAlternativeNames()) {
-									for (Object alternative : altNames) {
-										if (alternative instanceof String) {
-											String altStr = alternative.toString();
-											// really simple email check...
-											if (altStr.contains("@")) {
-												email = altStr;
-												break EMAIL_LOOP;
-											}
-										}
+								Collection<List<?>> sans = cert.getSubjectAlternativeNames();
+								// only an rfc822Name entry is an email address. The PIV authentication
+								// certificate has none (its names are the UPN, the FASC-N and the card
+								// UUID); the DoD email signing certificate, when the user picks it in
+								// the browser, does
+								for (List<?> altName : sans == null ? List.<List<?>>of() : sans) {
+									if (altName.size() == 2 && Integer.valueOf(GeneralName.rfc822Name).equals(altName.get(0))
+											&& altName.get(1) instanceof String altStr && altStr.contains("@")) {
+										email = altStr;
+										break;
 									}
 								}
 							} catch (CertificateParsingException e) {
@@ -214,6 +217,10 @@ public class CACFilter implements Filter {
 							String upn = getUPN(cert);
 							if (upn != null && !upn.isEmpty()) {
 								token.setSAN("UPN", upn);
+								// the card's own identity, "<DoD id>@mil": the one profile detail a
+								// DoD certificate carries besides the name. The certificate has no
+								// email, phone number or extension, so those stay for the user to enter
+								token.setUsername(upn);
 							}
 
 							// if we get here, we have a valid cac
@@ -227,16 +234,21 @@ public class CACFilter implements Filter {
 				// if we have the token
 				// and it has values filled in
 				// we know we can populate the user
+				String clientIp = WebUtility.getClientIp((HttpServletRequest) arg0);
 				if (token.getName() != null) {
 					classLogger.info("Valid request coming from user {}", token.getName());
 					// store in session, log in user tracking db, and add the user to security db if
 					// autoadd
 					UserResource.addAccessToken(token, ((HttpServletRequest) arg0), CACFilter.autoAdd);
+					SemossLogUtils.logSecurityAuditEvent("LOGIN_SUCCESS", token.getId(), token.getName(), clientIp,
+							null, null, null, true, "CAC login succeeded for " + token.getName(), null);
 					// do we need to update credentials?
 					// might be useful for when we add users
 					// but the cert has different values we want to use
 					if (CACFilter.updateUser) {
 						SecurityUpdateUtils.updateOAuthUser(token);
+					} else {
+						refreshProfileFromCard(token);
 					}
 
 					// new user has entered!
@@ -250,8 +262,14 @@ public class CACFilter implements Filter {
 						// grab the ip address
 						userLogger.addToQueue(new String[] { cacId, name,
 								LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
-								WebUtility.getClientIp((HttpServletRequest) arg0) });
+								clientIp });
 					}
+				} else {
+					// a client certificate was presented but did not parse into a recognized CAC
+					// identity (wrong CN shape, missing DoD id, etc.) - still security-relevant
+					SemossLogUtils.logSecurityAuditEvent("LOGIN_FAILURE", null, null, clientIp, null, null, null,
+							false, "a client certificate was presented but did not parse as a valid CAC identity",
+							null);
 				}
 			}
 		}
@@ -259,51 +277,96 @@ public class CACFilter implements Filter {
 		arg2.doFilter(arg0, arg1);
 	}
 
+	/**
+	 * Returns the user principal name (UPN) from the certificate's otherName
+	 * alternative names, or null when the certificate has none.
+	 *
+	 * @param cert the certificate to read
+	 * @return the UPN, or null
+	 */
+	/**
+	 * Saves what the card supplied for a person who is already registered, so a
+	 * user added before the username was read gets it at the next login. Only the
+	 * username and, when the certificate presented has one, the email go in the
+	 * update, and only when they have a value. The name, phone and extension the
+	 * person set are left as they are. A failure is logged and never stops the
+	 * login.
+	 * <p>
+	 * This writes to the security database directly, as the legacy id migration
+	 * below does, and does not go through {@code SecurityUpdateUtils.updateOAuthUser}:
+	 * that method takes the name from {@link AccessToken#getName()}, which falls
+	 * back to the username, so a username-only token would overwrite the person's
+	 * display name with their UPN.
+	 */
+	private void refreshProfileFromCard(AccessToken token) {
+		String username = token.getUsername();
+		String email = token.getEmail();
+		boolean hasUsername = username != null && !username.isEmpty();
+		boolean hasEmail = email != null && !email.isEmpty();
+		if (token.getId() == null || (!hasUsername && !hasEmail)) {
+			return;
+		}
+		// a UPN is letters, digits and . _ @ -; anything else did not come from a DoD certificate
+		if (hasUsername && !USERNAME_PATTERN.matcher(username).matches()) {
+			classLogger.warn("Not saving a username from the CAC certificate that is not in the expected format");
+			hasUsername = false;
+			if (!hasEmail) {
+				return;
+			}
+		}
+		try {
+			IRDBMSEngine securityDb = (IRDBMSEngine) Utility.getDatabase(Constants.SECURITY_DB);
+			if (securityDb == null) {
+				return;
+			}
+			StringBuilder update = new StringBuilder("UPDATE SMSS_USER SET ");
+			if (hasUsername) {
+				update.append("USERNAME='").append(RdbmsQueryBuilder.escapeForSQLStatement(username)).append("'");
+			}
+			if (hasEmail) {
+				update.append(hasUsername ? ", " : "").append("EMAIL='")
+						.append(RdbmsQueryBuilder.escapeForSQLStatement(email)).append("'");
+			}
+			update.append(" WHERE ID='").append(RdbmsQueryBuilder.escapeForSQLStatement(token.getId()))
+					.append("' AND TYPE='").append(RdbmsQueryBuilder.escapeForSQLStatement(AuthProvider.CAC.toString()))
+					.append("'");
+			securityDb.insertData(update.toString());
+		} catch (Exception e) {
+			classLogger.error("Failed to save the details from the CAC certificate for the signed in user", e);
+		}
+	}
+
 	public String getUPN(X509Certificate cert) {
 		Collection<List<?>> sans;
 		try {
 			sans = JcaX509ExtensionUtils.getSubjectAlternativeNames(cert);
-			// get all subject alt names
-			if (sans != null) {
-				classLogger.info("Subject Alternative Names: {}", sans.toString());
-				for (List<?> l : sans) {
-
-					// expected size is 2
-					if (l.size() == 2) {
-
-						// expected type 0 for the san
-						Integer type = (Integer) l.get(0);
-						if (type.equals(new Integer(0))) {
-							ASN1Primitive value = ((DLSequence) l.get(1)).toASN1Primitive();
-							ASN1Sequence asn1seq = ASN1Sequence.getInstance(value);
-							ASN1ObjectIdentifier oid = ASN1ObjectIdentifier.getInstance(asn1seq.getObjectAt(0));
-
-							// IF THE OID is the UPN value - grab it and we are good, else continue
-							if (oid.getId().equalsIgnoreCase("1.3.6.1.4.1.311.20.2.3")) {
-								ASN1TaggedObject tag = ASN1TaggedObject
-										.getInstance(asn1seq.getObjectAt(1).toASN1Primitive());
-								if (tag.getTagNo() != 0) {
-									// this should be 0 for UPN
-									continue;
-								}
-								return DERUTF8String.getInstance(tag, true).toString();
-
-							} else {
-								continue;
-							}
-						}
-					}
-				}
-			}
 		} catch (CertificateParsingException e) {
-			// TODO Auto-generated catch block
 			classLogger.error(
 					"Failed to parse the X509 subject alternative names while extracting the UPN from the certificate",
 					e);
+			return null;
 		}
-
+		if (sans == null) {
+			return null;
+		}
+		classLogger.info("Subject Alternative Names: {}", sans);
+		for (List<?> san : sans) {
+			if (san.size() != 2 || !Integer.valueOf(GeneralName.otherName).equals(san.get(0))
+					|| !(san.get(1) instanceof byte[] encoded)) {
+				continue;
+			}
+			try {
+				// the value is the whole encoded GeneralName, not the OtherName inside it
+				OtherName otherName = OtherName
+						.getInstance(GeneralName.getInstance(ASN1Primitive.fromByteArray(encoded)).getName());
+				if (UPN_OID.equals(otherName.getTypeID().getId()) && otherName.getValue() instanceof ASN1String upn) {
+					return upn.getString();
+				}
+			} catch (IOException | IllegalArgumentException e) {
+				classLogger.warn("Skipping a certificate otherName alternative name that could not be read", e);
+			}
+		}
 		return null;
-
 	}
 
 	@Override
