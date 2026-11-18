@@ -79,7 +79,7 @@ class ThoughtSignatureSidecarTest {
 	void interactionsKeysIgnoreMapOrderAndJsonArgumentEncodingButIncludeContext() {
 		Map<String, Object> a = Map.of("role", "assistant", "content", "", "tool_calls", List.of(
 				Map.of("id", "a", "type", "function", "function", Map.of("name", "lookup", "arguments", "{\"b\":2,\"a\":1}"))));
-		Map<String, Object> b = Map.of("content", "", "role", "assistant", "tool_calls", List.of(
+		Map<String, Object> b = Map.of("role", "assistant", "tool_calls", List.of(
 				Map.of("type", "function", "id", "a", "function", Map.of("arguments", Map.of("a", 1.0, "b", 2.0), "name", "lookup"))));
 		assertEquals(ThoughtSignatureSidecar.interactionKey(List.of(a)), ThoughtSignatureSidecar.interactionKey(List.of(b)));
 	}

@@ -246,6 +246,9 @@ public class ThoughtSignatureSidecar {
 			Map<String, Object> normalized = new TreeMap<>();
 			for (String key : List.of("role", "content", "tool_calls", "tool_call_id", "name")) {
 				Object value = message.get(key);
+				if ("content".equals(key) && "assistant".equals(message.get("role")) && "".equals(value)) {
+					continue;
+				}
 				if (value != null) {
 					normalized.put(key, canonical(value));
 				}
