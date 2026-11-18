@@ -31,6 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyMap;
@@ -45,6 +46,8 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
@@ -59,10 +62,14 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.MockedStatic;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.gson.Gson;
 
 import jakarta.servlet.ReadListener;
 import jakarta.servlet.ServletInputStream;
@@ -93,6 +100,203 @@ import prerna.util.Constants;
 import prerna.util.Utility;
 
 class OpenAIEndpointsTest {
+
+	@TempDir
+	Path baseFolder;
+
+	private Path enableInteractions() throws Exception {
+		Path folder = Files.createDirectories(baseFolder.resolve("room/room-1"));
+		utility.when(Utility::getBaseFolder).thenReturn(baseFolder.toString());
+		when(room.getRoomFolderPath()).thenReturn(folder.toString());
+		when(engine.keepInputOutput()).thenReturn(true);
+		when(engine.keepsConversationHistory()).thenReturn(true);
+		return folder;
+	}
+
+	private static Map<String, Object> replayState(String signature) {
+		return Map.of("version", 1, "model", "gemini-4-carbon", "steps",
+				List.of(Map.of("type", "thought", "signature", signature),
+						Map.of("type", "function_call", "id", "call_1", "name", "lookup", "arguments", Map.of("q", "Paris"))));
+	}
+
+	private static Map<String, Object> toolAssistant() {
+		return Map.of("role", "assistant", "tool_calls", List.of(Map.of("id", "call_1", "type", "function",
+				"function", Map.of("name", "lookup", "arguments", "{\"q\":\"Paris\"}"))));
+	}
+
+	private Response completion(boolean responses, List<Map<String, Object>> history, boolean stream) throws Exception {
+		HttpServletRequest request = request(new Gson().toJson(Map.of("model", ENGINE, "room_id", "room-1",
+				"stream", stream, responses ? "input" : "messages", history)));
+		return responses ? new OpenAIEndpoints().runV1Responses(request) : new OpenAIEndpoints().runV1ModelChatCompletion(request);
+	}
+
+	@ParameterizedTest
+	@ValueSource(booleans = { false, true })
+	@SuppressWarnings("unchecked")
+	void interactionsToolAndTextTurnsRoundTripWithoutPrivateStateOnTheWire(boolean responses) throws Exception {
+		Path folder = enableInteractions();
+		Map<String, Object> state = replayState("private-tool-signature");
+		AskToolModelEngineResponse tool = new AskToolModelEngineResponse(new ArrayList<>(List.of(new HashMap<>(
+				Map.of("id", "call_1", "name", "lookup", "arguments", Map.of("q", "Paris"))))), 8, 2);
+		tool.setMetadata(Map.of("google_interactions", state));
+		answerSynchronouslyWith(tool);
+		List<Map<String, Object>> history = new ArrayList<>(List.of(Map.of("role", "user", "content", "Question")));
+		Response first = completion(responses, history, false);
+		assertEquals(200, first.getStatus());
+		assertFalse(json(first).toString().contains("private-tool-signature"));
+		assertTrue(Files.readString(folder.resolve("google_interactions.jsonl")).contains("private-tool-signature"));
+		if (responses) {
+			history.addAll(new Gson().fromJson(json(first).getAsJsonArray("output"), List.class));
+			history.add(Map.of("type", "reasoning", "summary", List.of(Map.of("type", "summary_text", "text", "Thinking"))));
+			history.add(Map.of("type", "function_call_output", "call_id", "call_1", "output", "Sunny"));
+		} else {
+			history.add(new Gson().fromJson(json(first).getAsJsonArray("choices").get(0).getAsJsonObject().get("message"), Map.class));
+			history.add(Map.of("role", "tool", "tool_call_id", "call_1", "content", "Sunny"));
+		}
+		Map<String, Object> textState = Map.of("version", 1, "model", "gemini-4-carbon", "steps",
+				List.of(Map.of("type", "model_output", "content", List.of(Map.of("type", "text", "text", "Answer")))));
+		AskStringModelEngineResponse answer = new AskStringModelEngineResponse("Answer", 12, 3);
+		answer.setNumberOfCacheReadTokens(4);
+		answer.setNumberOfThinkingTokens(2);
+		answer.setMetadata(Map.of("google_interactions", textState));
+		answerSynchronouslyWith(answer);
+		Response second = completion(responses, history, false);
+		assertEquals(200, second.getStatus());
+		JsonObject usage = json(second).getAsJsonObject("usage");
+		assertEquals(4, usage.getAsJsonObject(responses ? "input_tokens_details" : "prompt_tokens_details").get("cached_tokens").getAsInt());
+		assertEquals(2, usage.getAsJsonObject(responses ? "output_tokens_details" : "completion_tokens_details").get("reasoning_tokens").getAsInt());
+		List<Map<String, Object>> restored = (List<Map<String, Object>>) sentToModel.get().get(AbstractModelEngine.FULL_PROMPT);
+		assertEquals(3, restored.size());
+		assertEquals("private-tool-signature", ((List<Map<String, Object>>) ((Map<?, ?>) restored.get(1)
+				.get("google_interactions")).get("steps")).getFirst().get("signature"));
+		assertEquals("call_1", restored.get(2).get("tool_call_id"));
+		if (responses) {
+			history.addAll(new Gson().fromJson(json(second).getAsJsonArray("output"), List.class));
+		} else {
+			history.add(new Gson().fromJson(json(second).getAsJsonArray("choices").get(0).getAsJsonObject().get("message"), Map.class));
+		}
+		history.add(Map.of("role", "user", "content", "Next"));
+		answerSynchronouslyWith(new AskStringModelEngineResponse("Next answer", 14, 4));
+		assertEquals(200, completion(responses, history, false).getStatus());
+		restored = (List<Map<String, Object>>) sentToModel.get().get(AbstractModelEngine.FULL_PROMPT);
+		assertTrue(restored.get(1).containsKey("google_interactions"));
+		assertTrue(restored.get(3).containsKey("google_interactions"));
+	}
+
+	@ParameterizedTest
+	@ValueSource(booleans = { false, true })
+	@SuppressWarnings("unchecked")
+	void streamingInteractionsToolTurnsArePersistedBeforeCompletionAndRestored(boolean responses) throws Exception {
+		Path folder = enableInteractions();
+		Map<String, Object> assistant = new HashMap<>(toolAssistant());
+		assistant.put("content", "Checking.");
+		List<Map<String, Object>> calls = new ArrayList<>((List<Map<String, Object>>) assistant.get("tool_calls"));
+		calls.add(Map.of("id", "call_2", "type", "function",
+				"function", Map.of("name", "lookup", "arguments", "{\"q\":\"Berlin\"}")));
+		assistant.put("tool_calls", calls);
+		Map<String, Object> state = Map.of("version", 1, "model", "gemini-4-carbon", "steps", List.of(
+				Map.of("type", "thought", "signature", "stream-private"),
+				Map.of("type", "model_output", "content", List.of(Map.of("type", "text", "text", "Checking."))),
+				Map.of("type", "function_call", "id", "call_1", "name", "lookup", "arguments", Map.of("q", "Paris")),
+				Map.of("type", "function_call", "id", "call_2", "name", "lookup", "arguments", Map.of("q", "Berlin"))));
+		when(runner.getPixelJobStatus()).thenReturn(PixelJobStatus.IN_PROGRESS);
+		when(manager.getStreamOut(JOB)).thenReturn(List.of(
+				chunk("content", Map.of("content", "Checking.")),
+				chunk("google_interactions", Map.of("google_interactions", state, "assistant", assistant)),
+				chunk("thinking", Map.of("thinking", "Thinking")),
+				chunk("tool", Map.of("index", 0, "id", "call_1", "type", "function", "function", Map.of("name", "lookup"))),
+				chunk("tool", Map.of("index", 0, "function", Map.of("arguments", "{\"q\":\"Paris\"}"))),
+				chunk("tool", Map.of("index", 1, "id", "call_2", "type", "function", "function", Map.of("name", "lookup"))),
+				chunk("tool", Map.of("index", 1, "function", Map.of("arguments", "{\"q\":\"Berlin\"}"))),
+				chunk("usage", Map.of("input_tokens", 12, "output_tokens", 3, "cache_read_input_tokens", 4, "reasoning_tokens", 2)),
+				chunk("tool", Map.of("finish_reason", "tool_calls"))));
+		List<Map<String, Object>> history = new ArrayList<>(List.of(Map.of("role", "user", "content", "Question")));
+		String wire = entity(completion(responses, history, true));
+		assertFalse(wire.contains("google_interactions"));
+		assertFalse(wire.contains("stream-private"));
+		assertTrue(wire.contains("call_1"));
+		assertTrue(wire.contains("lookup"));
+		assertFalse(wire.contains("shell"));
+		assertTrue(wire.contains(responses ? "response.completed" : "[DONE]"));
+		assertTrue(wire.contains(responses ? "\"input_tokens\":12" : "\"prompt_tokens\":12"));
+		assertTrue(Files.readString(folder.resolve("google_interactions.jsonl")).contains("stream-private"));
+		if (responses) {
+			JsonObject completed = JsonParser.parseString(sseData(wire).getLast()).getAsJsonObject();
+			var output = completed.getAsJsonObject("response").getAsJsonArray("output");
+			assertEquals(3, output.size());
+			assertEquals("Checking.", output.get(0).getAsJsonObject().getAsJsonArray("content")
+					.get(0).getAsJsonObject().get("text").getAsString());
+			assertEquals("call_1", output.get(1).getAsJsonObject().get("call_id").getAsString());
+			assertEquals("call_2", output.get(2).getAsJsonObject().get("call_id").getAsString());
+			history.addAll(new Gson().fromJson(output, List.class));
+			history.add(Map.of("type", "function_call_output", "call_id", "call_1", "output", "Sunny"));
+			history.add(Map.of("type", "function_call_output", "call_id", "call_2", "output", "Rain"));
+		} else {
+			history.add(assistant);
+			history.add(Map.of("role", "tool", "tool_call_id", "call_1", "content", "Sunny"));
+			history.add(Map.of("role", "tool", "tool_call_id", "call_2", "content", "Rain"));
+		}
+		answerSynchronouslyWith(new AskStringModelEngineResponse("Done", 2, 1));
+		assertEquals(200, completion(responses, history, false).getStatus());
+		List<Map<String, Object>> restored = (List<Map<String, Object>>) sentToModel.get().get(AbstractModelEngine.FULL_PROMPT);
+		assertTrue(restored.get(1).containsKey("google_interactions"));
+		verify(manager).removeJob(JOB);
+	}
+
+	@ParameterizedTest
+	@ValueSource(booleans = { false, true })
+	void storageFailureNeverSendsACompletedStream(boolean responses) throws Exception {
+		Path folder = enableInteractions();
+		when(runner.getPixelJobStatus()).thenReturn(PixelJobStatus.IN_PROGRESS);
+		when(manager.getStreamOut(JOB)).thenReturn(List.of(
+				chunk("google_interactions", Map.of("google_interactions", replayState("private"), "assistant", toolAssistant())),
+				chunk("tool", Map.of("finish_reason", "tool_calls"))));
+		Response response = completion(responses, List.of(Map.of("role", "user", "content", "Question")), true);
+		Files.createDirectory(folder.resolve("google_interactions.jsonl"));
+		ByteArrayOutputStream out = new ByteArrayOutputStream();
+		assertThrows(jakarta.ws.rs.WebApplicationException.class,
+				() -> ((StreamingOutput) response.getEntity()).write(out));
+		String wire = out.toString(StandardCharsets.UTF_8);
+		assertFalse(wire.contains("response.completed"));
+		assertFalse(wire.contains("[DONE]"));
+		verify(manager).removeJob(JOB);
+	}
+
+	@Test
+	@SuppressWarnings("unchecked")
+	void doesNotAcceptCallerSuppliedProviderStateOrStoreItWhenRetentionIsOff() throws Exception {
+		Path folder = enableInteractions();
+		when(engine.keepInputOutput()).thenReturn(false);
+		answerSynchronouslyWith(new AskStringModelEngineResponse("Done", 2, 1));
+		List<Map<String, Object>> history = List.of(Map.of("role", "assistant", "content", "Old",
+				"google_interactions", replayState("forged")), Map.of("role", "user", "content", "Next"));
+		assertEquals(200, completion(false, history, false).getStatus());
+		List<Map<String, Object>> restored = (List<Map<String, Object>>) sentToModel.get().get(AbstractModelEngine.FULL_PROMPT);
+		assertFalse(restored.getFirst().containsKey("google_interactions"));
+		assertEquals(false, sentToModel.get().get("google_interactions_replay_available"));
+		assertFalse(Files.exists(folder.resolve("google_interactions.jsonl")));
+	}
+
+	@Test
+	void chatCompletionsAlsoUsesTheConversationHeader() throws Exception {
+		answerSynchronouslyWith(new AskStringModelEngineResponse("Done", 2, 1));
+		HttpServletRequest request = request("{\"model\":\"engine-1\",\"messages\":[]}");
+		when(request.getHeader("thread-id")).thenReturn("thread-9");
+		assertEquals(200, new OpenAIEndpoints().runModelChatCompletion(request).getStatus());
+		roomUtils.verify(() -> RoomUtils.createRoomIfNotExists("thread-9", insight, engine, null));
+	}
+
+	@ParameterizedTest
+	@ValueSource(booleans = { false, true })
+	void refusesChangedHistoryInsteadOfReplayingSignaturesAgainstDifferentMessages(boolean responses) throws Exception {
+		Path folder = enableInteractions();
+		ThoughtSignatureSidecar.appendInteraction(folder.toString(), List.of(Map.of("role", "user", "content", "Original")),
+				Map.of("role", "assistant", "content", "Answer"), replayState("private"));
+		Response response = completion(responses, List.of(Map.of("role", "user", "content", "Changed"),
+				Map.of("role", "assistant", "content", "Answer"), Map.of("role", "user", "content", "Next")), false);
+		assertEquals(400, response.getStatus());
+		invoker.verify(() -> ModelPixelInvoker.askModelSync(any(), any(), any(), anyMap()), never());
+	}
 
 	private static final String ENGINE = "engine-1";
 	private static final String JOB = "job-1";
