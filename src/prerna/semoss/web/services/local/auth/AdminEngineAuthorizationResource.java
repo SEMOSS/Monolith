@@ -511,56 +511,65 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	}
 
 	/**
-	 * Lists the apps an engine gives a permission to, in admin mode. An app's
-	 * custom reactors use the permission in place of the signed in user's own.
+	 * Lists the apps and engines an engine gives a permission to, in admin mode.
+	 * An app's custom reactors, or another engine's own code, use the permission
+	 * in place of the signed in user's own.
 	 *
 	 * @param request  the request, whose session holds the admin
 	 * @param engineId the engine
-	 * @return one entry for each app, with its id and name, its level and end date
-	 *         and, on a model, its App Limit; 403 for a user who is not an admin
+	 * @return one entry for each app or engine, with its id, catalog type
+	 *         ({@code PROJECT} for an app) and name, its level and end date and, on
+	 *         a model, its App Limit or Engine Limit; 403 for a user who is not an
+	 *         admin
 	 */
 	@GET
 	@Produces("application/json")
-	@Path("getEngineProjectPermissions")
-	public Response getEngineProjectPermissions(@Context HttpServletRequest request,
+	@Path("getEngineGranteePermissions")
+	public Response getEngineGranteePermissions(@Context HttpServletRequest request,
 			@QueryParam("engineId") String engineId) {
 		String id = WebUtility.inputSanitizer(engineId);
-		return ResourceUtility.respondAsAdmin(request, "list the apps engine " + id + " gives a permission to",
-				SecurityAdminUtils::getInstance, (user, adminUtils) -> adminUtils.getEngineProjectPermissions(id));
+		return ResourceUtility.respondAsAdmin(request,
+				"list the apps and engines engine " + id + " gives a permission to", SecurityAdminUtils::getInstance,
+				(user, adminUtils) -> adminUtils.getEngineGranteePermissions(id));
 	}
 
 	/**
-	 * Gives an app a permission on any engine, or changes the one it has, in admin
-	 * mode. On a model the App Limit is sent as {@code usageLimit} (JSON, empty for
-	 * no limit defined); without it the app keeps the limit it has.
+	 * Gives an app or another engine a permission on any engine, or changes the
+	 * one it has, in admin mode. On a model the App Limit or Engine Limit is sent
+	 * as {@code usageLimit} (JSON, empty for no limit defined); without it the
+	 * grantee keeps the limit it has.
 	 *
 	 * @param request the request, whose session holds the admin
-	 * @param form    {@code engineId}, {@code projectId}, {@code permission}
-	 *                (READ_ONLY or EDIT), and optionally {@code endDate} and
-	 *                {@code usageLimit}
+	 * @param form    {@code engineId}, {@code granteeEngineId},
+	 *                {@code granteeEngineType} (the grantee's catalog type,
+	 *                {@code PROJECT} for an app), {@code permission} (READ_ONLY or
+	 *                EDIT), and optionally {@code endDate} and {@code usageLimit}
 	 * @return 200 when the permission is saved, 400 with the reason when it cannot
 	 *         be, and 403 for a user who is not an admin
 	 */
 	@POST
 	@Produces("application/json")
-	@Path("setEngineProjectPermission")
-	public Response setEngineProjectPermission(@Context HttpServletRequest request,
+	@Path("setEngineGranteePermission")
+	public Response setEngineGranteePermission(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
-		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String granteeEngineId = WebUtility.inputSanitizer(form.getFirst("granteeEngineId"));
+		String granteeEngineType = WebUtility.inputSanitizer(form.getFirst("granteeEngineType"));
 		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
 		boolean givesUsageLimit = form.containsKey(USAGE_LIMIT);
 		String usageLimit = form.getFirst(USAGE_LIMIT);
 		return ResourceUtility.respondAsAdmin(request,
-				"give app " + projectId + " " + permission + " access to engine " + engineId,
+				"give " + granteeEngineType + " " + granteeEngineId + " " + permission + " access to engine "
+						+ engineId,
 				SecurityAdminUtils::getInstance, (user, adminUtils) -> {
 					String level = AccessPermissionEnum.require(permission);
 					if (givesUsageLimit) {
-						adminUtils.setEngineProjectPermission(projectId, engineId, level, user, endDate,
-								SecurityModelUsageLimitUtils.readJson(usageLimit));
+						adminUtils.setEngineGranteePermission(granteeEngineId, granteeEngineType, engineId, level,
+								user, endDate, SecurityModelUsageLimitUtils.readJson(usageLimit));
 					} else {
-						adminUtils.setEngineProjectPermission(projectId, engineId, level, user, endDate);
+						adminUtils.setEngineGranteePermission(granteeEngineId, granteeEngineType, engineId, level,
+								user, endDate);
 					}
 					Map<String, Object> ret = new HashMap<>();
 					ret.put("success", true);
@@ -569,25 +578,27 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 	}
 
 	/**
-	 * Takes away the permission an engine gives an app, in admin mode. On a model
-	 * the app's App Limit goes with it.
+	 * Takes away the permission an engine gives an app or another engine, in admin
+	 * mode. On a model the grantee's App Limit or Engine Limit goes with it.
 	 *
 	 * @param request the request, whose session holds the admin
-	 * @param form    {@code engineId} and {@code projectId}
+	 * @param form    {@code engineId}, {@code granteeEngineId} and
+	 *                {@code granteeEngineType}
 	 * @return 200 when the permission is taken away, 400 with the reason when it
 	 *         cannot be, and 403 for a user who is not an admin
 	 */
 	@POST
 	@Produces("application/json")
-	@Path("removeEngineProjectPermission")
-	public Response removeEngineProjectPermission(@Context HttpServletRequest request,
+	@Path("removeEngineGranteePermission")
+	public Response removeEngineGranteePermission(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		String engineId = WebUtility.inputSanitizer(form.getFirst("engineId"));
-		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String granteeEngineId = WebUtility.inputSanitizer(form.getFirst("granteeEngineId"));
+		String granteeEngineType = WebUtility.inputSanitizer(form.getFirst("granteeEngineType"));
 		return ResourceUtility.respondAsAdmin(request,
-				"take away the access of app " + projectId + " to engine " + engineId,
+				"take away the access of " + granteeEngineType + " " + granteeEngineId + " to engine " + engineId,
 				SecurityAdminUtils::getInstance, (user, adminUtils) -> {
-					adminUtils.removeEngineProjectPermission(projectId, engineId, user);
+					adminUtils.removeEngineGranteePermission(granteeEngineId, granteeEngineType, engineId, user);
 					Map<String, Object> ret = new HashMap<>();
 					ret.put("success", true);
 					return ret;
