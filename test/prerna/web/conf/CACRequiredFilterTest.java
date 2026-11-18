@@ -55,7 +55,7 @@ import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.WriteListener;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import prerna.logging.SemossLogUtils;
+import prerna.web.conf.util.CacAudit;
 
 class CACRequiredFilterTest {
 
@@ -133,7 +133,7 @@ class CACRequiredFilterTest {
 		HttpServletResponse response = response(new ByteArrayOutputStream());
 		FilterChain chain = mock(FilterChain.class);
 
-		try (MockedStatic<SemossLogUtils> log = mockStatic(SemossLogUtils.class)) {
+		try (MockedStatic<CacAudit> log = mockStatic(CacAudit.class)) {
 			filter().doFilter(request, response, chain);
 		}
 
@@ -151,7 +151,7 @@ class CACRequiredFilterTest {
 		HttpServletResponse response = response(sink);
 		FilterChain chain = mock(FilterChain.class);
 
-		try (MockedStatic<SemossLogUtils> log = mockStatic(SemossLogUtils.class)) {
+		try (MockedStatic<CacAudit> log = mockStatic(CacAudit.class)) {
 			filter().doFilter(request, response, chain);
 		}
 
@@ -167,7 +167,7 @@ class CACRequiredFilterTest {
 		HttpServletResponse response = response(new ByteArrayOutputStream());
 		FilterChain chain = mock(FilterChain.class);
 
-		try (MockedStatic<SemossLogUtils> log = mockStatic(SemossLogUtils.class)) {
+		try (MockedStatic<CacAudit> log = mockStatic(CacAudit.class)) {
 			filter().doFilter(request, response, chain);
 		}
 
@@ -209,7 +209,7 @@ class CACRequiredFilterTest {
 		when(spoofed.getHeader("X-FORWARDED-FOR")).thenReturn("127.0.0.1");
 		FilterChain spoofedChain = mock(FilterChain.class);
 		HttpServletResponse spoofedResponse = response(new ByteArrayOutputStream());
-		try (MockedStatic<SemossLogUtils> log = mockStatic(SemossLogUtils.class)) {
+		try (MockedStatic<CacAudit> log = mockStatic(CacAudit.class)) {
 			filter().doFilter(spoofed, spoofedResponse, spoofedChain);
 		}
 		verify(spoofedChain, never()).doFilter(any(), any());
@@ -226,7 +226,7 @@ class CACRequiredFilterTest {
 		FilterChain chain = mock(FilterChain.class);
 		HttpServletResponse response = response(new ByteArrayOutputStream());
 
-		try (MockedStatic<SemossLogUtils> log = mockStatic(SemossLogUtils.class)) {
+		try (MockedStatic<CacAudit> log = mockStatic(CacAudit.class)) {
 			filter.doFilter(request, response, chain);
 		}
 
@@ -247,13 +247,13 @@ class CACRequiredFilterTest {
 
 	@Test
 	void theDenialIsWrittenToTheAuditTrailOncePerClientInterval() throws Exception {
-		try (MockedStatic<SemossLogUtils> log = mockStatic(SemossLogUtils.class)) {
+		try (MockedStatic<CacAudit> log = mockStatic(CacAudit.class)) {
 			for (int i = 0; i < 3; i++) {
 				HttpServletRequest request = request("GET", "/", "text/html", "192.0.2.77", null);
 				filter().doFilter(request, response(new ByteArrayOutputStream()), mock(FilterChain.class));
 			}
-			log.verify(() -> SemossLogUtils.logSecurityAuditEvent(eq("LOGIN_FAILURE"), any(), any(), any(), any(),
-					any(), any(), anyBoolean(), any(), any()), org.mockito.Mockito.times(1));
+			log.verify(() -> CacAudit.record(eq("LOGIN_FAILURE"), any(), any(), any(), eq(false), any()),
+					org.mockito.Mockito.times(1));
 		}
 		assertEquals("/Monolith/cacRequired/", "/Monolith" + CACRequiredFilter.ERROR_PAGE);
 	}

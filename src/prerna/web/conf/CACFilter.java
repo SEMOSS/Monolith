@@ -67,7 +67,6 @@ import prerna.ds.util.RdbmsQueryBuilder;
 import prerna.engine.api.IRDBMSEngine;
 import prerna.engine.api.IRawSelectWrapper;
 import prerna.forms.FormBuilder;
-import prerna.logging.SemossLogUtils;
 import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.semoss.web.services.local.UserResource;
 import prerna.util.Constants;
@@ -75,6 +74,7 @@ import prerna.util.Utility;
 import prerna.web.conf.util.CACTrackingUtil;
 import prerna.web.conf.util.UserFileLogUtil;
 import prerna.web.services.util.WebUtility;
+import prerna.web.conf.util.CacAudit;
 
 public class CACFilter implements Filter {
 
@@ -240,8 +240,7 @@ public class CACFilter implements Filter {
 					// store in session, log in user tracking db, and add the user to security db if
 					// autoadd
 					UserResource.addAccessToken(token, ((HttpServletRequest) arg0), CACFilter.autoAdd);
-					SemossLogUtils.logSecurityAuditEvent("LOGIN_SUCCESS", token.getId(), token.getName(), clientIp,
-							null, null, null, true, "CAC login succeeded for " + token.getName(), null);
+					CacAudit.record("LOGIN_SUCCESS", token.getId(), token.getName(), clientIp, true, "CAC login succeeded for " + token.getName());
 					// do we need to update credentials?
 					// might be useful for when we add users
 					// but the cert has different values we want to use
@@ -267,9 +266,7 @@ public class CACFilter implements Filter {
 				} else {
 					// a client certificate was presented but did not parse into a recognized CAC
 					// identity (wrong CN shape, missing DoD id, etc.) - still security-relevant
-					SemossLogUtils.logSecurityAuditEvent("LOGIN_FAILURE", null, null, clientIp, null, null, null,
-							false, "a client certificate was presented but did not parse as a valid CAC identity",
-							null);
+					CacAudit.record("LOGIN_FAILURE", null, null, clientIp, false, "a client certificate was presented but did not parse as a valid CAC identity");
 				}
 			}
 		}

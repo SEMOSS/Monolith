@@ -55,13 +55,13 @@ import prerna.auth.AccessToken;
 import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityUpdateUtils;
-import prerna.logging.SemossLogUtils;
 import prerna.semoss.web.services.local.UserResource;
 import prerna.util.Constants;
 import prerna.util.Utility;
 import prerna.web.conf.util.CACTrackingUtil;
 import prerna.web.conf.util.UserFileLogUtil;
 import prerna.web.services.util.WebUtility;
+import prerna.web.conf.util.CacAudit;
 
 public class PIVFilter implements Filter {
 
@@ -182,8 +182,7 @@ public class PIVFilter implements Filter {
 					// store in session, log in user tracking db, and add the user to security db if
 					// autoadd
 					UserResource.addAccessToken(token, ((HttpServletRequest) arg0), PIVFilter.autoAdd);
-					SemossLogUtils.logSecurityAuditEvent("LOGIN_SUCCESS", token.getId(), token.getName(), clientIp,
-							null, null, null, true, "PIV login succeeded for " + token.getName(), null);
+					CacAudit.record("LOGIN_SUCCESS", token.getId(), token.getName(), clientIp, true, "PIV login succeeded for " + token.getName());
 					// do we need to update credentials?
 					// might be useful for when we add users
 					// but the cert has different values we want to use
@@ -207,9 +206,7 @@ public class PIVFilter implements Filter {
 				} else {
 					// a client certificate was presented but did not parse into a recognized PIV
 					// identity (no UID/CN pair, no usable email) - still security-relevant
-					SemossLogUtils.logSecurityAuditEvent("LOGIN_FAILURE", null, null, clientIp, null, null, null,
-							false, "a client certificate was presented but did not parse as a valid PIV identity",
-							null);
+					CacAudit.record("LOGIN_FAILURE", null, null, clientIp, false, "a client certificate was presented but did not parse as a valid PIV identity");
 				}
 			}
 		}

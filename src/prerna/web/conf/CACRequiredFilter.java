@@ -41,8 +41,8 @@ import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import prerna.logging.SemossLogUtils;
 import prerna.web.services.util.WebUtility;
+import prerna.web.conf.util.CacAudit;
 
 /**
  * Requires a validated CAC/PIV client certificate on every request.
@@ -206,7 +206,6 @@ public class CACRequiredFilter implements Filter {
 			return;
 		}
 		LAST_AUDITED.put(clientIp, now);
-		SemossLogUtils.logSecurityAuditEvent("LOGIN_FAILURE", null, null, clientIp, null, null, null, false,
-				"a CAC/PIV client certificate is required and none was presented", null);
+		CacAudit.record("LOGIN_FAILURE", null, null, clientIp, false, "a CAC/PIV client certificate is required and none was presented");
 	}
 }
