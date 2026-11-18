@@ -34,6 +34,7 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -70,6 +71,8 @@ import prerna.forms.FormBuilder;
 import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.semoss.web.services.local.UserResource;
 import prerna.util.Constants;
+import prerna.util.QueryExecutionUtility;
+import prerna.util.SystemEngineRegistry;
 import prerna.util.Utility;
 import prerna.web.conf.util.CACTrackingUtil;
 import prerna.web.conf.util.UserFileLogUtil;
@@ -217,7 +220,7 @@ public class CACFilter implements Filter {
 							String upn = getUPN(cert);
 							if (upn != null && !upn.isEmpty()) {
 								token.setSAN("UPN", upn);
-								// the card's own identity, "<DoD id>@mil": the one profile detail a
+								// the card's own identity, a 16 digit number then "@mil": the one profile detail a
 								// DoD certificate carries besides the name. The certificate has no
 								// email, phone number or extension, so those stay for the user to enter
 								token.setUsername(upn);
@@ -283,51 +286,71 @@ public class CACFilter implements Filter {
 	 */
 	/**
 	 * Saves what the card supplied for a person who is already registered, so a
-	 * user added before the username was read gets it at the next login. Only the
-	 * username and, when the certificate presented has one, the email go in the
-	 * update, and only when they have a value. The name, phone and extension the
-	 * person set are left as they are. A failure is logged and never stops the
-	 * login.
+	 * change on the card (a new name, a username added later) reaches the account
+	 * at the next login. The name from the certificate, the username and, when the
+	 * certificate presented has one, the email go in the update, and only when they
+	 * have a value. The phone number and extension the person set are left as they
+	 * are, since a DoD certificate carries neither. A failure is logged and never
+	 * stops the login.
 	 * <p>
-	 * This writes to the security database directly, as the legacy id migration
-	 * below does, and does not go through {@code SecurityUpdateUtils.updateOAuthUser}:
-	 * that method takes the name from {@link AccessToken#getName()}, which falls
-	 * back to the username, so a username-only token would overwrite the person's
-	 * display name with their UPN.
+	 * The update is one prepared statement on the security database, found through
+	 * {@code SystemEngineRegistry} as the platform's own user updates do. It does
+	 * not go through {@code SecurityUpdateUtils.updateOAuthUser}: that method takes
+	 * the name from {@link AccessToken#getName()}, which falls back to the username,
+	 * and it builds a statement PostgreSQL rejects ({@code $1WHERE}).
 	 */
 	private void refreshProfileFromCard(AccessToken token) {
-		String username = token.getUsername();
-		String email = token.getEmail();
-		boolean hasUsername = username != null && !username.isEmpty();
-		boolean hasEmail = email != null && !email.isEmpty();
-		if (token.getId() == null || (!hasUsername && !hasEmail)) {
+		// the TOPAZ service account is not a person; leave its record alone
+		if (token.getId() == null || "TOPAZ".equals(token.getName())) {
 			return;
 		}
+		String name = token.getName();
+		String username = token.getUsername();
+		String email = token.getEmail();
 		// a UPN is letters, digits and . _ @ -; anything else did not come from a DoD certificate
-		if (hasUsername && !USERNAME_PATTERN.matcher(username).matches()) {
+		if (username != null && !username.isEmpty() && !USERNAME_PATTERN.matcher(username).matches()) {
 			classLogger.warn("Not saving a username from the CAC certificate that is not in the expected format");
-			hasUsername = false;
-			if (!hasEmail) {
-				return;
-			}
+			username = null;
+		}
+		List<String> columns = new ArrayList<>();
+		List<String> values = new ArrayList<>();
+		if (name != null && !name.isEmpty()) {
+			columns.add("NAME");
+			values.add(name);
+		}
+		if (username != null && !username.isEmpty()) {
+			columns.add("USERNAME");
+			values.add(username);
+		}
+		if (email != null && !email.isEmpty()) {
+			columns.add("EMAIL");
+			values.add(email);
+		}
+		if (columns.isEmpty()) {
+			return;
 		}
 		try {
-			IRDBMSEngine securityDb = (IRDBMSEngine) Utility.getDatabase(Constants.SECURITY_DB);
+			IRDBMSEngine securityDb = SystemEngineRegistry.getSecurityDb();
 			if (securityDb == null) {
+				classLogger.warn("The security database is not available; the CAC certificate details were not saved");
 				return;
 			}
-			StringBuilder update = new StringBuilder("UPDATE SMSS_USER SET ");
-			if (hasUsername) {
-				update.append("USERNAME='").append(RdbmsQueryBuilder.escapeForSQLStatement(username)).append("'");
+			String sql = "UPDATE SMSS_USER SET "
+					+ columns.stream().map(c -> c + "=?").collect(Collectors.joining(", "))
+					+ " WHERE ID=? AND TYPE=?";
+			int updated = QueryExecutionUtility.executeUpdate(securityDb, sql, ps -> {
+				int index = 1;
+				for (String value : values) {
+					ps.setString(index++, value);
+				}
+				ps.setString(index++, token.getId());
+				ps.setString(index, AuthProvider.CAC.toString());
+			});
+			if (updated == 0) {
+				classLogger.warn("No CAC user row matched the signed in user; the certificate details were not saved");
+			} else {
+				classLogger.info("Refreshed {} from the CAC certificate for the signed in user", columns);
 			}
-			if (hasEmail) {
-				update.append(hasUsername ? ", " : "").append("EMAIL='")
-						.append(RdbmsQueryBuilder.escapeForSQLStatement(email)).append("'");
-			}
-			update.append(" WHERE ID='").append(RdbmsQueryBuilder.escapeForSQLStatement(token.getId()))
-					.append("' AND TYPE='").append(RdbmsQueryBuilder.escapeForSQLStatement(AuthProvider.CAC.toString()))
-					.append("'");
-			securityDb.insertData(update.toString());
 		} catch (Exception e) {
 			classLogger.error("Failed to save the details from the CAC certificate for the signed in user", e);
 		}

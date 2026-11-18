@@ -76,6 +76,8 @@ import prerna.engine.api.IRawSelectWrapper;
 import prerna.rdf.engine.wrappers.WrapperManager;
 import prerna.semoss.web.services.local.UserResource;
 import prerna.util.Constants;
+import prerna.util.QueryExecutionUtility;
+import prerna.util.SystemEngineRegistry;
 import prerna.util.Utility;
 
 class CACFilterTest {
@@ -304,36 +306,56 @@ class CACFilterTest {
 		assertNull(new CACFilter().getUPN(mock(X509Certificate.class)));
 	}
 
-	/** Signs the holder in and returns the SQL the filter ran on the security database. */
-	private static List<String> signInAndCollectSql(CACFilter filter, HttpServletRequest request, boolean failing)
-			throws Exception {
-		IRDBMSEngine securityDb = mock(IRDBMSEngine.class);
-		if (failing) {
-			org.mockito.Mockito.doThrow(new java.sql.SQLException("database unavailable")).when(securityDb)
-					.insertData(anyString());
-		}
+	private static final String UPDATE = "UPDATE SMSS_USER SET ";
+	private static final String WHERE = " WHERE ID=? AND TYPE=?";
+
+	/** How the security database answers the refresh. */
+	private enum Database { UPDATES_ONE_ROW, MATCHES_NO_ROW, FAILS, ABSENT }
+
+	/**
+	 * Signs the holder in and returns each prepared update the filter ran on the security database, as
+	 * "sql [bound values]".
+	 */
+	private static List<String> signInAndCollectUpdates(CACFilter filter, HttpServletRequest request,
+			Database database) throws Exception {
+		IRDBMSEngine securityDb = database == Database.ABSENT ? null : mock(IRDBMSEngine.class);
 		IRawSelectWrapper wrapper = mock(IRawSelectWrapper.class);
 		when(wrapper.hasNext()).thenReturn(false);
 		WrapperManager manager = mock(WrapperManager.class);
 		when(manager.getRawWrapper(any(IDatabaseEngine.class), anyString())).thenReturn(wrapper);
 		FilterChain chain = mock(FilterChain.class);
 		HttpServletResponse response = mock(HttpServletResponse.class);
+		List<String> updates = new java.util.ArrayList<>();
 		try (MockedStatic<UserResource> users = mockStatic(UserResource.class);
 				MockedStatic<Utility> utility = mockStatic(Utility.class);
 				MockedStatic<WrapperManager> managers = mockStatic(WrapperManager.class);
-				MockedStatic<SecurityUpdateUtils> updates = mockStatic(SecurityUpdateUtils.class)) {
-			utility.when(() -> Utility.getDatabase(Constants.SECURITY_DB)).thenReturn(securityDb);
+				MockedStatic<SecurityUpdateUtils> secured = mockStatic(SecurityUpdateUtils.class);
+				MockedStatic<SystemEngineRegistry> registry = mockStatic(SystemEngineRegistry.class);
+				MockedStatic<QueryExecutionUtility> executions = mockStatic(QueryExecutionUtility.class)) {
+			registry.when(SystemEngineRegistry::getSecurityDb).thenReturn(securityDb);
 			managers.when(WrapperManager::getInstance).thenReturn(manager);
+			executions.when(() -> QueryExecutionUtility.executeUpdate(any(IRDBMSEngine.class), anyString(),
+					any(QueryExecutionUtility.StatementBinder.class))).thenAnswer(call -> {
+						if (database == Database.FAILS) {
+							throw new java.sql.SQLException("database unavailable");
+						}
+						java.sql.PreparedStatement statement = mock(java.sql.PreparedStatement.class);
+						List<String> bound = new java.util.ArrayList<>();
+						org.mockito.Mockito.doAnswer(set -> bound.add(set.getArgument(1))).when(statement)
+								.setString(org.mockito.ArgumentMatchers.anyInt(), anyString());
+						call.<QueryExecutionUtility.StatementBinder>getArgument(2).bind(statement);
+						updates.add(call.<String>getArgument(1) + " " + bound);
+						return database == Database.MATCHES_NO_ROW ? 0 : 1;
+					});
 			filter.doFilter(request, response, chain);
 		}
 		verify(chain).doFilter(request, response);
-		ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
-		verify(securityDb, org.mockito.Mockito.atLeast(0)).insertData(sql.capture());
-		return sql.getAllValues();
+		return updates;
 	}
 
-	private static List<String> signInAndCollectSql(CACFilter filter, HttpServletRequest request) throws Exception {
-		return signInAndCollectSql(filter, request, false);
+	private static List<String> signInAndCollectUpdates(CACFilter filter, HttpServletRequest request)
+			throws Exception {
+		return signInAndCollectUpdates(filter, request, Database.UPDATES_ONE_ROW);
 	}
 
 	private static X509Certificate certWithUpn(String upn, Collection<List<?>> altNames) throws Exception {
@@ -343,14 +365,14 @@ class CACFilterTest {
 	}
 
 	private static X509Certificate certWithUpn(Collection<List<?>> altNames) throws Exception {
-		return certWithUpn("1234567890@mil", altNames);
+		return certWithUpn("1234567890123456@mil", altNames);
 	}
 
 	@Test
 	void takesTheUsernameFromTheUpn() throws Exception {
 		AccessToken token = signIn(filter(Map.of()), request(null, certWithUpn(List.of())), true);
 
-		assertEquals("1234567890@mil", token.getUsername());
+		assertEquals("1234567890123456@mil", token.getUsername());
 		assertEquals("1234567890", token.getId());
 		assertEquals("DOE JOHN ALLEN", token.getName());
 	}
@@ -363,55 +385,90 @@ class CACFilterTest {
 	}
 
 	@Test
-	void refreshesOnlyTheUsernameOfAReturningUserWhenTheCardHasNoEmail() throws Exception {
-		List<String> sql = signInAndCollectSql(filter(Map.of()), request(null, certWithUpn(List.of())));
+	void refreshesTheNameAndUsernameOfAReturningUserWhenTheCardHasNoEmail() throws Exception {
+		List<String> updates = signInAndCollectUpdates(filter(Map.of()), request(null, certWithUpn(List.of())));
 
-		// the name, phone and extension the person set are not in the statement
-		assertEquals(List.of("UPDATE SMSS_USER SET USERNAME='1234567890@mil' WHERE ID='1234567890' AND TYPE='CAC'"),
-				sql);
+		// the phone number and extension the person set are not in the statement
+		assertEquals(List.of(UPDATE + "NAME=?, USERNAME=?" + WHERE
+				+ " [DOE JOHN ALLEN, 1234567890123456@mil, 1234567890, CAC]"), updates);
 	}
 
 	@Test
 	void refreshesTheEmailToo_whenTheCertificatePresentedHasOne() throws Exception {
 		X509Certificate cert = certWithUpn(List.of(List.of(1, "John.Doe@Mail.MIL")));
 
-		List<String> sql = signInAndCollectSql(filter(Map.of()), request(null, cert));
+		List<String> updates = signInAndCollectUpdates(filter(Map.of()), request(null, cert));
 
-		assertEquals(List.of("UPDATE SMSS_USER SET USERNAME='1234567890@mil', EMAIL='john.doe@mail.mil' "
-				+ "WHERE ID='1234567890' AND TYPE='CAC'"), sql);
+		assertEquals(List.of(UPDATE + "NAME=?, USERNAME=?, EMAIL=?" + WHERE
+				+ " [DOE JOHN ALLEN, 1234567890123456@mil, john.doe@mail.mil, 1234567890, CAC]"), updates);
 	}
 
 	@Test
-	void refreshesTheEmailAloneWhenTheCertificateHasNoUpn() throws Exception {
+	void refreshesTheNameAndEmailWhenTheCertificateHasNoUpn() throws Exception {
 		X509Certificate cert = cert(CAC_SUBJECT, List.of(List.of(1, "john.doe@mail.mil")));
 
-		List<String> sql = signInAndCollectSql(filter(Map.of()), request(null, cert));
+		List<String> updates = signInAndCollectUpdates(filter(Map.of()), request(null, cert));
 
-		assertEquals(List.of("UPDATE SMSS_USER SET EMAIL='john.doe@mail.mil' WHERE ID='1234567890' AND TYPE='CAC'"),
-				sql);
+		assertEquals(List.of(UPDATE + "NAME=?, EMAIL=?" + WHERE
+				+ " [DOE JOHN ALLEN, john.doe@mail.mil, 1234567890, CAC]"), updates);
 	}
 
 	@Test
-	void doesNotUpdateAnythingWhenTheCertificateHasNeitherUpnNorEmail() throws Exception {
-		assertEquals(0, signInAndCollectSql(filter(Map.of()), request(null, cert(CAC_SUBJECT, List.of()))).size());
+	void refreshesJustTheNameWhenTheCertificateHasNeitherUpnNorEmail() throws Exception {
+		List<String> updates = signInAndCollectUpdates(filter(Map.of()), request(null, cert(CAC_SUBJECT, List.of())));
+
+		assertEquals(List.of(UPDATE + "NAME=?" + WHERE + " [DOE JOHN ALLEN, 1234567890, CAC]"), updates);
 	}
 
 	@Test
 	void doesNotSaveAUsernameThatIsNotInTheExpectedFormat() throws Exception {
-		// a quote or a space cannot be part of a UPN; the statement must never carry it
+		// a quote or a space cannot be part of a UPN; it never reaches the database
 		X509Certificate cert = certWithUpn("x'; DROP TABLE SMSS_USER; --@mil", List.of());
 
-		assertEquals(0, signInAndCollectSql(filter(Map.of()), request(null, cert)).size());
+		List<String> updates = signInAndCollectUpdates(filter(Map.of()), request(null, cert));
+
+		assertEquals(List.of(UPDATE + "NAME=?" + WHERE + " [DOE JOHN ALLEN, 1234567890, CAC]"), updates);
 	}
 
 	@Test
-	void escapesAnEmailWithAQuoteInTheUpdate() throws Exception {
-		X509Certificate cert = cert(CAC_SUBJECT, List.of(List.of(1, "O'Brien@mail.mil")));
+	void bindsAnApostropheInTheNameAndEmailAsData() throws Exception {
+		X509Certificate cert = cert("CN=O'BRIEN.JOHN.ALLEN.1234567890, OU=USA, OU=PKI, OU=DoD, O=U.S. Government, C=US",
+				List.of(List.of(1, "O'Brien@mail.mil")));
 
-		List<String> sql = signInAndCollectSql(filter(Map.of()), request(null, cert));
+		List<String> updates = signInAndCollectUpdates(filter(Map.of()), request(null, cert));
 
-		assertEquals(List.of("UPDATE SMSS_USER SET EMAIL='o''brien@mail.mil' WHERE ID='1234567890' AND TYPE='CAC'"),
-				sql);
+		assertEquals(List.of(UPDATE + "NAME=?, EMAIL=?" + WHERE
+				+ " [O'BRIEN JOHN ALLEN, o'brien@mail.mil, 1234567890, CAC]"), updates);
+	}
+
+	@Test
+	void doesNotRefreshTheTopazServiceAccount() throws Exception {
+		X509Certificate cert = cert("CN=topazbpm001.mhse2e.med.osd.mil, OU=PKI, O=U.S. Government", null);
+		when(cert.getIssuerDN()).thenReturn(new X500Principal("CN=DOD SW CA-60, O=U.S. Government"));
+		when(cert.getNotAfter()).thenReturn(new Date(1000L));
+
+		assertEquals(0, signInAndCollectUpdates(filter(Map.of()), request(null, cert)).size());
+	}
+
+	@Test
+	void aRefreshThatMatchesNoUserRowDoesNotStopTheLogin() throws Exception {
+		// signInAndCollectUpdates verifies the request still went down the filter chain
+		List<String> updates = signInAndCollectUpdates(filter(Map.of()), request(null, certWithUpn(List.of())),
+				Database.MATCHES_NO_ROW);
+
+		assertEquals(1, updates.size());
+	}
+
+	@Test
+	void aRefreshWithNoSecurityDatabaseDoesNotStopTheLogin() throws Exception {
+		assertEquals(0, signInAndCollectUpdates(filter(Map.of()), request(null, certWithUpn(List.of())),
+				Database.ABSENT).size());
+	}
+
+	@Test
+	void aFailedRefreshDoesNotStopTheLogin() throws Exception {
+		assertEquals(0, signInAndCollectUpdates(filter(Map.of()), request(null, certWithUpn(List.of())),
+				Database.FAILS).size());
 	}
 
 	@Test
@@ -419,18 +476,17 @@ class CACFilterTest {
 		CACFilter filter = filter(Map.of("updateUserInfo", "true"));
 		HttpServletRequest request = request(null, certWithUpn(List.of()));
 		ArgumentCaptor<AccessToken> updated = ArgumentCaptor.forClass(AccessToken.class);
-		IRDBMSEngine securityDb = mock(IRDBMSEngine.class);
 		try (MockedStatic<UserResource> users = mockStatic(UserResource.class);
 				MockedStatic<Utility> utility = mockStatic(Utility.class);
-				MockedStatic<SecurityUpdateUtils> updates = mockStatic(SecurityUpdateUtils.class)) {
-			utility.when(() -> Utility.getDatabase(Constants.SECURITY_DB)).thenReturn(securityDb);
+				MockedStatic<SecurityUpdateUtils> updates = mockStatic(SecurityUpdateUtils.class);
+				MockedStatic<QueryExecutionUtility> executions = mockStatic(QueryExecutionUtility.class)) {
 			filter.doFilter(request, mock(HttpServletResponse.class), mock(FilterChain.class));
 			updates.verify(() -> SecurityUpdateUtils.updateOAuthUser(updated.capture()));
+			// the full update replaces the card refresh
+			executions.verifyNoInteractions();
 		}
 		assertEquals("DOE JOHN ALLEN", updated.getValue().getName());
-		assertEquals("1234567890@mil", updated.getValue().getUsername());
-		// the full update replaces the username-only refresh
-		verify(securityDb, never()).insertData(anyString());
+		assertEquals("1234567890123456@mil", updated.getValue().getUsername());
 	}
 
 	@Test
@@ -442,13 +498,5 @@ class CACFilterTest {
 		AccessToken token = signIn(filter(Map.of()), request(null, cert), true);
 
 		assertNull(token.getEmail());
-	}
-
-	@Test
-	void aFailedRefreshDoesNotStopTheLogin() throws Exception {
-		// signInAndCollectSql verifies the request still went down the filter chain
-		List<String> sql = signInAndCollectSql(filter(Map.of()), request(null, certWithUpn(List.of())), true);
-
-		assertEquals(1, sql.size());
 	}
 }
