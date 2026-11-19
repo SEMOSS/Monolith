@@ -132,6 +132,22 @@
       <url-pattern>/*</url-pattern>
    </filter-mapping>
 
+   <!-- ALB CLIENT CERTIFICATE - behind an AWS Application Load Balancer doing mutual TLS in
+        verify mode, the load balancer ends the TLS connection and passes the card's
+        certificate in the X-Amzn-Mtls-Clientcert-Leaf header. This filter turns it back into the
+        request attribute the CAC/PIV filters below read. It does nothing unless the
+        alb.mtls.enabled system property is true (set from ALB_MTLS_ENABLED), and it honors the
+        header only from the addresses in alb.mtls.trusted.cidrs (the load balancer's subnets).
+        It must stay ahead of CACRequiredFilter. -->
+   <filter>
+      <filter-name>AlbClientCertFilter</filter-name>
+      <filter-class>prerna.web.conf.AlbClientCertFilter</filter-class>
+   </filter>
+   <filter-mapping>
+      <filter-name>AlbClientCertFilter</filter-name>
+      <url-pattern>/*</url-pattern>
+   </filter-mapping>
+
    <!-- CAC/PIV REQUIRED - when CAC_PIV_REQUIRED is on (the IL4 default, see
         docker/il4/conf/setenv.sh), a request that presented no validated client
         certificate never reaches the login page or any endpoint: a browser
