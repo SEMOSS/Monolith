@@ -72,11 +72,14 @@ import prerna.engine.impl.model.AbstractModelEngine;
 import prerna.engine.impl.model.ModelPixelInvoker;
 import prerna.engine.impl.model.Room;
 import prerna.engine.impl.model.RoomUtils;
+import prerna.engine.impl.model.message.GoogleInteractionsState;
 import prerna.engine.impl.model.openai.OpenAIChatCompletionsHelper;
+import prerna.engine.impl.model.openai.OpenAIChatCompletionsStream;
 import prerna.engine.impl.model.openai.OpenAIEmbeddingsHelper;
 import prerna.engine.impl.model.openai.OpenAIImagesHelper;
 import prerna.engine.impl.model.openai.OpenAIModelsHelper;
 import prerna.engine.impl.model.openai.OpenAIResponsesHelper;
+import prerna.engine.impl.model.openai.OpenAIResponsesStream;
 import prerna.engine.impl.model.responses.AskModelEngineResponse;
 import prerna.engine.impl.model.responses.EmbeddingsModelEngineResponse;
 import prerna.engine.impl.model.usage.ModelUsageLimitException;
@@ -213,6 +216,9 @@ public class OpenAIEndpoints {
 		if (roomId == null) {
 			roomId = (String) request.getAttribute("roomId");
 		}
+		if (roomId == null) {
+			roomId = resolveRoomIdFromCodexHeaders(request);
+		}
 		// room name gets updated during parsing of full prompt
 		room = RoomUtils.createRoomIfNotExists(roomId, insight, engine, null);
 		// this is if you are passing full prompt but want us to maintain the history
@@ -224,13 +230,19 @@ public class OpenAIEndpoints {
 		final Insight FINAL_INSIGHT = insight;
 		final Room FINAL_ROOM = room;
 
-		dataMap.put(AbstractModelEngine.FULL_PROMPT, fullPrompt);
+		try {
+			dataMap.put(AbstractModelEngine.FULL_PROMPT, restoreInteractions(engine, room, dataMap, fullPrompt));
+		} catch (IOException | IllegalArgumentException e) {
+			return ModelPixelExecutor.errorResponse(e instanceof IOException ? 500 : 400,
+					"Unable to restore Google Interactions history: " + e.getMessage());
+		}
 		dataMap.put(AbstractModelEngine.APPEND_FULL_PROMPT, appendFullPrompt);
 
 		if (!isStreamingRequest) {
 			AskModelEngineResponse llmResponse;
 			try {
 				llmResponse = ModelPixelExecutor.askModelSync(engine, FINAL_INSIGHT, FINAL_ROOM, dataMap);
+				preserveInteractions(FINAL_ROOM, dataMap, llmResponse);
 			} catch (Exception e) {
 				ModelUsageLimitException refusal = ModelPixelExecutor.findUsageLimitRefusal(e);
 				if (refusal != null) {
@@ -262,8 +274,13 @@ public class OpenAIEndpoints {
 								// Execute model request but get job ID so can poll for partial responses
 								jobId = ModelPixelInvoker.startAsyncModelRequest(engine, FINAL_INSIGHT, FINAL_ROOM,
 										dataMap, SESSION_ID);
-								OpenAIChatCompletionsHelper.streamJobToWriter(engineId, messageId, creationTimestamp,
-										jobId, writer);
+								new OpenAIChatCompletionsStream(engineId, messageId, creationTimestamp, jobId) {
+									@Override
+									protected boolean writeChunk(Map<String, Object> chunk, Writer sink) throws IOException {
+										return preserveInteractionsChunk(FINAL_ROOM, dataMap, chunk) ? false
+												: super.writeChunk(chunk, sink);
+									}
+								}.streamToWriter(writer);
 							} catch (IOException ioe) {
 								final String capturedJobId = jobId;
 								if (!WebUtility.handleStreamingException(ioe, classLogger, engineId, capturedJobId,
@@ -383,11 +400,17 @@ public class OpenAIEndpoints {
 
 		ModelPixelInvoker.initializeThreadStore(insight, SESSION_ID, JOB_ID);
 
-		dataMap.put(AbstractModelEngine.FULL_PROMPT, messages);
+		try {
+			dataMap.put(AbstractModelEngine.FULL_PROMPT, restoreInteractions(engine, room, dataMap, messages));
+		} catch (IOException | IllegalArgumentException e) {
+			return ModelPixelExecutor.errorResponse(e instanceof IOException ? 500 : 400,
+					"Unable to restore Google Interactions history: " + e.getMessage());
+		}
 
 		if (!isStreamingRequest) {
 			try {
 				AskModelEngineResponse llmResponse = ModelPixelExecutor.askModelSync(engine, insight, room, dataMap);
+				preserveInteractions(room, dataMap, llmResponse);
 
 				Map<String, Object> processedResponse = OpenAIResponsesHelper.processAskModelEngineResponse(engineId,
 						llmResponse);
@@ -407,6 +430,64 @@ public class OpenAIEndpoints {
 			}
 			return handleStreamingResponse(engine, insight, room, dataMap, SESSION_ID, JOB_ID, engineId);
 		}
+	}
+
+	@SuppressWarnings("unchecked")
+	private static List<Map<String, Object>> restoreInteractions(IModelEngine engine, Room room,
+			Map<String, Object> parameters, Object prompt) throws IOException {
+		if (!(prompt instanceof List<?> list)) {
+			throw new IllegalArgumentException("Conversation history must be a list of messages");
+		}
+		List<Map<String, Object>> messages = new ArrayList<>();
+		for (Object item : list) {
+			if (!(item instanceof Map<?, ?>)) {
+				throw new IllegalArgumentException("Each conversation message must be an object");
+			}
+			Map<String, Object> message = new HashMap<>((Map<String, Object>) item);
+			message.remove(GoogleInteractionsState.KEY);
+			messages.add(message);
+		}
+		boolean replay = engine.keepInputOutput() && engine.keepsConversationHistory()
+				&& !"false".equalsIgnoreCase(String.valueOf(parameters.get("use_history")));
+		parameters.put("google_interactions_replay_available", replay);
+		if (replay) {
+			ThoughtSignatureSidecar.restoreInteractions(room.getRoomFolderPath(), messages);
+		}
+		return messages;
+	}
+
+	@SuppressWarnings("unchecked")
+	private static void preserveInteractions(Room room, Map<String, Object> parameters,
+			AskModelEngineResponse response) throws IOException {
+		Object state = response.getMetadata() == null ? null : response.getMetadata().get(GoogleInteractionsState.KEY);
+		if (state == null) {
+			return;
+		}
+		Map<String, Object> wire = OpenAIChatCompletionsHelper.processAskModelEngineResponse("", response);
+		Map<String, Object> choice = ((List<Map<String, Object>>) wire.get("choices")).getFirst();
+		preserveInteractions(room, parameters, (Map<String, Object>) choice.get("message"), state);
+	}
+
+	@SuppressWarnings("unchecked")
+	private static void preserveInteractions(Room room, Map<String, Object> parameters,
+			Map<String, Object> assistant, Object state) throws IOException {
+		if (!Boolean.TRUE.equals(parameters.get("google_interactions_replay_available"))) {
+			throw new IOException("Room retention settings prevent preserving Google Interactions history");
+		}
+		ThoughtSignatureSidecar.appendInteraction(room.getRoomFolderPath(),
+				(List<Map<String, Object>>) parameters.get(AbstractModelEngine.FULL_PROMPT), assistant, state);
+	}
+
+	@SuppressWarnings("unchecked")
+	private static boolean preserveInteractionsChunk(Room room, Map<String, Object> parameters,
+			Map<String, Object> chunk) throws IOException {
+		if (!GoogleInteractionsState.KEY.equals(chunk.get("stream_type"))) {
+			return false;
+		}
+		Map<String, Object> data = (Map<String, Object>) chunk.get("data");
+		preserveInteractions(room, parameters, (Map<String, Object>) data.get("assistant"),
+				data.get(GoogleInteractionsState.KEY));
+		return true;
 	}
 
 	private String resolveRoomIdFromCodexHeaders(HttpServletRequest request) {
@@ -447,18 +528,25 @@ public class OpenAIEndpoints {
 								new OutputStreamWriter(output, StandardCharsets.UTF_8))) {
 							jobId = ModelPixelInvoker.startAsyncModelRequest(engine, FINAL_INSIGHT, FINAL_ROOM,
 									FINAL_DATA_MAP, FINAL_SESSION_ID);
-							OpenAIResponsesHelper.streamJobToWriter(FINAL_ENGINE_ID, responseId, creationTimestamp,
-									jobId, writer);
+							new OpenAIResponsesStream(FINAL_ENGINE_ID, responseId, creationTimestamp, jobId) {
+								@Override
+								protected boolean writeChunk(Map<String, Object> chunk, Writer sink) throws IOException {
+									return preserveInteractionsChunk(FINAL_ROOM, FINAL_DATA_MAP, chunk) ? false
+											: super.writeChunk(chunk, sink);
+								}
+							}.streamToWriter(writer);
 						} catch (IOException ioe) {
 							final String capturedJobId = jobId;
 							if (!WebUtility.handleStreamingException(ioe, classLogger, FINAL_ENGINE_ID, capturedJobId,
 									() -> PixelJobManager.getManager().interruptThread(capturedJobId))) {
 								classLogger.error("I/O error processing responses streaming for engine '{}'",
 										FINAL_ENGINE_ID, ioe);
+								throw new WebApplicationException(ioe, 500);
 							}
 						} catch (Exception e) {
 							classLogger.error("Error processing responses streaming for engine '{}'", FINAL_ENGINE_ID,
 									e);
+							throw new WebApplicationException(e, 500);
 						}
 					}
 				}).build();

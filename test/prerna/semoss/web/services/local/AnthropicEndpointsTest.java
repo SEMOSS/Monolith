@@ -183,6 +183,58 @@ class AnthropicEndpointsTest {
 	}
 
 	@Test
+	@SuppressWarnings("unchecked")
+	void persistsAndRestoresInteractionsWithoutExposingPrivateStateOnTheWire() throws Exception {
+		when(engine.keepInputOutput()).thenReturn(true);
+		when(engine.keepsConversationHistory()).thenReturn(true);
+		Map<String, Object> state = Map.of("version", 1, "model", "gemini-4-carbon", "steps",
+				List.of(Map.of("type", "thought", "signature", "private-opaque-state")));
+		AskStringModelEngineResponse answer = new AskStringModelEngineResponse("Answer", 10, 5);
+		answer.setMetadata(Map.of("google_interactions", state));
+		answerSynchronouslyWith(answer);
+		Response first = new AnthropicEndpoints().createMessage(request(messageBody(null)), servletResponse);
+		assertEquals(200, first.getStatus());
+		assertFalse(json(first).toString().contains("private-opaque-state"));
+		assertTrue(Files.exists(roomFolder.resolve("google_interactions.jsonl")));
+		answerSynchronouslyWith(new AskStringModelEngineResponse("Next", 10, 5));
+		Response next = new AnthropicEndpoints().createMessage(request("{\"model\":\"engine-1\",\"insight_id\":\"insight-1\","
+					+ "\"messages\":[{\"role\":\"user\",\"content\":\"Hi\"},{\"role\":\"assistant\",\"content\":\"Answer\"},"
+				+ "{\"role\":\"user\",\"content\":\"Next\"}]}"), servletResponse);
+		assertEquals(200, next.getStatus());
+		List<Map<String, Object>> prompt = (List<Map<String, Object>>) sentToModel.get().get(AbstractModelEngine.FULL_PROMPT);
+		assertTrue(prompt.get(1).containsKey("google_interactions"));
+	}
+
+	@Test
+	void privateStreamFrameIsPersistedBeforeCompletionAndNeverForwarded() throws Exception {
+		when(engine.keepInputOutput()).thenReturn(true);
+		when(engine.keepsConversationHistory()).thenReturn(true);
+		when(runner.getPixelJobStatus()).thenReturn(PixelJobStatus.IN_PROGRESS);
+		Map<String, Object> state = Map.of("version", 1, "model", "gemini-4-carbon", "steps",
+				List.of(Map.of("type", "thought", "signature", "stream-private")));
+		when(manager.getStreamOut(JOB)).thenReturn(List.of(chunk("content", Map.of("content", "Answer")),
+				chunk("google_interactions", Map.of("google_interactions", state, "assistant", Map.of("role", "assistant", "content", "Answer"))),
+				chunk("content", Map.of("finish_reason", "stop"))));
+		Response response = new AnthropicEndpoints().createMessage(request(messageBody("\"stream\":true")), servletResponse);
+		String wire = entity(response);
+		assertFalse(wire.contains("stream-private"));
+		assertFalse(wire.contains("google_interactions"));
+		assertTrue(wire.contains("message_stop"));
+		assertTrue(Files.readString(roomFolder.resolve("google_interactions.jsonl")).contains("stream-private"));
+	}
+
+	@Test
+	void disabledRetentionPreventsInteractionsSidecarWrites() throws Exception {
+		AskStringModelEngineResponse answer = new AskStringModelEngineResponse("Answer", 10, 5);
+		answer.setMetadata(Map.of("google_interactions", Map.of("version", 1, "model", "gemini", "steps", List.of())));
+		answerSynchronouslyWith(answer);
+		Response response = new AnthropicEndpoints().createMessage(request(messageBody(null)), servletResponse);
+		assertEquals(500, response.getStatus());
+		assertFalse(Files.exists(roomFolder.resolve("google_interactions.jsonl")));
+		assertEquals(false, sentToModel.get().get("google_interactions_replay_available"));
+	}
+
+	@Test
 	void rejectsARequestWithoutASignedInUserWith401() throws Exception {
 		HttpServletRequest request = mock(HttpServletRequest.class);
 

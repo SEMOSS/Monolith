@@ -39,6 +39,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
 import org.apache.commons.io.FilenameUtils;
@@ -68,6 +69,7 @@ import prerna.auth.utils.SecurityEngineUtils;
 import prerna.cluster.util.ClusterUtil;
 import prerna.engine.api.IEngine;
 import prerna.engine.impl.CaseInsensitiveProperties;
+import prerna.engine.impl.SmssEditCopy;
 import prerna.engine.impl.SmssUtilities;
 import prerna.io.connector.couch.CouchException;
 import prerna.io.connector.couch.CouchUtil;
@@ -76,8 +78,10 @@ import prerna.io.connector.secrets.SecretsFactory;
 import prerna.notifications.NotificationDbUtils;
 import prerna.upload.CatalogImageUploader;
 import prerna.util.Constants;
+import prerna.util.ContentChangedException;
 import prerna.util.DefaultImageGeneratorUtil;
 import prerna.util.EmailUtility;
+import prerna.util.EngineSyncUtility;
 import prerna.util.EngineUtility;
 import prerna.util.NotificationConstants;
 import prerna.util.Utility;
@@ -192,9 +196,11 @@ public class EngineRouteResource {
 	 * @param request  the incoming HTTP request (provides the user session and the
 	 *                 {@code smss} parameter)
 	 * @param engineId the engine to update
-	 * @return 200 with {@code {"success": true}} on success; 400 with an error
-	 *         envelope on validation/IO failure; 401 if the user is not the engine
-	 *         owner
+	 * @return 200 with {@code {"success": true}} and the new {@code smssHash} on
+	 *         success; 400 with an error envelope on validation/IO failure or a
+	 *         missing {@code smssHash}; 401 if the user is not the engine owner;
+	 *         409 with {@code errorCode} {@code SMSS_CHANGED} when the smss changed
+	 *         since the {@code smssHash} was read
 	 */
 	@POST
 	@Path("/updateSmssFile")
@@ -227,7 +233,10 @@ public class EngineRouteResource {
 		}
 
 		try {
-			return WebUtility.getResponse(saveSmssFile(user, engineId, request.getParameter("smss")), 200);
+			return WebUtility.getResponse(saveSmssFile(user, engineId, request.getParameter("smss"),
+					request.getParameter(SmssEditCopy.SMSS_HASH)), 200);
+		} catch (ContentChangedException e) {
+			return ResourceUtility.changedResponse(e);
 		} catch (IllegalArgumentException e) {
 			return ResourceUtility.errorResponse(e.getMessage(), 400);
 		}
@@ -235,26 +244,47 @@ public class EngineRouteResource {
 
 	/**
 	 * Saves new smss content for an engine and opens the engine again with it. The
-	 * engine's id, name and type stay as they are, and the hidden values the new
-	 * content left untouched are kept. With a secret store the values go there;
-	 * otherwise the smss file is written, and put back as it was when the engine
-	 * does not open with the new content. The caller has checked that the user may
-	 * update the engine: its owner, or an admin through the admin endpoint.
+	 * save is made from the copy of the smss the user read: it goes through only
+	 * while the smss is still as that copy was ({@link SmssEditCopy}), and holds
+	 * the engine's lock so no other save comes between the check and the write.
+	 * The engine's id, name and type stay as they are, and the hidden values the
+	 * new content left untouched are kept. With a secret store the values go
+	 * there; otherwise the smss file is written, and put back as it was when the
+	 * engine does not open with the new content. The caller has checked that the
+	 * user may update the engine: its owner, or an admin through the admin
+	 * endpoint.
 	 *
 	 * @param user           the user saving the smss, for the notification
 	 * @param engineId       the engine
 	 * @param newSmssContent the new content of the smss file
-	 * @return the response body, which says the save went through
-	 * @throws IllegalArgumentException when the content cannot be saved, with the
-	 *                                  reason
+	 * @param smssHash       the hash that came with the copy the user edited
+	 * @return the response body, which says the save went through and carries the
+	 *         new {@code smssHash}
+	 * @throws ContentChangedException  when the smss changed since that copy was
+	 *                                  read
+	 * @throws IllegalArgumentException when the content cannot be saved or no hash
+	 *                                  is given, with the reason
 	 */
-	public static Map<String, Object> saveSmssFile(User user, String engineId, String newSmssContent) {
+	public static Map<String, Object> saveSmssFile(User user, String engineId, String newSmssContent,
+			String smssHash) {
+		ReentrantLock lock = EngineSyncUtility.getEngineLock(engineId);
+		lock.lock();
+		try {
+			return saveSmssFileWhileLocked(user, engineId, newSmssContent, smssHash);
+		} finally {
+			lock.unlock();
+		}
+	}
+
+	private static Map<String, Object> saveSmssFileWhileLocked(User user, String engineId, String newSmssContent,
+			String smssHash) {
 		IEngine engine = Utility.getEngine(engineId);
 		String currentSmssFileLocation = engine.getSmssFilePath();
 		File currentSmssFile = new File(currentSmssFileLocation);
 		if (!currentSmssFile.exists() || !currentSmssFile.isFile()) {
 			throw new IllegalArgumentException("Could not find current engie smss file");
 		}
+		SmssEditCopy.requireCurrent(engine, smssHash);
 
 		Properties currentSmssProperties = engine.getSmssProp();
 
@@ -305,11 +335,13 @@ public class EngineRouteResource {
 			// the smss file is unchanged and the new values live in the secret store, so
 			// the other nodes only need to close the engine to read them on next use
 			ClusterUtil.publishEngineClose(engineId);
+
 			// the smss may name a different judge model, vector database or embedder
 			CatalogDependencyDerivation.syncSmss(user, engineId, engine.getCatalogType().name(), engine.getSmssProp());
 
 			Map<String, Object> success = new HashMap<>();
 			success.put("success", true);
+			success.put(SmssEditCopy.SMSS_HASH, SmssEditCopy.read(engine).getSmssHash());
 			return success;
 		}
 
@@ -379,11 +411,13 @@ public class EngineRouteResource {
 			// Adding email notification
 			EmailUtility.sendSmssUpdateEmailNotification(user, engineId, EmailUtility.RESOURCE_TYPE.ENGINE);
 		}
+
 		// the smss may name a different judge model, vector database or embedder
 		CatalogDependencyDerivation.syncSmss(user, engineId, engine.getCatalogType().name(), engine.getSmssProp());
 
 		Map<String, Object> success = new HashMap<>();
 		success.put("success", true);
+		success.put(SmssEditCopy.SMSS_HASH, SmssEditCopy.read(engine).getSmssHash());
 		return success;
 	}
 

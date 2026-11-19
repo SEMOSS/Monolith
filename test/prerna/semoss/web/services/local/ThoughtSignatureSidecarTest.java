@@ -30,6 +30,7 @@ package prerna.semoss.web.services.local;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mockStatic;
 
 import java.nio.charset.StandardCharsets;
@@ -37,6 +38,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.ArrayList;
+import java.util.HashMap;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -50,6 +53,43 @@ import com.google.gson.JsonParser;
 import prerna.util.Utility;
 
 class ThoughtSignatureSidecarTest {
+
+	@Test
+	void interactionsTextOnlyTurnSurvivesReloadAndIsBoundToTheConversation() throws Exception {
+		String room = rooms.resolve("interactions").toString();
+		Map<String, Object> user = Map.of("role", "user", "content", "Question");
+		Map<String, Object> assistant = new HashMap<>(Map.of("role", "assistant", "content", "Answer"));
+		Map<String, Object> state = Map.of("version", 1, "model", "gemini-4-carbon", "steps",
+				List.of(Map.of("type", "thought", "signature", "opaque")));
+		ThoughtSignatureSidecar.appendInteraction(room, List.of(user), assistant, state);
+		List<Map<String, Object>> history = new ArrayList<>(List.of(new HashMap<>(user), assistant));
+		ThoughtSignatureSidecar.restoreInteractions(room, history);
+		assertEquals("opaque", ((Map<?, ?>) ((List<?>) ((Map<?, ?>) assistant.get("google_interactions"))
+				.get("steps")).getFirst()).get("signature"));
+		assertTrue(ThoughtSignatureSidecar.load(room).isEmpty());
+		assistant.remove("google_interactions");
+		history.set(0, new HashMap<>(Map.of("role", "user", "content", "Other question")));
+		assertThrows(IllegalArgumentException.class, () -> ThoughtSignatureSidecar.restoreInteractions(room, history));
+		assertFalse(assistant.containsKey("google_interactions"));
+		ThoughtSignatureSidecar.restoreInteractions(rooms.resolve("another-room").toString(), history);
+		assertFalse(assistant.containsKey("google_interactions"));
+	}
+
+	@Test
+	void interactionsKeysIgnoreMapOrderAndJsonArgumentEncodingButIncludeContext() {
+		Map<String, Object> a = Map.of("role", "assistant", "content", "", "tool_calls", List.of(
+				Map.of("id", "a", "type", "function", "function", Map.of("name", "lookup", "arguments", "{\"b\":2,\"a\":1}"))));
+		Map<String, Object> b = Map.of("role", "assistant", "tool_calls", List.of(
+				Map.of("type", "function", "id", "a", "function", Map.of("arguments", Map.of("a", 1.0, "b", 2.0), "name", "lookup"))));
+		assertEquals(ThoughtSignatureSidecar.interactionKey(List.of(a)), ThoughtSignatureSidecar.interactionKey(List.of(b)));
+	}
+
+	@Test
+	void interactionsRefuseStorageOutsideTheRoomRoot() {
+		assertThrows(java.io.IOException.class, () -> ThoughtSignatureSidecar.appendInteraction(base.toString(), List.of(),
+				Map.of("role", "assistant", "content", "Answer"), Map.of("version", 1, "model", "gemini",
+						"steps", List.of(Map.of("type", "thought", "signature", "opaque")))));
+	}
 
 	private static final String FILENAME = "thought_signatures.jsonl";
 

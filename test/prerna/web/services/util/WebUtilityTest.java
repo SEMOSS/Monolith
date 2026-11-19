@@ -29,6 +29,7 @@ package prerna.web.services.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -76,6 +77,7 @@ import prerna.auth.User;
 import prerna.logging.SemossLogUtils;
 import prerna.om.ThreadStore;
 import prerna.security.SecretRedactor;
+import prerna.security.SessionIds;
 import prerna.util.Constants;
 import prerna.util.Utility;
 
@@ -563,7 +565,8 @@ class WebUtilityTest {
 
 		WebUtility.loggingContextLoginEvent(session);
 
-		assertEquals("s1", ThreadContext.get(SemossLogUtils.SESSION_ID));
+		assertEquals(SessionIds.hash("s1"), ThreadContext.get(SemossLogUtils.SESSION_ID));
+		assertNotEquals("s1", ThreadContext.get(SemossLogUtils.SESSION_ID));
 		assertEquals("jdoe", ThreadContext.get(SemossLogUtils.USER_ID));
 		assertEquals(AuthProvider.NATIVE.getLabel(), ThreadContext.get(SemossLogUtils.USER_TYPE));
 		assertEquals("UNKNOWN", ThreadContext.get(SemossLogUtils.USER_NAME));
@@ -575,7 +578,7 @@ class WebUtilityTest {
 		when(session.getId()).thenReturn("s2");
 
 		WebUtility.loggingContextLoginEvent(session);
-		assertEquals("s2", ThreadContext.get(SemossLogUtils.SESSION_ID));
+		assertEquals(SessionIds.hash("s2"), ThreadContext.get(SemossLogUtils.SESSION_ID));
 		assertEquals("UNKNOWN", ThreadContext.get(SemossLogUtils.USER_ID));
 
 		WebUtility.loggingContextLoginEvent(null);

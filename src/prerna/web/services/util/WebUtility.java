@@ -86,6 +86,7 @@ import prerna.auth.User;
 import prerna.logging.SemossLogUtils;
 import prerna.om.ThreadStore;
 import prerna.security.SecretRedactor;
+import prerna.security.SessionIds;
 import prerna.usertracking.UserAuditTrailUtils;
 import prerna.util.Constants;
 import prerna.util.FstUtil;
@@ -964,7 +965,7 @@ public final class WebUtility {
 	 */
 	public static void loggingContextLoginEvent(HttpSession session) {
 		if (session != null) {
-			ThreadContext.put(SemossLogUtils.SESSION_ID, session.getId());
+			ThreadContext.put(SemossLogUtils.SESSION_ID, SessionIds.hash(session.getId()));
 
 			User user = (User) session.getAttribute(Constants.SESSION_USER);
 			if (user != null) {

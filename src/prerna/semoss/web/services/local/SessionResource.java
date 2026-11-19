@@ -59,6 +59,7 @@ import prerna.om.InsightStore;
 import prerna.util.Constants;
 import prerna.util.insight.InsightUtility;
 import prerna.web.conf.DBLoader;
+import prerna.web.conf.UserSessionLoader;
 import prerna.web.services.util.WebUtility;
 
 @Path("/session")
@@ -183,22 +184,14 @@ public class SessionResource {
 			synchronized (lock) {
 				cancelTime = (Date) session.getAttribute(CANCEL_INVALIDATION);
 			}
-			if (cancelTime == null) {
+			if (cancelTime != null && execTime.before(cancelTime)) {
+				classLogger.info("Cancelled invalidating session");
+				output = "cancelled";
+			} else {
 				// kill the entire session
 				classLogger.info("Invalidating session");
-				session.invalidate();
+				endSession(session);
 				output = "invalidated";
-			} else {
-				boolean isCancelled = execTime.before(cancelTime);
-				if (isCancelled) {
-					classLogger.info("Cancelled invalidating session");
-					output = "cancelled";
-				} else {
-					// kill the entire session
-					classLogger.info("Invalidating session");
-					session.invalidate();
-					output = "invalidated";
-				}
 			}
 		} else {
 			// in case during the time this was called
@@ -291,8 +284,17 @@ public class SessionResource {
 
 		if (session != null) {
 			classLogger.info("Invalidating session");
-			session.invalidate();
+			endSession(session);
 		}
+	}
+
+	/**
+	 * Invalidate a live session on purpose, so session cleanup treats it as over (releasing
+	 * the user's sandbox lease) rather than as a server stop.
+	 */
+	private static void endSession(HttpSession session) {
+		session.setAttribute(UserSessionLoader.IS_SESSION_ENDED, true);
+		session.invalidate();
 	}
 
 	@GET
