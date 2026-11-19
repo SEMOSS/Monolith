@@ -49,6 +49,7 @@ import prerna.auth.AccessToken;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityProjectUtils;
 import prerna.auth.utils.reactors.admin.AdminMyProjectsReactor;
+import prerna.engine.impl.SmssEditCopy;
 import prerna.graph.utility.MsGraphUtility;
 import prerna.io.connector.ms.MicrosoftGraphUserLookup;
 import prerna.om.Insight;
@@ -309,10 +310,12 @@ public class AdminProjectAuthorizationResource {
 	 * {@code /project-<projectId>/updateSmssFile}.
 	 *
 	 * @param request the request, whose session holds the admin
-	 * @param form    {@code projectId} and {@code smss}, the new content of the
-	 *                file
-	 * @return 200 when the content is saved, 400 with the reason when it cannot
-	 *         be, and 403 for a user who is not an admin
+	 * @param form    {@code projectId}, {@code smss}, the new content of the file,
+	 *                and {@code smssHash}, the hash that came with the copy edited
+	 * @return 200 with the new {@code smssHash} when the content is saved, 400 with
+	 *         the reason when it cannot be, 403 for a user who is not an admin, and
+	 *         409 with {@code errorCode} {@code SMSS_CHANGED} when the smss changed
+	 *         since that copy was read
 	 */
 	@POST
 	@Produces("application/json")
@@ -321,11 +324,12 @@ public class AdminProjectAuthorizationResource {
 		String requestedId = WebUtility.inputSanitizer(form.getFirst("projectId"));
 		String projectId = WebUtility.safePathSegment(requestedId);
 		String smss = form.getFirst("smss");
+		String smssHash = form.getFirst(SmssEditCopy.SMSS_HASH);
 		return ResourceUtility.respondAsAdmin(request, "update the smss of project " + requestedId, user -> {
 			if (projectId == null || !SecurityProjectUtils.projectExists(projectId)) {
 				throw new IllegalArgumentException("Project " + requestedId + " does not exist");
 			}
-			return ProjectResource.saveSmssFile(user, projectId, smss);
+			return ProjectResource.saveSmssFile(user, projectId, smss, smssHash);
 		});
 	}
 

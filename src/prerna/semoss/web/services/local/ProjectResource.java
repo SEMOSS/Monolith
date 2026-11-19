@@ -40,6 +40,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.Vector;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -82,6 +83,7 @@ import prerna.auth.utils.SecurityProjectUtils;
 import prerna.cluster.util.ClusterUtil;
 import prerna.engine.api.IEngine;
 import prerna.engine.impl.CaseInsensitiveProperties;
+import prerna.engine.impl.SmssEditCopy;
 import prerna.engine.impl.SmssUtilities;
 import prerna.io.connector.couch.CouchException;
 import prerna.io.connector.couch.CouchUtil;
@@ -98,10 +100,12 @@ import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.upload.CatalogImageUploader;
 import prerna.util.AssetUtility;
 import prerna.util.Constants;
+import prerna.util.ContentChangedException;
 import prerna.util.DefaultImageGeneratorUtil;
 import prerna.util.EmailUtility;
 import prerna.util.EngineUtility;
 import prerna.util.NotificationConstants;
+import prerna.util.ProjectSyncUtility;
 import prerna.util.Utility;
 import prerna.web.requests.OverrideParametersServletRequest;
 import prerna.web.services.util.CatalogImageResponse;
@@ -172,7 +176,10 @@ public class ProjectResource {
 		}
 
 		try {
-			return WebUtility.getResponse(saveSmssFile(user, projectId, request.getParameter("smss")), 200);
+			return WebUtility.getResponse(saveSmssFile(user, projectId, request.getParameter("smss"),
+					request.getParameter(SmssEditCopy.SMSS_HASH)), 200);
+		} catch (ContentChangedException e) {
+			return ResourceUtility.changedResponse(e);
 		} catch (IllegalArgumentException e) {
 			return ResourceUtility.errorResponse(e.getMessage(), 400);
 		}
@@ -180,25 +187,45 @@ public class ProjectResource {
 
 	/**
 	 * Saves new smss content for a project and opens the project again with it.
-	 * The hidden values the new content left untouched are kept, and the smss file
-	 * is put back as it was when the project does not open with the new content.
-	 * The caller has checked that the user may update the project: its owner, or
-	 * an admin through the admin endpoint.
+	 * The save is made from the copy of the smss the user read: it goes through
+	 * only while the smss is still as that copy was ({@link SmssEditCopy}), and
+	 * holds the project's lock so no other save comes between the check and the
+	 * write. The hidden values the new content left untouched are kept, and the
+	 * smss file is put back as it was when the project does not open with the new
+	 * content. The caller has checked that the user may update the project: its
+	 * owner, or an admin through the admin endpoint.
 	 *
 	 * @param user           the user saving the smss, for the notification
 	 * @param projectId      the project
 	 * @param newSmssContent the new content of the smss file
-	 * @return the response body, which says the save went through
-	 * @throws IllegalArgumentException when the content cannot be saved, with the
-	 *                                  reason
+	 * @param smssHash       the hash that came with the copy the user edited
+	 * @return the response body, which says the save went through and carries the
+	 *         new {@code smssHash}
+	 * @throws ContentChangedException  when the smss changed since that copy was
+	 *                                  read
+	 * @throws IllegalArgumentException when the content cannot be saved or no hash
+	 *                                  is given, with the reason
 	 */
-	public static Map<String, Object> saveSmssFile(User user, String projectId, String newSmssContent) {
+	public static Map<String, Object> saveSmssFile(User user, String projectId, String newSmssContent,
+			String smssHash) {
+		ReentrantLock lock = ProjectSyncUtility.getProjectLock(projectId);
+		lock.lock();
+		try {
+			return saveSmssFileWhileLocked(user, projectId, newSmssContent, smssHash);
+		} finally {
+			lock.unlock();
+		}
+	}
+
+	private static Map<String, Object> saveSmssFileWhileLocked(User user, String projectId, String newSmssContent,
+			String smssHash) {
 		IProject project = Utility.getProject(projectId);
 		String currentSmssFileLocation = project.getSmssFilePath();
 		File currentSmssFile = new File(currentSmssFileLocation);
 		if (!currentSmssFile.exists() || !currentSmssFile.isFile()) {
 			throw new IllegalArgumentException("Could not find current project smss file");
 		}
+		SmssEditCopy.requireCurrent(project, smssHash);
 
 		// using the current smss properties
 		// and the new file contents
@@ -271,6 +298,7 @@ public class ProjectResource {
 
 		Map<String, Object> success = new HashMap<>();
 		success.put("success", true);
+		success.put(SmssEditCopy.SMSS_HASH, SmssEditCopy.read(project).getSmssHash());
 		return success;
 	}
 

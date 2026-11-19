@@ -76,6 +76,7 @@ import prerna.sablecc2.comm.PixelJobStatus;
 import prerna.sablecc2.om.execptions.SemossMCPException;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.security.SecretRedactor;
+import prerna.security.SessionIds;
 import prerna.web.services.util.WebUtility;
 
 public class MCPReaper implements Runnable {
@@ -327,7 +328,7 @@ public class MCPReaper implements Runnable {
 			// something already wrote on this connection, nothing left to say
 			return;
 		}
-		classLogger.debug("Acknowledging notification with 202 for session {}", this.sessionId);
+		classLogger.debug("Acknowledging notification with 202 for session {}", SessionIds.hash(this.sessionId));
 		this.response.setStatus(HttpServletResponse.SC_ACCEPTED);
 		this.response.setContentLength(0);
 	}

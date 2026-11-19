@@ -72,6 +72,7 @@ import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityModelUsageLimitUtils;
 import prerna.auth.utils.reactors.admin.AdminMyEnginesReactor;
+import prerna.engine.impl.SmssEditCopy;
 import prerna.graph.utility.MsGraphUtility;
 import prerna.io.connector.ms.MicrosoftGraphUserLookup;
 import prerna.sablecc2.om.NounStore;
@@ -79,7 +80,9 @@ import prerna.sablecc2.om.PixelDataType;
 import prerna.sablecc2.om.ReactorKeysEnum;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.semoss.web.services.local.EngineRouteResource;
+import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
+import prerna.util.ContentChangedException;
 
 class AdminEngineAuthorizationResourceTest {
 
@@ -907,13 +910,14 @@ class AdminEngineAuthorizationResourceTest {
 				MockedStatic<SecurityEngineUtils> engines = Mockito.mockStatic(SecurityEngineUtils.class);
 				MockedStatic<EngineRouteResource> saves = Mockito.mockStatic(EngineRouteResource.class)) {
 			engines.when(() -> SecurityEngineUtils.engineExists("e1")).thenReturn(true);
-			saves.when(() -> EngineRouteResource.saveSmssFile(f.user, "e1", "ENGINE\te1"))
-					.thenReturn(Map.of("success", true));
+			saves.when(() -> EngineRouteResource.saveSmssFile(f.user, "e1", "ENGINE\te1", "h1"))
+					.thenReturn(Map.of("success", true, "smssHash", "h2"));
 
 			Response response = new AdminEngineAuthorizationResource().updateSmssFile(f.request,
-					form("engineId", "e1", "smss", "ENGINE\te1"));
+					form("engineId", "e1", "smss", "ENGINE\te1", "smssHash", "h1"));
 
 			assertSuccess(response);
+			assertEquals("h2", body(response).getAsJsonObject().get("smssHash").getAsString());
 		}
 	}
 
@@ -943,7 +947,7 @@ class AdminEngineAuthorizationResourceTest {
 				MockedStatic<SecurityEngineUtils> engines = Mockito.mockStatic(SecurityEngineUtils.class);
 				MockedStatic<EngineRouteResource> saves = Mockito.mockStatic(EngineRouteResource.class)) {
 			engines.when(() -> SecurityEngineUtils.engineExists("e1")).thenReturn(true);
-			saves.when(() -> EngineRouteResource.saveSmssFile(f.user, "e1", "ENGINE\tother")).thenThrow(
+			saves.when(() -> EngineRouteResource.saveSmssFile(f.user, "e1", "ENGINE\tother", null)).thenThrow(
 					new IllegalArgumentException("The engine id, engine name, and engine type cannot be changed"));
 
 			Response response = new AdminEngineAuthorizationResource().updateSmssFile(f.request,
@@ -951,6 +955,25 @@ class AdminEngineAuthorizationResourceTest {
 
 			assertEquals(400, response.getStatus());
 			assertEquals("The engine id, engine name, and engine type cannot be changed", errorMessage(response));
+		}
+	}
+
+	@Test
+	void answersASaveFromAnOlderCopyWith409AndItsCode() throws Exception {
+		try (Fixture f = Fixture.asAdmin();
+				MockedStatic<SecurityEngineUtils> engines = Mockito.mockStatic(SecurityEngineUtils.class);
+				MockedStatic<EngineRouteResource> saves = Mockito.mockStatic(EngineRouteResource.class)) {
+			engines.when(() -> SecurityEngineUtils.engineExists("e1")).thenReturn(true);
+			saves.when(() -> EngineRouteResource.saveSmssFile(f.user, "e1", "ENGINE\te1", "old")).thenThrow(
+					new ContentChangedException(SmssEditCopy.SMSS_CHANGED, "The smss changed since you opened it"));
+
+			Response response = new AdminEngineAuthorizationResource().updateSmssFile(f.request,
+					form("engineId", "e1", "smss", "ENGINE\te1", "smssHash", "old"));
+
+			assertEquals(409, response.getStatus());
+			assertEquals("The smss changed since you opened it", errorMessage(response));
+			assertEquals(SmssEditCopy.SMSS_CHANGED,
+					body(response).getAsJsonObject().get(ResourceUtility.ERROR_CODE).getAsString());
 		}
 	}
 }

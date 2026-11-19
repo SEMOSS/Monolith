@@ -65,6 +65,7 @@ import prerna.sablecc2.comm.PixelJobStatus;
 import prerna.sablecc2.om.PixelOperationType;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.util.Constants;
+import prerna.util.ContentChangedException;
 import prerna.util.Utility;
 import prerna.util.insight.InsightUtility;
 import prerna.web.services.util.WebUtility;
@@ -72,6 +73,9 @@ import prerna.web.services.util.WebUtility;
 public class ResourceUtility {
 
 	private static final Logger classLogger = LogManager.getLogger(ResourceUtility.class);
+
+	/** The key of the code that names what kind of refusal an error is */
+	public static final String ERROR_CODE = "errorCode";
 
 	private static final Set<String> allowAccessWithoutUsers = Set.of("config", "config/fetchCsrf");
 
@@ -200,6 +204,10 @@ public class ResourceUtility {
 		} catch (IllegalAccessException e) {
 			classLogger.warn("[{}] User {} is not allowed to {}: {}", endpoint, userName, action, e.getMessage());
 			return errorResponse(e.getMessage(), 403);
+		} catch (ContentChangedException e) {
+			classLogger.warn("[{}] User {} could not {} from a copy that is no longer current: {}", endpoint,
+					userName, action, e.getMessage());
+			return changedResponse(e);
 		} catch (IllegalArgumentException e) {
 			classLogger.warn("[{}] User {} could not {}: {}", endpoint, userName, action, e.getMessage());
 			return errorResponse(e.getMessage(), 400);
@@ -266,6 +274,22 @@ public class ResourceUtility {
 		Map<String, String> errorMap = new HashMap<>();
 		errorMap.put(Constants.ERROR_MESSAGE, message);
 		return WebUtility.getResponse(errorMap, status);
+	}
+
+	/**
+	 * A 409 for a save made from a copy that is no longer current, such as an smss
+	 * someone else saved after it was read. It carries the message and the
+	 * {@link #ERROR_CODE} the caller recognizes the refusal by, so the page can
+	 * offer to load the latest version.
+	 *
+	 * @param changed the refusal
+	 * @return the response
+	 */
+	public static Response changedResponse(ContentChangedException changed) {
+		Map<String, String> errorMap = new HashMap<>();
+		errorMap.put(Constants.ERROR_MESSAGE, changed.getMessage());
+		errorMap.put(ERROR_CODE, changed.getErrorCode());
+		return WebUtility.getResponse(errorMap, 409);
 	}
 
 	/**

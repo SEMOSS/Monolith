@@ -71,6 +71,7 @@ import prerna.auth.User;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityProjectUtils;
 import prerna.auth.utils.reactors.admin.AdminMyProjectsReactor;
+import prerna.engine.impl.SmssEditCopy;
 import prerna.graph.utility.MsGraphUtility;
 import prerna.io.connector.ms.MicrosoftGraphUserLookup;
 import prerna.sablecc2.om.NounStore;
@@ -78,7 +79,9 @@ import prerna.sablecc2.om.PixelDataType;
 import prerna.sablecc2.om.ReactorKeysEnum;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.semoss.web.services.local.ProjectResource;
+import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
+import prerna.util.ContentChangedException;
 
 class AdminProjectAuthorizationResourceTest {
 
@@ -710,13 +713,14 @@ class AdminProjectAuthorizationResourceTest {
 				MockedStatic<SecurityProjectUtils> projects = Mockito.mockStatic(SecurityProjectUtils.class);
 				MockedStatic<ProjectResource> saves = Mockito.mockStatic(ProjectResource.class)) {
 			projects.when(() -> SecurityProjectUtils.projectExists("p1")).thenReturn(true);
-			saves.when(() -> ProjectResource.saveSmssFile(f.user, "p1", "PROJECT\tp1"))
-					.thenReturn(Map.of("success", true));
+			saves.when(() -> ProjectResource.saveSmssFile(f.user, "p1", "PROJECT\tp1", "h1"))
+					.thenReturn(Map.of("success", true, "smssHash", "h2"));
 
 			Response response = new AdminProjectAuthorizationResource().updateSmssFile(f.request,
-					form("projectId", "p1", "smss", "PROJECT\tp1"));
+					form("projectId", "p1", "smss", "PROJECT\tp1", "smssHash", "h1"));
 
 			assertSuccess(response);
+			assertEquals("h2", body(response).getAsJsonObject().get("smssHash").getAsString());
 		}
 	}
 
@@ -746,7 +750,7 @@ class AdminProjectAuthorizationResourceTest {
 				MockedStatic<SecurityProjectUtils> projects = Mockito.mockStatic(SecurityProjectUtils.class);
 				MockedStatic<ProjectResource> saves = Mockito.mockStatic(ProjectResource.class)) {
 			projects.when(() -> SecurityProjectUtils.projectExists("p1")).thenReturn(true);
-			saves.when(() -> ProjectResource.saveSmssFile(f.user, "p1", "PROJECT\tother"))
+			saves.when(() -> ProjectResource.saveSmssFile(f.user, "p1", "PROJECT\tother", null))
 					.thenThrow(new IllegalArgumentException("The project id and project name cannot be changed"));
 
 			Response response = new AdminProjectAuthorizationResource().updateSmssFile(f.request,
@@ -754,6 +758,25 @@ class AdminProjectAuthorizationResourceTest {
 
 			assertEquals(400, response.getStatus());
 			assertEquals("The project id and project name cannot be changed", errorMessage(response));
+		}
+	}
+
+	@Test
+	void answersASaveFromAnOlderCopyWith409AndItsCode() throws Exception {
+		try (Fixture f = Fixture.asAdmin();
+				MockedStatic<SecurityProjectUtils> projects = Mockito.mockStatic(SecurityProjectUtils.class);
+				MockedStatic<ProjectResource> saves = Mockito.mockStatic(ProjectResource.class)) {
+			projects.when(() -> SecurityProjectUtils.projectExists("p1")).thenReturn(true);
+			saves.when(() -> ProjectResource.saveSmssFile(f.user, "p1", "PROJECT\tp1", "old")).thenThrow(
+					new ContentChangedException(SmssEditCopy.SMSS_CHANGED, "The smss changed since you opened it"));
+
+			Response response = new AdminProjectAuthorizationResource().updateSmssFile(f.request,
+					form("projectId", "p1", "smss", "PROJECT\tp1", "smssHash", "old"));
+
+			assertEquals(409, response.getStatus());
+			assertEquals("The smss changed since you opened it", errorMessage(response));
+			assertEquals(SmssEditCopy.SMSS_CHANGED,
+					body(response).getAsJsonObject().get(ResourceUtility.ERROR_CODE).getAsString());
 		}
 	}
 }

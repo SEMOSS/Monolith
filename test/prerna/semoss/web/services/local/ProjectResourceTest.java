@@ -81,6 +81,7 @@ import prerna.auth.utils.SecurityInsightUtils;
 import prerna.auth.utils.SecurityProjectUtils;
 import prerna.cluster.util.ClusterUtil;
 import prerna.engine.api.IEngine;
+import prerna.engine.impl.SmssEditCopy;
 import prerna.notifications.NotificationDbUtils;
 import prerna.om.Insight;
 import prerna.om.InsightStore;
@@ -110,6 +111,7 @@ class ProjectResourceTest {
 	Path tempDir;
 
 	private final User user = mock(User.class);
+	private IProject edited;
 
 	/**
 	 * Mocks {@link Utility} so the named methods return the given values and every
@@ -249,12 +251,21 @@ class ProjectResourceTest {
 		IProject project = project("Portal");
 		when(project.getSmssFilePath()).thenReturn(smss.toString());
 		when(project.getSmssProp()).thenReturn(props);
+		when(project.getEngineId()).thenReturn("p1");
+		when(project.getCatalogType()).thenReturn(IEngine.CATALOG_TYPE.PROJECT);
+		this.edited = project;
 		return project;
 	}
 
+	/**
+	 * A save of the smss made from the copy of it as it is now: it hands back the
+	 * hash that copy came with.
+	 */
 	private HttpServletRequest smssRequest(String smss) {
 		HttpServletRequest request = signedInRequest();
 		when(request.getParameter("smss")).thenReturn(smss);
+		when(request.getParameter(SmssEditCopy.SMSS_HASH))
+				.thenAnswer(invocation -> this.edited == null ? null : SmssEditCopy.read(this.edited).getSmssHash());
 		return request;
 	}
 
@@ -355,7 +366,8 @@ class ProjectResourceTest {
 			s.utilityValues.put("isNotificationDatabaseEnabled", true);
 			String updated = CURRENT_SMSS.replace("old", "new");
 
-			assertBody(new ProjectResource().updateSmssFile(smssRequest(updated), "p1"), 200, "{\"success\":true}");
+			assertBody(new ProjectResource().updateSmssFile(smssRequest(updated), "p1"), 200,
+					"\"smssHash\":\"" + SmssEditCopy.read(project).getSmssHash() + "\"");
 
 			assertEquals(updated, Files.readString(smss));
 			verify(project).close();
@@ -366,6 +378,29 @@ class ProjectResourceTest {
 					any(), any()));
 			s.email.verify(() -> EmailUtility.sendSmssUpdateEmailNotification(this.user, "p1",
 					EmailUtility.RESOURCE_TYPE.PROJECT));
+		}
+	}
+
+	@Test
+	void refusesAProjectSaveFromAnOlderCopyWith409() throws Exception {
+		try (Statics s = new Statics()) {
+			s.projects.when(() -> SecurityProjectUtils.userIsOwner(this.user, "p1")).thenReturn(true);
+			Path smss = this.tempDir.resolve("p1.smss");
+			IProject project = projectWithSmss(smss);
+			s.utilityValues.put("getProject", project);
+			String olderHash = SmssEditCopy.read(project).getSmssHash();
+			String newer = CURRENT_SMSS.replace("old", "newer");
+			Files.writeString(smss, newer);
+			HttpServletRequest request = signedInRequest();
+			when(request.getParameter("smss")).thenReturn(CURRENT_SMSS.replace("old", "mine"));
+			when(request.getParameter(SmssEditCopy.SMSS_HASH)).thenReturn(olderHash);
+
+			Response response = new ProjectResource().updateSmssFile(request, "p1");
+
+			assertBody(response, 409,
+					"\"" + ResourceUtility.ERROR_CODE + "\":\"" + SmssEditCopy.SMSS_CHANGED + "\"");
+			assertEquals(newer, Files.readString(smss));
+			verify(project, never()).close();
 		}
 	}
 
