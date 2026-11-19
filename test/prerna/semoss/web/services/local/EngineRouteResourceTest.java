@@ -71,6 +71,7 @@ import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityEngineUtils;
 import prerna.cluster.util.ClusterUtil;
 import prerna.engine.api.IEngine;
+import prerna.engine.impl.SmssEditCopy;
 import prerna.io.connector.secrets.ISecrets;
 import prerna.io.connector.secrets.SecretsFactory;
 import prerna.notifications.NotificationDbUtils;
@@ -90,6 +91,7 @@ class EngineRouteResourceTest {
 	Path tempDir;
 
 	private final User user = mock(User.class);
+	private IEngine edited;
 
 	/**
 	 * Mocks {@link Utility} so the named methods return the given values and every
@@ -195,12 +197,19 @@ class EngineRouteResourceTest {
 		when(engine.getCatalogType()).thenReturn(IEngine.CATALOG_TYPE.DATABASE);
 		when(engine.getEngineId()).thenReturn("db1");
 		when(engine.getEngineName()).thenReturn("Sales");
+		this.edited = engine;
 		return engine;
 	}
 
+	/**
+	 * A save of the smss made from the copy of it as it is now: it hands back the
+	 * hash that copy came with.
+	 */
 	private HttpServletRequest smssRequest(String smss) {
 		HttpServletRequest request = signedInRequest();
 		when(request.getParameter("smss")).thenReturn(smss);
+		when(request.getParameter(SmssEditCopy.SMSS_HASH))
+				.thenAnswer(invocation -> this.edited == null ? null : SmssEditCopy.read(this.edited).getSmssHash());
 		return request;
 	}
 
@@ -379,7 +388,10 @@ class EngineRouteResourceTest {
 
 			Response response = new EngineRouteResource().updateSmssFile(smssRequest(updated), "db1");
 
-			assertBody(response, 200, "{\"success\":true}");
+			String body = body(response);
+			assertEquals(200, response.getStatus());
+			assertTrue(body.contains("\"success\":true"), body);
+			assertTrue(body.contains("\"smssHash\":\"" + SmssEditCopy.read(engine).getSmssHash() + "\""), body);
 			assertEquals(CURRENT_SMSS.replace("USERNAME\tsa", "USERNAME\tadmin"), Files.readString(smss));
 			verify(engine).close();
 			verify(engine).open(smss.toString());
@@ -464,7 +476,7 @@ class EngineRouteResourceTest {
 
 			Response response = new EngineRouteResource().updateSmssFile(smssRequest(updated), "db1");
 
-			assertBody(response, 200, "{\"success\":true}");
+			assertBody(response, 200, "\"success\":true");
 			@SuppressWarnings("unchecked")
 			ArgumentCaptor<Map<String, Object>> written = ArgumentCaptor.forClass(Map.class);
 			verify(store).writeEngineSecrets(eq(IEngine.CATALOG_TYPE.DATABASE), eq("db1"), eq("Sales"),
@@ -491,6 +503,45 @@ class EngineRouteResourceTest {
 
 			assertBody(new EngineRouteResource().updateSmssFile(smssRequest(CURRENT_SMSS), "db1"), 400,
 					"Detailed message = sealed");
+			verify(engine, never()).close();
+		}
+	}
+
+	@Test
+	void refusesASaveFromAnOlderCopyWith409() throws Exception {
+		try (Statics s = new Statics()) {
+			s.security.when(() -> SecurityEngineUtils.userIsOwner(this.user, "db1")).thenReturn(true);
+			Path smss = this.tempDir.resolve("db1.smss");
+			IEngine engine = engineWithSmss(smss);
+			s.utilityValues.put("getEngine", engine);
+			String olderHash = SmssEditCopy.read(engine).getSmssHash();
+			String newer = CURRENT_SMSS.replace("USERNAME\tsa", "USERNAME\tother");
+			Files.writeString(smss, newer);
+			HttpServletRequest request = signedInRequest();
+			when(request.getParameter("smss")).thenReturn(CURRENT_SMSS);
+			when(request.getParameter(SmssEditCopy.SMSS_HASH)).thenReturn(olderHash);
+
+			Response response = new EngineRouteResource().updateSmssFile(request, "db1");
+
+			assertBody(response, 409,
+					"\"" + ResourceUtility.ERROR_CODE + "\":\"" + SmssEditCopy.SMSS_CHANGED + "\"");
+			assertEquals(newer, Files.readString(smss));
+			verify(engine, never()).close();
+		}
+	}
+
+	@Test
+	void refusesASaveWithoutTheHashWith400() throws Exception {
+		try (Statics s = new Statics()) {
+			s.security.when(() -> SecurityEngineUtils.userIsOwner(this.user, "db1")).thenReturn(true);
+			Path smss = this.tempDir.resolve("db1.smss");
+			IEngine engine = engineWithSmss(smss);
+			s.utilityValues.put("getEngine", engine);
+			HttpServletRequest request = signedInRequest();
+			when(request.getParameter("smss")).thenReturn(CURRENT_SMSS.replace("USERNAME\tsa", "USERNAME\tother"));
+
+			assertBody(new EngineRouteResource().updateSmssFile(request, "db1"), 400, SmssEditCopy.SMSS_HASH);
+			assertEquals(CURRENT_SMSS, Files.readString(smss));
 			verify(engine, never()).close();
 		}
 	}
