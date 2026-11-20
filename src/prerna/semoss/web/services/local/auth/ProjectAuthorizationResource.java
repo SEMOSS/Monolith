@@ -50,8 +50,11 @@ import prerna.auth.AccessPermissionEnum;
 import prerna.auth.User;
 import prerna.auth.access.ModelUsageLimit;
 import prerna.auth.utils.AbstractSecurityUtils;
+import prerna.auth.utils.CatalogTypes;
+import prerna.auth.utils.SecurityEngineUtils;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityModelUsageLimitUtils;
+import prerna.auth.utils.SecurityCatalogDependencyUtils;
 import prerna.auth.utils.SecurityProjectUtils;
 import prerna.graph.utility.MsGraphUtility;
 import prerna.io.connector.ms.MicrosoftGraphUserLookup;
@@ -324,8 +327,11 @@ public class ProjectAuthorizationResource {
 	}
 
 	/**
-	 * Propagate project dependent permissions. The person's usage limit on the
-	 * models the project depends on is sent as {@code usageLimit} (JSON, empty for
+	 * Gives a person access to the engines and projects an engine or project
+	 * depends on, or asks their owners for it. The engine or project is
+	 * {@code catalogId}, with its engine type or project type as the optional
+	 * {@code catalogType}. The person's usage limit on the
+	 * models it depends on is sent as {@code usageLimit} (JSON, empty for
 	 * no limit defined). Without it, a person added to a model gets no limit and a
 	 * person whose access to a model changes keeps their limit. Only a model's
 	 * owners set a limit that differs from the current one.
@@ -336,39 +342,37 @@ public class ProjectAuthorizationResource {
 	 */
 	@POST
 	@Produces("application/json")
-	@Path("propagateProjectDependencyPermission")
-	public Response propagateProjectDependencyPermission(@Context HttpServletRequest request,
+	@Path("propagateCatalogDependencyPermission")
+	public Response propagateCatalogDependencyPermission(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
 		String newUserId = WebUtility.inputSQLSanitizer(form.getFirst("id"));
 		String newUserType = WebUtility.inputSanitizer(form.getFirst("type"));
-		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String catalogId = WebUtility.inputSanitizer(form.getFirst("catalogId"));
+		String catalogType = WebUtility.inputSanitizer(form.getFirst("catalogType"));
 		String requestedPermission = WebUtility.inputSanitizer(form.getFirst("permission"));
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
 
 		boolean usageLimitSent = form.containsKey(USAGE_LIMIT);
 		String usageLimit = form.getFirst(USAGE_LIMIT);
-		return ResourceUtility.respond(request, "give user " + newUserId + " access to project " + projectId, user -> {
-			// Determine if admin right are required to add users and, if so, if requester
-			// has those rights.
-			if (AbstractSecurityUtils.adminOnlyProjectAddAccess(projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
-				throw new IllegalAccessException(ADMINS_ONLY);
-			}
-			requireProjectEditor(user, projectId);
+		return ResourceUtility.respond(request,
+				"give user " + newUserId + " access to the dependencies of " + catalogId, user -> {
+			requireCatalogDependencyEditor(user, catalogId, catalogType);
 			String level = AccessPermissionEnum.require(requestedPermission);
 
 			if (usageLimitSent) {
-				return SecurityProjectUtils.propagateProjectPermission(user, projectId, newUserId, newUserType, level,
+				return SecurityCatalogDependencyUtils.propagatePermission(user, catalogId, newUserId, newUserType, level,
 						endDate, SecurityModelUsageLimitUtils.readJson(usageLimit));
 			}
-			return SecurityProjectUtils.propagateProjectPermission(user, projectId, newUserId, newUserType, level,
+			return SecurityCatalogDependencyUtils.propagatePermission(user, catalogId, newUserId, newUserType, level,
 					endDate);
 		});
 	}
 
 	/**
-	 * Propagate project dependent permissions, in bulk. Each row of
-	 * {@code userpermissions} can carry the person's usage limit on the models the
-	 * project depends on as {@code usageLimit}. Without it, a person whose access
+	 * Gives people access to the engines and projects an engine or project depends
+	 * on, in bulk, as {@link #propagateCatalogDependencyPermission} does for one.
+	 * Each row of {@code userpermissions} can carry the person's usage limit on the
+	 * models it depends on as {@code usageLimit}. Without it, a person whose access
 	 * to a model changes keeps their limit.
 	 *
 	 * @param request
@@ -377,20 +381,16 @@ public class ProjectAuthorizationResource {
 	 */
 	@POST
 	@Produces("application/json")
-	@Path("propagateProjectDependencyPermissions")
-	public Response propagateProjectDependencyPermissions(@Context HttpServletRequest request,
+	@Path("propagateCatalogDependencyPermissions")
+	public Response propagateCatalogDependencyPermissions(@Context HttpServletRequest request,
 			MultivaluedMap<String, String> form) {
-		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String catalogId = WebUtility.inputSanitizer(form.getFirst("catalogId"));
+		String catalogType = WebUtility.inputSanitizer(form.getFirst("catalogType"));
 		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
-		return ResourceUtility.respond(request, "give users access to project " + projectId, user -> {
+		return ResourceUtility.respond(request, "give users access to the dependencies of " + catalogId, user -> {
 			List<Map<String, Object>> requests = ROW_GSON.fromJson(form.getFirst("userpermissions"), List.class);
 
-			// Determine if admin right are required to add users and, if so, if requester
-			// has those rights.
-			if (AbstractSecurityUtils.adminOnlyProjectAddAccess(projectId) && !SecurityAdminUtils.userIsAdmin(user)) {
-				throw new IllegalAccessException(ADMINS_ONLY);
-			}
-			requireProjectEditor(user, projectId);
+			requireCatalogDependencyEditor(user, catalogId, catalogType);
 			// every row is checked before the first one is propagated
 			AccessPermissionEnum.requireEach(requests);
 
@@ -401,10 +401,10 @@ public class ProjectAuthorizationResource {
 				String requestedPermission = textOf(userRequest.get("permission"));
 				Map<String, Object> responses;
 				if (userRequest.containsKey(USAGE_LIMIT)) {
-					responses = SecurityProjectUtils.propagateProjectPermission(user, projectId, newUserId, newUserType,
+					responses = SecurityCatalogDependencyUtils.propagatePermission(user, catalogId, newUserId, newUserType,
 							requestedPermission, endDate, readUsageLimit(userRequest.get(USAGE_LIMIT)));
 				} else {
-					responses = SecurityProjectUtils.propagateProjectPermission(user, projectId, newUserId, newUserType,
+					responses = SecurityCatalogDependencyUtils.propagatePermission(user, catalogId, newUserId, newUserType,
 							requestedPermission, endDate);
 				}
 				userRet.put(newUserId, responses);
@@ -789,6 +789,32 @@ public class ProjectAuthorizationResource {
 	 * @param projectId the project
 	 * @throws IllegalAccessException when the user cannot edit the project
 	 */
+	/**
+	 * Checks that a user can give people access to what an engine or project
+	 * depends on: they can edit it, and they are an admin when only admins can add
+	 * people to it.
+	 *
+	 * @param catalogId   the engine id or project id
+	 * @param catalogType its engine type or project type, or null to read it
+	 * @throws IllegalAccessException when they cannot
+	 */
+	private static void requireCatalogDependencyEditor(User user, String catalogId, String catalogType)
+			throws IllegalAccessException {
+		String type = SecurityCatalogDependencyUtils.resolveCatalogType(catalogId, catalogType);
+		boolean isProject = CatalogTypes.isProjectType(type);
+		boolean adminOnly = isProject ? AbstractSecurityUtils.adminOnlyProjectAddAccess(catalogId)
+				: AbstractSecurityUtils.adminOnlyEngineAddAccess(catalogId);
+		if (adminOnly && !SecurityAdminUtils.userIsAdmin(user)) {
+			throw new IllegalAccessException(ADMINS_ONLY);
+		}
+		if (isProject) {
+			requireProjectEditor(user, catalogId);
+		} else if (!SecurityEngineUtils.userCanEditEngine(user, catalogId)) {
+			throw new IllegalAccessException(
+					"Engine " + catalogId + " does not exist or user does not have access to edit it");
+		}
+	}
+
 	private static void requireProjectEditor(User user, String projectId) throws IllegalAccessException {
 		if (!SecurityProjectUtils.userCanEditProject(user, projectId)) {
 			throw new IllegalAccessException(

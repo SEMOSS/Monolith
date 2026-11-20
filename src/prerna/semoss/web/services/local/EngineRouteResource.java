@@ -27,6 +27,7 @@
  *******************************************************************************/
 package prerna.semoss.web.services.local;
 
+import prerna.auth.utils.CatalogDependencyDerivation;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.FileWriter;
@@ -335,6 +336,9 @@ public class EngineRouteResource {
 			// the other nodes only need to close the engine to read them on next use
 			ClusterUtil.publishEngineClose(engineId);
 
+			// the smss may name a different judge model, vector database or embedder
+			CatalogDependencyDerivation.syncSmss(user, engineId, engine.getCatalogType().name(), engine.getSmssProp());
+
 			Map<String, Object> success = new HashMap<>();
 			success.put("success", true);
 			success.put(SmssEditCopy.SMSS_HASH, SmssEditCopy.read(engine).getSmssHash());
@@ -407,6 +411,9 @@ public class EngineRouteResource {
 			// Adding email notification
 			EmailUtility.sendSmssUpdateEmailNotification(user, engineId, EmailUtility.RESOURCE_TYPE.ENGINE);
 		}
+
+		// the smss may name a different judge model, vector database or embedder
+		CatalogDependencyDerivation.syncSmss(user, engineId, engine.getCatalogType().name(), engine.getSmssProp());
 
 		Map<String, Object> success = new HashMap<>();
 		success.put("success", true);
