@@ -169,9 +169,10 @@ public class ProjectResource {
 		}
 		if (!SecurityProjectUtils.userIsOwner(user, projectId)) {
 			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put("error", "Project " + projectId
-					+ " does not exist or user does not have permissions to update the smss of the project. "
-					+ "User must be the owner to perform this function.");
+			errorMap.put("error",
+					"Project " + projectId
+							+ " does not exist or user does not have permissions to update the smss of the project. "
+							+ "User must be the owner to perform this function.");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
@@ -186,14 +187,14 @@ public class ProjectResource {
 	}
 
 	/**
-	 * Saves new smss content for a project and opens the project again with it.
-	 * The save is made from the copy of the smss the user read: it goes through
-	 * only while the smss is still as that copy was ({@link SmssEditCopy}), and
-	 * holds the project's lock so no other save comes between the check and the
-	 * write. The hidden values the new content left untouched are kept, and the
-	 * smss file is put back as it was when the project does not open with the new
-	 * content. The caller has checked that the user may update the project: its
-	 * owner, or an admin through the admin endpoint.
+	 * Saves new smss content for a project and opens the project again with it. The
+	 * save is made from the copy of the smss the user read: it goes through only
+	 * while the smss is still as that copy was ({@link SmssEditCopy}), and holds
+	 * the project's lock so no other save comes between the check and the write.
+	 * The hidden values the new content left untouched are kept, and the smss file
+	 * is put back as it was when the project does not open with the new content.
+	 * The caller has checked that the user may update the project: its owner, or an
+	 * admin through the admin endpoint.
 	 *
 	 * @param user           the user saving the smss, for the notification
 	 * @param projectId      the project
@@ -242,8 +243,7 @@ public class ProjectResource {
 			if (!newProp.get(Constants.PROJECT).equals(currentSmssProperties.get(Constants.PROJECT))
 					|| !newProp.get(Constants.PROJECT_ALIAS).equals(currentSmssProperties.get(Constants.PROJECT_ALIAS))
 					|| !newProp.get(Constants.PROJECT_TYPE).equals(currentSmssProperties.get(Constants.PROJECT_TYPE))) {
-				throw new IllegalArgumentException(
-						"The project id, project name, and project type cannot be changed");
+				throw new IllegalArgumentException("The project id, project name, and project type cannot be changed");
 			}
 		}
 
