@@ -758,7 +758,7 @@ class AdminProjectAuthorizationResourceTest {
 				MockedStatic<SecurityProjectUtils> projects = Mockito.mockStatic(SecurityProjectUtils.class);
 				MockedStatic<ProjectResource> saves = Mockito.mockStatic(ProjectResource.class)) {
 			projects.when(() -> SecurityProjectUtils.projectExists("p1")).thenReturn(true);
-			saves.when(() -> ProjectResource.saveSmssFile(f.user, "p1", "PROJECT\tp1", "h1"))
+			saves.when(() -> ProjectResource.saveSmssFile(f.user, f.utils, "p1", "PROJECT\tp1", "h1"))
 					.thenReturn(Map.of("success", true, "smssHash", "h2"));
 
 			Response response = new AdminProjectAuthorizationResource().updateSmssFile(f.request,
@@ -795,7 +795,7 @@ class AdminProjectAuthorizationResourceTest {
 				MockedStatic<SecurityProjectUtils> projects = Mockito.mockStatic(SecurityProjectUtils.class);
 				MockedStatic<ProjectResource> saves = Mockito.mockStatic(ProjectResource.class)) {
 			projects.when(() -> SecurityProjectUtils.projectExists("p1")).thenReturn(true);
-			saves.when(() -> ProjectResource.saveSmssFile(f.user, "p1", "PROJECT\tother", null))
+			saves.when(() -> ProjectResource.saveSmssFile(f.user, f.utils, "p1", "PROJECT\tother", null))
 					.thenThrow(new IllegalArgumentException("The project id and project name cannot be changed"));
 
 			Response response = new AdminProjectAuthorizationResource().updateSmssFile(f.request,
@@ -812,7 +812,7 @@ class AdminProjectAuthorizationResourceTest {
 				MockedStatic<SecurityProjectUtils> projects = Mockito.mockStatic(SecurityProjectUtils.class);
 				MockedStatic<ProjectResource> saves = Mockito.mockStatic(ProjectResource.class)) {
 			projects.when(() -> SecurityProjectUtils.projectExists("p1")).thenReturn(true);
-			saves.when(() -> ProjectResource.saveSmssFile(f.user, "p1", "PROJECT\tp1", "old")).thenThrow(
+			saves.when(() -> ProjectResource.saveSmssFile(f.user, f.utils, "p1", "PROJECT\tp1", "old")).thenThrow(
 					new ContentChangedException(SmssEditCopy.SMSS_CHANGED, "The smss changed since you opened it"));
 
 			Response response = new AdminProjectAuthorizationResource().updateSmssFile(f.request,

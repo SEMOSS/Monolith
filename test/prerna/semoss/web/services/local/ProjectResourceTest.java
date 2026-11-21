@@ -382,6 +382,78 @@ class ProjectResourceTest {
 	}
 
 	@Test
+	void savesAChangedProjectDisplayNameAsTheOwner() throws Exception {
+		try (Statics s = new Statics()) {
+			SecurityAdminUtils adminUtils = mock(SecurityAdminUtils.class);
+			s.admin.when(() -> SecurityAdminUtils.getInstance(this.user)).thenReturn(adminUtils);
+			s.projects.when(() -> SecurityProjectUtils.userIsOwner(this.user, "p1")).thenReturn(true);
+			IProject project = projectWithSmss(this.tempDir.resolve("p1.smss"));
+			s.utilityValues.put("getProject", project);
+			s.utilityValues.put("isNotificationDatabaseEnabled", false);
+
+			assertBody(
+					new ProjectResource().updateSmssFile(
+							smssRequest(CURRENT_SMSS + "PROJECT_DISPLAY_NAME\tCustomer Portal\n"), "p1"),
+					200, "\"success\":true");
+
+			s.projects.verify(() -> SecurityProjectUtils.setProjectDisplayName(this.user, "p1", "Customer Portal"));
+			Mockito.verifyNoInteractions(adminUtils);
+		}
+	}
+
+	@Test
+	void leavesTheProjectDisplayNameAloneWhenTheSaveKeepsItOrLeavesItBlank() throws Exception {
+		try (Statics s = new Statics()) {
+			s.projects.when(() -> SecurityProjectUtils.userIsOwner(this.user, "p1")).thenReturn(true);
+			IProject project = projectWithSmss(this.tempDir.resolve("p1.smss"));
+			project.getSmssProp().put(Constants.PROJECT_DISPLAY_NAME, "Customer Portal");
+			s.utilityValues.put("getProject", project);
+			s.utilityValues.put("isNotificationDatabaseEnabled", false);
+
+			for (String saved : new String[] { CURRENT_SMSS, CURRENT_SMSS + "PROJECT_DISPLAY_NAME\tCustomer Portal\n",
+					CURRENT_SMSS + "PROJECT_DISPLAY_NAME\t \n" }) {
+				assertEquals(200, new ProjectResource().updateSmssFile(smssRequest(saved), "p1").getStatus());
+			}
+			s.projects.verify(() -> SecurityProjectUtils.setProjectDisplayName(any(), any(), any()), never());
+		}
+	}
+
+	@Test
+	void savesTheProjectDisplayNameInAdminModeForAnAdminSave() throws Exception {
+		try (Statics s = new Statics()) {
+			IProject project = projectWithSmss(this.tempDir.resolve("p1.smss"));
+			s.utilityValues.put("getProject", project);
+			s.utilityValues.put("isNotificationDatabaseEnabled", false);
+			SecurityAdminUtils adminUtils = mock(SecurityAdminUtils.class);
+
+			ProjectResource.saveSmssFile(this.user, adminUtils, "p1",
+					CURRENT_SMSS + "PROJECT_DISPLAY_NAME\tCustomer Portal\n", SmssEditCopy.read(project).getSmssHash());
+
+			verify(adminUtils).setProjectDisplayName("p1", "Customer Portal");
+			s.projects.verify(() -> SecurityProjectUtils.setProjectDisplayName(any(), any(), any()), never());
+		}
+	}
+
+	@Test
+	void keepsTheSavedProjectSmssWhenTheDisplayNameCannotBeSaved() throws Exception {
+		try (Statics s = new Statics()) {
+			s.projects.when(() -> SecurityProjectUtils.userIsOwner(this.user, "p1")).thenReturn(true);
+			s.projects.when(() -> SecurityProjectUtils.setProjectDisplayName(this.user, "p1", "Customer Portal"))
+					.thenThrow(new IllegalArgumentException("An error occurred updating the project display name"));
+			Path smss = this.tempDir.resolve("p1.smss");
+			IProject project = projectWithSmss(smss);
+			s.utilityValues.put("getProject", project);
+			s.utilityValues.put("isNotificationDatabaseEnabled", false);
+			String updated = CURRENT_SMSS + "PROJECT_DISPLAY_NAME\tCustomer Portal\n";
+
+			assertBody(new ProjectResource().updateSmssFile(smssRequest(updated), "p1"), 200, "\"success\":true");
+
+			assertEquals(updated, Files.readString(smss));
+			s.cluster.verify(() -> ClusterUtil.pushProjectSmss("p1"));
+		}
+	}
+
+	@Test
 	void refusesAProjectSaveFromAnOlderCopyWith409() throws Exception {
 		try (Statics s = new Statics()) {
 			s.projects.when(() -> SecurityProjectUtils.userIsOwner(this.user, "p1")).thenReturn(true);

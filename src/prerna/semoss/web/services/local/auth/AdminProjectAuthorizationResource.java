@@ -306,7 +306,8 @@ public class AdminProjectAuthorizationResource {
 
 	/**
 	 * Saves new smss content for any project, in admin mode, and opens the project
-	 * again with it. The owner's endpoint is
+	 * again with it. A changed {@code PROJECT_DISPLAY_NAME} is saved to the
+	 * security database in admin mode too. The owner's endpoint is
 	 * {@code /project-<projectId>/updateSmssFile}.
 	 *
 	 * @param request the request, whose session holds the admin
@@ -325,12 +326,13 @@ public class AdminProjectAuthorizationResource {
 		String projectId = WebUtility.safePathSegment(requestedId);
 		String smss = form.getFirst("smss");
 		String smssHash = form.getFirst(SmssEditCopy.SMSS_HASH);
-		return ResourceUtility.respondAsAdmin(request, "update the smss of project " + requestedId, user -> {
-			if (projectId == null || !SecurityProjectUtils.projectExists(projectId)) {
-				throw new IllegalArgumentException("Project " + requestedId + " does not exist");
-			}
-			return ProjectResource.saveSmssFile(user, projectId, smss, smssHash);
-		});
+		return ResourceUtility.respondAsAdmin(request, "update the smss of project " + requestedId,
+				SecurityAdminUtils::getInstance, (user, adminUtils) -> {
+					if (projectId == null || !SecurityProjectUtils.projectExists(projectId)) {
+						throw new IllegalArgumentException("Project " + requestedId + " does not exist");
+					}
+					return ProjectResource.saveSmssFile(user, adminUtils, projectId, smss, smssHash);
+				});
 	}
 
 	@POST

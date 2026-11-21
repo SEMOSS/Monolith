@@ -608,7 +608,8 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 
 	/**
 	 * Saves new smss content for any engine, in admin mode, and opens the engine
-	 * again with it. The owner's endpoint is
+	 * again with it. A changed {@code ENGINE_DISPLAY_NAME} is saved to the security
+	 * database in admin mode too. The owner's endpoint is
 	 * {@code /e-<engineId>/updateSmssFile}.
 	 *
 	 * @param request the request, whose session holds the admin
@@ -627,12 +628,13 @@ public class AdminEngineAuthorizationResource extends AbstractAdminResource {
 		String engineId = WebUtility.safePathSegment(requestedId);
 		String smss = form.getFirst("smss");
 		String smssHash = form.getFirst(SmssEditCopy.SMSS_HASH);
-		return ResourceUtility.respondAsAdmin(request, "update the smss of engine " + requestedId, user -> {
-			if (engineId == null || !SecurityEngineUtils.engineExists(engineId)) {
-				throw new IllegalArgumentException("Engine " + requestedId + " does not exist");
-			}
-			return EngineRouteResource.saveSmssFile(user, engineId, smss, smssHash);
-		});
+		return ResourceUtility.respondAsAdmin(request, "update the smss of engine " + requestedId,
+				SecurityAdminUtils::getInstance, (user, adminUtils) -> {
+					if (engineId == null || !SecurityEngineUtils.engineExists(engineId)) {
+						throw new IllegalArgumentException("Engine " + requestedId + " does not exist");
+					}
+					return EngineRouteResource.saveSmssFile(user, adminUtils, engineId, smss, smssHash);
+				});
 	}
 
 	/**
