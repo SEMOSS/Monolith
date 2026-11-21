@@ -226,7 +226,7 @@ public class FormResource {
 	@Deprecated
 	@POST
 	@Path("/getUserInstanceAuth")
-	@Produces("applicaiton/json")
+	@Produces("application/json")
 	public Response getUserInstanceAuth(@Context HttpServletRequest request) throws InvalidNameException {
 		/*
 		 * Get the specific instances this user has access to
