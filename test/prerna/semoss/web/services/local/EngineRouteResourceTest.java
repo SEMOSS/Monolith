@@ -411,8 +411,8 @@ class EngineRouteResourceTest {
 
 			assertEquals(200, new EngineRouteResource().updateSmssFile(smssRequest(CURRENT_SMSS), "db1").getStatus());
 
-			s.notifications.verify(() -> NotificationDbUtils.createNotification(eq(this.user), any(), any(),
-					eq("db1"), any(), eq("database"), any(), any(), any(), any()));
+			s.notifications.verify(() -> NotificationDbUtils.createNotification(eq(this.user), any(), any(), eq("db1"),
+					any(), eq("database"), any(), any(), any(), any()));
 			s.email.verify(() -> EmailUtility.sendSmssUpdateEmailNotification(this.user, "db1",
 					EmailUtility.RESOURCE_TYPE.ENGINE));
 		}
@@ -438,7 +438,8 @@ class EngineRouteResourceTest {
 
 			Response response = new EngineRouteResource().updateSmssFile(smssRequest(updated), "db1");
 
-			assertBody(response, 400, "An error occurred initializing the new engine details. Detailed message = bad url");
+			assertBody(response, 400,
+					"An error occurred initializing the new engine details. Detailed message = bad url");
 			assertEquals(updated, contentAtFirstOpen[0]);
 			assertEquals(2, opens[0]);
 			assertEquals(CURRENT_SMSS, Files.readString(smss));
@@ -523,8 +524,7 @@ class EngineRouteResourceTest {
 
 			Response response = new EngineRouteResource().updateSmssFile(request, "db1");
 
-			assertBody(response, 409,
-					"\"" + ResourceUtility.ERROR_CODE + "\":\"" + SmssEditCopy.SMSS_CHANGED + "\"");
+			assertBody(response, 409, "\"" + ResourceUtility.ERROR_CODE + "\":\"" + SmssEditCopy.SMSS_CHANGED + "\"");
 			assertEquals(newer, Files.readString(smss));
 			verify(engine, never()).close();
 		}
@@ -593,10 +593,11 @@ class EngineRouteResourceTest {
 			s.security.when(() -> SecurityEngineUtils.userCanViewEngine(this.user, "db1")).thenReturn(true);
 			s.security.when(() -> SecurityEngineUtils.getEngineAliasForId("db1")).thenReturn("Sales");
 			Path version = Files.createDirectories(this.tempDir.resolve("version"));
-			File image = Files.write(version.resolve("image.png"), new byte[] { (byte) 0x89, 'P', 'N', 'G', 0x0D,
-					0x0A, 0x1A, 0x0A }).toFile();
-			s.engines.when(() -> EngineUtility.getSpecificEngineVersionFolder(IEngine.CATALOG_TYPE.DATABASE,
-					"Sales__db1")).thenReturn(version.toString());
+			File image = Files.write(version.resolve("image.png"),
+					new byte[] { (byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A }).toFile();
+			s.engines.when(
+					() -> EngineUtility.getSpecificEngineVersionFolder(IEngine.CATALOG_TYPE.DATABASE, "Sales__db1"))
+					.thenReturn(version.toString());
 
 			Response response = new EngineRouteResource().imageDownload(freshRequest(), signedInRequest(), "db1");
 

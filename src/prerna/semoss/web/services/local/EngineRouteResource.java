@@ -225,9 +225,9 @@ public class EngineRouteResource {
 		}
 		if (!SecurityEngineUtils.userIsOwner(user, engineId)) {
 			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put("error", "Engine " + engineId
-					+ " does not exist or user does not have permissions to update the smss. "
-					+ "User must be the owner to perform this function.");
+			errorMap.put("error",
+					"Engine " + engineId + " does not exist or user does not have permissions to update the smss. "
+							+ "User must be the owner to perform this function.");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
@@ -245,13 +245,12 @@ public class EngineRouteResource {
 	 * Saves new smss content for an engine and opens the engine again with it. The
 	 * save is made from the copy of the smss the user read: it goes through only
 	 * while the smss is still as that copy was ({@link SmssEditCopy}), and holds
-	 * the engine's lock so no other save comes between the check and the write.
-	 * The engine's id, name and type stay as they are, and the hidden values the
-	 * new content left untouched are kept. With a secret store the values go
-	 * there; otherwise the smss file is written, and put back as it was when the
-	 * engine does not open with the new content. The caller has checked that the
-	 * user may update the engine: its owner, or an admin through the admin
-	 * endpoint.
+	 * the engine's lock so no other save comes between the check and the write. The
+	 * engine's id, name and type stay as they are, and the hidden values the new
+	 * content left untouched are kept. With a secret store the values go there;
+	 * otherwise the smss file is written, and put back as it was when the engine
+	 * does not open with the new content. The caller has checked that the user may
+	 * update the engine: its owner, or an admin through the admin endpoint.
 	 *
 	 * @param user           the user saving the smss, for the notification
 	 * @param engineId       the engine
@@ -264,8 +263,7 @@ public class EngineRouteResource {
 	 * @throws IllegalArgumentException when the content cannot be saved or no hash
 	 *                                  is given, with the reason
 	 */
-	public static Map<String, Object> saveSmssFile(User user, String engineId, String newSmssContent,
-			String smssHash) {
+	public static Map<String, Object> saveSmssFile(User user, String engineId, String newSmssContent, String smssHash) {
 		ReentrantLock lock = EngineSyncUtility.getEngineLock(engineId);
 		lock.lock();
 		try {

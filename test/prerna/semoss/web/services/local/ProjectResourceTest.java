@@ -397,8 +397,7 @@ class ProjectResourceTest {
 
 			Response response = new ProjectResource().updateSmssFile(request, "p1");
 
-			assertBody(response, 409,
-					"\"" + ResourceUtility.ERROR_CODE + "\":\"" + SmssEditCopy.SMSS_CHANGED + "\"");
+			assertBody(response, 409, "\"" + ResourceUtility.ERROR_CODE + "\":\"" + SmssEditCopy.SMSS_CHANGED + "\"");
 			assertEquals(newer, Files.readString(smss));
 			verify(project, never()).close();
 		}
@@ -470,7 +469,8 @@ class ProjectResourceTest {
 			HttpServletRequest badBody = signedInRequest();
 			when(badBody.getReader()).thenReturn(new BufferedReader(new StringReader("[1,2]")));
 
-			assertBody(new ProjectResource().runReactor(unknown, "p1", "Missing"), 400, "Could not find custom reactor");
+			assertBody(new ProjectResource().runReactor(unknown, "p1", "Missing"), 400,
+					"Could not find custom reactor");
 			assertEquals(400, new ProjectResource().runReactor(badBody, "p1", "Hello").getStatus());
 		}
 	}
@@ -530,8 +530,9 @@ class ProjectResourceTest {
 		try (Statics s = new Statics()) {
 			assertBody(new ProjectResource().getProjectLandingPage(freshRequest(), signedInRequest(), "a/b"), 400,
 					"Invalid project id");
-			assertBody(new ProjectResource().getProjectLandingPage(freshRequest(), mock(HttpServletRequest.class),
-					"p1"), 401, "User session is invalid");
+			assertBody(
+					new ProjectResource().getProjectLandingPage(freshRequest(), mock(HttpServletRequest.class), "p1"),
+					401, "User session is invalid");
 			assertBody(new ProjectResource().getProjectLandingPage(freshRequest(), signedInRequest(), "p1"), 401,
 					"Project p1 does not exist or user does not have access");
 		}
@@ -599,8 +600,9 @@ class ProjectResourceTest {
 
 			assertEquals(200, response.getStatus());
 			assertEquals("console.log(1);", response.getEntity());
-			assertBody(new ProjectResource().downloadProjectAsset(freshRequest(), signedInRequest(), "p1",
-					"missing.js"), 404, "No file found");
+			assertBody(
+					new ProjectResource().downloadProjectAsset(freshRequest(), signedInRequest(), "p1", "missing.js"),
+					404, "No file found");
 		}
 	}
 
@@ -718,8 +720,9 @@ class ProjectResourceTest {
 			s.projects.when(() -> SecurityProjectUtils.userCanViewProject(this.user, "p1")).thenReturn(true);
 			s.utilityValues.put("getProject", project("Portal"));
 			Path version = Files.createDirectories(this.tempDir.resolve("version"));
-			s.engines.when(() -> EngineUtility.getSpecificEngineVersionFolder(IEngine.CATALOG_TYPE.PROJECT, "p1",
-					"Portal")).thenReturn(version.toString());
+			s.engines.when(
+					() -> EngineUtility.getSpecificEngineVersionFolder(IEngine.CATALOG_TYPE.PROJECT, "p1", "Portal"))
+					.thenReturn(version.toString());
 			File stockImage = Files.writeString(this.tempDir.resolve("stock.svg"), "<svg/>").toFile();
 			s.stock.when(() -> DefaultImageGeneratorUtil.getStockImageForPath(anyString(), any()))
 					.thenReturn(stockImage);
@@ -768,13 +771,12 @@ class ProjectResourceTest {
 			s.utilityValues.put("getProject", project("Portal"));
 			Path version = Files.createDirectories(this.tempDir.resolve("version"));
 			s.assets.when(() -> AssetUtility.getProjectVersionFolder("Portal", "p1")).thenReturn(version.toString());
-			File plain = Files.write(Files.createDirectories(version.resolve("i1")).resolve("image.png"), PNG)
-					.toFile();
+			File plain = Files.write(Files.createDirectories(version.resolve("i1")).resolve("image.png"), PNG).toFile();
 			Path paramFolder = Files.createDirectories(version.resolve("i1/params/region-east"));
 			File withParams = Files.write(paramFolder.resolve("image.png"), PNG).toFile();
 
-			Response noParams = new ProjectResource().downloadInsightImage(freshRequest(), signedInRequest(), "p1", "i1",
-					"undefined");
+			Response noParams = new ProjectResource().downloadInsightImage(freshRequest(), signedInRequest(), "p1",
+					"i1", "undefined");
 			Response params = new ProjectResource().downloadInsightImage(freshRequest(), signedInRequest(), "p1", "i1",
 					"region-east");
 
@@ -821,8 +823,8 @@ class ProjectResourceTest {
 	@Test
 	void answersNoSuchInsightForAnUnknownJdbcInsight() throws IOException {
 		try (Statics s = new Statics()) {
-			assertEquals("\"No such insight\"",
-					body(new ProjectResource().getJDBCJsonOutput(null, "missing", "SELECT 1", signedInRequest(), null)));
+			assertEquals("\"No such insight\"", body(
+					new ProjectResource().getJDBCJsonOutput(null, "missing", "SELECT 1", signedInRequest(), null)));
 			assertEquals("\"No such insight\"",
 					body(new ProjectResource().getJDBCCSVOutput(null, "missing", "SELECT 1", signedInRequest(), null)));
 		}
@@ -838,8 +840,8 @@ class ProjectResourceTest {
 			when(insight.query("SELECT * FROM FRAME_1", "FRAME_1")).thenReturn(output);
 			storeSessionInsight(s, insight);
 
-			String json = body(
-					new ProjectResource().getJDBCJsonOutput(null, "i1", "SELECT * FROM FRAME_1", signedInRequest(), null));
+			String json = body(new ProjectResource().getJDBCJsonOutput(null, "i1", "SELECT * FROM FRAME_1",
+					signedInRequest(), null));
 
 			assertTrue(json.contains("\"INSIGHT_INSTANCE\":\"i1\""), json);
 			assertTrue(json.contains("\"data\":[1]"), json);
@@ -855,8 +857,8 @@ class ProjectResourceTest {
 			when(insight.query(anyString(), eq(null))).thenReturn(new HashMap<>(Map.of("frame", "default")));
 			storeSessionInsight(s, insight);
 
-			String named = body(new ProjectResource().getJDBCJsonOutput(null, "i1",
-					"select a from costs where b > 1", signedInRequest(), null));
+			String named = body(new ProjectResource().getJDBCJsonOutput(null, "i1", "select a from costs where b > 1",
+					signedInRequest(), null));
 			String unnamed = body(new ProjectResource().getJDBCJsonOutput(null, "i1", "select 1 from other",
 					signedInRequest(), null));
 
@@ -923,8 +925,7 @@ class ProjectResourceTest {
 			when(insight.getRdbmsId()).thenReturn("abc-1");
 			storeSessionInsight(s, insight);
 
-			new ProjectResource().getJDBCOutput(null, "i1", "SELECT * FROM \"abc_1\".F", null, signedInRequest(),
-					null);
+			new ProjectResource().getJDBCOutput(null, "i1", "SELECT * FROM \"abc_1\".F", null, signedInRequest(), null);
 
 			verify(insight).query("SELECT * FROM F", null);
 		}

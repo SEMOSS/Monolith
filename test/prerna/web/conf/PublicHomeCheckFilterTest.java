@@ -47,6 +47,7 @@ import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -60,6 +61,8 @@ import jakarta.servlet.WriteListener;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import prerna.auth.AccessPermissionEnum;
+import prerna.auth.AuthProvider;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityProjectUtils;
 import prerna.project.api.IProject;
@@ -81,8 +84,8 @@ class PublicHomeCheckFilterTest {
 	private HttpServletResponse response;
 	private ByteArrayOutputStream body;
 	private StringWriter text;
-	private boolean global;
-	private boolean canView;
+	private boolean hasCustomLogin;
+	private AccessPermissionEnum level;
 
 	/**
 	 * Collects what the filter streams to the response.
@@ -127,8 +130,20 @@ class PublicHomeCheckFilterTest {
 		text = new StringWriter();
 		when(response.getOutputStream()).thenReturn(new CapturingOutputStream(body));
 		when(response.getWriter()).thenReturn(new PrintWriter(text));
-		global = true;
-		canView = false;
+		hasCustomLogin = true;
+		level = null;
+	}
+
+	private static User signedInUser() {
+		User user = mock(User.class);
+		when(user.getLogins()).thenReturn(List.of(AuthProvider.NATIVE));
+		return user;
+	}
+
+	private static HttpSession sessionOf(User user) {
+		HttpSession session = mock(HttpSession.class);
+		when(session.getAttribute(Constants.SESSION_USER)).thenReturn(user);
+		return session;
 	}
 
 	private HttpServletRequest request(String url, HttpSession session) {
@@ -146,9 +161,8 @@ class PublicHomeCheckFilterTest {
 				MockedStatic<SecurityProjectUtils> security = mockStatic(SecurityProjectUtils.class)) {
 			utility.when(Utility::getPublicHomeFolder).thenReturn("public_home");
 			utility.when(() -> Utility.getProject("p1")).thenReturn(project);
-			security.when(() -> SecurityProjectUtils.projectIsGlobal(anyString())).thenReturn(global);
-			security.when(() -> SecurityProjectUtils.userCanViewProject(any(), eq("p1")))
-					.thenReturn(canView);
+			security.when(() -> SecurityProjectUtils.projectHasCustomLogin(anyString())).thenReturn(hasCustomLogin);
+			security.when(() -> SecurityProjectUtils.getCurrentUserProjectLevel(any(), eq("p1"))).thenReturn(level);
 			new PublicHomeCheckFilter().doFilter(request, response, mock(FilterChain.class));
 		} catch (Exception | Error e) {
 			audit.close();
@@ -335,13 +349,12 @@ class PublicHomeCheckFilterTest {
 	}
 
 	@Test
-	void forbidsAPrivateProjectWithoutASession() throws Exception {
-		global = false;
+	void forbidsAVisitorWithoutASessionWhenTheProjectHasNoCustomLoginPage() throws Exception {
+		hasCustomLogin = false;
 
 		try (MockedStatic<UserAuditTrailUtils> audit = run(request(PORTAL_URL + "index.html", null))) {
-			audit.verify(() -> UserAuditTrailUtils.recordFailure(isNull(),
-					any(), any(), eq("p1"),
-					any(Throwable.class), eq(403)));
+			audit.verify(() -> UserAuditTrailUtils.recordFailure(isNull(), any(), any(), eq("p1"), any(Throwable.class),
+					eq(403)));
 		}
 
 		verify(response).setStatus(403);
@@ -350,12 +363,47 @@ class PublicHomeCheckFilterTest {
 	}
 
 	@Test
-	void forbidsAPrivateProjectToAUserWithoutAccess() throws Exception {
-		global = false;
-		HttpSession session = mock(HttpSession.class);
-		when(session.getAttribute(Constants.SESSION_USER)).thenReturn(mock(User.class));
+	void forbidsASessionWithNoUserWhenTheProjectHasNoCustomLoginPage() throws Exception {
+		hasCustomLogin = false;
 
-		serve(request(PORTAL_URL + "index.html", session));
+		serve(request(PORTAL_URL + "index.html", sessionOf(null)));
+
+		verify(response).setStatus(403);
+		assertTrue(text.toString().contains("You must be logged in to access this project."));
+		assertEquals("", bodyText());
+	}
+
+	@Test
+	void takesAUserWithNoLoginsAsSignedOut() throws Exception {
+		hasCustomLogin = false;
+		level = AccessPermissionEnum.READ_ONLY;
+		User user = mock(User.class);
+		when(user.getLogins()).thenReturn(List.of());
+
+		serve(request(PORTAL_URL + "index.html", sessionOf(user)));
+
+		verify(response).setStatus(403);
+		assertTrue(text.toString().contains("You must be logged in to access this project."));
+		assertEquals("", bodyText());
+	}
+
+	@Test
+	void servesASignedOutVisitorWhenTheProjectHasACustomLoginPage() throws Exception {
+		serve(request(PORTAL_URL + "index.html", sessionOf(null)));
+
+		verify(response, never()).setStatus(403);
+		assertEquals(CONTENT, bodyText());
+	}
+
+	@Test
+	void forbidsASignedInUserWhoCannotViewTheProject() throws Exception {
+		hasCustomLogin = false;
+		User user = signedInUser();
+
+		try (MockedStatic<UserAuditTrailUtils> audit = run(request(PORTAL_URL + "index.html", sessionOf(user)))) {
+			audit.verify(() -> UserAuditTrailUtils.recordFailure(eq(user), any(), any(), eq("p1"), any(Throwable.class),
+					eq(403)));
+		}
 
 		verify(response).setStatus(403);
 		assertTrue(text.toString().contains("You do not have access to this project."));
@@ -363,13 +411,20 @@ class PublicHomeCheckFilterTest {
 	}
 
 	@Test
-	void servesAPrivateProjectToAUserWithAccess() throws Exception {
-		global = false;
-		canView = true;
-		HttpSession session = mock(HttpSession.class);
-		when(session.getAttribute(Constants.SESSION_USER)).thenReturn(mock(User.class));
+	void forbidsASignedInUserWhoCannotViewTheProjectEvenWithACustomLoginPage() throws Exception {
+		serve(request(PORTAL_URL + "index.html", sessionOf(signedInUser())));
 
-		serve(request(PORTAL_URL + "index.html", session));
+		verify(response).setStatus(403);
+		assertTrue(text.toString().contains("You do not have access to this project."));
+		assertEquals("", bodyText());
+	}
+
+	@Test
+	void servesASignedInUserWhoCanViewTheProject() throws Exception {
+		hasCustomLogin = false;
+		level = AccessPermissionEnum.READ_ONLY;
+
+		serve(request(PORTAL_URL + "index.html", sessionOf(signedInUser())));
 
 		assertEquals(CONTENT, bodyText());
 	}

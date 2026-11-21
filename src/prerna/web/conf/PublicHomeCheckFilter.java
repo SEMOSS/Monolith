@@ -124,8 +124,9 @@ public class PublicHomeCheckFilter implements Filter {
 
 	/**
 	 * Publishes the project's portal when it needs it and serves the file asked
-	 * for. The visitor has passed the security checks, and a public project is
-	 * served to a visitor with no session, so this runs as a platform operation.
+	 * for. The visitor has passed the security checks, and a project with a login
+	 * page of its own is served to signed out visitors, so this runs as a platform
+	 * operation.
 	 *
 	 * @param projectId        the project whose portal is asked for
 	 * @param fullUrl          the full url of the request
@@ -210,35 +211,39 @@ public class PublicHomeCheckFilter implements Filter {
 	}
 
 	/**
-	 * Perform security checks for project access
-	 * 
-	 * @param projectId
-	 * @param session
-	 * @param response
-	 * @return
-	 * @throws IOException
+	 * Decides whether the visitor gets the project's portal. A signed in user gets
+	 * it when they can view the project now: it is public, or they have a grant in
+	 * effect on it, given to them directly or to a team they are in. A signed out
+	 * visitor, with no session or no user in it, gets it only when the project has
+	 * a login page of its own, for them to sign in there. Anyone else is refused,
+	 * and the refusal is recorded in the audit trail.
+	 *
+	 * @param projectId the project whose portal is asked for
+	 * @param session   the visitor's session, or null when they have none
+	 * @param request   the request
+	 * @param response  the response, which gets the refusal
+	 * @return true when the visitor may have the portal
+	 * @throws IOException when the refusal cannot be written
 	 */
 	private boolean performSecurityChecks(String projectId, HttpSession session, HttpServletRequest request,
 			HttpServletResponse response) throws IOException {
-		if (!SecurityProjectUtils.projectIsGlobal(projectId)) {
-			if (session != null) {
-				User user = (User) session.getAttribute(Constants.SESSION_USER);
-				if (!SecurityProjectUtils.userCanViewProject(user, projectId)) {
-					prerna.usertracking.UserAuditTrailUtils.recordFailure(user, AuditEventType.PROJECT_VIEW,
-							AuditTargetType.PROJECT, projectId, new IllegalAccessException("Project access denied"),
-							403);
-					sendError(request, response, HttpServletResponse.SC_FORBIDDEN,
-							"You do not have access to this project.");
-					return false;
-				}
-			} else {
-				prerna.usertracking.UserAuditTrailUtils.recordFailure(null, AuditEventType.PROJECT_VIEW,
-						AuditTargetType.PROJECT, projectId,
-						new IllegalAccessException("Project access requires authentication"), 403);
-				sendError(request, response, HttpServletResponse.SC_FORBIDDEN,
-						"You must be logged in to access this project.");
-				return false;
+		User user = session == null ? null : (User) session.getAttribute(Constants.SESSION_USER);
+		if (user == null || user.getLogins().isEmpty()) {
+			if (SecurityProjectUtils.projectHasCustomLogin(projectId)) {
+				return true;
 			}
+			prerna.usertracking.UserAuditTrailUtils.recordFailure(null, AuditEventType.PROJECT_VIEW,
+					AuditTargetType.PROJECT, projectId,
+					new IllegalAccessException("Project access requires authentication"), 403);
+			sendError(request, response, HttpServletResponse.SC_FORBIDDEN,
+					"You must be logged in to access this project.");
+			return false;
+		}
+		if (SecurityProjectUtils.getCurrentUserProjectLevel(user, projectId) == null) {
+			prerna.usertracking.UserAuditTrailUtils.recordFailure(user, AuditEventType.PROJECT_VIEW,
+					AuditTargetType.PROJECT, projectId, new IllegalAccessException("Project access denied"), 403);
+			sendError(request, response, HttpServletResponse.SC_FORBIDDEN, "You do not have access to this project.");
+			return false;
 		}
 		return true;
 	}

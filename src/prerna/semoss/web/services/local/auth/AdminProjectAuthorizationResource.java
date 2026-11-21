@@ -564,6 +564,36 @@ public class AdminProjectAuthorizationResource {
 				});
 	}
 
+	/**
+	 * Sets whether a project has a login page of its own in its portal, as an
+	 * admin, so its portal is served to signed out visitors for them to sign in
+	 * there.
+	 *
+	 * @param request the request
+	 * @param form    projectId, and customLogin as true or false
+	 * @return whether the flag was saved
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("setProjectCustomLogin")
+	public Response setProjectCustomLogin(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		String projectIdInput = form.getFirst("projectId");
+		String customLoginInput = form.getFirst("customLogin");
+		String projectId = WebUtility.inputSQLSanitizer(projectIdInput);
+		boolean hasCustomLogin = Boolean.parseBoolean(customLoginInput);
+		return ResourceUtility.respondAsAdmin(request, "set whether project " + projectId + " has its own login page",
+				SecurityAdminUtils::getInstance, (user, adminUtils) -> {
+					boolean validCustomLogin = "true".equalsIgnoreCase(customLoginInput)
+							|| "false".equalsIgnoreCase(customLoginInput);
+					if (projectIdInput == null || projectIdInput.trim().isEmpty() || !validCustomLogin) {
+						throw new IllegalArgumentException(
+								"projectId and a true or false customLogin value are required");
+					}
+					adminUtils.setProjectCustomLogin(projectId, hasCustomLogin);
+					return success();
+				});
+	}
+
 	@POST
 	@Produces("application/json")
 	@Path("setProjectGlobal")
