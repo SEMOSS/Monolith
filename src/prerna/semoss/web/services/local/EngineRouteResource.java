@@ -64,6 +64,7 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Request;
 import jakarta.ws.rs.core.Response;
 import prerna.auth.User;
+import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityEngineUtils;
 import prerna.cluster.util.ClusterUtil;
 import prerna.engine.api.IEngine;
@@ -189,7 +190,8 @@ public class EngineRouteResource {
 	 * with a best-effort rollback to the previous contents if reopening the engine
 	 * with the new file fails.
 	 * <p>
-	 * On success this also pushes the updated smss to cloud storage (when in a
+	 * On success this also saves a changed {@code ENGINE_DISPLAY_NAME} to the
+	 * security database, pushes the updated smss to cloud storage (when in a
 	 * cluster), records a notification, and emails the user.
 	 *
 	 * @param request  the incoming HTTP request (provides the user session and the
@@ -232,7 +234,7 @@ public class EngineRouteResource {
 		}
 
 		try {
-			return WebUtility.getResponse(saveSmssFile(user, engineId, request.getParameter("smss"),
+			return WebUtility.getResponse(saveSmssFile(user, null, engineId, request.getParameter("smss"),
 					request.getParameter(SmssEditCopy.SMSS_HASH)), 200);
 		} catch (ContentChangedException e) {
 			return ResourceUtility.changedResponse(e);
@@ -249,10 +251,16 @@ public class EngineRouteResource {
 	 * engine's id, name and type stay as they are, and the hidden values the new
 	 * content left untouched are kept. With a secret store the values go there;
 	 * otherwise the smss file is written, and put back as it was when the engine
-	 * does not open with the new content. The caller has checked that the user may
-	 * update the engine: its owner, or an admin through the admin endpoint.
+	 * does not open with the new content. Once the save goes through, a changed
+	 * {@code ENGINE_DISPLAY_NAME} is also saved to the security database, which
+	 * catalog listings, page headers and search read the name from. The caller has
+	 * checked that the user may update the engine: its owner, or an admin through
+	 * the admin endpoint.
 	 *
 	 * @param user           the user saving the smss, for the notification
+	 * @param adminUtils     the admin utilities when an admin saves through the
+	 *                       admin endpoint, which saves a changed display name in
+	 *                       admin mode; null when the engine's owner saves
 	 * @param engineId       the engine
 	 * @param newSmssContent the new content of the smss file
 	 * @param smssHash       the hash that came with the copy the user edited
@@ -263,18 +271,19 @@ public class EngineRouteResource {
 	 * @throws IllegalArgumentException when the content cannot be saved or no hash
 	 *                                  is given, with the reason
 	 */
-	public static Map<String, Object> saveSmssFile(User user, String engineId, String newSmssContent, String smssHash) {
+	public static Map<String, Object> saveSmssFile(User user, SecurityAdminUtils adminUtils, String engineId,
+			String newSmssContent, String smssHash) {
 		ReentrantLock lock = EngineSyncUtility.getEngineLock(engineId);
 		lock.lock();
 		try {
-			return saveSmssFileWhileLocked(user, engineId, newSmssContent, smssHash);
+			return saveSmssFileWhileLocked(user, adminUtils, engineId, newSmssContent, smssHash);
 		} finally {
 			lock.unlock();
 		}
 	}
 
-	private static Map<String, Object> saveSmssFileWhileLocked(User user, String engineId, String newSmssContent,
-			String smssHash) {
+	private static Map<String, Object> saveSmssFileWhileLocked(User user, SecurityAdminUtils adminUtils,
+			String engineId, String newSmssContent, String smssHash) {
 		IEngine engine = Utility.getEngine(engineId);
 		String currentSmssFileLocation = engine.getSmssFilePath();
 		File currentSmssFile = new File(currentSmssFileLocation);
@@ -284,6 +293,8 @@ public class EngineRouteResource {
 		SmssEditCopy.requireCurrent(engine, smssHash);
 
 		Properties currentSmssProperties = engine.getSmssProp();
+		String oldDisplayName = currentSmssProperties.getProperty(Constants.ENGINE_DISPLAY_NAME);
+		String newDisplayName;
 
 		// validate the new SMSS
 		// that the user is not doing something they cannot do
@@ -295,6 +306,7 @@ public class EngineRouteResource {
 					|| !newProp.get(Constants.ENGINE_TYPE).equals(currentSmssProperties.get(Constants.ENGINE_TYPE))) {
 				throw new IllegalArgumentException("The engine id, engine name, and engine type cannot be changed");
 			}
+			newDisplayName = newProp.getProperty(Constants.ENGINE_DISPLAY_NAME);
 		}
 
 		// this section is for secrets
@@ -328,6 +340,7 @@ public class EngineRouteResource {
 						"An error occurred re-connecting to the engine with the new credentials. Detailed message = "
 								+ e.getMessage());
 			}
+			syncDisplayNameToSecurityDb(user, adminUtils, engineId, oldDisplayName, newDisplayName);
 
 			// the smss file is unchanged and the new values live in the secret store, so
 			// the other nodes only need to close the engine to read them on next use
@@ -392,6 +405,7 @@ public class EngineRouteResource {
 			throw new IllegalArgumentException(
 					"An error occurred initializing the new engine details. Detailed message = " + e.getMessage());
 		}
+		syncDisplayNameToSecurityDb(user, adminUtils, engineId, oldDisplayName, newDisplayName);
 
 		// push to cloud
 		ClusterUtil.pushEngineSmss(engineId, engine.getCatalogType());
@@ -410,6 +424,38 @@ public class EngineRouteResource {
 		success.put("success", true);
 		success.put(SmssEditCopy.SMSS_HASH, SmssEditCopy.read(engine).getSmssHash());
 		return success;
+	}
+
+	/**
+	 * Saves the display name from a saved smss to the security database, where
+	 * catalog listings, page headers and search read it, when the
+	 * {@code ENGINE_DISPLAY_NAME} value changed and is not blank. The smss is
+	 * already saved when this runs, so a failure is logged and the save still goes
+	 * through.
+	 *
+	 * @param user           the user who saved the smss
+	 * @param adminUtils     the admin utilities for an admin's save, or null for
+	 *                       the owner's
+	 * @param engineId       the engine
+	 * @param oldDisplayName the display name in the smss before the save
+	 * @param newDisplayName the display name in the saved smss
+	 */
+	private static void syncDisplayNameToSecurityDb(User user, SecurityAdminUtils adminUtils, String engineId,
+			String oldDisplayName, String newDisplayName) {
+		if (newDisplayName == null || newDisplayName.isBlank() || newDisplayName.equals(oldDisplayName)) {
+			return;
+		}
+		try {
+			if (adminUtils != null) {
+				adminUtils.setEngineDisplayName(engineId, newDisplayName);
+			} else {
+				SecurityEngineUtils.setEngineDisplayName(user, engineId, newDisplayName);
+			}
+		} catch (Exception e) {
+			classLogger.error(
+					"Saved the smss of engine {} but could not save its display name to the security database",
+					engineId, e);
+		}
 	}
 
 	/*

@@ -493,6 +493,97 @@ class EngineRouteResourceTest {
 	}
 
 	@Test
+	void savesAChangedDisplayNameAsTheOwner() throws Exception {
+		try (Statics s = new Statics()) {
+			SecurityAdminUtils adminUtils = mock(SecurityAdminUtils.class);
+			s.admin.when(() -> SecurityAdminUtils.getInstance(this.user)).thenReturn(adminUtils);
+			s.security.when(() -> SecurityEngineUtils.userIsOwner(this.user, "db1")).thenReturn(true);
+			IEngine engine = engineWithSmss(this.tempDir.resolve("db1.smss"));
+			s.utilityValues.put("getEngine", engine);
+			s.utilityValues.put("isNotificationDatabaseEnabled", false);
+
+			Response response = new EngineRouteResource()
+					.updateSmssFile(smssRequest(CURRENT_SMSS + "ENGINE_DISPLAY_NAME\tSales Data\n"), "db1");
+
+			assertBody(response, 200, "\"success\":true");
+			s.security.verify(() -> SecurityEngineUtils.setEngineDisplayName(this.user, "db1", "Sales Data"));
+			Mockito.verifyNoInteractions(adminUtils);
+		}
+	}
+
+	@Test
+	void leavesTheDisplayNameAloneWhenTheSaveKeepsItOrLeavesItBlank() throws Exception {
+		try (Statics s = new Statics()) {
+			s.security.when(() -> SecurityEngineUtils.userIsOwner(this.user, "db1")).thenReturn(true);
+			IEngine engine = engineWithSmss(this.tempDir.resolve("db1.smss"));
+			engine.getSmssProp().put(Constants.ENGINE_DISPLAY_NAME, "Sales Data");
+			s.utilityValues.put("getEngine", engine);
+			s.utilityValues.put("isNotificationDatabaseEnabled", false);
+
+			for (String saved : new String[] { CURRENT_SMSS, CURRENT_SMSS + "ENGINE_DISPLAY_NAME\tSales Data\n",
+					CURRENT_SMSS + "ENGINE_DISPLAY_NAME\t \n" }) {
+				assertEquals(200, new EngineRouteResource().updateSmssFile(smssRequest(saved), "db1").getStatus());
+			}
+			s.security.verify(() -> SecurityEngineUtils.setEngineDisplayName(any(), any(), any()), never());
+		}
+	}
+
+	@Test
+	void savesTheDisplayNameInAdminModeForAnAdminSave() throws Exception {
+		try (Statics s = new Statics()) {
+			IEngine engine = engineWithSmss(this.tempDir.resolve("db1.smss"));
+			s.utilityValues.put("getEngine", engine);
+			s.utilityValues.put("isNotificationDatabaseEnabled", false);
+			SecurityAdminUtils adminUtils = mock(SecurityAdminUtils.class);
+
+			EngineRouteResource.saveSmssFile(this.user, adminUtils, "db1",
+					CURRENT_SMSS + "ENGINE_DISPLAY_NAME\tSales Data\n", SmssEditCopy.read(engine).getSmssHash());
+
+			verify(adminUtils).setEngineDisplayName("db1", "Sales Data");
+			s.security.verify(() -> SecurityEngineUtils.setEngineDisplayName(any(), any(), any()), never());
+		}
+	}
+
+	@Test
+	void keepsTheSavedSmssWhenTheDisplayNameCannotBeSaved() throws Exception {
+		try (Statics s = new Statics()) {
+			s.security.when(() -> SecurityEngineUtils.userIsOwner(this.user, "db1")).thenReturn(true);
+			s.security.when(() -> SecurityEngineUtils.setEngineDisplayName(this.user, "db1", "Sales Data"))
+					.thenThrow(new IllegalArgumentException("An error occurred updating the engine display name"));
+			Path smss = this.tempDir.resolve("db1.smss");
+			IEngine engine = engineWithSmss(smss);
+			s.utilityValues.put("getEngine", engine);
+			s.utilityValues.put("isNotificationDatabaseEnabled", false);
+			String updated = CURRENT_SMSS + "ENGINE_DISPLAY_NAME\tSales Data\n";
+
+			Response response = new EngineRouteResource().updateSmssFile(smssRequest(updated), "db1");
+
+			assertBody(response, 200, "\"success\":true");
+			assertEquals(updated, Files.readString(smss));
+			s.cluster.verify(() -> ClusterUtil.pushEngineSmss("db1", IEngine.CATALOG_TYPE.DATABASE));
+		}
+	}
+
+	@Test
+	void savesAChangedDisplayNameWrittenToTheSecretStore() throws Exception {
+		try (Statics s = new Statics()) {
+			s.security.when(() -> SecurityEngineUtils.userIsOwner(this.user, "db1")).thenReturn(true);
+			IEngine engine = engineWithSmss(this.tempDir.resolve("db1.smss"));
+			s.utilityValues.put("getEngine", engine);
+			ISecrets store = mock(ISecrets.class);
+			when(store.getEngineSecrets(IEngine.CATALOG_TYPE.DATABASE, "db1", "Sales"))
+					.thenReturn(Map.of("PASSWORD", "vaulted"));
+			s.secrets.when(SecretsFactory::getSecretConnector).thenReturn(store);
+
+			Response response = new EngineRouteResource()
+					.updateSmssFile(smssRequest(CURRENT_SMSS + "ENGINE_DISPLAY_NAME\tSales Data\n"), "db1");
+
+			assertBody(response, 200, "\"success\":true");
+			s.security.verify(() -> SecurityEngineUtils.setEngineDisplayName(this.user, "db1", "Sales Data"));
+		}
+	}
+
+	@Test
 	void answers400WhenTheSecretStoreRejectsTheUpdate() throws Exception {
 		try (Statics s = new Statics()) {
 			s.security.when(() -> SecurityEngineUtils.userIsOwner(this.user, "db1")).thenReturn(true);
