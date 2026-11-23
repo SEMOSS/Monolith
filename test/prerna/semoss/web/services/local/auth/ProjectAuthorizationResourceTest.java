@@ -68,6 +68,7 @@ import prerna.auth.access.ModelUsageLimit;
 import prerna.auth.utils.AbstractSecurityUtils;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityModelUsageLimitUtils;
+import prerna.auth.utils.SecurityCatalogDependencyUtils;
 import prerna.auth.utils.SecurityProjectUtils;
 import prerna.graph.utility.MsGraphUtility;
 import prerna.io.connector.ms.MicrosoftGraphUserLookup;
@@ -289,10 +290,10 @@ class ProjectAuthorizationResourceTest {
 							form("projectId", "p1", "userpermissions", "[]")),
 					resource.removeProjectUserPermission(requestFor(user), form("id", "bob", "projectId", "p1")),
 					resource.removeProjectUserPermissions(requestFor(user), form("projectId", "p1", "ids", "[]")),
-					resource.propagateProjectDependencyPermission(requestFor(user),
-							form("id", "bob", "type", "NATIVE", "projectId", "p1", "permission", "EDIT")),
-					resource.propagateProjectDependencyPermissions(requestFor(user),
-							form("projectId", "p1", "userpermissions", "[]")),
+					resource.propagateCatalogDependencyPermission(requestFor(user),
+							form("id", "bob", "type", "NATIVE", "catalogId", "p1", "permission", "EDIT")),
+					resource.propagateCatalogDependencyPermissions(requestFor(user),
+							form("catalogId", "p1", "userpermissions", "[]")),
 					resource.approveProjectUserAccessRequest(requestFor(user),
 							form("projectId", "p1", "requests", "[]")),
 					resource.denyProjectUserAccessRequest(requestFor(user),
@@ -409,17 +410,17 @@ class ProjectAuthorizationResourceTest {
 		try (Statics statics = new Statics()) {
 			statics.project.when(() -> SecurityProjectUtils.userCanEditProject(user, "p1")).thenReturn(false);
 
-			Response one = resource.propagateProjectDependencyPermission(requestFor(user),
-					form("id", "bob", "type", "NATIVE", "projectId", "p1", "permission", "OWNER"));
-			Response many = resource.propagateProjectDependencyPermissions(requestFor(user), form("projectId", "p1",
+			Response one = resource.propagateCatalogDependencyPermission(requestFor(user),
+					form("id", "bob", "type", "NATIVE", "catalogId", "p1", "permission", "OWNER"));
+			Response many = resource.propagateCatalogDependencyPermissions(requestFor(user), form("catalogId", "p1",
 					"userpermissions", "[{\"userid\":\"bob\",\"type\":\"NATIVE\",\"permission\":\"OWNER\"}]"));
 
 			for (Response response : List.of(one, many)) {
 				assertEquals(403, response.getStatus());
 				assertEquals("Project p1 does not exist or user does not have access to edit it", errorOf(response));
 			}
-			statics.project.verify(
-					() -> SecurityProjectUtils.propagateProjectPermission(any(), any(), any(), any(), any(), any()),
+			statics.catalog.verify(
+					() -> SecurityCatalogDependencyUtils.propagatePermission(any(), any(), any(), any(), any(), any()),
 					never());
 		}
 	}
@@ -436,10 +437,10 @@ class ProjectAuthorizationResourceTest {
 							form("id", "bob", "projectId", "p1", "permission", level)),
 					resource.editProjectUserPermission(requestFor(user),
 							form("id", "bob", "type", "NATIVE", "projectId", "p1", "permission", level)),
-					resource.propagateProjectDependencyPermission(requestFor(user),
-							form("id", "bob", "type", "NATIVE", "projectId", "p1", "permission", level)),
-					resource.propagateProjectDependencyPermissions(requestFor(user),
-							form("projectId", "p1", "userpermissions", rows)),
+					resource.propagateCatalogDependencyPermission(requestFor(user),
+							form("id", "bob", "type", "NATIVE", "catalogId", "p1", "permission", level)),
+					resource.propagateCatalogDependencyPermissions(requestFor(user),
+							form("catalogId", "p1", "userpermissions", rows)),
 					resource.addProjectUserPermissions(requestFor(user),
 							form("projectId", "p1", "userpermissions", rows)),
 					resource.editProjectUserPermissions(requestFor(user),
@@ -452,8 +453,8 @@ class ProjectAuthorizationResourceTest {
 				assertEquals("The permission must be OWNER, EDIT or READ_ONLY. Received value = " + level,
 						errorOf(response));
 			}
-			statics.project.verify(
-					() -> SecurityProjectUtils.propagateProjectPermission(any(), any(), any(), any(), any(), any()),
+			statics.catalog.verify(
+					() -> SecurityCatalogDependencyUtils.propagatePermission(any(), any(), any(), any(), any(), any()),
 					never());
 			statics.project.verify(() -> SecurityProjectUtils.addProjectUser(any(), any(), any(), any(), any()),
 					never());
@@ -483,11 +484,11 @@ class ProjectAuthorizationResourceTest {
 		User user = signedIn("alice");
 		Map<String, Object> outcome = Map.of("accessGranted", List.of("m1"));
 		try (Statics statics = new Statics()) {
-			statics.project.when(() -> SecurityProjectUtils.propagateProjectPermission(user, "p1", "bob", "NATIVE",
+			statics.catalog.when(() -> SecurityCatalogDependencyUtils.propagatePermission(user, "p1", "bob", "NATIVE",
 					"READ_ONLY", "2027-01-01")).thenReturn(outcome);
 
-			Response response = resource.propagateProjectDependencyPermission(requestFor(user), form("id", "bob",
-					"type", "NATIVE", "projectId", "p1", "permission", "READ_ONLY", "endDate", "2027-01-01"));
+			Response response = resource.propagateCatalogDependencyPermission(requestFor(user), form("id", "bob",
+					"type", "NATIVE", "catalogId", "p1", "permission", "READ_ONLY", "endDate", "2027-01-01"));
 
 			assertEquals(200, response.getStatus());
 			assertEquals(Map.of("accessGranted", List.of("m1")), body(response));
@@ -502,11 +503,11 @@ class ProjectAuthorizationResourceTest {
 		try (Statics statics = new Statics()) {
 			statics.limits.when(() -> SecurityModelUsageLimitUtils.readJson("{}")).thenReturn(limit);
 
-			Response response = resource.propagateProjectDependencyPermission(requestFor(user), form("id", "bob",
-					"type", "NATIVE", "projectId", "p1", "permission", "READ_ONLY", "usageLimit", "{}"));
+			Response response = resource.propagateCatalogDependencyPermission(requestFor(user), form("id", "bob",
+					"type", "NATIVE", "catalogId", "p1", "permission", "READ_ONLY", "usageLimit", "{}"));
 
 			assertEquals(200, response.getStatus());
-			statics.project.verify(() -> SecurityProjectUtils.propagateProjectPermission(user, "p1", "bob", "NATIVE",
+			statics.catalog.verify(() -> SecurityCatalogDependencyUtils.propagatePermission(user, "p1", "bob", "NATIVE",
 					"READ_ONLY", null, limit));
 		}
 	}
@@ -519,13 +520,13 @@ class ProjectAuthorizationResourceTest {
 				+ "{\"userid\":\"carol\",\"type\":\"LDAP\",\"permission\":\"READ_ONLY\"}]";
 		try (Statics statics = new Statics()) {
 			statics.limits.when(() -> SecurityModelUsageLimitUtils.readJson("{\"unlimited\":true}")).thenReturn(limit);
-			statics.project.when(() -> SecurityProjectUtils.propagateProjectPermission(user, "p1", "bob", "NATIVE",
+			statics.catalog.when(() -> SecurityCatalogDependencyUtils.propagatePermission(user, "p1", "bob", "NATIVE",
 					"EDIT", null, limit)).thenReturn(Map.of("accessGranted", List.of("m1")));
-			statics.project.when(() -> SecurityProjectUtils.propagateProjectPermission(user, "p1", "carol", "LDAP",
+			statics.catalog.when(() -> SecurityCatalogDependencyUtils.propagatePermission(user, "p1", "carol", "LDAP",
 					"READ_ONLY", null)).thenReturn(Map.of("newRequestAdded", List.of("m1")));
 
-			Response response = resource.propagateProjectDependencyPermissions(requestFor(user),
-					form("projectId", "p1", "userpermissions", rows));
+			Response response = resource.propagateCatalogDependencyPermissions(requestFor(user),
+					form("catalogId", "p1", "userpermissions", rows));
 
 			assertEquals(200, response.getStatus());
 			Map<?, ?> payload = (Map<?, ?>) body(response);
@@ -543,10 +544,10 @@ class ProjectAuthorizationResourceTest {
 		try (Statics statics = new Statics()) {
 			statics.limits.when(() -> SecurityModelUsageLimitUtils.readJson("{}")).thenReturn(limit);
 
-			resource.propagateProjectDependencyPermissions(requestFor(user),
-					form("projectId", "p1", "userpermissions", rows));
+			resource.propagateCatalogDependencyPermissions(requestFor(user),
+					form("catalogId", "p1", "userpermissions", rows));
 
-			statics.project.verify(() -> SecurityProjectUtils.propagateProjectPermission(user, "p1", "bob", "NATIVE",
+			statics.catalog.verify(() -> SecurityCatalogDependencyUtils.propagatePermission(user, "p1", "bob", "NATIVE",
 					"EDIT", null, limit));
 		}
 	}
@@ -558,11 +559,11 @@ class ProjectAuthorizationResourceTest {
 		try (Statics statics = new Statics()) {
 			statics.limits.when(() -> SecurityModelUsageLimitUtils.readJson(anyString())).thenCallRealMethod();
 
-			Response response = resource.propagateProjectDependencyPermissions(requestFor(user),
-					form("projectId", "p1", "userpermissions", rows));
+			Response response = resource.propagateCatalogDependencyPermissions(requestFor(user),
+					form("catalogId", "p1", "userpermissions", rows));
 
 			assertEquals(400, response.getStatus());
-			statics.project.verify(() -> SecurityProjectUtils.propagateProjectPermission(any(), any(), any(), any(),
+			statics.catalog.verify(() -> SecurityCatalogDependencyUtils.propagatePermission(any(), any(), any(), any(),
 					any(), any(), any()), never());
 		}
 	}
@@ -822,6 +823,8 @@ class ProjectAuthorizationResourceTest {
 		private final MockedStatic<AbstractSecurityUtils> security = Mockito.mockStatic(AbstractSecurityUtils.class);
 		private final MockedStatic<SecurityAdminUtils> admin = Mockito.mockStatic(SecurityAdminUtils.class);
 		private final MockedStatic<SecurityProjectUtils> project = Mockito.mockStatic(SecurityProjectUtils.class);
+		private final MockedStatic<SecurityCatalogDependencyUtils> catalog = Mockito
+				.mockStatic(SecurityCatalogDependencyUtils.class);
 		private final MockedStatic<SecurityModelUsageLimitUtils> limits = Mockito
 				.mockStatic(SecurityModelUsageLimitUtils.class);
 		private final MockedStatic<MicrosoftGraphUserLookup> directory = Mockito
@@ -831,6 +834,8 @@ class ProjectAuthorizationResourceTest {
 		private Statics() {
 			// propagation needs edit access to the project; yes unless a test says no
 			project.when(() -> SecurityProjectUtils.userCanEditProject(any(), anyString())).thenReturn(true);
+			// the dependencies propagated are a project's unless a test says otherwise
+			catalog.when(() -> SecurityCatalogDependencyUtils.resolveCatalogType(anyString(), any())).thenReturn("CODE");
 		}
 
 		@Override
@@ -838,6 +843,7 @@ class ProjectAuthorizationResourceTest {
 			graph.close();
 			directory.close();
 			limits.close();
+			catalog.close();
 			project.close();
 			admin.close();
 			security.close();

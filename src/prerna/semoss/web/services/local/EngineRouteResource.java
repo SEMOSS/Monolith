@@ -27,6 +27,7 @@
  *******************************************************************************/
 package prerna.semoss.web.services.local;
 
+import prerna.auth.utils.CatalogDependencyDerivation;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.FileWriter;
@@ -340,6 +341,9 @@ public class EngineRouteResource {
 						"An error occurred re-connecting to the engine with the new credentials. Detailed message = "
 								+ e.getMessage());
 			}
+			// the smss may name a different judge model, vector database or embedder; recorded
+			// first, since the engine is open with it now and the steps after can fail
+			CatalogDependencyDerivation.syncSmss(user, engineId, engine.getCatalogType().name(), engine.getSmssProp());
 			syncDisplayNameToSecurityDb(user, adminUtils, engineId, oldDisplayName, newDisplayName);
 
 			// the smss file is unchanged and the new values live in the secret store, so
@@ -405,6 +409,9 @@ public class EngineRouteResource {
 			throw new IllegalArgumentException(
 					"An error occurred initializing the new engine details. Detailed message = " + e.getMessage());
 		}
+		// the smss may name a different judge model, vector database or embedder; recorded
+		// first, since the engine is open with it now and the steps after can fail
+		CatalogDependencyDerivation.syncSmss(user, engineId, engine.getCatalogType().name(), engine.getSmssProp());
 		syncDisplayNameToSecurityDb(user, adminUtils, engineId, oldDisplayName, newDisplayName);
 
 		// push to cloud
