@@ -87,6 +87,8 @@ class AppTestPreviewServletUnitTests {
         when(request.getInputStream()).thenReturn(body("expression=unsupported"));
         when(response.getWriter()).thenReturn(new PrintWriter(output));
         when(environment.execute("expression=unsupported")).thenThrow(new SecurityException("UNMAPPED_TEST_DATABASE"));
+        when(environment.pixelError()).thenReturn(Map.of("pixelReturn", java.util.List.of(Map.of(
+                "operationType", java.util.List.of("ERROR"), "output", "UNMAPPED_TEST_DATABASE"))));
         try (var contexts = mockStatic(AppTestEnvironment.class)) {
             contexts.when(() -> AppTestEnvironment.authenticate(ID, SECRET)).thenReturn(environment);
             new AppTestPreviewServlet().service(request, response);
@@ -108,6 +110,50 @@ class AppTestPreviewServletUnitTests {
             new AppTestPreviewServlet().service(request, response);
             verify(response).sendError(413);
             verify(environment, never()).execute(anyString());
+        }
+    }
+
+    @Test void exposesOnlyCapabilityScopedDiagnostics() throws Exception {
+        var request = mock(HttpServletRequest.class);
+        var response = mock(HttpServletResponse.class);
+        var environment = mock(AppTestEnvironment.class);
+        var output = new StringWriter();
+        when(request.getPathInfo()).thenReturn("/" + ID + "/" + SECRET + "/api/test-diagnostics");
+        when(request.getMethod()).thenReturn("GET");
+        when(response.getWriter()).thenReturn(new PrintWriter(output));
+        when(environment.diagnostics()).thenReturn(java.util.List.of(Map.of("code", "TEST_PREVIEW_ASSET_MISSING", "path", "sdk/index.mjs")));
+        try (var contexts = mockStatic(AppTestEnvironment.class)) {
+            contexts.when(() -> AppTestEnvironment.authenticate(ID, SECRET)).thenReturn(environment);
+            new AppTestPreviewServlet().service(request, response);
+            assertTrue(output.toString().contains("sdk/index.mjs"));
+            assertFalse(output.toString().contains(SECRET));
+        }
+    }
+
+    @Test void retainsMissingAssetDetailsForManualPreviews() throws Exception {
+        var request = mock(HttpServletRequest.class);
+        var response = mock(HttpServletResponse.class);
+        var environment = mock(AppTestEnvironment.class);
+        when(request.getPathInfo()).thenReturn("/" + ID + "/" + SECRET + "/sdk/missing.mjs");
+        when(request.getMethod()).thenReturn("GET");
+        when(request.getContextPath()).thenReturn("/Monolith");
+        try (var contexts = mockStatic(AppTestEnvironment.class)) {
+            contexts.when(() -> AppTestEnvironment.authenticate(ID, SECRET)).thenReturn(environment);
+            new AppTestPreviewServlet().service(request, response);
+            verify(environment).blockedRequest("GET", "/sdk/missing.mjs", "ASSET", "TEST_PREVIEW_ASSET_MISSING");
+            verify(response).sendError(eq(404), anyString());
+        }
+    }
+
+    @Test void discoversSharedSdkFromTheExistingSiblingFrontendDeployment() throws Exception {
+        var config = mock(jakarta.servlet.ServletConfig.class);
+        var context = mock(jakarta.servlet.ServletContext.class);
+        when(config.getServletContext()).thenReturn(context);
+        when(context.getRealPath("/")).thenReturn("/deployment/webapps/Monolith/");
+        try (var utility = mockStatic(prerna.util.Utility.class); var environments = mockStatic(AppTestEnvironment.class)) {
+            utility.when(prerna.util.Utility::getFEWebAppName).thenReturn("frontend");
+            new AppTestPreviewServlet().init(config);
+            environments.verify(() -> AppTestEnvironment.loadPlatformSdk(java.nio.file.Path.of("/deployment/webapps/frontend/libs/sdk/dist")));
         }
     }
 

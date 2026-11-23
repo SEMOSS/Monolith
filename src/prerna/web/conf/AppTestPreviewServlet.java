@@ -30,17 +30,20 @@ package prerna.web.conf;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
+import java.nio.file.Path;
+
 import java.util.Map;
 import java.util.regex.Pattern;
 
 import com.google.gson.Gson;
 
+import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import prerna.reactor.apptest.AppTestEnvironment;
 import prerna.reactor.apptest.RegressionPixelAccess;
+import prerna.util.Utility;
 
 /** Capability-scoped manual preview. Ordinary API/session requests are never delegated from here. */
 public final class AppTestPreviewServlet extends HttpServlet {
@@ -48,6 +51,21 @@ public final class AppTestPreviewServlet extends HttpServlet {
     private static final String UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
     private static final Pattern PATH = Pattern.compile("/(" + UUID + ")/(" + UUID + "-" + UUID + ")/(.*)");
     private static final Gson JSON = new Gson();
+
+    @Override
+    public void init() throws ServletException {
+        super.init();
+        // Existing exploded frontend deployment; no operator path or JVM configuration is required.
+        String deployedRoot = getServletContext().getRealPath("/");
+        String frontend = Utility.getFEWebAppName();
+        try {
+            Path sdk = deployedRoot != null && frontend.matches("[A-Za-z0-9_-]+")
+                    ? Path.of(deployedRoot).resolveSibling(frontend).resolve("libs/sdk/dist") : null;
+            AppTestEnvironment.loadPlatformSdk(sdk);
+        } catch (IOException failure) {
+            getServletContext().log("Shared SDK snapshot is unavailable to app test previews", failure);
+        }
+    }
 
     @Override
     public void destroy() {
@@ -68,30 +86,40 @@ public final class AppTestPreviewServlet extends HttpServlet {
             if ("POST".equals(request.getMethod()) && "api/engine/runPixel".equals(path)) {
                 if (request.getContentType() == null || !request.getContentType().split(";", 2)[0].trim()
                         .equalsIgnoreCase("application/x-www-form-urlencoded")) {
-                    response.sendError(415, "Send an SDK URL-encoded expression"); return;
+                    environment.blockedRequest(request.getMethod(), path, "fetch", "TEST_PREVIEW_REQUEST_INVALID");
+                    response.sendError(415, "Send an SDK URL-encoded expression; inspect api/test-diagnostics"); return;
                 }
                 byte[] body = request.getInputStream().readNBytes(RegressionPixelAccess.MAX_REQUEST_BYTES + 1);
-                if (body.length > RegressionPixelAccess.MAX_REQUEST_BYTES) { response.sendError(413); return; }
+                if (body.length > RegressionPixelAccess.MAX_REQUEST_BYTES) {
+                    environment.blockedRequest(request.getMethod(), path, "fetch", "TEST_PREVIEW_REQUEST_TOO_LARGE");
+                    response.sendError(413); return;
+                }
                 response.setContentType("application/json;charset=UTF-8");
                 try { JSON.toJson(environment.execute(new String(body, StandardCharsets.UTF_8)), response.getWriter()); }
                 catch (IllegalArgumentException | SecurityException | IllegalStateException failure) {
-                    // Preserve the SDK error envelope so apps can show the actual unsupported-operation reason.
-                    JSON.toJson(Map.of("insightID", "new", "pixelReturn", List.of(Map.of(
-                            "isMeta", true, "pixelId", "0", "pixelExpression", "", "timeToRun", 0,
-                            "operationType", List.of("ERROR"), "output", failure.getMessage()))), response.getWriter());
+                    JSON.toJson(environment.pixelError(), response.getWriter());
                 }
             } else if ("GET".equals(request.getMethod()) && "api/config".equals(path)) {
                 response.setContentType("application/json;charset=UTF-8");
                 JSON.toJson(environment.sdkConfig(), response.getWriter());
-            } else if ("GET".equals(request.getMethod()) && path.startsWith("public_home/")) {
+            } else if ("GET".equals(request.getMethod()) && "api/test-diagnostics".equals(path)) {
+                response.setContentType("application/json;charset=UTF-8");
+                JSON.toJson(Map.of("diagnostics", environment.diagnostics()), response.getWriter());
+            } else if ("GET".equals(request.getMethod()) && (path.startsWith("public_home/") || path.startsWith("sdk/"))) {
                 AppTestEnvironment.Asset asset = environment.asset(path, request.getContextPath());
-                if (asset == null) { response.sendError(404); return; }
+                if (asset == null) {
+                    environment.blockedRequest(request.getMethod(), "/" + path, "ASSET", "TEST_PREVIEW_ASSET_MISSING");
+                    response.sendError(404, "Asset missing from the preview snapshot; inspect api/test-diagnostics"); return;
+                }
                 URI url = URI.create(request.getRequestURL().toString());
                 response.setHeader("Content-Security-Policy", environment.contentSecurityPolicy(
                         url.getScheme() + "://" + url.getRawAuthority() + request.getContextPath()));
                 response.setContentType(asset.contentType());
                 response.getOutputStream().write(asset.bytes());
-            } else response.sendError(404, "This endpoint is unavailable in the test preview");
+            } else {
+                environment.blockedRequest(request.getMethod(), "/" + path, "request", "TEST_PREVIEW_ENDPOINT_UNSUPPORTED");
+                response.sendError(404, "This endpoint is unavailable in the test preview; inspect api/test-diagnostics");
+            }
         } catch (SecurityException failure) {
             response.sendError(403, "Test preview expired or was closed. Open a fresh preview from the Testing tab");
         } catch (IllegalArgumentException failure) {
