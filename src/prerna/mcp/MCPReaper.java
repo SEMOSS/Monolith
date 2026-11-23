@@ -77,6 +77,7 @@ import prerna.sablecc2.om.execptions.SemossMCPException;
 import prerna.sablecc2.om.nounmeta.NounMetadata;
 import prerna.security.SecretRedactor;
 import prerna.security.SessionIds;
+import prerna.util.Utility;
 import prerna.web.services.util.WebUtility;
 
 public class MCPReaper implements Runnable {
@@ -774,7 +775,7 @@ public class MCPReaper implements Runnable {
 					}
 
 					for (String imagePath : imagePaths) {
-						Path resolvedPath = MCPUtility.resolveContainedMcpFile(insight.getInsightFolder(), imagePath);
+						Path resolvedPath = Utility.resolveContainedFile(insight.getInsightFolder(), imagePath);
 						String format = MessageInputMedia.extractFormat(resolvedPath.getFileName().toString());
 						String mimeType = MessageInputMedia.guessMimeType(resolvedPath.toString(), format);
 						if (mimeType == null || !mimeType.startsWith("image/")) {

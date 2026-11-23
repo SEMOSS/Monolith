@@ -205,8 +205,8 @@ public class ResourceUtility {
 			classLogger.warn("[{}] User {} is not allowed to {}: {}", endpoint, userName, action, e.getMessage());
 			return errorResponse(e.getMessage(), 403);
 		} catch (ContentChangedException e) {
-			classLogger.warn("[{}] User {} could not {} from a copy that is no longer current: {}", endpoint,
-					userName, action, e.getMessage());
+			classLogger.warn("[{}] User {} could not {} from a copy that is no longer current: {}", endpoint, userName,
+					action, e.getMessage());
 			return changedResponse(e);
 		} catch (IllegalArgumentException e) {
 			classLogger.warn("[{}] User {} could not {}: {}", endpoint, userName, action, e.getMessage());
@@ -472,8 +472,8 @@ public class ResourceUtility {
 	/**
 	 * Returns the path of a request below its servlet, such as {@code auth/login}
 	 * for {@code /Monolith/api/auth/login/}, without leading or trailing slashes.
-	 * The container has already removed path parameters ({@code ;x=y}) and
-	 * resolved {@code ..} segments, so this is the path the request is served by.
+	 * The container has already removed path parameters ({@code ;x=y}) and resolved
+	 * {@code ..} segments, so this is the path the request is served by.
 	 *
 	 * @param request the incoming request
 	 * @return the servlet-relative path, or an empty string for the servlet root

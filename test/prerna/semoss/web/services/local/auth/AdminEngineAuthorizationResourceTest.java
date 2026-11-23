@@ -910,7 +910,7 @@ class AdminEngineAuthorizationResourceTest {
 				MockedStatic<SecurityEngineUtils> engines = Mockito.mockStatic(SecurityEngineUtils.class);
 				MockedStatic<EngineRouteResource> saves = Mockito.mockStatic(EngineRouteResource.class)) {
 			engines.when(() -> SecurityEngineUtils.engineExists("e1")).thenReturn(true);
-			saves.when(() -> EngineRouteResource.saveSmssFile(f.user, "e1", "ENGINE\te1", "h1"))
+			saves.when(() -> EngineRouteResource.saveSmssFile(f.user, f.utils, "e1", "ENGINE\te1", "h1"))
 					.thenReturn(Map.of("success", true, "smssHash", "h2"));
 
 			Response response = new AdminEngineAuthorizationResource().updateSmssFile(f.request,
@@ -947,7 +947,7 @@ class AdminEngineAuthorizationResourceTest {
 				MockedStatic<SecurityEngineUtils> engines = Mockito.mockStatic(SecurityEngineUtils.class);
 				MockedStatic<EngineRouteResource> saves = Mockito.mockStatic(EngineRouteResource.class)) {
 			engines.when(() -> SecurityEngineUtils.engineExists("e1")).thenReturn(true);
-			saves.when(() -> EngineRouteResource.saveSmssFile(f.user, "e1", "ENGINE\tother", null)).thenThrow(
+			saves.when(() -> EngineRouteResource.saveSmssFile(f.user, f.utils, "e1", "ENGINE\tother", null)).thenThrow(
 					new IllegalArgumentException("The engine id, engine name, and engine type cannot be changed"));
 
 			Response response = new AdminEngineAuthorizationResource().updateSmssFile(f.request,
@@ -964,7 +964,7 @@ class AdminEngineAuthorizationResourceTest {
 				MockedStatic<SecurityEngineUtils> engines = Mockito.mockStatic(SecurityEngineUtils.class);
 				MockedStatic<EngineRouteResource> saves = Mockito.mockStatic(EngineRouteResource.class)) {
 			engines.when(() -> SecurityEngineUtils.engineExists("e1")).thenReturn(true);
-			saves.when(() -> EngineRouteResource.saveSmssFile(f.user, "e1", "ENGINE\te1", "old")).thenThrow(
+			saves.when(() -> EngineRouteResource.saveSmssFile(f.user, f.utils, "e1", "ENGINE\te1", "old")).thenThrow(
 					new ContentChangedException(SmssEditCopy.SMSS_CHANGED, "The smss changed since you opened it"));
 
 			Response response = new AdminEngineAuthorizationResource().updateSmssFile(f.request,

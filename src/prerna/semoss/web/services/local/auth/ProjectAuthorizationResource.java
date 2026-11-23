@@ -527,6 +527,38 @@ public class ProjectAuthorizationResource {
 	}
 
 	/**
+	 * Sets whether a project has a login page of its own in its portal, so its
+	 * portal is served to signed out visitors for them to sign in there. Only the
+	 * project's owners can change it.
+	 *
+	 * @param request the request
+	 * @param form    projectId, and customLogin as true or false
+	 * @return whether the flag was saved
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("setProjectCustomLogin")
+	public Response setProjectCustomLogin(@Context HttpServletRequest request, MultivaluedMap<String, String> form) {
+		String projectIdInput = form.getFirst("projectId");
+		String customLoginInput = form.getFirst("customLogin");
+		String projectId = WebUtility.inputSanitizer(projectIdInput);
+		boolean hasCustomLogin = Boolean.parseBoolean(customLoginInput);
+		return ResourceUtility.respond(request, "set whether project " + projectId + " has its own login page",
+				user -> {
+					if (projectIdInput == null || projectIdInput.trim().isEmpty()
+							|| !("true".equalsIgnoreCase(customLoginInput)
+									|| "false".equalsIgnoreCase(customLoginInput))) {
+						throw new IllegalArgumentException(
+								"projectId and a true or false customLogin value are required");
+					}
+					SecurityProjectUtils.setProjectCustomLogin(user, projectId, hasCustomLogin);
+					Map<String, Object> ret = new HashMap<>();
+					ret.put("success", true);
+					return ret;
+				});
+	}
+
+	/**
 	 * Get the app as being global (read only) for the entire semoss instance
 	 * 
 	 * @param request
@@ -781,15 +813,6 @@ public class ProjectAuthorizationResource {
 	}
 
 	/**
-	 * Refuses a user who cannot edit the project. Propagating a project's
-	 * permissions gives people access to everything it depends on, so it is
-	 * limited to the project's editors.
-	 *
-	 * @param user      the signed in user
-	 * @param projectId the project
-	 * @throws IllegalAccessException when the user cannot edit the project
-	 */
-	/**
 	 * Checks that a user can give people access to what an engine or project
 	 * depends on: they can edit it, and they are an admin when only admins can add
 	 * people to it.
@@ -815,6 +838,15 @@ public class ProjectAuthorizationResource {
 		}
 	}
 
+	/**
+	 * Refuses a user who cannot edit the project. Propagating a project's
+	 * permissions gives people access to everything it depends on, so it is limited
+	 * to the project's editors.
+	 *
+	 * @param user      the signed in user
+	 * @param projectId the project
+	 * @throws IllegalAccessException when the user cannot edit the project
+	 */
 	private static void requireProjectEditor(User user, String projectId) throws IllegalAccessException {
 		if (!SecurityProjectUtils.userCanEditProject(user, projectId)) {
 			throw new IllegalAccessException(

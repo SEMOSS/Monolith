@@ -170,9 +170,8 @@ class AdminProjectAuthorizationResourceTest {
 	private static MockedConstruction<AdminMyProjectsReactor> reactorsReturning(Object output) {
 		return Mockito.mockConstruction(AdminMyProjectsReactor.class,
 				Mockito.withSettings().defaultAnswer(Mockito.CALLS_REAL_METHODS),
-				(reactor, context) -> Mockito
-						.doReturn(new NounMetadata(output, PixelDataType.CUSTOM_DATA_STRUCTURE)).when(reactor)
-						.execute());
+				(reactor, context) -> Mockito.doReturn(new NounMetadata(output, PixelDataType.CUSTOM_DATA_STRUCTURE))
+						.when(reactor).execute());
 	}
 
 	private static List<Object> noun(NounStore nouns, String key) {
@@ -185,15 +184,18 @@ class AdminProjectAuthorizationResourceTest {
 
 	@FunctionalInterface
 	interface LevelWrite {
-		Response call(AdminProjectAuthorizationResource resource, HttpServletRequest request,
-				String level) throws Exception;
+		Response call(AdminProjectAuthorizationResource resource, HttpServletRequest request, String level)
+				throws Exception;
 	}
 
 	private static Named<LevelWrite> write(String name, LevelWrite call) {
 		return Named.of(name, call);
 	}
 
-	/** A bulk request with one valid row and one with the level, so no row may be saved */
+	/**
+	 * A bulk request with one valid row and one with the level, so no row may be
+	 * saved
+	 */
 	private static String rows(String level) {
 		return "[{\"userid\":\"u1\",\"type\":\"NATIVE\",\"permission\":\"EDIT\"},{\"userid\":\"u2\","
 				+ "\"type\":\"NATIVE\",\"permission\":" + (level == null ? "null" : "\"" + level + "\"") + "}]";
@@ -202,23 +204,27 @@ class AdminProjectAuthorizationResourceTest {
 	static Stream<Arguments> unknownLevels() {
 		List<Named<LevelWrite>> writes = List.of(
 				write("grantAllProjects", (r, q, l) -> r.grantAllProjects(q, form("userId", "u1", "permission", l))),
-				write("grantNewUsersProjectAccess", (r, q, l) -> r.grantNewUsersProjectAccess(q,
-						form("projectId", "p1", "permission", l))),
-				write("addProjectUserPermission", (r, q, l) -> r.addProjectUserPermission(q,
-						form("id", "u1", "projectId", "p1", "permission", l))),
+				write("grantNewUsersProjectAccess",
+						(r, q, l) -> r.grantNewUsersProjectAccess(q, form("projectId", "p1", "permission", l))),
+				write("addProjectUserPermission",
+						(r, q, l) -> r.addProjectUserPermission(q,
+								form("id", "u1", "projectId", "p1", "permission", l))),
 				write("addAllUsers", (r, q, l) -> r.addAllUsers(q, form("projectId", "p1", "permission", l))),
-				write("editProjectUserPermission", (r, q, l) -> r.editProjectUserPermission(q,
-						form("id", "u1", "projectId", "p1", "permission", l))),
-				write("editProjectUserPermissions", (r, q, l) -> r.editProjectUserPermissions(q,
-						form("projectId", "p1", "userpermissions", rows(l)))),
-				write("updateProjectUserPermissions", (r, q, l) -> r.updateProjectUserPermissions(q,
-						form("projectId", "p1", "permission", l))),
-				write("approveProjectUserAccessRequest", (r, q, l) -> r.approveProjectUserAccessRequest(q,
-						form("projectId", "p1", "requests", rows(l)))),
+				write("editProjectUserPermission",
+						(r, q, l) -> r.editProjectUserPermission(q,
+								form("id", "u1", "projectId", "p1", "permission", l))),
+				write("editProjectUserPermissions",
+						(r, q, l) -> r.editProjectUserPermissions(q,
+								form("projectId", "p1", "userpermissions", rows(l)))),
+				write("updateProjectUserPermissions",
+						(r, q, l) -> r.updateProjectUserPermissions(q, form("projectId", "p1", "permission", l))),
+				write("approveProjectUserAccessRequest",
+						(r, q, l) -> r.approveProjectUserAccessRequest(q,
+								form("projectId", "p1", "requests", rows(l)))),
 				write("addProjectUserPermissions", (r, q, l) -> r.addProjectUserPermissions(q,
 						form("projectId", "p1", "userpermissions", rows(l)))));
-		return writes.stream().flatMap(write -> Stream.of(null, "", "OWNR", "7", "admin")
-				.map(level -> Arguments.of(write, level)));
+		return writes.stream()
+				.flatMap(write -> Stream.of(null, "", "OWNR", "7", "admin").map(level -> Arguments.of(write, level)));
 	}
 
 	@ParameterizedTest
@@ -266,10 +272,11 @@ class AdminProjectAuthorizationResourceTest {
 						(r, q) -> r.editProjectUserPermissions(q, form("projectId", "p1"))),
 				endpoint("updateProjectUserPermissions",
 						(r, q) -> r.updateProjectUserPermissions(q, form("projectId", "p1"))),
-				endpoint("removeProjectUserPermission",
-						(r, q) -> r.removeProjectUserPermission(q, form("id", "u1"))),
+				endpoint("removeProjectUserPermission", (r, q) -> r.removeProjectUserPermission(q, form("id", "u1"))),
 				endpoint("setProjectTemplate",
 						(r, q) -> r.setProjectTemplate(q, form("projectId", "p1", "template", "true"))),
+				endpoint("setProjectCustomLogin",
+						(r, q) -> r.setProjectCustomLogin(q, form("projectId", "p1", "customLogin", "true"))),
 				endpoint("setProjectGlobal", (r, q) -> r.setProjectGlobal(q, form("projectId", "p1"))),
 				endpoint("setProjectDiscoverable", (r, q) -> r.setProjectDiscoverable(q, form("projectId", "p1"))),
 				endpoint("updateSmssFile",
@@ -325,8 +332,8 @@ class AdminProjectAuthorizationResourceTest {
 					"[{\"id\":\"c1\",\"type\":\"NATIVE\"}]", false);
 
 			assertEquals(200, response.getStatus());
-			assertEquals("p1", body(response).getAsJsonArray().get(0).getAsJsonObject().get("project_id")
-					.getAsString());
+			assertEquals("p1",
+					body(response).getAsJsonArray().get(0).getAsJsonObject().get("project_id").getAsString());
 			AdminMyProjectsReactor reactor = reactors.constructed().get(0);
 			verify(reactor).setInsight(argThat(insight -> insight.getUser() == f.user));
 			NounStore nouns = reactor.getNounStore();
@@ -346,12 +353,12 @@ class AdminProjectAuthorizationResourceTest {
 
 	@Test
 	void passesTheFormFiltersOfAPostToTheAdminProjectsReactor() throws Exception {
-		try (Fixture f = Fixture.asAdmin(); MockedConstruction<AdminMyProjectsReactor> reactors = reactorsReturning(
-				List.of())) {
-			when(f.request.getParameterMap()).thenReturn(Map.of("filterWord", new String[] { "sales" }, "offset",
-					new String[] { "5" }, "projectId", new String[] { "p1", "p2" }, "metaFilters",
-					new String[] { "{\"tag\":\"x\"}" }, "effectivePermissions", new String[] { "1" }, "createdByMe",
-					new String[] { "true" }));
+		try (Fixture f = Fixture.asAdmin();
+				MockedConstruction<AdminMyProjectsReactor> reactors = reactorsReturning(List.of())) {
+			when(f.request.getParameterMap())
+					.thenReturn(Map.of("filterWord", new String[] { "sales" }, "offset", new String[] { "5" },
+							"projectId", new String[] { "p1", "p2" }, "metaFilters", new String[] { "{\"tag\":\"x\"}" },
+							"effectivePermissions", new String[] { "1" }, "createdByMe", new String[] { "true" }));
 
 			Response response = new AdminProjectAuthorizationResource().getProjectsPOST(f.request);
 
@@ -368,10 +375,9 @@ class AdminProjectAuthorizationResourceTest {
 
 	@Test
 	void answersAMalformedEffectivePermissionWith400() throws Exception {
-		try (Fixture f = Fixture.asAdmin(); MockedConstruction<AdminMyProjectsReactor> reactors = reactorsReturning(
-				List.of())) {
-			when(f.request.getParameterMap())
-					.thenReturn(Map.of("effectivePermissions", new String[] { "owner" }));
+		try (Fixture f = Fixture.asAdmin();
+				MockedConstruction<AdminMyProjectsReactor> reactors = reactorsReturning(List.of())) {
+			when(f.request.getParameterMap()).thenReturn(Map.of("effectivePermissions", new String[] { "owner" }));
 
 			Response response = new AdminProjectAuthorizationResource().getProjectsPOST(f.request);
 
@@ -390,8 +396,8 @@ class AdminProjectAuthorizationResourceTest {
 					List.of("APP"), "sales", 10, 5);
 
 			assertEquals(200, response.getStatus());
-			assertEquals("p1", body(response).getAsJsonArray().get(0).getAsJsonObject().get("project_id")
-					.getAsString());
+			assertEquals("p1",
+					body(response).getAsJsonArray().get(0).getAsJsonObject().get("project_id").getAsString());
 		}
 	}
 
@@ -404,8 +410,8 @@ class AdminProjectAuthorizationResourceTest {
 			Response response = new AdminProjectAuthorizationResource().getUserProjectsNoCredentials(f.request, "u1",
 					null, null, 0, 0);
 
-			assertEquals("p2", body(response).getAsJsonArray().get(0).getAsJsonObject().get("project_id")
-					.getAsString());
+			assertEquals("p2",
+					body(response).getAsJsonArray().get(0).getAsJsonObject().get("project_id").getAsString());
 		}
 	}
 
@@ -589,6 +595,45 @@ class AdminProjectAuthorizationResourceTest {
 	}
 
 	@Test
+	void setsWhetherAProjectHasItsOwnLoginPage() throws Exception {
+		try (Fixture f = Fixture.asAdmin()) {
+			Response on = new AdminProjectAuthorizationResource().setProjectCustomLogin(f.request,
+					form("projectId", "p1", "customLogin", "TRUE"));
+			Response off = new AdminProjectAuthorizationResource().setProjectCustomLogin(f.request,
+					form("projectId", "p1", "customLogin", "false"));
+
+			assertSuccess(on);
+			assertSuccess(off);
+			verify(f.utils).setProjectCustomLogin("p1", true);
+			verify(f.utils).setProjectCustomLogin("p1", false);
+		}
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "yes", "", "1" })
+	void rejectsACustomLoginValueThatIsNotTrueOrFalse(String customLogin) throws Exception {
+		try (Fixture f = Fixture.asAdmin()) {
+			Response response = new AdminProjectAuthorizationResource().setProjectCustomLogin(f.request,
+					form("projectId", "p1", "customLogin", customLogin));
+
+			assertEquals(400, response.getStatus());
+			assertEquals("projectId and a true or false customLogin value are required", errorMessage(response));
+			verify(f.utils, never()).setProjectCustomLogin(any(), anyBoolean());
+		}
+	}
+
+	@Test
+	void rejectsACustomLoginChangeWithoutAProject() throws Exception {
+		try (Fixture f = Fixture.asAdmin()) {
+			Response response = new AdminProjectAuthorizationResource().setProjectCustomLogin(f.request,
+					form("projectId", " ", "customLogin", "true"));
+
+			assertEquals(400, response.getStatus());
+			verify(f.utils, never()).setProjectCustomLogin(any(), anyBoolean());
+		}
+	}
+
+	@Test
 	void setsAProjectGlobalAndDiscoverable() throws Exception {
 		try (Fixture f = Fixture.asAdmin()) {
 			AdminProjectAuthorizationResource resource = new AdminProjectAuthorizationResource();
@@ -680,8 +725,8 @@ class AdminProjectAuthorizationResourceTest {
 
 			assertSuccess(response);
 			f.directory.verify(() -> MicrosoftGraphUserLookup.addMissingUsers(f.user, rows));
-			verify(f.utils).addProjectUserPermissions("p1", List.of(Map.of("userid", "u1", "type", "MICROSOFT",
-					"permission", "EDIT")), f.user);
+			verify(f.utils).addProjectUserPermissions("p1",
+					List.of(Map.of("userid", "u1", "type", "MICROSOFT", "permission", "EDIT")), f.user);
 		}
 	}
 
@@ -713,7 +758,7 @@ class AdminProjectAuthorizationResourceTest {
 				MockedStatic<SecurityProjectUtils> projects = Mockito.mockStatic(SecurityProjectUtils.class);
 				MockedStatic<ProjectResource> saves = Mockito.mockStatic(ProjectResource.class)) {
 			projects.when(() -> SecurityProjectUtils.projectExists("p1")).thenReturn(true);
-			saves.when(() -> ProjectResource.saveSmssFile(f.user, "p1", "PROJECT\tp1", "h1"))
+			saves.when(() -> ProjectResource.saveSmssFile(f.user, f.utils, "p1", "PROJECT\tp1", "h1"))
 					.thenReturn(Map.of("success", true, "smssHash", "h2"));
 
 			Response response = new AdminProjectAuthorizationResource().updateSmssFile(f.request,
@@ -750,7 +795,7 @@ class AdminProjectAuthorizationResourceTest {
 				MockedStatic<SecurityProjectUtils> projects = Mockito.mockStatic(SecurityProjectUtils.class);
 				MockedStatic<ProjectResource> saves = Mockito.mockStatic(ProjectResource.class)) {
 			projects.when(() -> SecurityProjectUtils.projectExists("p1")).thenReturn(true);
-			saves.when(() -> ProjectResource.saveSmssFile(f.user, "p1", "PROJECT\tother", null))
+			saves.when(() -> ProjectResource.saveSmssFile(f.user, f.utils, "p1", "PROJECT\tother", null))
 					.thenThrow(new IllegalArgumentException("The project id and project name cannot be changed"));
 
 			Response response = new AdminProjectAuthorizationResource().updateSmssFile(f.request,
@@ -767,7 +812,7 @@ class AdminProjectAuthorizationResourceTest {
 				MockedStatic<SecurityProjectUtils> projects = Mockito.mockStatic(SecurityProjectUtils.class);
 				MockedStatic<ProjectResource> saves = Mockito.mockStatic(ProjectResource.class)) {
 			projects.when(() -> SecurityProjectUtils.projectExists("p1")).thenReturn(true);
-			saves.when(() -> ProjectResource.saveSmssFile(f.user, "p1", "PROJECT\tp1", "old")).thenThrow(
+			saves.when(() -> ProjectResource.saveSmssFile(f.user, f.utils, "p1", "PROJECT\tp1", "old")).thenThrow(
 					new ContentChangedException(SmssEditCopy.SMSS_CHANGED, "The smss changed since you opened it"));
 
 			Response response = new AdminProjectAuthorizationResource().updateSmssFile(f.request,

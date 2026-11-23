@@ -126,8 +126,8 @@ class ProjectAuthorizationResourceTest {
 							when(reactor.getNounStore()).thenReturn(store);
 							when(reactor.execute()).thenReturn(new NounMetadata(List.of(), PixelDataType.VECTOR));
 						})) {
-			Response response = resource.getProjectsGET(requestFor(user), List.of(), null, null, null, null, null,
-					null, null);
+			Response response = resource.getProjectsGET(requestFor(user), List.of(), null, null, null, null, null, null,
+					null);
 
 			assertEquals(200, response.getStatus());
 			assertNull(store.getNoun(ReactorKeysEnum.FILTER_WORD.getKey()));
@@ -238,7 +238,8 @@ class ProjectAuthorizationResourceTest {
 			Response response = resource.getProjectUsers(requestFor(user), "p1", null, null, null, 10, 0);
 
 			assertEquals(403, response.getStatus());
-			statics.project.verify(() -> SecurityProjectUtils.getProjectUsersCount(any(), any(), any(), any()), never());
+			statics.project.verify(() -> SecurityProjectUtils.getProjectUsersCount(any(), any(), any(), any()),
+					never());
 		}
 	}
 
@@ -251,8 +252,7 @@ class ProjectAuthorizationResourceTest {
 
 			assertEquals(200, response.getStatus());
 			assertEquals(Map.of("success", true), body(response));
-			statics.project.verify(
-					() -> SecurityProjectUtils.addProjectUser(user, "bob", "p1", "EDIT", "2027-01-01"));
+			statics.project.verify(() -> SecurityProjectUtils.addProjectUser(user, "bob", "p1", "EDIT", "2027-01-01"));
 		}
 	}
 
@@ -326,8 +326,8 @@ class ProjectAuthorizationResourceTest {
 	void addsManyUsersToAProject() throws Exception {
 		User user = signedIn("alice");
 		try (Statics statics = new Statics()) {
-			Response response = resource.addProjectUserPermissions(requestFor(user), form("projectId", "p1",
-					"endDate", "2027-01-01", "userpermissions", "[{\"userid\":\"bob\",\"permission\":\"EDIT\"}]"));
+			Response response = resource.addProjectUserPermissions(requestFor(user), form("projectId", "p1", "endDate",
+					"2027-01-01", "userpermissions", "[{\"userid\":\"bob\",\"permission\":\"EDIT\"}]"));
 
 			assertEquals(200, response.getStatus());
 			statics.project.verify(() -> SecurityProjectUtils.addProjectUserPermissions(user, "p1",
@@ -410,8 +410,8 @@ class ProjectAuthorizationResourceTest {
 		try (Statics statics = new Statics()) {
 			statics.project.when(() -> SecurityProjectUtils.userCanEditProject(user, "p1")).thenReturn(false);
 
-			Response one = resource.propagateCatalogDependencyPermission(requestFor(user), form("id", "bob", "type",
-					"NATIVE", "catalogId", "p1", "permission", "OWNER"));
+			Response one = resource.propagateCatalogDependencyPermission(requestFor(user),
+					form("id", "bob", "type", "NATIVE", "catalogId", "p1", "permission", "OWNER"));
 			Response many = resource.propagateCatalogDependencyPermissions(requestFor(user), form("catalogId", "p1",
 					"userpermissions", "[{\"userid\":\"bob\",\"type\":\"NATIVE\",\"permission\":\"OWNER\"}]"));
 
@@ -419,8 +419,9 @@ class ProjectAuthorizationResourceTest {
 				assertEquals(403, response.getStatus());
 				assertEquals("Project p1 does not exist or user does not have access to edit it", errorOf(response));
 			}
-			statics.catalog.verify(() -> SecurityCatalogDependencyUtils.propagatePermission(any(), any(), any(), any(),
-					any(), any()), never());
+			statics.catalog.verify(
+					() -> SecurityCatalogDependencyUtils.propagatePermission(any(), any(), any(), any(), any(), any()),
+					never());
 		}
 	}
 
@@ -431,33 +432,38 @@ class ProjectAuthorizationResourceTest {
 		String rows = "[{\"userid\":\"bob\",\"type\":\"NATIVE\",\"permission\":\"EDIT\"},"
 				+ "{\"userid\":\"carol\",\"type\":\"NATIVE\",\"permission\":\"" + level + "\"}]";
 		try (Statics statics = new Statics()) {
-			List<Response> responses = List.of( resource.addProjectUserPermission(requestFor(user), form("id", "bob",
-					"projectId", "p1", "permission", level)), resource.editProjectUserPermission(requestFor(user),
-					form("id", "bob", "type", "NATIVE", "projectId", "p1", "permission", level)),
-					resource.propagateCatalogDependencyPermission(requestFor(user), form("id", "bob", "type", "NATIVE",
-					"catalogId", "p1", "permission", level)),
-					resource.propagateCatalogDependencyPermissions(requestFor(user), form("catalogId", "p1",
-					"userpermissions", rows)), resource.addProjectUserPermissions(requestFor(user), form("projectId",
-					"p1", "userpermissions", rows)), resource.editProjectUserPermissions(requestFor(user),
-					form("projectId", "p1", "userpermissions", rows)),
-					resource.approveProjectUserAccessRequest(requestFor(user), form("projectId", "p1", "requests",
-					rows)));
+			List<Response> responses = List.of(
+					resource.addProjectUserPermission(requestFor(user),
+							form("id", "bob", "projectId", "p1", "permission", level)),
+					resource.editProjectUserPermission(requestFor(user),
+							form("id", "bob", "type", "NATIVE", "projectId", "p1", "permission", level)),
+					resource.propagateCatalogDependencyPermission(requestFor(user),
+							form("id", "bob", "type", "NATIVE", "catalogId", "p1", "permission", level)),
+					resource.propagateCatalogDependencyPermissions(requestFor(user),
+							form("catalogId", "p1", "userpermissions", rows)),
+					resource.addProjectUserPermissions(requestFor(user),
+							form("projectId", "p1", "userpermissions", rows)),
+					resource.editProjectUserPermissions(requestFor(user),
+							form("projectId", "p1", "userpermissions", rows)),
+					resource.approveProjectUserAccessRequest(requestFor(user),
+							form("projectId", "p1", "requests", rows)));
 
 			for (Response response : responses) {
 				assertEquals(400, response.getStatus());
 				assertEquals("The permission must be OWNER, EDIT or READ_ONLY. Received value = " + level,
 						errorOf(response));
 			}
-			statics.catalog.verify(() -> SecurityCatalogDependencyUtils.propagatePermission(any(), any(), any(), any(),
-					any(), any()), never());
+			statics.catalog.verify(
+					() -> SecurityCatalogDependencyUtils.propagatePermission(any(), any(), any(), any(), any(), any()),
+					never());
 			statics.project.verify(() -> SecurityProjectUtils.addProjectUser(any(), any(), any(), any(), any()),
 					never());
 			statics.project.verify(() -> SecurityProjectUtils.addProjectUserPermissions(any(), any(), any(), any()),
 					never());
 			statics.project.verify(() -> SecurityProjectUtils.editProjectUserPermissions(any(), any(), any(), any()),
 					never());
-			statics.project.verify(() -> SecurityProjectUtils.approveProjectUserAccessRequests(any(), any(), any(),
-					any()), never());
+			statics.project.verify(
+					() -> SecurityProjectUtils.approveProjectUserAccessRequests(any(), any(), any(), any()), never());
 			statics.directory.verify(() -> MicrosoftGraphUserLookup.addMissingUsers(any(), any()), never());
 		}
 	}
@@ -466,8 +472,8 @@ class ProjectAuthorizationResourceTest {
 	void savesALevelSentInAnyCaseUnderItsName() throws Exception {
 		User user = signedIn("alice");
 		try (Statics statics = new Statics()) {
-			resource.addProjectUserPermission(requestFor(user), form("id", "bob", "projectId", "p1", "permission",
-					" edit "));
+			resource.addProjectUserPermission(requestFor(user),
+					form("id", "bob", "projectId", "p1", "permission", " edit "));
 
 			statics.project.verify(() -> SecurityProjectUtils.addProjectUser(user, "bob", "p1", "EDIT", null));
 		}
@@ -567,7 +573,8 @@ class ProjectAuthorizationResourceTest {
 		User user = signedIn("alice");
 		try (Statics statics = new Statics()) {
 			Response noProject = resource.setProjectTemplate(requestFor(user), form("template", "true"));
-			Response badValue = resource.setProjectTemplate(requestFor(user), form("projectId", "p1", "template", "yes"));
+			Response badValue = resource.setProjectTemplate(requestFor(user),
+					form("projectId", "p1", "template", "yes"));
 
 			assertEquals(400, noProject.getStatus());
 			assertEquals("projectId and a true or false template value are required", errorOf(noProject));
@@ -597,6 +604,47 @@ class ProjectAuthorizationResourceTest {
 
 			Response response = resource.setProjectTemplate(requestFor(user),
 					form("projectId", "p1", "template", "false"));
+
+			assertEquals(403, response.getStatus());
+		}
+	}
+
+	@Test
+	void requiresATrueOrFalseCustomLoginValue() throws Exception {
+		User user = signedIn("alice");
+		try (Statics statics = new Statics()) {
+			Response noProject = resource.setProjectCustomLogin(requestFor(user), form("customLogin", "true"));
+			Response badValue = resource.setProjectCustomLogin(requestFor(user),
+					form("projectId", "p1", "customLogin", "yes"));
+
+			assertEquals(400, noProject.getStatus());
+			assertEquals("projectId and a true or false customLogin value are required", errorOf(noProject));
+			assertEquals(400, badValue.getStatus());
+			statics.project.verifyNoInteractions();
+		}
+	}
+
+	@Test
+	void setsWhetherTheProjectHasItsOwnLoginPage() throws Exception {
+		User user = signedIn("alice");
+		try (Statics statics = new Statics()) {
+			Response response = resource.setProjectCustomLogin(requestFor(user),
+					form("projectId", "p1", "customLogin", "TRUE"));
+
+			assertEquals(200, response.getStatus());
+			statics.project.verify(() -> SecurityProjectUtils.setProjectCustomLogin(user, "p1", true));
+		}
+	}
+
+	@Test
+	void refusesANonOwnerChangingTheCustomLoginPage() throws Exception {
+		User user = signedIn("eddie");
+		try (Statics statics = new Statics()) {
+			statics.project.when(() -> SecurityProjectUtils.setProjectCustomLogin(user, "p1", true))
+					.thenThrow(new IllegalAccessException("Only this project's owners"));
+
+			Response response = resource.setProjectCustomLogin(requestFor(user),
+					form("projectId", "p1", "customLogin", "true"));
 
 			assertEquals(403, response.getStatus());
 		}

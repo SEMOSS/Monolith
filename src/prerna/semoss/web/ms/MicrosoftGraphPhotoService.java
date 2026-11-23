@@ -47,7 +47,8 @@ import prerna.util.Utility;
  * Microsoft profile photos for the Collaboration avatars, served under {@code /msgraph} (see
  * {@link MicrosoftGraphApplication}).
  * <p>
- * {@code GET /msgraph/photo?email=someone@contoso.com}
+ * {@code GET /msgraph/photo?email=someone@contoso.com}, or {@code ?userId=} with a person's Microsoft user id
+ * where that is all a caller knows of them, as a Teams chat names its people.
  * <p>
  * A photo is read with the signed in user's own Microsoft login, so they only ever see one Microsoft would show
  * them; {@link BrainPeopleUtils#photo} decides whose photo there is to ask for. Anyone without one answers 404,
@@ -64,7 +65,7 @@ public class MicrosoftGraphPhotoService {
 	private static final String MISS_CACHE = "private, max-age=3600";
 
 	/**
-	 * @param req the request, carrying the session and the {@code email} parameter
+	 * @param req the request, carrying the session and the {@code email} or the {@code userId} parameter
 	 * @return the photo as JPEG, 404 when there is none to show or Collaboration is off, or 401 without a
 	 *         session
 	 */
@@ -83,7 +84,9 @@ public class MicrosoftGraphPhotoService {
 			return Response.status(Response.Status.UNAUTHORIZED).build();
 		}
 		try {
-			byte[] photo = BrainPeopleUtils.photo(user, req.getParameter("email"));
+			String userId = req.getParameter("userId");
+			byte[] photo = userId == null ? BrainPeopleUtils.photo(user, req.getParameter("email"))
+					: BrainPeopleUtils.photoById(user, userId);
 			if (photo != null && photo.length > 0) {
 				return Response.ok(photo, "image/jpeg").header("Cache-Control", PHOTO_CACHE).build();
 			}

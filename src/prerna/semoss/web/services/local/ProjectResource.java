@@ -78,6 +78,7 @@ import jakarta.ws.rs.core.Response.ResponseBuilder;
 import jakarta.ws.rs.core.StreamingOutput;
 import prerna.auth.User;
 import prerna.auth.utils.AbstractSecurityUtils;
+import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityInsightUtils;
 import prerna.auth.utils.SecurityProjectUtils;
 import prerna.cluster.util.ClusterUtil;
@@ -169,14 +170,15 @@ public class ProjectResource {
 		}
 		if (!SecurityProjectUtils.userIsOwner(user, projectId)) {
 			Map<String, String> errorMap = new HashMap<>();
-			errorMap.put("error", "Project " + projectId
-					+ " does not exist or user does not have permissions to update the smss of the project. "
-					+ "User must be the owner to perform this function.");
+			errorMap.put("error",
+					"Project " + projectId
+							+ " does not exist or user does not have permissions to update the smss of the project. "
+							+ "User must be the owner to perform this function.");
 			return WebUtility.getResponse(errorMap, 401);
 		}
 
 		try {
-			return WebUtility.getResponse(saveSmssFile(user, projectId, request.getParameter("smss"),
+			return WebUtility.getResponse(saveSmssFile(user, null, projectId, request.getParameter("smss"),
 					request.getParameter(SmssEditCopy.SMSS_HASH)), 200);
 		} catch (ContentChangedException e) {
 			return ResourceUtility.changedResponse(e);
@@ -186,16 +188,21 @@ public class ProjectResource {
 	}
 
 	/**
-	 * Saves new smss content for a project and opens the project again with it.
-	 * The save is made from the copy of the smss the user read: it goes through
-	 * only while the smss is still as that copy was ({@link SmssEditCopy}), and
-	 * holds the project's lock so no other save comes between the check and the
-	 * write. The hidden values the new content left untouched are kept, and the
-	 * smss file is put back as it was when the project does not open with the new
-	 * content. The caller has checked that the user may update the project: its
-	 * owner, or an admin through the admin endpoint.
+	 * Saves new smss content for a project and opens the project again with it. The
+	 * save is made from the copy of the smss the user read: it goes through only
+	 * while the smss is still as that copy was ({@link SmssEditCopy}), and holds
+	 * the project's lock so no other save comes between the check and the write.
+	 * The hidden values the new content left untouched are kept, and the smss file
+	 * is put back as it was when the project does not open with the new content.
+	 * Once the save goes through, a changed {@code PROJECT_DISPLAY_NAME} is also
+	 * saved to the security database, which catalog listings, page headers and
+	 * search read the name from. The caller has checked that the user may update
+	 * the project: its owner, or an admin through the admin endpoint.
 	 *
 	 * @param user           the user saving the smss, for the notification
+	 * @param adminUtils     the admin utilities when an admin saves through the
+	 *                       admin endpoint, which saves a changed display name in
+	 *                       admin mode; null when the project's owner saves
 	 * @param projectId      the project
 	 * @param newSmssContent the new content of the smss file
 	 * @param smssHash       the hash that came with the copy the user edited
@@ -206,19 +213,19 @@ public class ProjectResource {
 	 * @throws IllegalArgumentException when the content cannot be saved or no hash
 	 *                                  is given, with the reason
 	 */
-	public static Map<String, Object> saveSmssFile(User user, String projectId, String newSmssContent,
-			String smssHash) {
+	public static Map<String, Object> saveSmssFile(User user, SecurityAdminUtils adminUtils, String projectId,
+			String newSmssContent, String smssHash) {
 		ReentrantLock lock = ProjectSyncUtility.getProjectLock(projectId);
 		lock.lock();
 		try {
-			return saveSmssFileWhileLocked(user, projectId, newSmssContent, smssHash);
+			return saveSmssFileWhileLocked(user, adminUtils, projectId, newSmssContent, smssHash);
 		} finally {
 			lock.unlock();
 		}
 	}
 
-	private static Map<String, Object> saveSmssFileWhileLocked(User user, String projectId, String newSmssContent,
-			String smssHash) {
+	private static Map<String, Object> saveSmssFileWhileLocked(User user, SecurityAdminUtils adminUtils,
+			String projectId, String newSmssContent, String smssHash) {
 		IProject project = Utility.getProject(projectId);
 		String currentSmssFileLocation = project.getSmssFilePath();
 		File currentSmssFile = new File(currentSmssFileLocation);
@@ -233,6 +240,8 @@ public class ProjectResource {
 		Properties currentSmssProperties = project.getSmssProp();
 		String unconcealedNewSmssContent = SmssUtilities.unconcealSmssSensitiveInfo(newSmssContent,
 				currentSmssProperties);
+		String oldDisplayName = currentSmssProperties.getProperty(Constants.PROJECT_DISPLAY_NAME);
+		String newDisplayName;
 
 		// validate the new SMSS
 		// that the user is not doing something they cannot do
@@ -242,9 +251,9 @@ public class ProjectResource {
 			if (!newProp.get(Constants.PROJECT).equals(currentSmssProperties.get(Constants.PROJECT))
 					|| !newProp.get(Constants.PROJECT_ALIAS).equals(currentSmssProperties.get(Constants.PROJECT_ALIAS))
 					|| !newProp.get(Constants.PROJECT_TYPE).equals(currentSmssProperties.get(Constants.PROJECT_TYPE))) {
-				throw new IllegalArgumentException(
-						"The project id, project name, and project type cannot be changed");
+				throw new IllegalArgumentException("The project id, project name, and project type cannot be changed");
 			}
+			newDisplayName = newProp.getProperty(Constants.PROJECT_DISPLAY_NAME);
 		}
 
 		// read the current smss as text in case of an error
@@ -283,6 +292,7 @@ public class ProjectResource {
 			throw new IllegalArgumentException(
 					"An error occurred initializing the new project details. Detailed message = " + e.getMessage());
 		}
+		syncDisplayNameToSecurityDb(user, adminUtils, projectId, oldDisplayName, newDisplayName);
 
 		// push to cloud
 		ClusterUtil.pushProjectSmss(projectId);
@@ -300,6 +310,38 @@ public class ProjectResource {
 		success.put("success", true);
 		success.put(SmssEditCopy.SMSS_HASH, SmssEditCopy.read(project).getSmssHash());
 		return success;
+	}
+
+	/**
+	 * Saves the display name from a saved smss to the security database, where
+	 * catalog listings, page headers and search read it, when the
+	 * {@code PROJECT_DISPLAY_NAME} value changed and is not blank. The smss is
+	 * already saved when this runs, so a failure is logged and the save still goes
+	 * through.
+	 *
+	 * @param user           the user who saved the smss
+	 * @param adminUtils     the admin utilities for an admin's save, or null for
+	 *                       the owner's
+	 * @param projectId      the project
+	 * @param oldDisplayName the display name in the smss before the save
+	 * @param newDisplayName the display name in the saved smss
+	 */
+	private static void syncDisplayNameToSecurityDb(User user, SecurityAdminUtils adminUtils, String projectId,
+			String oldDisplayName, String newDisplayName) {
+		if (newDisplayName == null || newDisplayName.isBlank() || newDisplayName.equals(oldDisplayName)) {
+			return;
+		}
+		try {
+			if (adminUtils != null) {
+				adminUtils.setProjectDisplayName(projectId, newDisplayName);
+			} else {
+				SecurityProjectUtils.setProjectDisplayName(user, projectId, newDisplayName);
+			}
+		} catch (Exception e) {
+			classLogger.error(
+					"Saved the smss of project {} but could not save its display name to the security database",
+					projectId, e);
+		}
 	}
 
 	@POST
