@@ -48,7 +48,7 @@
       </init-param>
       <init-param>
          <param-name>excluded-paths</param-name>
-         <param-value>/api/model/openai,/api/ext,/api/model/anthropic,/api/model/ollama</param-value>
+         <param-value>/api/model/openai,/api/ext,/api/model/anthropic,/api/model/ollama,/app-test-preview</param-value>
       </init-param>
    </filter>
    <filter-mapping>
@@ -545,6 +545,15 @@
    -->
    
    <!-- servlets -->
+   <servlet>
+      <servlet-name>AppTestPreviewServlet</servlet-name>
+      <servlet-class>prerna.web.conf.AppTestPreviewServlet</servlet-class>
+      <load-on-startup>2</load-on-startup>
+   </servlet>
+   <servlet-mapping>
+      <servlet-name>AppTestPreviewServlet</servlet-name>
+      <url-pattern>/app-test-preview/*</url-pattern>
+   </servlet-mapping>
    <!-- Servlet For SEMOSS UI - SEMOSS BE communication -->
    <servlet>
       <servlet-name>MainApplication</servlet-name>
