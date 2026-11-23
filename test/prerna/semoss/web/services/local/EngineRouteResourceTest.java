@@ -67,6 +67,7 @@ import jakarta.ws.rs.core.Request;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.StreamingOutput;
 import prerna.auth.User;
+import prerna.auth.utils.CatalogDependencyDerivation;
 import prerna.auth.utils.SecurityAdminUtils;
 import prerna.auth.utils.SecurityEngineUtils;
 import prerna.cluster.util.ClusterUtil;
@@ -397,6 +398,24 @@ class EngineRouteResourceTest {
 			verify(engine).open(smss.toString());
 			s.cluster.verify(() -> ClusterUtil.pushEngineSmss("db1", IEngine.CATALOG_TYPE.DATABASE));
 			s.notifications.verifyNoInteractions();
+		}
+	}
+
+	@Test
+	void recordsTheSmssDependenciesBeforeTheClusterPushThatCanFail() throws Exception {
+		try (Statics s = new Statics();
+				MockedStatic<CatalogDependencyDerivation> derivation = Mockito
+						.mockStatic(CatalogDependencyDerivation.class)) {
+			s.security.when(() -> SecurityEngineUtils.userIsOwner(this.user, "db1")).thenReturn(true);
+			IEngine engine = engineWithSmss(this.tempDir.resolve("db1.smss"));
+			s.utilityValues.put("getEngine", engine);
+			s.cluster.when(() -> ClusterUtil.pushEngineSmss("db1", IEngine.CATALOG_TYPE.DATABASE))
+					.thenThrow(new IllegalArgumentException("cloud is down"));
+
+			assertBody(new EngineRouteResource().updateSmssFile(smssRequest(CURRENT_SMSS), "db1"), 400,
+					"cloud is down");
+			derivation.verify(() -> CatalogDependencyDerivation.syncSmss(eq(this.user), eq("db1"), eq("DATABASE"),
+					any()));
 		}
 	}
 
