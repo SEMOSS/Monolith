@@ -68,6 +68,7 @@ import prerna.util.ChromeDriverUtility;
 import prerna.util.ChrootTemplate;
 import prerna.util.Constants;
 import prerna.util.InternalUtility;
+import prerna.util.PoiLimits;
 import prerna.util.SystemEngineRegistry;
 import prerna.util.Utility;
 import prerna.util.insight.InsightUtility;
@@ -198,6 +199,7 @@ public class DBLoader implements ServletContextListener {
 		// Load RDF_Map.prop file
 		classLogger.log(STARTUP, "Loading RDF_Map.prop: {}", Utility.cleanLogString(rdfPropFile));
 		InternalUtility.loadCoreProp(rdfPropFile);
+		PoiLimits.apply();
 
 		if (RserveUtil.R_KILL_ON_STARTUP) {
 			classLogger.log(STARTUP, "Killing existing RServes running on the machine");
