@@ -769,6 +769,93 @@ class ProjectAuthorizationResourceTest {
 		return struct == null ? null : struct.getAllValues();
 	}
 
+	@Test
+	void listsTheAppsAgentsAndEnginesAProjectGivesAPermissionTo() throws Exception {
+		User user = signedIn("alice");
+		List<Map<String, Object>> grantees = List.of(Map.of("subject", Map.of("id", "agent1", "type", "PROJECT")));
+		try (Statics statics = new Statics()) {
+			statics.project.when(() -> SecurityProjectUtils.getProjectGranteePermissions(user, "skill1"))
+					.thenReturn(grantees);
+
+			Response response = resource.getProjectGranteePermissions(requestFor(user), "skill1");
+
+			assertEquals(200, response.getStatus());
+			assertEquals(grantees, body(response));
+		}
+	}
+
+	@Test
+	void refusesListingAProjectsGranteesToSomeoneWhoCannotEditItWith403() throws Exception {
+		User user = signedIn("mallory");
+		String message = "Only this project's editors and owners can see which apps and engines can use it";
+		try (Statics statics = new Statics()) {
+			statics.project.when(() -> SecurityProjectUtils.getProjectGranteePermissions(user, "skill1"))
+					.thenThrow(new IllegalAccessException(message));
+
+			Response response = resource.getProjectGranteePermissions(requestFor(user), "skill1");
+
+			assertEquals(403, response.getStatus());
+			assertEquals(message, errorOf(response));
+		}
+	}
+
+	@Test
+	void givesAnAgentAPermissionOnASkill() throws Exception {
+		User user = signedIn("alice");
+		try (Statics statics = new Statics()) {
+			Response response = resource.setProjectGranteePermission(requestFor(user), form("projectId", "skill1",
+					"granteeEngineId", "agent1", "granteeEngineType", "PROJECT", "permission", " read_only "));
+
+			assertEquals(200, response.getStatus());
+			assertEquals(Map.of("success", true), body(response));
+			statics.project.verify(() -> SecurityProjectUtils.setProjectGranteePermission(user, "agent1", "PROJECT",
+					"skill1", "READ_ONLY", null));
+		}
+	}
+
+	@Test
+	void refusesSomeoneWhoIsNotAnOwnerGivingAProjectsPermissionWith403() throws Exception {
+		User user = signedIn("mallory");
+		String message = "Only this project's owners can change which apps and engines can use it.";
+		try (Statics statics = new Statics()) {
+			statics.project.when(() -> SecurityProjectUtils.setProjectGranteePermission(user, "agent1", "PROJECT",
+					"skill1", "EDIT", null)).thenThrow(new IllegalAccessException(message));
+
+			Response response = resource.setProjectGranteePermission(requestFor(user), form("projectId", "skill1",
+					"granteeEngineId", "agent1", "granteeEngineType", "PROJECT", "permission", "EDIT"));
+
+			assertEquals(403, response.getStatus());
+			assertEquals(message, errorOf(response));
+		}
+	}
+
+	@Test
+	void refusesALevelThatIsNotOneForAProjectGranteeWith400() throws Exception {
+		User user = signedIn("alice");
+		try (Statics statics = new Statics()) {
+			Response response = resource.setProjectGranteePermission(requestFor(user), form("projectId", "skill1",
+					"granteeEngineId", "agent1", "granteeEngineType", "PROJECT", "permission", "OWNR"));
+
+			assertEquals(400, response.getStatus());
+			statics.project.verify(() -> SecurityProjectUtils.setProjectGranteePermission(any(), anyString(),
+					anyString(), anyString(), anyString(), any()), Mockito.never());
+		}
+	}
+
+	@Test
+	void takesAwayTheAccessOfAnAgentToASkill() throws Exception {
+		User user = signedIn("alice");
+		try (Statics statics = new Statics()) {
+			Response response = resource.removeProjectGranteePermission(requestFor(user),
+					form("projectId", "skill1", "granteeEngineId", "agent1", "granteeEngineType", "PROJECT"));
+
+			assertEquals(200, response.getStatus());
+			assertEquals(Map.of("success", true), body(response));
+			statics.project.verify(
+					() -> SecurityProjectUtils.removeProjectGranteePermission(user, "agent1", "PROJECT", "skill1"));
+		}
+	}
+
 	private static MultivaluedMap<String, String> form(String... pairs) {
 		MultivaluedMap<String, String> form = new MultivaluedHashMap<>();
 		for (int i = 0; i < pairs.length; i += 2) {

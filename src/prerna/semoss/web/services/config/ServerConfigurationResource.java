@@ -176,6 +176,11 @@ public class ServerConfigurationResource {
 		loadConfig.put("adminOnlyFunctionAddAccess", AbstractSecurityUtils.adminOnlyFunctionAddAccess());
 		loadConfig.put("adminOnlyFunctionSetPublic", AbstractSecurityUtils.adminOnlyFunctionSetPublic());
 		loadConfig.put("adminOnlyFunctionSetDiscoverable", AbstractSecurityUtils.adminOnlyFunctionSetDiscoverable());
+		loadConfig.put("adminOnlyGuardrailAdd", AbstractSecurityUtils.adminOnlyGuardrailAdd());
+		loadConfig.put("adminOnlyGuardrailDelete", AbstractSecurityUtils.adminOnlyGuardrailDelete());
+		loadConfig.put("adminOnlyGuardrailAddAccess", AbstractSecurityUtils.adminOnlyGuardrailAddAccess());
+		loadConfig.put("adminOnlyGuardrailSetPublic", AbstractSecurityUtils.adminOnlyGuardrailSetPublic());
+		loadConfig.put("adminOnlyGuardrailSetDiscoverable", AbstractSecurityUtils.adminOnlyGuardrailSetDiscoverable());
 		// admin only for insight actions
 		loadConfig.put("adminOnlyInsightAddAccess", AbstractSecurityUtils.adminOnlyInsightAddAccess());
 		loadConfig.put("adminOnlyInsightSetPublic", AbstractSecurityUtils.adminOnlyInsightSetPublic());

@@ -86,8 +86,8 @@ class PermissionBatchResourceTest {
 			assertEquals(List.of(Map.of("valid", true)), body(response));
 			statics.batches.verify(() -> SecurityAccessPermissionBatchUtils.validateBatches(eq(user),
 					argThat(PermissionBatchResourceTest::isTheOneProjectBatch)));
-			statics.batches.verify(() -> SecurityAccessPermissionBatchUtils.validateBatches(any(SecurityAdminUtils.class),
-					any(), anyList()), never());
+			statics.batches.verify(() -> SecurityAccessPermissionBatchUtils
+					.validateBatches(any(SecurityAdminUtils.class), any(), anyList()), never());
 		}
 	}
 
@@ -125,8 +125,8 @@ class PermissionBatchResourceTest {
 			assertTrue(errorOf(unreadable).startsWith("The permission batches are not valid"), errorOf(unreadable));
 			statics.batches.verify(() -> SecurityAccessPermissionBatchUtils.saveBatches(any(User.class), anyList()),
 					never());
-			statics.batches.verify(
-					() -> SecurityAccessPermissionBatchUtils.validateBatches(any(User.class), anyList()), never());
+			statics.batches.verify(() -> SecurityAccessPermissionBatchUtils.validateBatches(any(User.class), anyList()),
+					never());
 		}
 	}
 
@@ -158,6 +158,36 @@ class PermissionBatchResourceTest {
 			statics.batches.verify(() -> SecurityAccessPermissionBatchUtils.getPermissions(eq(user),
 					argThat(target -> target.getResourceType() == TargetResourceType.ENGINE
 							&& "e1".equals(target.getId()) && target.getProjectId() == null)));
+		}
+	}
+
+	@Test
+	void listsThePermissionsOnTheResourcesTheUserCanEdit() throws Exception {
+		User user = signedIn("alice");
+		Map<String, Object> grants = Map.of("grants", List.of());
+		try (Statics statics = new Statics()) {
+			statics.batches.when(() -> SecurityAccessPermissionBatchUtils.getAllGranteePermissions(eq(user),
+					argThat(query -> "claims".equals(query.search()) && "ENGINE".equals(query.targetKind())
+							&& "MODEL".equals(query.targetType()) && "PROJECT".equals(query.granteeKind())
+							&& "WORKSPACE".equals(query.granteeType()) && query.limit() == 10 && query.offset() == 0)))
+					.thenReturn(grants);
+
+			Response response = resource.getAllGranteePermissions(requestFor(user), "claims", "engine", "MODEL",
+					"PROJECT", "WORKSPACE", 10, 0);
+
+			assertEquals(200, response.getStatus());
+			assertEquals(grants, body(response));
+		}
+	}
+
+	@Test
+	void refusesAKindThatIsNeitherAProjectNorAnEngineWith400() throws Exception {
+		User user = signedIn("alice");
+		try (Statics statics = new Statics()) {
+			Response response = resource.getAllGranteePermissions(requestFor(user), null, "FOLDER", null, null, null, 0,
+					0);
+
+			assertEquals(400, response.getStatus());
 		}
 	}
 
@@ -201,9 +231,8 @@ class PermissionBatchResourceTest {
 					"Sales");
 
 			assertEquals(List.of(Map.of("id", "bob")), body(response));
-			statics.batches.verify(() -> SecurityAccessPermissionBatchUtils.getPermissionsToCopy(eq(user),
-					argThat(source -> source.getResourceType() == TargetResourceType.TEAM
-							&& "Sales".equals(source.getId())),
+			statics.batches.verify(() -> SecurityAccessPermissionBatchUtils.getPermissionsToCopy(eq(user), argThat(
+					source -> source.getResourceType() == TargetResourceType.TEAM && "Sales".equals(source.getId())),
 					argThat(target -> target.getResourceType() == TargetResourceType.TEAM_MANAGERS
 							&& "Sales".equals(target.getId()))));
 		}
@@ -231,9 +260,8 @@ class PermissionBatchResourceTest {
 			Response response = resource.getEffectivePermissions(requestFor(user), "project", "p1");
 
 			assertEquals(Map.of("rows", List.of()), body(response));
-			statics.effective.verify(() -> EffectivePermissionUtils.getEffectivePermissions(eq(user),
-					argThat(target -> target.getResourceType() == TargetResourceType.PROJECT
-							&& "p1".equals(target.getId()))));
+			statics.effective.verify(() -> EffectivePermissionUtils.getEffectivePermissions(eq(user), argThat(
+					target -> target.getResourceType() == TargetResourceType.PROJECT && "p1".equals(target.getId()))));
 		}
 	}
 
@@ -255,7 +283,8 @@ class PermissionBatchResourceTest {
 	void refusesAUsageLimitPathToSomeoneWhoCannotEditTheModel() throws Exception {
 		User user = signedIn("mallory");
 		try (Statics statics = new Statics()) {
-			statics.batches.when(() -> SecurityAccessPermissionBatchUtils.getUsageLimitPath(user, "m1", "bob", "NATIVE"))
+			statics.batches
+					.when(() -> SecurityAccessPermissionBatchUtils.getUsageLimitPath(user, "m1", "bob", "NATIVE"))
 					.thenThrow(new IllegalAccessException("Only the model's editors and owners can see this"));
 
 			Response response = resource.getUsageLimitPath(requestFor(user), "m1", "bob", "NATIVE");
@@ -357,8 +386,8 @@ class PermissionBatchResourceTest {
 	}
 
 	/**
-	 * The Semoss statics these endpoints call, mocked for one test. Reading
-	 * batches stays real, so the endpoints are tested with what they parse.
+	 * The Semoss statics these endpoints call, mocked for one test. Reading batches
+	 * stays real, so the endpoints are tested with what they parse.
 	 */
 	private static final class Statics implements AutoCloseable {
 

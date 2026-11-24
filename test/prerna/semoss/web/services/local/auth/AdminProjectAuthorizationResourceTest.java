@@ -290,7 +290,45 @@ class AdminProjectAuthorizationResourceTest {
 				endpoint("addProjectUserPermissions",
 						(r, q) -> r.addProjectUserPermissions(q, form("projectId", "p1"))),
 				endpoint("removeProjectUserPermissions",
-						(r, q) -> r.removeProjectUserPermissions(q, form("projectId", "p1"))));
+						(r, q) -> r.removeProjectUserPermissions(q, form("projectId", "p1"))),
+				endpoint("getProjectGranteePermissions", (r, q) -> r.getProjectGranteePermissions(q, "p1")),
+				endpoint("setProjectGranteePermission",
+						(r, q) -> r.setProjectGranteePermission(q,
+								form("projectId", "p1", "granteeEngineId", "agent1", "granteeEngineType", "PROJECT",
+										"permission", "READ_ONLY"))),
+				endpoint("removeProjectGranteePermission", (r, q) -> r.removeProjectGranteePermission(q,
+						form("projectId", "p1", "granteeEngineId", "agent1", "granteeEngineType", "PROJECT"))));
+	}
+
+	@Test
+	void listsTheAppsAgentsAndEnginesAProjectGivesAPermissionTo() throws Exception {
+		try (Fixture f = Fixture.asAdmin()) {
+			List<Map<String, Object>> grantees = List
+					.of(Map.of("subject", Map.of("id", "agent1", "type", "PROJECT", "name", "Claims Agent")));
+			when(f.utils.getProjectGranteePermissions("p1")).thenReturn(grantees);
+
+			Response response = new AdminProjectAuthorizationResource().getProjectGranteePermissions(f.request, "p1");
+
+			assertEquals(200, response.getStatus());
+			verify(f.utils).getProjectGranteePermissions("p1");
+		}
+	}
+
+	@Test
+	void givesAndTakesAwayAProjectsPermissionInAdminMode() throws Exception {
+		try (Fixture f = Fixture.asAdmin()) {
+			AdminProjectAuthorizationResource resource = new AdminProjectAuthorizationResource();
+
+			Response given = resource.setProjectGranteePermission(f.request, form("projectId", "skill1",
+					"granteeEngineId", "agent1", "granteeEngineType", "PROJECT", "permission", "edit"));
+			Response taken = resource.removeProjectGranteePermission(f.request,
+					form("projectId", "skill1", "granteeEngineId", "agent1", "granteeEngineType", "PROJECT"));
+
+			assertEquals(200, given.getStatus());
+			assertEquals(200, taken.getStatus());
+			verify(f.utils).setProjectGranteePermission("agent1", "PROJECT", "skill1", "EDIT", f.user, null);
+			verify(f.utils).removeProjectGranteePermission("agent1", "PROJECT", "skill1", f.user);
+		}
 	}
 
 	@ParameterizedTest

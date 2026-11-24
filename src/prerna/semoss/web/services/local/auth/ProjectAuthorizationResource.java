@@ -813,6 +813,92 @@ public class ProjectAuthorizationResource {
 	}
 
 	/**
+	 * Lists the apps, agents and engines a project gives a permission to. An app's
+	 * custom reactors, an agent's runs, or an engine's own code, use the permission
+	 * in place of the signed in user's own. The project's editors and owners list
+	 * them.
+	 *
+	 * @param request   the request, whose session holds the user
+	 * @param projectId the project
+	 * @return one entry for each app and engine, with its id, catalog type
+	 *         ({@code PROJECT} for an app or an agent), name and subtype, and its
+	 *         level and end date; 403 for a user who cannot edit the project
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("getProjectGranteePermissions")
+	public Response getProjectGranteePermissions(@Context HttpServletRequest request,
+			@QueryParam("projectId") String projectId) {
+		String id = WebUtility.inputSanitizer(projectId);
+		return ResourceUtility.respond(request, "list the apps and engines project " + id + " gives a permission to",
+				user -> SecurityProjectUtils.getProjectGranteePermissions(user, id));
+	}
+
+	/**
+	 * Gives an app or an agent a permission on a project, or changes the one it
+	 * has, so an app's custom reactors or an agent's runs can use the project for
+	 * people who have no access to it. A project gives access to apps and agents
+	 * only. Only the project's owners can.
+	 *
+	 * @param request the request, whose session holds the user
+	 * @param form    {@code projectId}, {@code granteeEngineId},
+	 *                {@code granteeEngineType} ({@code PROJECT}),
+	 *                {@code permission} (READ_ONLY or EDIT), and optionally
+	 *                {@code endDate}
+	 * @return 200 when the permission is saved, 400 with the reason when it cannot
+	 *         be, and 403 for a user who is not an owner of the project
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("setProjectGranteePermission")
+	public Response setProjectGranteePermission(@Context HttpServletRequest request,
+			MultivaluedMap<String, String> form) {
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String granteeEngineId = WebUtility.inputSanitizer(form.getFirst("granteeEngineId"));
+		String granteeEngineType = WebUtility.inputSanitizer(form.getFirst("granteeEngineType"));
+		String permission = WebUtility.inputSanitizer(form.getFirst("permission"));
+		String endDate = WebUtility.inputSanitizer(form.getFirst("endDate"));
+		String action = "give " + granteeEngineType + " " + granteeEngineId + " " + permission + " access to project "
+				+ projectId;
+		return ResourceUtility.respond(request, action, user -> {
+			String level = AccessPermissionEnum.require(permission);
+			SecurityProjectUtils.setProjectGranteePermission(user, granteeEngineId, granteeEngineType, projectId, level,
+					endDate);
+			Map<String, Object> ret = new HashMap<>();
+			ret.put("success", true);
+			return ret;
+		});
+	}
+
+	/**
+	 * Takes away the permission a project gives an app, an agent or an engine. Only
+	 * the project's owners can.
+	 *
+	 * @param request the request, whose session holds the user
+	 * @param form    {@code projectId}, {@code granteeEngineId} and
+	 *                {@code granteeEngineType}
+	 * @return 200 when the permission is taken away, 400 with the reason when it
+	 *         cannot be, and 403 for a user who is not an owner of the project
+	 */
+	@POST
+	@Produces("application/json")
+	@Path("removeProjectGranteePermission")
+	public Response removeProjectGranteePermission(@Context HttpServletRequest request,
+			MultivaluedMap<String, String> form) {
+		String projectId = WebUtility.inputSanitizer(form.getFirst("projectId"));
+		String granteeEngineId = WebUtility.inputSanitizer(form.getFirst("granteeEngineId"));
+		String granteeEngineType = WebUtility.inputSanitizer(form.getFirst("granteeEngineType"));
+		String action = "take away the access of " + granteeEngineType + " " + granteeEngineId + " to project "
+				+ projectId;
+		return ResourceUtility.respond(request, action, user -> {
+			SecurityProjectUtils.removeProjectGranteePermission(user, granteeEngineId, granteeEngineType, projectId);
+			Map<String, Object> ret = new HashMap<>();
+			ret.put("success", true);
+			return ret;
+		});
+	}
+
+	/**
 	 * Refuses a user who cannot edit the project. Propagating a project's
 	 * permissions gives people access to everything it depends on, so it is limited
 	 * to the project's editors.

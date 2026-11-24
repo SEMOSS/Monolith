@@ -36,6 +36,7 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.Response;
+import prerna.auth.access.GranteePermissionQuery;
 import prerna.auth.utils.EffectivePermissionUtils;
 import prerna.auth.utils.SecurityAccessPermissionBatchUtils;
 import prerna.auth.utils.SecurityAdminUtils;
@@ -79,6 +80,41 @@ public class AdminPermissionBatchResource {
 		return ResourceUtility.respondAsAdmin(request, "save a permission batch as an admin",
 				SecurityAdminUtils::getInstance, (user, adminUtils) -> SecurityAccessPermissionBatchUtils
 						.saveBatches(adminUtils, user, SecurityAccessPermissionBatchUtils.readBatches(batches)));
+	}
+
+	/**
+	 * Every permission any engine or project gives an app, an agent or an engine,
+	 * in admin mode, each one changeable.
+	 *
+	 * @param search      text the name or id of the target or grantee contains
+	 * @param targetKind  PROJECT or ENGINE, what gives the permission, or none for
+	 *                    either
+	 * @param targetType  the target's type: a project's type, such as SKILL, or an
+	 *                    engine's catalog type, such as MODEL
+	 * @param granteeKind PROJECT or ENGINE, what is given the permission, or none
+	 *                    for either
+	 * @param granteeType the grantee's type in the same way, such as WORKSPACE
+	 * @param limit       how many to return; none or 0 for all
+	 * @param offset      how many to skip
+	 * @return the page and how many match; 400 for a kind that is neither
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("/getAllGranteePermissions")
+	public Response getAllGranteePermissions(@Context HttpServletRequest request, @QueryParam("search") String search,
+			@QueryParam("targetKind") String targetKind, @QueryParam("targetType") String targetType,
+			@QueryParam("granteeKind") String granteeKind, @QueryParam("granteeType") String granteeType,
+			@QueryParam("limit") int limit, @QueryParam("offset") int offset) {
+		String searchTerm = WebUtility.inputSanitizer(search);
+		String targetKindName = WebUtility.inputSanitizer(targetKind);
+		String target = WebUtility.inputSanitizer(targetType);
+		String granteeKindName = WebUtility.inputSanitizer(granteeKind);
+		String grantee = WebUtility.inputSanitizer(granteeType);
+		return ResourceUtility.respondAsAdmin(request, "list every permission engines and projects give as an admin",
+				SecurityAdminUtils::getInstance,
+				(user, adminUtils) -> SecurityAccessPermissionBatchUtils.getAllGranteePermissions(adminUtils, user,
+						new GranteePermissionQuery(searchTerm, targetKindName, target, granteeKindName, grantee, limit,
+								offset)));
 	}
 
 	/**
