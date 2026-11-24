@@ -58,6 +58,7 @@
 		<jackson2.annotations.version>2.22</jackson2.annotations.version>
 		<asm.version>9.11</asm.version>
 		<jakarta.mail.version>2.0.2</jakarta.mail.version>
+		<java-jwt.version>4.6.2</java-jwt.version>
 		<lz4.version>1.11.4</lz4.version>
 		<rabbitmq.version>5.37.0</rabbitmq.version>
 		<databricks.jdbc.version>2.8.4</databricks.jdbc.version>
@@ -698,6 +699,12 @@
 				<groupId>com.sun.mail</groupId>
 				<artifactId>jakarta.mail</artifactId>
 				<version>${jakarta.mail.version}</version>
+			</dependency>
+			<!-- livekit-server (via Semoss) brings java-jwt 4.5.0 -->
+			<dependency>
+				<groupId>com.auth0</groupId>
+				<artifactId>java-jwt</artifactId>
+				<version>${java-jwt.version}</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
