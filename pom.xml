@@ -56,7 +56,7 @@
 		<jackson3.version>3.1.8</jackson3.version>
 		<jackson2.version>2.22.4</jackson2.version>
 		<jackson2.annotations.version>2.22</jackson2.annotations.version>
-		<asm.version>9.11</asm.version>
+		<asm.version>9.11.1</asm.version>
 		<jakarta.mail.version>2.0.2</jakarta.mail.version>
 		<java-jwt.version>4.6.2</java-jwt.version>
 		<lz4.version>1.11.4</lz4.version>
