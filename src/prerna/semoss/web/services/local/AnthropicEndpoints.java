@@ -64,6 +64,7 @@ import jakarta.ws.rs.core.StreamingOutput;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityEngineUtils;
 import prerna.engine.api.IModelEngine;
+import prerna.engine.api.ModelTypeEnum;
 import prerna.engine.impl.model.AbstractModelEngine;
 import prerna.engine.impl.model.ModelPixelInvoker;
 import prerna.engine.impl.model.Room;
@@ -288,9 +289,16 @@ public class AnthropicEndpoints {
 		// can re-attach them to replayed tool_use blocks. Empty map for non-Vertex
 		// paths (no file written) - no-op then.
 		Map<String, String> thoughtSigMap = ThoughtSignatureSidecar.load(room.getRoomFolderPath());
-		boolean interactionReplay = engine.keepInputOutput() && engine.keepsConversationHistory()
+		// Google Interactions replay is a Vertex-only feature. Only set the flag and
+		// run the sidecar for Vertex engines; any other engine must not get the
+		// parameter, or it leaks to that provider's API through the compatibility
+		// endpoint and the request is rejected.
+		boolean isVertex = engine.getModelType() == ModelTypeEnum.VERTEX;
+		boolean interactionReplay = isVertex && engine.keepInputOutput() && engine.keepsConversationHistory()
 				&& !"false".equalsIgnoreCase(String.valueOf(dataMap.get("use_history")));
-		dataMap.put("google_interactions_replay_available", interactionReplay);
+		if (isVertex) {
+			dataMap.put("google_interactions_replay_available", interactionReplay);
+		}
 
 		// HANDLE NON-STREAMING REQUESTS THROUGH THE LLM PIXEL
 		if (!isStreamingRequest) {

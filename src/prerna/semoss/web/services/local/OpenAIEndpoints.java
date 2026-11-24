@@ -68,6 +68,7 @@ import jakarta.ws.rs.core.StreamingOutput;
 import prerna.auth.User;
 import prerna.auth.utils.SecurityEngineUtils;
 import prerna.engine.api.IModelEngine;
+import prerna.engine.api.ModelTypeEnum;
 import prerna.engine.impl.model.AbstractModelEngine;
 import prerna.engine.impl.model.ModelPixelInvoker;
 import prerna.engine.impl.model.Room;
@@ -447,9 +448,16 @@ public class OpenAIEndpoints {
 			message.remove(GoogleInteractionsState.KEY);
 			messages.add(message);
 		}
-		boolean replay = engine.keepInputOutput() && engine.keepsConversationHistory()
+		// Google Interactions replay is a Vertex-only feature. Only set the flag and
+		// run the sidecar for Vertex engines; any other engine (OpenAI, Anthropic, ...)
+		// must not get the parameter, or it leaks to that provider's API through the
+		// OpenAI-compatibility endpoint and the request is rejected.
+		boolean isVertex = engine.getModelType() == ModelTypeEnum.VERTEX;
+		boolean replay = isVertex && engine.keepInputOutput() && engine.keepsConversationHistory()
 				&& !"false".equalsIgnoreCase(String.valueOf(parameters.get("use_history")));
-		parameters.put("google_interactions_replay_available", replay);
+		if (isVertex) {
+			parameters.put("google_interactions_replay_available", replay);
+		}
 		if (replay) {
 			ThoughtSignatureSidecar.restoreInteractions(room.getRoomFolderPath(), messages);
 		}
@@ -471,6 +479,11 @@ public class OpenAIEndpoints {
 	@SuppressWarnings("unchecked")
 	private static void preserveInteractions(Room room, Map<String, Object> parameters,
 			Map<String, Object> assistant, Object state) throws IOException {
+		// Non-Vertex engines never carry this flag (restoreInteractions only sets it for
+		// Vertex), so there is nothing to preserve: skip cleanly rather than error.
+		if (!parameters.containsKey("google_interactions_replay_available")) {
+			return;
+		}
 		if (!Boolean.TRUE.equals(parameters.get("google_interactions_replay_available"))) {
 			throw new IOException("Room retention settings prevent preserving Google Interactions history");
 		}
