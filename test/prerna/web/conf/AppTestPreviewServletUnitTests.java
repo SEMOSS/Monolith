@@ -134,27 +134,23 @@ class AppTestPreviewServletUnitTests {
         var request = mock(HttpServletRequest.class);
         var response = mock(HttpServletResponse.class);
         var environment = mock(AppTestEnvironment.class);
-        when(request.getPathInfo()).thenReturn("/" + ID + "/" + SECRET + "/sdk/missing.mjs");
+        when(request.getPathInfo()).thenReturn("/" + ID + "/" + SECRET + "/public_home/app/portals/assets/missing.js");
         when(request.getMethod()).thenReturn("GET");
         when(request.getContextPath()).thenReturn("/Monolith");
         try (var contexts = mockStatic(AppTestEnvironment.class)) {
             contexts.when(() -> AppTestEnvironment.authenticate(ID, SECRET)).thenReturn(environment);
             new AppTestPreviewServlet().service(request, response);
-            verify(environment).blockedRequest("GET", "/sdk/missing.mjs", "ASSET", "TEST_PREVIEW_ASSET_MISSING");
+            verify(environment).blockedRequest("GET", "/public_home/app/portals/assets/missing.js", "ASSET", "TEST_PREVIEW_ASSET_MISSING");
             verify(response).sendError(eq(404), anyString());
         }
     }
 
-    @Test void discoversSharedSdkFromTheExistingSiblingFrontendDeployment() throws Exception {
+    @Test void initializationDoesNotInspectTheFrontendDeploymentFilesystem() throws Exception {
         var config = mock(jakarta.servlet.ServletConfig.class);
         var context = mock(jakarta.servlet.ServletContext.class);
         when(config.getServletContext()).thenReturn(context);
-        when(context.getRealPath("/")).thenReturn("/deployment/webapps/Monolith/");
-        try (var utility = mockStatic(prerna.util.Utility.class); var environments = mockStatic(AppTestEnvironment.class)) {
-            utility.when(prerna.util.Utility::getFEWebAppName).thenReturn("frontend");
-            new AppTestPreviewServlet().init(config);
-            environments.verify(() -> AppTestEnvironment.loadPlatformSdk(java.nio.file.Path.of("/deployment/webapps/frontend/libs/sdk/dist")));
-        }
+        new AppTestPreviewServlet().init(config);
+        verify(context, never()).getRealPath(anyString());
     }
 
     private static ServletInputStream body(String value) {

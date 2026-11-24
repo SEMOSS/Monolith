@@ -30,20 +30,17 @@ package prerna.web.conf;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
 
 import java.util.Map;
 import java.util.regex.Pattern;
 
 import com.google.gson.Gson;
 
-import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import prerna.reactor.apptest.AppTestEnvironment;
 import prerna.reactor.apptest.RegressionPixelAccess;
-import prerna.util.Utility;
 
 /** Capability-scoped manual preview. Ordinary API/session requests are never delegated from here. */
 public final class AppTestPreviewServlet extends HttpServlet {
@@ -51,21 +48,6 @@ public final class AppTestPreviewServlet extends HttpServlet {
     private static final String UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
     private static final Pattern PATH = Pattern.compile("/(" + UUID + ")/(" + UUID + "-" + UUID + ")/(.*)");
     private static final Gson JSON = new Gson();
-
-    @Override
-    public void init() throws ServletException {
-        super.init();
-        // Existing exploded frontend deployment; no operator path or JVM configuration is required.
-        String deployedRoot = getServletContext().getRealPath("/");
-        String frontend = Utility.getFEWebAppName();
-        try {
-            Path sdk = deployedRoot != null && frontend.matches("[A-Za-z0-9_-]+")
-                    ? Path.of(deployedRoot).resolveSibling(frontend).resolve("libs/sdk/dist") : null;
-            AppTestEnvironment.loadPlatformSdk(sdk);
-        } catch (IOException failure) {
-            getServletContext().log("Shared SDK snapshot is unavailable to app test previews", failure);
-        }
-    }
 
     @Override
     public void destroy() {
@@ -105,7 +87,7 @@ public final class AppTestPreviewServlet extends HttpServlet {
             } else if ("GET".equals(request.getMethod()) && "api/test-diagnostics".equals(path)) {
                 response.setContentType("application/json;charset=UTF-8");
                 JSON.toJson(Map.of("diagnostics", environment.diagnostics()), response.getWriter());
-            } else if ("GET".equals(request.getMethod()) && (path.startsWith("public_home/") || path.startsWith("sdk/"))) {
+            } else if ("GET".equals(request.getMethod()) && path.startsWith("public_home/")) {
                 AppTestEnvironment.Asset asset = environment.asset(path, request.getContextPath());
                 if (asset == null) {
                     environment.blockedRequest(request.getMethod(), "/" + path, "ASSET", "TEST_PREVIEW_ASSET_MISSING");
