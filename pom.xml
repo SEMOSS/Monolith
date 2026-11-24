@@ -54,6 +54,11 @@
 		<bc.jdk18on.version>1.86</bc.jdk18on.version>
 		<netty.version>4.1.138.Final</netty.version>
 		<jackson3.version>3.1.8</jackson3.version>
+		<jackson2.version>2.22.4</jackson2.version>
+		<jackson2.annotations.version>2.22</jackson2.annotations.version>
+		<asm.version>9.11.1</asm.version>
+		<jakarta.mail.version>2.0.2</jakarta.mail.version>
+		<java-jwt.version>4.6.2</java-jwt.version>
 		<lz4.version>1.11.4</lz4.version>
 		<rabbitmq.version>5.37.0</rabbitmq.version>
 		<databricks.jdbc.version>2.8.4</databricks.jdbc.version>
@@ -648,6 +653,58 @@
 				<groupId>tools.jackson.dataformat</groupId>
 				<artifactId>jackson-dataformat-yaml</artifactId>
 				<version>${jackson3.version}</version>
+			</dependency>
+			<!-- Jackson 2.x, asm and jakarta.mail arrive transitively; pin them so the resolved versions do not depend on which Semoss artifact is on the classpath. -->
+			<dependency>
+				<groupId>com.fasterxml.jackson.core</groupId>
+				<artifactId>jackson-core</artifactId>
+				<version>${jackson2.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.fasterxml.jackson.core</groupId>
+				<artifactId>jackson-databind</artifactId>
+				<version>${jackson2.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.fasterxml.jackson.core</groupId>
+				<artifactId>jackson-annotations</artifactId>
+				<version>${jackson2.annotations.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.ow2.asm</groupId>
+				<artifactId>asm</artifactId>
+				<version>${asm.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.ow2.asm</groupId>
+				<artifactId>asm-commons</artifactId>
+				<version>${asm.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.ow2.asm</groupId>
+				<artifactId>asm-tree</artifactId>
+				<version>${asm.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.ow2.asm</groupId>
+				<artifactId>asm-util</artifactId>
+				<version>${asm.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.ow2.asm</groupId>
+				<artifactId>asm-analysis</artifactId>
+				<version>${asm.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.sun.mail</groupId>
+				<artifactId>jakarta.mail</artifactId>
+				<version>${jakarta.mail.version}</version>
+			</dependency>
+			<!-- livekit-server (via Semoss) brings java-jwt 4.5.0 -->
+			<dependency>
+				<groupId>com.auth0</groupId>
+				<artifactId>java-jwt</artifactId>
+				<version>${java-jwt.version}</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
