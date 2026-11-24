@@ -38,6 +38,7 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.Response;
+import prerna.auth.access.GranteePermissionQuery;
 import prerna.auth.access.PermissionTargetResource;
 import prerna.auth.utils.EffectivePermissionUtils;
 import prerna.auth.utils.SecurityAccessPermissionBatchUtils;
@@ -102,6 +103,43 @@ public class PermissionBatchResource {
 		String resource = WebUtility.inputSQLSanitizer(id);
 		return ResourceUtility.respond(request, "read the permissions on " + resource,
 				user -> SecurityAccessPermissionBatchUtils.getPermissions(user, toTarget(resourceType, resource)));
+	}
+
+	/**
+	 * Every permission an engine or a project gives an app, an agent or an engine,
+	 * on the engines and projects the signed in user can edit, for the page that
+	 * lists them all. Each entry has its {@code target}, {@code subject},
+	 * {@code access} and {@code canChange}, true for the target's owners.
+	 *
+	 * @param search      text the name or id of the target or grantee contains
+	 * @param targetKind  PROJECT or ENGINE, what gives the permission, or none for
+	 *                    either
+	 * @param targetType  the target's type: a project's type, such as SKILL, or an
+	 *                    engine's catalog type, such as MODEL
+	 * @param granteeKind PROJECT or ENGINE, what is given the permission, or none
+	 *                    for either
+	 * @param granteeType the grantee's type in the same way, such as WORKSPACE
+	 * @param limit       how many to return; none or 0 for all
+	 * @param offset      how many to skip
+	 * @return the page and how many match; 400 for a kind that is neither
+	 */
+	@GET
+	@Produces("application/json")
+	@Path("/getAllGranteePermissions")
+	public Response getAllGranteePermissions(@Context HttpServletRequest request, @QueryParam("search") String search,
+			@QueryParam("targetKind") String targetKind, @QueryParam("targetType") String targetType,
+			@QueryParam("granteeKind") String granteeKind, @QueryParam("granteeType") String granteeType,
+			@QueryParam("limit") int limit, @QueryParam("offset") int offset) {
+		String searchTerm = WebUtility.inputSanitizer(search);
+		String targetKindName = WebUtility.inputSanitizer(targetKind);
+		String target = WebUtility.inputSanitizer(targetType);
+		String granteeKindName = WebUtility.inputSanitizer(granteeKind);
+		String grantee = WebUtility.inputSanitizer(granteeType);
+		return ResourceUtility
+				.respond(request, "list the permissions engines and projects give",
+						user -> SecurityAccessPermissionBatchUtils.getAllGranteePermissions(user,
+								new GranteePermissionQuery(searchTerm, targetKindName, target, granteeKindName, grantee,
+										limit, offset)));
 	}
 
 	/**

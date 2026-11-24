@@ -31,6 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
@@ -157,7 +158,9 @@ class AdminPermissionBatchResourceTest {
 				endpoint("getPermissions", (r, q) -> r.getPermissions(q, "PROJECT", "p1")),
 				endpoint("getPermissionsToCopy", (r, q) -> r.getPermissionsToCopy(q, "PROJECT", "p1", "PROJECT", "p2")),
 				endpoint("getEffectivePermissions", (r, q) -> r.getEffectivePermissions(q, "ENGINE", "e1")),
-				endpoint("getUsageLimitPath", (r, q) -> r.getUsageLimitPath(q, "e1", "u1", "NATIVE")));
+				endpoint("getUsageLimitPath", (r, q) -> r.getUsageLimitPath(q, "e1", "u1", "NATIVE")),
+				endpoint("getAllGranteePermissions",
+						(r, q) -> r.getAllGranteePermissions(q, null, null, null, null, null, 0, 0)));
 	}
 
 	@ParameterizedTest
@@ -201,8 +204,9 @@ class AdminPermissionBatchResourceTest {
 
 			assertEquals(200, response.getStatus());
 			assertEquals(true, body(response).getAsJsonArray().get(0).getAsJsonObject().get("valid").getAsBoolean());
-			f.batches.verify(() -> SecurityAccessPermissionBatchUtils.saveBatches(any(SecurityAdminUtils.class),
-					any(), any()), never());
+			f.batches.verify(
+					() -> SecurityAccessPermissionBatchUtils.saveBatches(any(SecurityAdminUtils.class), any(), any()),
+					never());
 		}
 	}
 
@@ -232,8 +236,9 @@ class AdminPermissionBatchResourceTest {
 
 			assertEquals(400, response.getStatus());
 			assertEquals("Must define the permission batches", errorMessage(response));
-			f.batches.verify(() -> SecurityAccessPermissionBatchUtils.saveBatches(any(SecurityAdminUtils.class),
-					any(), any()), never());
+			f.batches.verify(
+					() -> SecurityAccessPermissionBatchUtils.saveBatches(any(SecurityAdminUtils.class), any(), any()),
+					never());
 		}
 	}
 
@@ -258,16 +263,35 @@ class AdminPermissionBatchResourceTest {
 
 	@ParameterizedTest
 	@CsvSource({ "project, PROJECT", "ENGINE, ENGINE", " team , TEAM", "Team_Managers, TEAM_MANAGERS" })
-	void readsThePermissionsOnATargetOfAnyKnownType(String resourceType, TargetResourceType expected)
-			throws Exception {
+	void readsThePermissionsOnATargetOfAnyKnownType(String resourceType, TargetResourceType expected) throws Exception {
 		try (Fixture f = Fixture.asAdmin()) {
-			f.batches.when(() -> SecurityAccessPermissionBatchUtils.getPermissions(Mockito.eq(f.utils),
-					Mockito.eq(f.user), argThat(target(expected, "x1")))).thenReturn(Map.of("people", List.of()));
+			f.batches
+					.when(() -> SecurityAccessPermissionBatchUtils.getPermissions(Mockito.eq(f.utils),
+							Mockito.eq(f.user), argThat(target(expected, "x1"))))
+					.thenReturn(Map.of("people", List.of()));
 
 			Response response = new AdminPermissionBatchResource().getPermissions(f.request, resourceType, "x1");
 
 			assertEquals(200, response.getStatus());
 			assertEquals(0, body(response).getAsJsonObject().getAsJsonArray("people").size());
+		}
+	}
+
+	@Test
+	void listsEveryPermissionEnginesAndProjectsGiveInAdminMode() throws Exception {
+		try (Fixture f = Fixture.asAdmin()) {
+			f.batches
+					.when(() -> SecurityAccessPermissionBatchUtils.getAllGranteePermissions(eq(f.utils), eq(f.user),
+							argThat(query -> "claims".equals(query.search()) && "PROJECT".equals(query.targetKind())
+									&& "SKILL".equals(query.targetType()) && "PROJECT".equals(query.granteeKind())
+									&& query.granteeType() == null && query.limit() == 25 && query.offset() == 50)))
+					.thenReturn(Map.of("grants", List.of(), "total", 0));
+
+			Response response = new AdminPermissionBatchResource().getAllGranteePermissions(f.request, "claims",
+					"PROJECT", "SKILL", "PROJECT", null, 25, 50);
+
+			assertEquals(200, response.getStatus());
+			assertEquals(0, body(response).getAsJsonObject().get("total").getAsInt());
 		}
 	}
 
@@ -306,8 +330,9 @@ class AdminPermissionBatchResourceTest {
 	@Test
 	void readsTheEffectivePermissionsOnAProject() throws Exception {
 		try (Fixture f = Fixture.asAdmin()) {
-			f.effective.when(() -> EffectivePermissionUtils.getEffectivePermissions(Mockito.eq(f.utils),
-					Mockito.eq(f.user), argThat(target(TargetResourceType.PROJECT, "p1"))))
+			f.effective
+					.when(() -> EffectivePermissionUtils.getEffectivePermissions(Mockito.eq(f.utils),
+							Mockito.eq(f.user), argThat(target(TargetResourceType.PROJECT, "p1"))))
 					.thenReturn(Map.of("total", 2));
 
 			Response response = new AdminPermissionBatchResource().getEffectivePermissions(f.request, "PROJECT", "p1");
@@ -333,8 +358,9 @@ class AdminPermissionBatchResourceTest {
 	@Test
 	void passesAMissingLoginTypeOnForTheUsageLimitPathToReject() throws Exception {
 		try (Fixture f = Fixture.asAdmin()) {
-			f.batches.when(() -> SecurityAccessPermissionBatchUtils.getUsageLimitPath(f.utils, f.user, "e1", "u1",
-					null)).thenThrow(new IllegalArgumentException("Must define the user's login type"));
+			f.batches
+					.when(() -> SecurityAccessPermissionBatchUtils.getUsageLimitPath(f.utils, f.user, "e1", "u1", null))
+					.thenThrow(new IllegalArgumentException("Must define the user's login type"));
 
 			Response response = new AdminPermissionBatchResource().getUsageLimitPath(f.request, "e1", "u1", null);
 
