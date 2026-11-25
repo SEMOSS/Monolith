@@ -46,6 +46,7 @@ import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.util.Constants;
 import prerna.util.SocialPropertiesUtil;
 import prerna.util.openshell.OpenShellUserSandboxes;
+import prerna.web.services.util.RedirectUtility;
 import prerna.web.services.util.WebUtility;
 
 public class NoUserInSessionFilter implements Filter {
@@ -160,15 +161,15 @@ public class NoUserInSessionFilter implements Filter {
 			if (loginRedirect != null) {
 				((HttpServletResponse) arg1).sendRedirect(loginRedirect);
 			} else {
-				String contextPath = context.getContextPath();
-				redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length()) + NO_USER_HTML;
-				((HttpServletResponse) arg1).sendRedirect(redirectUrl);
+				// own context page, relative so no host is taken from the request
+				RedirectUtility.sendLocalRedirect((HttpServletResponse) arg1, context.getContextPath() + NO_USER_HTML,
+						HttpServletResponse.SC_MOVED_TEMPORARILY);
 			}
 		} else {
 			// are we in public home - if no, we dont include ! in the redirect
 			redirectUrl = redirectUrl + WebUtility.determineLoginExtension((HttpServletRequest) arg0);
 			String encodedRedirectUrl = Encode.forHtml(redirectUrl);
-			((HttpServletResponse) arg1).setHeader("redirect", encodedRedirectUrl);
+			((HttpServletResponse) arg1).setHeader("redirect", WebUtility.responseHeaderValue(encodedRedirectUrl));
 			((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + encodedRedirectUrl);
 
 			// invalidate the session if necessary

@@ -53,6 +53,7 @@ import prerna.util.Utility;
 import prerna.web.conf.util.CACTrackingUtil;
 import prerna.web.conf.util.SSOUtil;
 import prerna.web.conf.util.UserFileLogUtil;
+import prerna.web.services.util.RedirectUtility;
 import prerna.web.services.util.WebUtility;
 
 /**
@@ -148,8 +149,10 @@ public class SSOFilter implements Filter {
 						Utility.cleanLogString(fullUrl));
 				redirectAfterLogin = fullUrl;
 			} else if (referer != null) {
-				classLogger.info("Setting session redirect value to referer = {}", Utility.cleanLogString(referer));
-				redirectAfterLogin = referer;
+				// the referer is attacker controllable, only return to an allowed destination
+				redirectAfterLogin = RedirectUtility.allowedReturnUrl((HttpServletRequest) request, referer);
+				classLogger.info("Setting session redirect value to referer = {}",
+						Utility.cleanLogString(String.valueOf(redirectAfterLogin)));
 			} else {
 				classLogger.info("No session redirect value found...");
 				redirectAfterLogin = null;
@@ -198,8 +201,8 @@ public class SSOFilter implements Filter {
 			// 1) configured external login URL, or
 			// 2) internal SAML login page that routes into IdpSSOServlet/SPSSOServlet.
 			if (loginUrl != null && !(loginUrl = loginUrl.trim()).isEmpty()) {
-				((HttpServletResponse) response).setHeader("redirect", loginUrl);
-				((HttpServletResponse) response).setHeader("location", loginUrl);
+				((HttpServletResponse) response).setHeader("redirect", WebUtility.responseHeaderValue(loginUrl));
+				((HttpServletResponse) response).setHeader("location", WebUtility.responseHeaderValue(loginUrl));
 				((HttpServletResponse) response).sendError(302, "Need to redirect to " + loginUrl);
 			} else {
 				// if no login url defined
@@ -207,9 +210,9 @@ public class SSOFilter implements Filter {
 				// we redirect to the index.html page specifically created for the SAML call.
 				String redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length())
 						+ loginPath;
-				((HttpServletResponse) response).setHeader("redirect", redirectUrl);
+				((HttpServletResponse) response).setHeader("redirect", WebUtility.responseHeaderValue(redirectUrl));
 				if (addLocation) {
-					((HttpServletResponse) response).setHeader("location", redirectUrl);
+					((HttpServletResponse) response).setHeader("location", WebUtility.responseHeaderValue(redirectUrl));
 				}
 				((HttpServletResponse) response).sendError(302, "Redirect required");
 			}

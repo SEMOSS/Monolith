@@ -761,7 +761,7 @@ public class ProjectResource {
 			EntityTag etag = new EntityTag(Integer.toHexString(exportFile.getAbsolutePath().hashCode()) + "-"
 					+ exportFile.lastModified() + "-" + exportFile.length());
 			return CatalogImageResponse.withBrowserCache(coreRequest, Response.ok(exportFile)
-					.header("Content-Disposition", "attachment; filename=" + exportName).tag(etag).build());
+					.header("Content-Disposition", WebUtility.responseHeaderValue("attachment; filename=" + exportName)).tag(etag).build());
 		} else {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "error sending image file");
@@ -869,7 +869,7 @@ public class ProjectResource {
 			}
 
 			return CatalogImageResponse.withContentType(Response.ok(exportFile)
-					.header("Content-Disposition", "attachment; filename=" + exportName).tag(etag).build());
+					.header("Content-Disposition", WebUtility.responseHeaderValue("attachment; filename=" + exportName)).tag(etag).build());
 		} else {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, "Error sending image file");

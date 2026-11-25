@@ -145,7 +145,9 @@ public class NameServer {
 
 			String exportName = FilenameUtils.getName(filePath);
 			return Response.status(200).entity(exportFile)
-					.header("Content-Disposition", "attachment; filename=\"" + exportName + "\"").build();
+					.header("Content-Disposition",
+							WebUtility.responseHeaderValue("attachment; filename=\"" + exportName + "\""))
+					.build();
 		} catch (Exception e) {
 			Map<String, String> errorMap = new HashMap<>();
 			errorMap.put(Constants.ERROR_MESSAGE, e.getMessage());
