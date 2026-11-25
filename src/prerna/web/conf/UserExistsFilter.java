@@ -50,6 +50,7 @@ import prerna.auth.utils.SecurityQueryUtils;
 import prerna.semoss.web.services.local.ResourceUtility;
 import prerna.usertracking.AuditErrorCode;
 import prerna.util.Constants;
+import prerna.web.services.util.WebUtility;
 
 public class UserExistsFilter extends NoUserInSessionFilter {
 
@@ -76,7 +77,7 @@ public class UserExistsFilter extends NoUserInSessionFilter {
 				String redirectUrl = ((HttpServletRequest) arg0).getHeader("referer");
 				redirectUrl = redirectUrl + "#!/login";
 				String encodedRedirectUrl = Encode.forHtml(redirectUrl);
-				((HttpServletResponse) arg1).setHeader("redirect", encodedRedirectUrl);
+				((HttpServletResponse) arg1).setHeader("redirect", WebUtility.responseHeaderValue(encodedRedirectUrl));
 				((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + encodedRedirectUrl);
 				return;
 			} else {
@@ -107,7 +108,7 @@ public class UserExistsFilter extends NoUserInSessionFilter {
 					String redirectUrl = ((HttpServletRequest) arg0).getHeader("referer");
 					redirectUrl = redirectUrl + "#!/login";
 					String encodedRedirectUrl = Encode.forHtml(redirectUrl);
-					((HttpServletResponse) arg1).setHeader("redirect", encodedRedirectUrl);
+					((HttpServletResponse) arg1).setHeader("redirect", WebUtility.responseHeaderValue(encodedRedirectUrl));
 					((HttpServletResponse) arg1).sendError(302, "Need to redirect to " + encodedRedirectUrl);
 
 					// log the user login

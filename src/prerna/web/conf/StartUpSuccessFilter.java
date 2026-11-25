@@ -95,7 +95,7 @@ public class StartUpSuccessFilter implements Filter {
 				// we redirect to the index.html page where we have pushed the admin page
 				String redirectUrl = fullUrl.substring(0, fullUrl.indexOf(contextPath) + contextPath.length())
 						+ FAIL_HTML;
-				((HttpServletResponse) response).setHeader("redirect", redirectUrl);
+				((HttpServletResponse) response).setHeader("redirect", WebUtility.responseHeaderValue(redirectUrl));
 				((HttpServletResponse) response).sendError(302, "Redirect required");
 				return;
 			}

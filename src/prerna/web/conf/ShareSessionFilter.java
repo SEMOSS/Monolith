@@ -51,6 +51,7 @@ import prerna.auth.utils.SecurityShareSessionUtils;
 import prerna.semoss.web.services.local.UserResource;
 import prerna.util.Constants;
 import prerna.util.Utility;
+import prerna.web.services.util.RedirectUtility;
 import prerna.web.services.util.WebUtility;
 
 public class ShareSessionFilter implements Filter {
@@ -63,10 +64,6 @@ public class ShareSessionFilter implements Filter {
 	public void doFilter(ServletRequest arg0, ServletResponse arg1, FilterChain arg2)
 			throws IOException, ServletException {
 
-		// this will be the full path of the request
-		// like http://localhost:8080/Monolith_Dev/api/engine/runPixel
-
-		String fullUrl = WebUtility.cleanHttpResponse(((HttpServletRequest) arg0).getRequestURL().toString());
 		String contextPath = ((HttpServletRequest) arg0).getContextPath();
 
 		// due to FE being annoying
@@ -172,30 +169,26 @@ public class ShareSessionFilter implements Filter {
 			// and now redirect back to the URL
 			// if get, we can do it
 			String method = req.getMethod();
-			if (method.equalsIgnoreCase("GET")) {
+			// the redirect is a path on the origin the browser used, never a host from the request
+			String redirectPath = req.getRequestURI();
+			if (method.equalsIgnoreCase("GET") || method.equalsIgnoreCase("POST")) {
 				// modify the prefix if necessary
 				Map<String, String> envMap = System.getenv();
 				if (envMap.containsKey(Constants.MONOLITH_PREFIX)) {
-					fullUrl = fullUrl.replace(contextPath, envMap.get(Constants.MONOLITH_PREFIX));
+					redirectPath = redirectPath.replace(contextPath, envMap.get(Constants.MONOLITH_PREFIX));
 				}
-
-				((HttpServletResponse) arg1).setStatus(HttpServletResponse.SC_MOVED_TEMPORARILY);
+			}
+			if (method.equalsIgnoreCase("GET")) {
 				String newQueryString = removeQueryParam(currentQueryString, SHARE_TOKEN_KEY);
 				if (newQueryString != null && !newQueryString.isEmpty()) {
-					((HttpServletResponse) arg1).sendRedirect(fullUrl + "?" + newQueryString);
-				} else {
-					((HttpServletResponse) arg1).sendRedirect(fullUrl);
+					redirectPath = redirectPath + "?" + newQueryString;
 				}
+				RedirectUtility.sendLocalRedirect((HttpServletResponse) arg1, redirectPath,
+						HttpServletResponse.SC_MOVED_TEMPORARILY);
 				return;
 			} else if (method.equalsIgnoreCase("POST")) {
-				// modify the prefix if necessary
-				Map<String, String> envMap = System.getenv();
-				if (envMap.containsKey(Constants.MONOLITH_PREFIX)) {
-					fullUrl = fullUrl.replace(contextPath, envMap.get(Constants.MONOLITH_PREFIX));
-				}
-
-				((HttpServletResponse) arg1).setStatus(HttpServletResponse.SC_TEMPORARY_REDIRECT);
-				((HttpServletResponse) arg1).setHeader("Location", fullUrl);
+				RedirectUtility.sendLocalRedirect((HttpServletResponse) arg1, redirectPath,
+						HttpServletResponse.SC_TEMPORARY_REDIRECT);
 				return;
 			}
 		}

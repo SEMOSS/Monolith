@@ -31,6 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -155,7 +156,7 @@ class NoUserInSessionFilterTest {
 		run(null, request, response, mock(FilterChain.class));
 
 		verify(response, never()).setStatus(401);
-		verify(response).sendRedirect(anyString());
+		verify(response).setHeader(eq("Location"), anyString());
 	}
 
 	@Test
@@ -182,7 +183,8 @@ class NoUserInSessionFilterTest {
 
 		run(null, request, response, chain);
 
-		verify(response).sendRedirect(BASE + "/noUserFail/");
+		// root-relative so the host never comes from the request
+		verify(response).setHeader("Location", "/Monolith/noUserFail/");
 		verify(chain, never()).doFilter(any(), any());
 	}
 
@@ -196,7 +198,7 @@ class NoUserInSessionFilterTest {
 		run(null, request, response, mock(FilterChain.class));
 
 		verify(created).setAttribute(Constants.ENDPOINT_REDIRECT_KEY, BASE + "/api/engine/runPixel");
-		verify(response).sendRedirect(BASE + "/noUserFail/");
+		verify(response).setHeader("Location", "/Monolith/noUserFail/");
 	}
 
 	@Test

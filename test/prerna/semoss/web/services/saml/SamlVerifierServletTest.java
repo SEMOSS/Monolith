@@ -165,8 +165,13 @@ class SamlVerifierServletTest {
 			String relay = "https://semoss.example.com/SemossWeb/?sendRedirectForValidationNow=true";
 			statics.respond(assertion(attribute("uid", "u-1")), relay);
 			HttpServletResponse resp = mock(HttpServletResponse.class);
+			// the relay state is only followed to an allowed destination, here this request's origin
+			HttpServletRequest req = request(mock(HttpSession.class));
+			when(req.getScheme()).thenReturn("https");
+			when(req.getServerName()).thenReturn("semoss.example.com");
+			when(req.getServerPort()).thenReturn(443);
 
-			servlet(Map.of()).verifySamlOutput(request(mock(HttpSession.class)), resp);
+			servlet(Map.of()).verifySamlOutput(req, resp);
 
 			verify(resp).sendRedirect(relay);
 			statics.users.verifyNoInteractions();

@@ -99,6 +99,7 @@ import prerna.util.linotp.LinOTPResponse;
 import prerna.util.linotp.LinOTPUtil;
 import prerna.web.conf.DBLoader;
 import prerna.web.conf.UserSessionLoader;
+import prerna.web.services.util.RedirectUtility;
 import prerna.web.services.util.WebUtility;
 import waffle.servlet.WindowsPrincipal;
 
@@ -243,7 +244,7 @@ public class UserResource {
 
 				String customUrl = DBLoader.getCustomLogoutUrl();
 				if (customUrl != null && !customUrl.isEmpty()) {
-					response.setHeader("redirect", customUrl);
+					response.setHeader("redirect", WebUtility.responseHeaderValue(customUrl));
 					response.sendError(302, "Need to redirect to " + customUrl);
 				} else {
 					String redirectUrl = WebUtility.inputSanitizer(request.getHeader("referer"));
@@ -262,12 +263,12 @@ public class UserResource {
 							redirectUrl += ":" + serverPort;
 						}
 						redirectUrl += contextPath + "/logout/";
-						response.setHeader("redirect", redirectUrl);
+						response.setHeader("redirect", WebUtility.responseHeaderValue(redirectUrl));
 						response.sendError(302, "Need to redirect to " + redirectUrl);
 					} else {
 						redirectUrl = redirectUrl + WebUtility.determineLoginExtension(request);
 						String encodedRedirectUrl = Encode.forHtml(redirectUrl);
-						response.setHeader("redirect", encodedRedirectUrl);
+						response.setHeader("redirect", WebUtility.responseHeaderValue(encodedRedirectUrl));
 						response.sendError(302, "Need to redirect to " + encodedRedirectUrl);
 					}
 				}
@@ -434,7 +435,8 @@ public class UserResource {
 	 */
 	private HttpSession initializeOAuthLoginSession(HttpServletRequest request) {
 		HttpSession session = request.getSession(false);
-		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
+		// checked raw: html-encoding first would corrupt valid urls, and the check refuses control characters
+		String customRedirect = RedirectUtility.allowedReturnUrl(request, request.getParameter("redirect"));
 		if (customRedirect != null && !customRedirect.isEmpty()) {
 			if (session == null) {
 				session = request.getSession();
@@ -1350,7 +1352,8 @@ public class UserResource {
 		try {
 			String username = WebUtility.inputSQLSanitizer(request.getParameter("username"));
 			String password = WebUtility.inputSQLSanitizer(request.getParameter("password"));
-			String redirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
+			// validated raw in setMainPageRedirect
+			String redirect = request.getParameter("redirect");
 			// so that the default is to redirect
 			Boolean disableRedirect = Boolean.parseBoolean(request.getParameter("disableRedirect") + "");
 
@@ -1587,7 +1590,8 @@ public class UserResource {
 			return WebUtility.getResponse(returnMap, 400);
 		}
 
-		String redirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
+		// validated raw in setMainPageRedirect
+		String redirect = request.getParameter("redirect");
 		// so that the default is to redirect
 		Boolean disableRedirect = Boolean.parseBoolean(request.getParameter("disableRedirect") + "");
 		boolean autoAdd = Boolean.parseBoolean(socialData.getProperty("linotp_auto_add", "true"));
@@ -1935,7 +1939,8 @@ public class UserResource {
 	 * @param response outbound HTTP response
 	 */
 	private void setMainPageRedirect(@Context HttpServletRequest request, @Context HttpServletResponse response) {
-		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
+		// validated raw in setMainPageRedirect(request, response, customRedirect)
+		String customRedirect = request.getParameter("redirect");
 		if (customRedirect == null || customRedirect.isEmpty()) {
 			customRedirect = (String) request.getSession().getAttribute(CUSTOM_REDIRECT_SESSION_KEY);
 			// also remove the attribute so additional logins dont do the redirect as well
@@ -1958,18 +1963,20 @@ public class UserResource {
 		// otherwise, we send them back to the FE
 		HttpSession session = request.getSession();
 
+		// the redirect can come from the request or the session, only return to an allowed destination
+		customRedirect = RedirectUtility.allowedReturnUrl(request, customRedirect);
 		boolean useCustom = customRedirect != null && !customRedirect.isEmpty();
 		boolean endpoint = session.getAttribute(Constants.ENDPOINT_REDIRECT_KEY) != null;
 		response.setStatus(302);
 		try {
 			addSessionCookieHeader(request, response, session);
 			if (useCustom) {
-				response.addHeader("redirect", customRedirect);
+				response.addHeader("redirect", WebUtility.responseHeaderValue(customRedirect));
 				String encodedCustomRedirect = Encode.forHtml(customRedirect);
 				response.sendError(302, "Need to redirect to " + encodedCustomRedirect);
 			} else if (endpoint) {
 				String redirectUrl = session.getAttribute(Constants.ENDPOINT_REDIRECT_KEY) + "";
-				response.addHeader("redirect", redirectUrl);
+				response.addHeader("redirect", WebUtility.responseHeaderValue(redirectUrl));
 				response.sendError(302, "Need to redirect to " + redirectUrl);
 			} else {
 				response.sendRedirect(socialData.getProperty("redirect"));
@@ -1994,7 +2001,7 @@ public class UserResource {
 				+ ((ClusterUtil.IS_CLUSTER || secureRequest)
 						? ("; Secure; SameSite=" + Utility.getSameSiteCookieValue())
 						: "");
-		response.addHeader("Set-Cookie", setCookieString);
+		response.addHeader("Set-Cookie", WebUtility.responseHeaderValue(setCookieString));
 	}
 
 	//////////////////////////////////////////////////////////////////////

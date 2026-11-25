@@ -34,6 +34,7 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -67,6 +68,8 @@ import prerna.util.Utility;
 class ShareSessionFilterTest {
 
 	private static final String URL = "http://localhost:8080/Monolith/api/engine/runPixel";
+	// redirects are root-relative so the host never comes from the request
+	private static final String PATH = "/Monolith/api/engine/runPixel";
 
 	private HttpServletResponse response;
 	private FilterChain chain;
@@ -91,6 +94,7 @@ class ShareSessionFilterTest {
 		HttpServletRequest request = mock(HttpServletRequest.class);
 		when(request.getMethod()).thenReturn(method);
 		when(request.getRequestURL()).thenReturn(new StringBuffer(URL));
+		when(request.getRequestURI()).thenReturn(PATH);
 		when(request.getContextPath()).thenReturn("/Monolith");
 		when(request.getQueryString()).thenReturn(query);
 		if (user != null) {
@@ -179,7 +183,7 @@ class ShareSessionFilterTest {
 		assertEquals("ROUTEID", cookies.get(2).getName());
 		assertEquals("route1", cookies.get(2).getValue());
 		verify(response).setStatus(302);
-		verify(response).sendRedirect(URL + "?insight=abc");
+		verify(response).setHeader("Location", PATH + "?insight=abc");
 		verify(chain, never()).doFilter(any(), any());
 	}
 
@@ -189,7 +193,8 @@ class ShareSessionFilterTest {
 
 		run(request, details(true, false), null);
 
-		verify(response).sendRedirect(URL);
+		verify(response).setStatus(302);
+		verify(response).setHeader("Location", PATH);
 	}
 
 	@Test
@@ -199,7 +204,7 @@ class ShareSessionFilterTest {
 		run(request, details(true, false), null);
 
 		verify(response).setStatus(307);
-		verify(response).setHeader("Location", URL);
+		verify(response).setHeader("Location", PATH);
 		verify(chain, never()).doFilter(any(), any());
 	}
 
@@ -212,6 +217,7 @@ class ShareSessionFilterTest {
 		assertTrue(passed() instanceof HttpServletRequestWrapper);
 		verify(response, never()).addCookie(any());
 		verify(response, never()).sendRedirect(anyString());
+		verify(response, never()).setHeader(eq("Location"), anyString());
 	}
 
 	@Test
@@ -241,6 +247,6 @@ class ShareSessionFilterTest {
 		run(request, details(false, false), null);
 
 		verify(response, never()).addCookie(any());
-		verify(response).sendRedirect(URL);
+		verify(response).setHeader("Location", PATH);
 	}
 }
