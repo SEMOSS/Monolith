@@ -99,7 +99,9 @@ public class IdpSSOServlet extends HttpServlet {
 		boolean hasRedirect = (redirect != null && !(redirect = redirect.trim()).isEmpty());
 		if (hasRedirect) {
 			// one policy: relative, this origin, the configured UI, redirect_allowed_origins or WHITE_LIST_DOMAINS
-			if (RedirectUtility.allowedReturnUrl(request, redirect) == null) {
+			// only the checked value is used from here on
+			redirect = RedirectUtility.allowedReturnUrl(request, redirect);
+			if (redirect == null) {
 				response.sendError(HttpServletResponse.SC_FORBIDDEN, " Provided redirect is unauthorized");
 				return;
 			}
