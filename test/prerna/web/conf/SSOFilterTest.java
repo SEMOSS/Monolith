@@ -95,6 +95,10 @@ class SSOFilterTest {
 		when(context.getContextPath()).thenReturn("/Monolith");
 		when(request.getServletContext()).thenReturn(context);
 		when(request.getRequestURL()).thenReturn(new StringBuffer(url));
+		// the referer is only kept when it is on this request's origin (or another allowed one)
+		when(request.getScheme()).thenReturn("http");
+		when(request.getServerName()).thenReturn("localhost");
+		when(request.getServerPort()).thenReturn(8080);
 		when(request.getHeader("referer")).thenReturn(referer);
 		when(request.getHeader("Sec-Fetch-Dest")).thenReturn(fetchDest);
 		when(request.getSession(true)).thenReturn(session);

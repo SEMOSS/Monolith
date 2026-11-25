@@ -889,11 +889,21 @@ public class FileUploader extends AbstractUploader {
 		return retData;
 	}
 
-	// the upload target must be a direct child of the upload folder
+	// the upload target must be a direct child of the upload folder; normalize first so the
+	// later write (which normalizes again) lands on exactly the path that was checked
 	private static File containedUploadFile(String folder, String fileLocation) throws IOException {
 		java.nio.file.Path root = Paths.get(WebUtility.normalizePath(folder));
 		Files.createDirectories(root);
-		return WebUtility.resolveWithin(root, FilenameUtils.getName(fileLocation)).toFile();
+		String normalized = WebUtility.normalizePath(fileLocation);
+		String name = normalized == null ? null : FilenameUtils.getName(normalized);
+		if (!WebUtility.isSafePathSegment(name)) {
+			throw new IllegalArgumentException("Invalid upload file name");
+		}
+		java.nio.file.Path target = WebUtility.resolveWithin(root, name);
+		if (!target.toString().equals(WebUtility.normalizePath(target.toString()))) {
+			throw new IllegalArgumentException("Invalid upload file name");
+		}
+		return target.toFile();
 	}
 
 	/**

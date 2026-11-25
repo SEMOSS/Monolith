@@ -78,6 +78,7 @@ import prerna.util.SocialPropertiesUtil;
 import prerna.util.Utility;
 import prerna.web.conf.AdminStartupFilter;
 import prerna.web.conf.util.SSOUtil;
+import prerna.web.services.util.RedirectUtility;
 
 /**
  * Receives the SAML assertion callback from the IdP and finalizes login in this
@@ -161,7 +162,8 @@ public class SamlVerifierServlet extends HttpServlet {
 			if ((relayUrl != null) && (relayUrl.length() != 0)) {
 				// something special for validation to send redirect
 				int stringPos = relayUrl.indexOf("sendRedirectForValidationNow=true");
-				if (stringPos != -1) {
+				// RelayState is not signed, so only follow it to an allowed destination
+				if (stringPos != -1 && RedirectUtility.allowedReturnUrl(request, relayUrl) != null) {
 					response.sendRedirect(relayUrl);
 					return;
 				}

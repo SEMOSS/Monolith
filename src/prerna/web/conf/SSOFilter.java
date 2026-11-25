@@ -141,7 +141,8 @@ public class SSOFilter implements Filter {
 
 			// we need to store information in the session
 			// so that we can properly come back to the referer once an admin has been added
-			String referer = WebUtility.cleanHttpResponse(((HttpServletRequest) request).getHeader("referer"));
+			// checked raw below: html-encoding first would corrupt valid urls
+			String referer = ((HttpServletRequest) request).getHeader("referer");
 			String redirectAfterLogin;
 			if (isPortalUrl) {
 				// Always return to the portal URL itself, not wherever the referer points

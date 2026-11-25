@@ -435,8 +435,8 @@ public class UserResource {
 	 */
 	private HttpSession initializeOAuthLoginSession(HttpServletRequest request) {
 		HttpSession session = request.getSession(false);
-		String customRedirect = RedirectUtility.allowedReturnUrl(request,
-				WebUtility.cleanHttpResponse(request.getParameter("redirect")));
+		// checked raw: html-encoding first would corrupt valid urls, and the check refuses control characters
+		String customRedirect = RedirectUtility.allowedReturnUrl(request, request.getParameter("redirect"));
 		if (customRedirect != null && !customRedirect.isEmpty()) {
 			if (session == null) {
 				session = request.getSession();
@@ -1352,7 +1352,8 @@ public class UserResource {
 		try {
 			String username = WebUtility.inputSQLSanitizer(request.getParameter("username"));
 			String password = WebUtility.inputSQLSanitizer(request.getParameter("password"));
-			String redirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
+			// validated raw in setMainPageRedirect
+			String redirect = request.getParameter("redirect");
 			// so that the default is to redirect
 			Boolean disableRedirect = Boolean.parseBoolean(request.getParameter("disableRedirect") + "");
 
@@ -1589,7 +1590,8 @@ public class UserResource {
 			return WebUtility.getResponse(returnMap, 400);
 		}
 
-		String redirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
+		// validated raw in setMainPageRedirect
+		String redirect = request.getParameter("redirect");
 		// so that the default is to redirect
 		Boolean disableRedirect = Boolean.parseBoolean(request.getParameter("disableRedirect") + "");
 		boolean autoAdd = Boolean.parseBoolean(socialData.getProperty("linotp_auto_add", "true"));
@@ -1937,7 +1939,8 @@ public class UserResource {
 	 * @param response outbound HTTP response
 	 */
 	private void setMainPageRedirect(@Context HttpServletRequest request, @Context HttpServletResponse response) {
-		String customRedirect = WebUtility.cleanHttpResponse(request.getParameter("redirect"));
+		// validated raw in setMainPageRedirect(request, response, customRedirect)
+		String customRedirect = request.getParameter("redirect");
 		if (customRedirect == null || customRedirect.isEmpty()) {
 			customRedirect = (String) request.getSession().getAttribute(CUSTOM_REDIRECT_SESSION_KEY);
 			// also remove the attribute so additional logins dont do the redirect as well

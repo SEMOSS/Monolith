@@ -48,7 +48,7 @@ public final class RedirectUtility {
 	}
 
 	// returns the target when a browser may be sent there after login, otherwise null (and logs the denial)
-	// allowed: relative paths, this host, the social.properties "redirect" origin,
+	// allowed: relative paths, this request's origin, the application url / social.properties "redirect" origin,
 	// social.properties "redirect_allowed_origins" (comma separated origins), or a WHITE_LIST_DOMAINS domain
 	public static String allowedReturnUrl(HttpServletRequest request, String target) {
 		if (target == null || target.isEmpty()) {
@@ -64,15 +64,13 @@ public final class RedirectUtility {
 	// redirect to a path on the origin the browser used, never to a host taken from the request
 	public static void sendLocalRedirect(HttpServletResponse response, String pathAndQuery, int status)
 			throws IOException {
-		String target = WebUtility.responseHeaderValue(pathAndQuery);
+		// browsers drop tabs and other control characters from urls, so strip all of them first
+		String target = pathAndQuery == null ? "" : pathAndQuery.replaceAll("[\\x00-\\x1f\\x7f]", "");
 		// a leading // or /\ would be a network-path reference to another host
 		target = "/" + target.replaceFirst("^[/\\\\]+", "");
-		if (status == HttpServletResponse.SC_MOVED_TEMPORARILY) {
-			response.sendRedirect(target);
-		} else {
-			response.setStatus(status);
-			response.setHeader("Location", target);
-		}
+		// set Location directly so the container never makes it absolute from the request host
+		response.setStatus(status);
+		response.setHeader("Location", target);
 	}
 
 	private static boolean isAllowed(HttpServletRequest request, String target) {
@@ -93,15 +91,14 @@ public final class RedirectUtility {
 		if (!(scheme.equals("http") || scheme.equals("https")) || uri.getHost() == null || uri.getRawUserInfo() != null) {
 			return false;
 		}
-		// same host, proxies commonly change the scheme and port
-		if (request != null && uri.getHost().equalsIgnoreCase(request.getServerName())) {
+		// same origin as this request, or the configured public application url (proxies)
+		if (request != null && request.getServerName() != null && origin(uri).equals(requestOrigin(request))) {
 			return true;
 		}
-		SocialPropertiesUtil social = SocialPropertiesUtil.getInstance();
-		if (matchesOrigin(uri, social.getProperty("redirect"))) {
+		if (matchesOrigin(uri, applicationUrl()) || matchesOrigin(uri, socialProperty("redirect"))) {
 			return true;
 		}
-		String extra = social.getProperty("redirect_allowed_origins");
+		String extra = socialProperty("redirect_allowed_origins");
 		if (extra != null) {
 			for (String origin : extra.split(",")) {
 				if (matchesOrigin(uri, origin)) {
@@ -120,6 +117,29 @@ public final class RedirectUtility {
 			}
 		}
 		return false;
+	}
+
+	// social.properties may not be loaded (minimal installs, tests); treat that as not configured
+	private static String socialProperty(String key) {
+		try {
+			return SocialPropertiesUtil.getInstance().getProperty(key);
+		} catch (RuntimeException e) {
+			return null;
+		}
+	}
+
+	private static String applicationUrl() {
+		try {
+			return Utility.getApplicationUrl();
+		} catch (RuntimeException e) {
+			return null;
+		}
+	}
+
+	private static String requestOrigin(HttpServletRequest request) {
+		String scheme = request.getScheme() == null ? "" : request.getScheme().toLowerCase(Locale.ROOT);
+		int port = request.getServerPort() > 0 ? request.getServerPort() : ("https".equals(scheme) ? 443 : 80);
+		return scheme + "://" + request.getServerName().toLowerCase(Locale.ROOT) + ":" + port;
 	}
 
 	private static boolean matchesOrigin(URI uri, String configured) {

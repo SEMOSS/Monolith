@@ -45,7 +45,6 @@ import prerna.util.Constants;
 import prerna.util.Utility;
 import prerna.web.conf.util.SSOUtil;
 import prerna.web.services.util.RedirectUtility;
-import prerna.web.services.util.WebUtility;
 
 /**
  * Handles the IdP-initiated login entry point.
@@ -99,13 +98,7 @@ public class IdpSSOServlet extends HttpServlet {
 		String redirect = request.getParameter("redirect");
 		boolean hasRedirect = (redirect != null && !(redirect = redirect.trim()).isEmpty());
 		if (hasRedirect) {
-			try {
-				WebUtility.checkIfValidDomain(redirect);
-			} catch (IllegalArgumentException | IllegalStateException e) {
-				response.sendError(HttpServletResponse.SC_FORBIDDEN, " Provided redirect is unauthorized");
-				return;
-			}
-			// only return to this host, the configured UI or an allow-listed origin
+			// one policy: relative, this origin, the configured UI, redirect_allowed_origins or WHITE_LIST_DOMAINS
 			if (RedirectUtility.allowedReturnUrl(request, redirect) == null) {
 				response.sendError(HttpServletResponse.SC_FORBIDDEN, " Provided redirect is unauthorized");
 				return;
