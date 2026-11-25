@@ -842,6 +842,12 @@ public class FileUploader extends AbstractUploader {
 				// Check for viruses on upload
 				checkForViruses(fi);
 
+				// normalize the name first so the uniqueness check, the write and the reply use the same name
+				String baseName = name == null ? null : FilenameUtils.getName(name);
+				name = baseName == null ? null : WebUtility.normalizePath(baseName);
+				if (!WebUtility.isSafePathSegment(name)) {
+					throw new IllegalArgumentException("Invalid upload file name");
+				}
 				String fileLocation = Utility.getUniqueFilePath(filePath, name);
 				File file = containedUploadFile(filePath, fileLocation);
 
@@ -849,7 +855,7 @@ public class FileUploader extends AbstractUploader {
 				// we will do what a normal OS system does
 				writeFile(fi, file);
 
-				String savedName = FilenameUtils.getName(fileLocation);
+				String savedName = file.getName();
 				Map<String, String> fileMap = new HashMap<String, String>();
 				fileMap.put("fileName", savedName);
 				if (fePath.endsWith(DIR_SEPARATOR)) {
@@ -872,7 +878,7 @@ public class FileUploader extends AbstractUploader {
 				writeFile(fi, file);
 				classLogger.info("Saved Pasted Data To {}", Utility.cleanLogString(file.toString()));
 
-				String savedName = FilenameUtils.getName(fileLocation);
+				String savedName = file.getName();
 				Map<String, String> fileMap = new HashMap<String, String>();
 				fileMap.put("fileName", savedName);
 				if (fePath.endsWith(DIR_SEPARATOR)) {
@@ -889,8 +895,8 @@ public class FileUploader extends AbstractUploader {
 		return retData;
 	}
 
-	// the upload target must be a direct child of the upload folder; normalize first so the
-	// later write (which normalizes again) lands on exactly the path that was checked
+	// the upload target must be a direct child of the upload folder, and the binary write
+	// (which normalizes the path again) must land on exactly the path that was checked
 	private static File containedUploadFile(String folder, String fileLocation) throws IOException {
 		java.nio.file.Path root = Paths.get(WebUtility.normalizePath(folder));
 		Files.createDirectories(root);
@@ -900,7 +906,8 @@ public class FileUploader extends AbstractUploader {
 			throw new IllegalArgumentException("Invalid upload file name");
 		}
 		java.nio.file.Path target = WebUtility.resolveWithin(root, name);
-		if (!target.toString().equals(WebUtility.normalizePath(target.toString()))) {
+		// compare as paths so Windows separators do not matter
+		if (!Paths.get(WebUtility.normalizePath(target.toString())).equals(target)) {
 			throw new IllegalArgumentException("Invalid upload file name");
 		}
 		return target.toFile();
