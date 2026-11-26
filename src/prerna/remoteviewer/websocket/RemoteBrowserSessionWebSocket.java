@@ -106,15 +106,21 @@ public class RemoteBrowserSessionWebSocket {
 		// session's event loop (started by RemoteBrowserSessionManager at creation
 		// time) is already running and reads these two volatile fields each tick - it
 		// will begin streaming frames as soon as they are set.
+		// The loop thread streams frames while request threads send acks, and
+		// RemoteEndpoint.Basic is not thread-safe, so writes must be serialized.
+		Object sendLock = new Object();
 		session.setRemoteBrowserFrameSender(json -> {
-			try {
-				wsSession.getBasicRemote().sendText(json);
-			} catch (IOException e) {
-				classLogger.debug("WS send failed: {}", e.getMessage());
+			synchronized (sendLock) {
+				try {
+					wsSession.getBasicRemote().sendText(json);
+				} catch (IOException | IllegalStateException e) {
+					classLogger.debug("WS send failed: {}", e.getMessage());
+				}
 			}
 		});
 		session.setWsConnected(true);
 		RemoteBrowserSessionManager.getInstance().sendTabState(session);
+		RemoteBrowserSessionManager.getInstance().sendDownloadState(session);
 
 		classLogger.info("WebSocket opened for browser session {} by user {}", sessionId,
 				user.getPrimaryLoginToken().getId());
